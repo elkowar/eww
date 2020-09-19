@@ -1,10 +1,13 @@
 use anyhow::*;
 use hocon::*;
 use hocon_ext::HoconExt;
-use std::collections::HashMap;
+use std::{collections::HashMap, convert::TryFrom};
 use try_match::try_match;
 
 pub mod hocon_ext;
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct AttrValue(pub String);
 
 #[derive(Debug, PartialEq)]
 pub struct WidgetDefinition {
@@ -22,8 +25,7 @@ pub enum ElementUse {
 pub struct WidgetUse {
     pub name: String,
     pub children: Vec<ElementUse>,
-    pub num_attrs: HashMap<String, f64>,
-    pub str_attrs: HashMap<String, String>,
+    pub attrs: HashMap<String, AttrValue>,
 }
 
 impl WidgetUse {
@@ -31,8 +33,7 @@ impl WidgetUse {
         WidgetUse {
             name,
             children,
-            num_attrs: HashMap::new(),
-            str_attrs: HashMap::new(),
+            attrs: HashMap::new(),
         }
     }
 }
@@ -85,25 +86,18 @@ pub fn parse_widget_use(data: HashMap<String, Hocon>) -> Result<WidgetUse> {
         )),
     }?;
 
-    let str_attrs: HashMap<String, String> = widget_config
+    let attrs: HashMap<String, AttrValue> = widget_config
         .into_iter()
         .filter_map(|(key, value)| {
             Some((
                 key.clone(),
-                try_match!(Hocon::String(x) = value).ok()?.clone(),
-            ))
-        })
-        .collect();
-
-    let num_attrs: HashMap<String, f64> = widget_config
-        .iter()
-        .filter_map(|(key, value)| {
-            Some((
-                key.to_string(),
-                try_match!(Hocon::Integer(x) = value)
-                    .map(|&x| x as f64)
-                    .or_else(|_| try_match!(Hocon::Real(x) = value).map(|&x| x as f64))
-                    .ok()?,
+                match value {
+                    Hocon::String(s) => AttrValue(s.to_string()),
+                    Hocon::Integer(n) => AttrValue(format!("{}", n)),
+                    Hocon::Real(n) => AttrValue(format!("{}", n)),
+                    Hocon::Boolean(b) => AttrValue(format!("{}", b)),
+                    _ => return None,
+                },
             ))
         })
         .collect();
@@ -111,8 +105,7 @@ pub fn parse_widget_use(data: HashMap<String, Hocon>) -> Result<WidgetUse> {
     Ok(WidgetUse {
         name: widget_name.to_string(),
         children,
-        str_attrs,
-        num_attrs,
+        attrs,
     })
 }
 
@@ -150,6 +143,7 @@ mod test {
             name: "example_widget".to_string(),
             structure: ElementUse::Widget(WidgetUse {
                 name: "layout_horizontal".to_string(),
+                attrs: HashMap::new(),
                 children: vec![
                     ElementUse::Widget(WidgetUse::new(
                         "text".to_string(),

@@ -11,17 +11,14 @@ gtk = { version = "0.9", features = [ "v3_16" ] }
 gdk = { version = "", features = ["v3_16"] }
 gio = { version = "", features = ["v2_44"] }
 
+regex = "1"
 
-hocon = { version = "0.3", features = [ "serde-support" ]}
+
+hocon = { version = "0.3", default-features = false, features = [ "serde-support" ]}
 
 try_match = "0.2.2"
 
 anyhow = "1.0"
 #thiserror = "1.0"
 
-
-[target.x86_64-unknown-linux-gnu]
-rustflags = [
-    "-C", "link-arg=-fuse-ld=lld",
-]
 
