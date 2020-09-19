@@ -1,0 +1,27 @@
+[package]
+name = "eww"
+version = "0.1.0"
+authors = ["elkowar <5300871+elkowar@users.noreply.github.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+gtk = { version = "0.9", features = [ "v3_16" ] }
+gdk = { version = "", features = ["v3_16"] }
+gio = { version = "", features = ["v2_44"] }
+
+
+hocon = { version = "0.3", features = [ "serde-support" ]}
+
+try_match = "0.2.2"
+
+anyhow = "1.0"
+#thiserror = "1.0"
+
+
+[target.x86_64-unknown-linux-gnu]
+rustflags = [
+    "-C", "link-arg=-fuse-ld=lld",
+]
+
