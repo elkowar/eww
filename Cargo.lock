@@ -197,6 +197,7 @@ dependencies = [
  "anyhow",
  "gdk",
  "gio",
+ "glib",
  "gtk",
  "hocon",
  "regex",
