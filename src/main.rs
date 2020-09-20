@@ -18,6 +18,7 @@ use config::element;
 use eww_state::*;
 use value::{AttrValue, PrimitiveValue};
 
+#[macro_export]
 macro_rules! build {
     ($var_name:ident = $value:expr ; $code:block) => {{
         let mut $var_name = $value;
@@ -30,7 +31,7 @@ const EXAMPLE_CONFIG: &str = r#"{
     widgets: {
         some_widget: {
             structure: {
-                layout_horizontal: {
+                layout: {
                     class: "container",
                     children: [
                         "hi",
@@ -116,7 +117,7 @@ fn try_main() -> Result<()> {
         let empty_local_state = HashMap::new();
 
         app_window.add(
-            &element_to_gtk_thing(
+            &widgets::element_to_gtk_thing(
                 &eww_config.get_widgets(),
                 &mut eww_state,
                 &empty_local_state,
@@ -162,98 +163,4 @@ fn event_loop(sender: glib::Sender<MuhhMsg>) {
             ))
             .unwrap();
     }
-}
-
-fn element_to_gtk_thing(
-    widget_definitions: &HashMap<String, element::WidgetDefinition>,
-    eww_state: &mut EwwState,
-    local_environment: &HashMap<String, AttrValue>,
-    element: &element::ElementUse,
-) -> Result<gtk::Widget> {
-    match element {
-        element::ElementUse::Text(text) => Ok(gtk::Label::new(Some(&text)).upcast()),
-        element::ElementUse::Widget(widget) => {
-            widget_use_to_gtk_thing(widget_definitions, eww_state, local_environment, widget)
-        }
-    }
-}
-
-fn widget_use_to_gtk_thing(
-    widget_definitions: &HashMap<String, element::WidgetDefinition>,
-    eww_state: &mut EwwState,
-    local_environment: &HashMap<String, AttrValue>,
-    widget: &element::WidgetUse,
-) -> Result<gtk::Widget> {
-    let gtk_widget =
-        widget_use_to_gtk_container(widget_definitions, eww_state, &local_environment, &widget)
-            .or(widget_use_to_gtk_widget(
-                widget_definitions,
-                eww_state,
-                &local_environment,
-                &widget,
-            ))?;
-    if let Some(css_class) = widget
-        .attrs
-        .get("class")
-        .and_then(|x| AttrValue::as_string(x).ok())
-    {
-        gtk_widget.get_style_context().add_class(css_class);
-    }
-
-    Ok(gtk_widget)
-}
-
-fn widget_use_to_gtk_container(
-    widget_definitions: &HashMap<String, element::WidgetDefinition>,
-    eww_state: &mut EwwState,
-    local_environment: &HashMap<String, AttrValue>,
-    widget: &element::WidgetUse,
-) -> Result<gtk::Widget> {
-    let container_widget: gtk::Container = match widget.name.as_str() {
-        "layout_horizontal" => gtk::Box::new(gtk::Orientation::Horizontal, 0).upcast(),
-        "button" => gtk::Button::new().upcast(),
-        _ => return Err(anyhow!("{} is not a known container widget", widget.name)),
-    };
-
-    for child in &widget.children {
-        container_widget.add(&element_to_gtk_thing(
-            widget_definitions,
-            eww_state,
-            local_environment,
-            child,
-        )?);
-    }
-    Ok(container_widget.upcast())
-}
-
-fn widget_use_to_gtk_widget(
-    widget_definitions: &HashMap<String, element::WidgetDefinition>,
-    eww_state: &mut EwwState,
-    local_env: &HashMap<String, AttrValue>,
-    widget: &element::WidgetUse,
-) -> Result<gtk::Widget> {
-    let builder_args = widgets::BuilderArgs {
-        eww_state,
-        local_env: &local_env,
-        widget: &widget,
-    };
-    let new_widget: gtk::Widget = match widget.name.as_str() {
-        "slider" => widgets::build_gtk_scale(builder_args)?.upcast(),
-
-        name if widget_definitions.contains_key(name) => {
-            let def = &widget_definitions[name];
-            let local_environment = build!(env = local_env.clone(); {
-                env.extend(widget.attrs.clone());
-            });
-
-            element_to_gtk_thing(
-                widget_definitions,
-                eww_state,
-                &local_environment,
-                &def.structure,
-            )?
-        }
-        _ => return Err(anyhow!("unknown widget {}", &widget.name)),
-    };
-    Ok(new_widget)
 }

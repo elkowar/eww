@@ -1,7 +1,10 @@
 use anyhow::*;
 use derive_more::From;
+use derive_more::*;
 use hocon::Hocon;
 use try_match::try_match;
+
+// TODO implement TryFrom for the types properly
 
 #[derive(Clone, Debug, PartialEq, From)]
 pub enum PrimitiveValue {

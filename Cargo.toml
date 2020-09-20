@@ -23,7 +23,9 @@ anyhow = "1.0"
 #thiserror = "1.0"
 
 
-pretty_assertions = "0.6.1"
-
 derive_more = "0.99"
 maplit = "1"
+
+[dev-dependencies]
+pretty_assertions = "0.6.1"
+
