@@ -14,7 +14,8 @@ pub mod widgets;
 const CMD_STRING_PLACEHODLER: &str = "{}";
 
 fn main() -> Result<()> {
-    let config = fs::read_to_string(format!("{}/.config/eww/config.hocon", std::env::var("HOME")?))?;
+    let dir: String =  std::env::var("XDG_CONFIG_HOME").unwrap_or_else(|_| format!("{}/.config", std::env::var("HOME").unwrap()));
+    let config = fs::read_to_string(format!("{}/eww/config.hocon", dir))?;
 
     let eww_config: config::EwwConfig = config::EwwConfig::from_hocon(&config::parse_hocon(&config)?)?;
 
