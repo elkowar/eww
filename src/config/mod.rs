@@ -1,8 +1,8 @@
 use anyhow::*;
-use glib::{types, value};
 use hocon::*;
 use hocon_ext::HoconExt;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use try_match::try_match;
 
 pub mod hocon_ext;
@@ -11,6 +11,7 @@ pub mod hocon_ext;
 pub struct EwwConfig {
     widgets: HashMap<String, WidgetDefinition>,
     windows: HashMap<String, EwwWindowDefinition>,
+    default_vars: HashMap<String, AttrValue>,
 }
 
 impl EwwConfig {
@@ -36,14 +37,25 @@ impl EwwConfig {
                 .iter()
                 .map(|(name, def)| Ok((name.clone(), EwwWindowDefinition::from_hocon(def)?)))
                 .collect::<Result<HashMap<String, EwwWindowDefinition>>>()?,
+            default_vars: data
+                .get("default_vars")
+                .unwrap_or(&Hocon::Hash(HashMap::new()))
+                .as_hash()
+                .context("default_vars needs to be a map")?
+                .iter()
+                .map(|(name, def)| Ok((name.clone(), AttrValue::try_from(def)?)))
+                .collect::<Result<HashMap<_, _>>>()?,
         })
     }
 
-    pub fn widgets(&self) -> &HashMap<String, WidgetDefinition> {
+    pub fn get_widgets(&self) -> &HashMap<String, WidgetDefinition> {
         &self.widgets
     }
-    pub fn windows(&self) -> &HashMap<String, EwwWindowDefinition> {
+    pub fn get_windows(&self) -> &HashMap<String, EwwWindowDefinition> {
         &self.windows
+    }
+    pub fn get_default_vars(&self) -> &HashMap<String, AttrValue> {
+        &self.default_vars
     }
 }
 
@@ -103,6 +115,22 @@ impl AttrValue {
     }
     pub fn as_var_ref(&self) -> Option<&String> {
         try_match!(AttrValue::VarRef(x) = self).ok()
+    }
+}
+
+impl std::convert::TryFrom<&Hocon> for AttrValue {
+    type Error = anyhow::Error;
+    fn try_from(value: &Hocon) -> Result<Self> {
+        Ok(match value {
+            Hocon::String(s) if s.starts_with("$$") => {
+                AttrValue::VarRef(s.trim_start_matches("$$").to_string())
+            }
+            Hocon::String(s) => AttrValue::String(s.to_string()),
+            Hocon::Integer(n) => AttrValue::Number(*n as f64),
+            Hocon::Real(n) => AttrValue::Number(*n as f64),
+            Hocon::Boolean(b) => AttrValue::Boolean(*b),
+            _ => return Err(anyhow!("cannot convert {} to config::AttrValue")),
+        })
     }
 }
 
@@ -193,19 +221,7 @@ pub fn parse_widget_use(data: HashMap<String, Hocon>) -> Result<WidgetUse> {
 
     let attrs: HashMap<String, AttrValue> = widget_config
         .into_iter()
-        .filter_map(|(key, value)| {
-            Some((
-                key.to_lowercase(),
-                match value {
-                    Hocon::String(s) if s.starts_with("$$") => AttrValue::String(s.to_string()),
-                    Hocon::String(s) => AttrValue::String(s.to_string()),
-                    Hocon::Integer(n) => AttrValue::Number(*n as f64),
-                    Hocon::Real(n) => AttrValue::Number(*n as f64),
-                    Hocon::Boolean(b) => AttrValue::Boolean(*b),
-                    _ => return None,
-                },
-            ))
-        })
+        .filter_map(|(key, value)| Some((key.to_lowercase(), AttrValue::try_from(value).ok()?)))
         .collect();
 
     Ok(WidgetUse {

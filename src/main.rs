@@ -23,13 +23,17 @@ const EXAMPLE_CONFIG: &str = r#"{
                     children: [
                         "hi",
                         { button: { children: "click me you" } }
-                        { slider: { value: 12, min: 0, max: 50, onchange: "notify-send 'changed' {}" } }
+                        { slider: { value: "$$some_value", min: 0, max: 100, onchange: "notify-send 'changed' {}" } }
+                        { slider: { value: "$$some_value", min: 0, max: 100, onchange: "notify-send 'changed' {}" } }
                         "hu"
                     ]
                 }
             }
         }
     },
+    default_vars: {
+        ree: 12
+    }
     windows: {
         main_window: {
             pos.x: 200
@@ -37,20 +41,35 @@ const EXAMPLE_CONFIG: &str = r#"{
             size.x: 500
             size.y: 50
             widget: {
-                some_widget: {}
+                some_widget: {
+                    some_value: "$$ree"
+                }
             }
         }
     },
-
 }"#;
+
+macro_rules! build {
+    ($var_name:ident = $value:expr ; $code:block) => {{
+        let mut $var_name = $value;
+        $code;
+        $var_name
+    }};
+}
+
+#[derive(Debug)]
+enum MuhhMsg {
+    UpdateValue(String, config::AttrValue),
+}
 
 fn main() -> Result<()> {
     let eww_config = config::EwwConfig::from_hocon(&config::parse_hocon(EXAMPLE_CONFIG)?)?;
+    dbg!(&eww_config);
 
     let application = Application::new(Some("de.elkowar.eww"), gio::ApplicationFlags::FLAGS_NONE)
-        .expect("failed to initialize GTK application");
+        .expect("failed to initialize GTK application ");
 
-    let window_def = eww_config.windows()["main_window"].clone();
+    let window_def = eww_config.get_windows()["main_window"].clone();
 
     application.connect_activate(move |app| {
         let app_window = ApplicationWindow::new(app);
@@ -76,17 +95,33 @@ fn main() -> Result<()> {
 
         app_window.fullscreen();
 
-        let widget_state = WidgetState(HashMap::new());
+        let mut eww_state = EwwState::from_default_vars(eww_config.get_default_vars().clone());
+        let empty_local_state = HashMap::new();
 
         app_window.add(
-            &element_to_gtk_widget(&eww_config.widgets(), &widget_state, &window_def.widget)
-                .unwrap(),
+            &element_to_gtk_thing(
+                &eww_config.get_widgets(),
+                &mut eww_state,
+                &empty_local_state,
+                &window_def.widget,
+            )
+            .unwrap(),
         );
 
         app_window.show_all();
 
-        let window = app_window.get_window().unwrap();
+        let (tx, rx) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
+        std::thread::spawn(move || event_loop(tx));
 
+        rx.attach(None, move |msg| {
+            match msg {
+                MuhhMsg::UpdateValue(key, value) => eww_state.update_value(key, value),
+            }
+
+            glib::Continue(true)
+        });
+
+        let window = app_window.get_window().unwrap();
         window.set_override_redirect(true);
         window.move_(window_def.position.0, window_def.position.1);
         window.show();
@@ -94,37 +129,67 @@ fn main() -> Result<()> {
     });
 
     application.run(&[]);
+
     Ok(())
 }
 
-fn element_to_gtk_widget(
+fn event_loop(sender: glib::Sender<MuhhMsg>) {
+    let mut x = 0;
+    loop {
+        x += 1;
+        std::thread::sleep_ms(1000);
+        sender
+            .send(MuhhMsg::UpdateValue(
+                "ree".to_string(),
+                config::AttrValue::Number(x as f64 * 10.0),
+            ))
+            .unwrap();
+    }
+}
+
+fn element_to_gtk_thing(
     widget_definitions: &HashMap<String, config::WidgetDefinition>,
-    widget_state: &WidgetState,
+    eww_state: &mut EwwState,
+    local_environment: &HashMap<String, config::AttrValue>,
     element: &config::ElementUse,
 ) -> Option<gtk::Widget> {
     match element {
         config::ElementUse::Text(text) => Some(gtk::Label::new(Some(&text)).upcast()),
         config::ElementUse::Widget(widget) => {
-            let gtk_widget =
-                widget_use_to_gtk_container(widget_definitions, widget_state, &widget).or(
-                    widget_use_to_gtk_widget(widget_definitions, widget_state, &widget),
-                )?;
-            if let Some(css_class) = widget
-                .attrs
-                .get("class")
-                .and_then(config::AttrValue::as_string)
-            {
-                gtk_widget.get_style_context().add_class(css_class);
-            }
-
-            Some(gtk_widget)
+            widget_use_to_gtk_thing(widget_definitions, eww_state, local_environment, widget)
         }
     }
 }
 
+fn widget_use_to_gtk_thing(
+    widget_definitions: &HashMap<String, config::WidgetDefinition>,
+    eww_state: &mut EwwState,
+    local_environment: &HashMap<String, config::AttrValue>,
+    widget: &config::WidgetUse,
+) -> Option<gtk::Widget> {
+    let gtk_widget =
+        widget_use_to_gtk_container(widget_definitions, eww_state, &local_environment, &widget)
+            .or(widget_use_to_gtk_widget(
+                widget_definitions,
+                eww_state,
+                &local_environment,
+                &widget,
+            ))?;
+    if let Some(css_class) = widget
+        .attrs
+        .get("class")
+        .and_then(config::AttrValue::as_string)
+    {
+        gtk_widget.get_style_context().add_class(css_class);
+    }
+
+    Some(gtk_widget)
+}
+
 fn widget_use_to_gtk_container(
     widget_definitions: &HashMap<String, config::WidgetDefinition>,
-    widget_state: &WidgetState,
+    eww_state: &mut EwwState,
+    local_environment: &HashMap<String, config::AttrValue>,
     widget: &config::WidgetUse,
 ) -> Option<gtk::Widget> {
     let container_widget: gtk::Container = match widget.name.as_str() {
@@ -134,9 +199,10 @@ fn widget_use_to_gtk_container(
     };
 
     for child in &widget.children {
-        container_widget.add(&element_to_gtk_widget(
+        container_widget.add(&element_to_gtk_thing(
             widget_definitions,
-            widget_state,
+            eww_state,
+            local_environment,
             child,
         )?);
     }
@@ -145,67 +211,135 @@ fn widget_use_to_gtk_container(
 
 fn widget_use_to_gtk_widget(
     widget_definitions: &HashMap<String, config::WidgetDefinition>,
-    state: &WidgetState,
+    eww_state: &mut EwwState,
+    local_env: &HashMap<String, config::AttrValue>,
     widget: &config::WidgetUse,
 ) -> Option<gtk::Widget> {
     let new_widget: gtk::Widget = match widget.name.as_str() {
         "slider" => {
-            let slider_value: f64 = state.resolve(widget.attrs.get("value")?)?.as_f64()?;
-            let slider_min: Option<f64> =
-                try { state.resolve(widget.attrs.get("min")?)?.as_f64()? };
-            let slider_min = slider_min.unwrap_or(0f64);
-            let slider_max: Option<f64> =
-                try { state.resolve(widget.attrs.get("max")?)?.as_f64()? };
-            let slider_max = slider_max.unwrap_or(100f64);
-
-            let on_change: Option<String> = try {
-                state
-                    .resolve(widget.attrs.get("onchange")?)?
-                    .as_string()?
-                    .clone()
-            };
-
             let scale = gtk::Scale::new(
                 gtk::Orientation::Horizontal,
-                Some(&gtk::Adjustment::new(
-                    slider_value,
-                    slider_min,
-                    slider_max,
-                    1.0,
-                    1.0,
-                    1.0,
-                )),
+                Some(&gtk::Adjustment::new(0.0, 0.0, 100.0, 1.0, 1.0, 1.0)),
             );
-            scale.set_property("draw-value", &false.to_value()).ok()?;
+            eww_state.resolve_f64(local_env, widget.attrs.get("value")?, {
+                let scale = scale.clone();
+                move |value| scale.set_value(value)
+            });
+            eww_state.resolve_f64(local_env, widget.attrs.get("min")?, {
+                let scale = scale.clone();
+                move |value| scale.get_adjustment().set_lower(value)
+            });
+            eww_state.resolve_f64(local_env, widget.attrs.get("max")?, {
+                let scale = scale.clone();
+                move |value| scale.get_adjustment().set_upper(value)
+            });
+            eww_state.resolve_string(local_env, widget.attrs.get("onchange")?, {
+                let scale = scale.clone();
+                move |on_change| {
+                    scale.connect_value_changed(move |scale| {
+                        run_command(&on_change, scale.get_value());
+                    });
+                }
+            });
 
-            if let Some(on_change) = on_change {
-                scale.connect_value_changed(move |scale| {
-                    run_command(&on_change, scale.get_value());
-                });
-            }
-
+            //scale.set_property("draw-value", &false.to_value()).ok()?;
             scale.upcast()
         }
 
         name if widget_definitions.contains_key(name) => {
             let def = &widget_definitions[name];
-            element_to_gtk_widget(widget_definitions, state, &def.structure)?
+            let local_environment = build!(env = local_env.clone(); {
+                env.extend(widget.attrs.clone());
+            });
+
+            element_to_gtk_thing(
+                widget_definitions,
+                eww_state,
+                &local_environment,
+                &def.structure,
+            )?
         }
         _ => return None,
     };
     Some(new_widget)
 }
 
-struct WidgetState(HashMap<String, config::AttrValue>);
+#[derive(Default)]
+struct EwwState {
+    on_change_handlers: HashMap<String, Vec<Box<dyn Fn(config::AttrValue) + 'static>>>,
+    state: HashMap<String, config::AttrValue>,
+}
 
-impl WidgetState {
-    pub fn resolve(&self, value: &config::AttrValue) -> Option<config::AttrValue> {
-        if let config::AttrValue::VarRef(name) = value {
-            // TODO REEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-            self.0.get(name).cloned()
-        } else {
-            Some(value.clone())
+impl EwwState {
+    pub fn from_default_vars(defaults: HashMap<String, config::AttrValue>) -> Self {
+        EwwState {
+            state: defaults,
+            ..EwwState::default()
         }
+    }
+    pub fn update_value(&mut self, key: String, value: config::AttrValue) {
+        if let Some(handlers) = self.on_change_handlers.get(&key) {
+            for on_change in handlers {
+                on_change(value.clone());
+            }
+        }
+        self.state.insert(key, value);
+    }
+
+    pub fn resolve<F: Fn(config::AttrValue) + 'static + Clone>(
+        &mut self,
+        local_env: &HashMap<String, config::AttrValue>,
+        value: &config::AttrValue,
+        set_value: F,
+    ) -> bool {
+        dbg!("resolve: ", value);
+        if let config::AttrValue::VarRef(name) = value {
+            if let Some(value) = self.state.get(name).cloned() {
+                self.on_change_handlers
+                    .entry(name.to_string())
+                    .or_insert_with(Vec::new)
+                    .push(Box::new(set_value.clone()));
+                self.resolve(local_env, &value, set_value)
+            } else if let Some(value) = local_env.get(name).cloned() {
+                self.resolve(local_env, &value, set_value)
+            } else {
+                false
+            }
+        } else {
+            set_value(value.clone());
+            true
+        }
+    }
+
+    pub fn resolve_f64<F: Fn(f64) + 'static + Clone>(
+        &mut self,
+        local_env: &HashMap<String, config::AttrValue>,
+        value: &config::AttrValue,
+        set_value: F,
+    ) -> bool {
+        self.resolve(local_env, value, move |x| {
+            x.as_f64().map(|v| set_value(v));
+        })
+    }
+    pub fn resolve_bool<F: Fn(bool) + 'static + Clone>(
+        &mut self,
+        local_env: &HashMap<String, config::AttrValue>,
+        value: &config::AttrValue,
+        set_value: F,
+    ) -> bool {
+        self.resolve(local_env, value, move |x| {
+            x.as_bool().map(|v| set_value(v));
+        })
+    }
+    pub fn resolve_string<F: Fn(String) + 'static + Clone>(
+        &mut self,
+        local_env: &HashMap<String, config::AttrValue>,
+        value: &config::AttrValue,
+        set_value: F,
+    ) -> bool {
+        self.resolve(local_env, value, move |x| {
+            x.as_string().map(|s| set_value(s.clone()));
+        })
     }
 }
 
@@ -215,11 +349,3 @@ fn run_command<T: std::fmt::Display>(cmd: &str, arg: T) {
         eprintln!("{}", e);
     }
 }
-
-// macro_rules! build {
-//     ($var_name:ident = $value:expr ; $code:block) => {{
-//         let mut $var_name = $value;
-//         $code;
-//         $var_name
-//     }};
-// }
