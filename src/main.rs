@@ -10,7 +10,12 @@ use gtk::{Application, ApplicationWindow};
 use std::{collections::HashMap, process::Command};
 
 pub mod config;
+pub mod value;
 pub mod widgets;
+
+use config::element;
+use config::AttrValue;
+use value::PrimitiveValue;
 
 const CMD_STRING_PLACEHODLER: &str = "{}";
 
@@ -29,6 +34,13 @@ const EXAMPLE_CONFIG: &str = r#"{
                     ]
                 }
             }
+        },
+        test: {
+            structure: {
+                some_widget: {
+                    some_value: "$$ooph"
+                }
+            }
         }
     },
     default_vars: {
@@ -41,8 +53,8 @@ const EXAMPLE_CONFIG: &str = r#"{
             size.x: 500
             size.y: 50
             widget: {
-                some_widget: {
-                    some_value: "$$ree"
+                test: {
+                    ooph: "$$ree"
                 }
             }
         }
@@ -59,10 +71,16 @@ macro_rules! build {
 
 #[derive(Debug)]
 enum MuhhMsg {
-    UpdateValue(String, config::AttrValue),
+    UpdateValue(String, PrimitiveValue),
 }
 
-fn main() -> Result<()> {
+fn main() {
+    if let Err(e) = try_main() {
+        eprintln!("{:?}", e);
+    }
+}
+
+fn try_main() -> Result<()> {
     let eww_config = config::EwwConfig::from_hocon(&config::parse_hocon(EXAMPLE_CONFIG)?)?;
     dbg!(&eww_config);
 
@@ -137,35 +155,35 @@ fn event_loop(sender: glib::Sender<MuhhMsg>) {
     let mut x = 0;
     loop {
         x += 1;
-        std::thread::sleep_ms(1000);
+        std::thread::sleep(std::time::Duration::from_millis(1000));
         sender
             .send(MuhhMsg::UpdateValue(
                 "ree".to_string(),
-                config::AttrValue::Number(x as f64 * 10.0),
+                PrimitiveValue::Number(x as f64 * 10.0),
             ))
             .unwrap();
     }
 }
 
 fn element_to_gtk_thing(
-    widget_definitions: &HashMap<String, config::WidgetDefinition>,
+    widget_definitions: &HashMap<String, element::WidgetDefinition>,
     eww_state: &mut EwwState,
-    local_environment: &HashMap<String, config::AttrValue>,
-    element: &config::ElementUse,
+    local_environment: &HashMap<String, AttrValue>,
+    element: &element::ElementUse,
 ) -> Option<gtk::Widget> {
     match element {
-        config::ElementUse::Text(text) => Some(gtk::Label::new(Some(&text)).upcast()),
-        config::ElementUse::Widget(widget) => {
+        element::ElementUse::Text(text) => Some(gtk::Label::new(Some(&text)).upcast()),
+        element::ElementUse::Widget(widget) => {
             widget_use_to_gtk_thing(widget_definitions, eww_state, local_environment, widget)
         }
     }
 }
 
 fn widget_use_to_gtk_thing(
-    widget_definitions: &HashMap<String, config::WidgetDefinition>,
+    widget_definitions: &HashMap<String, element::WidgetDefinition>,
     eww_state: &mut EwwState,
-    local_environment: &HashMap<String, config::AttrValue>,
-    widget: &config::WidgetUse,
+    local_environment: &HashMap<String, AttrValue>,
+    widget: &element::WidgetUse,
 ) -> Option<gtk::Widget> {
     let gtk_widget =
         widget_use_to_gtk_container(widget_definitions, eww_state, &local_environment, &widget)
@@ -178,7 +196,7 @@ fn widget_use_to_gtk_thing(
     if let Some(css_class) = widget
         .attrs
         .get("class")
-        .and_then(config::AttrValue::as_string)
+        .and_then(|x| AttrValue::as_string(x).ok())
     {
         gtk_widget.get_style_context().add_class(css_class);
     }
@@ -187,10 +205,10 @@ fn widget_use_to_gtk_thing(
 }
 
 fn widget_use_to_gtk_container(
-    widget_definitions: &HashMap<String, config::WidgetDefinition>,
+    widget_definitions: &HashMap<String, element::WidgetDefinition>,
     eww_state: &mut EwwState,
-    local_environment: &HashMap<String, config::AttrValue>,
-    widget: &config::WidgetUse,
+    local_environment: &HashMap<String, AttrValue>,
+    widget: &element::WidgetUse,
 ) -> Option<gtk::Widget> {
     let container_widget: gtk::Container = match widget.name.as_str() {
         "layout_horizontal" => gtk::Box::new(gtk::Orientation::Horizontal, 0).upcast(),
@@ -210,10 +228,10 @@ fn widget_use_to_gtk_container(
 }
 
 fn widget_use_to_gtk_widget(
-    widget_definitions: &HashMap<String, config::WidgetDefinition>,
+    widget_definitions: &HashMap<String, element::WidgetDefinition>,
     eww_state: &mut EwwState,
-    local_env: &HashMap<String, config::AttrValue>,
-    widget: &config::WidgetUse,
+    local_env: &HashMap<String, AttrValue>,
+    widget: &element::WidgetUse,
 ) -> Option<gtk::Widget> {
     let new_widget: gtk::Widget = match widget.name.as_str() {
         "slider" => {
@@ -266,18 +284,18 @@ fn widget_use_to_gtk_widget(
 
 #[derive(Default)]
 struct EwwState {
-    on_change_handlers: HashMap<String, Vec<Box<dyn Fn(config::AttrValue) + 'static>>>,
-    state: HashMap<String, config::AttrValue>,
+    on_change_handlers: HashMap<String, Vec<Box<dyn Fn(PrimitiveValue) + 'static>>>,
+    state: HashMap<String, PrimitiveValue>,
 }
 
 impl EwwState {
-    pub fn from_default_vars(defaults: HashMap<String, config::AttrValue>) -> Self {
+    pub fn from_default_vars(defaults: HashMap<String, PrimitiveValue>) -> Self {
         EwwState {
             state: defaults,
             ..EwwState::default()
         }
     }
-    pub fn update_value(&mut self, key: String, value: config::AttrValue) {
+    pub fn update_value(&mut self, key: String, value: PrimitiveValue) {
         if let Some(handlers) = self.on_change_handlers.get(&key) {
             for on_change in handlers {
                 on_change(value.clone());
@@ -286,59 +304,70 @@ impl EwwState {
         self.state.insert(key, value);
     }
 
-    pub fn resolve<F: Fn(config::AttrValue) + 'static + Clone>(
+    pub fn resolve<F: Fn(PrimitiveValue) + 'static + Clone>(
         &mut self,
-        local_env: &HashMap<String, config::AttrValue>,
-        value: &config::AttrValue,
+        local_env: &HashMap<String, AttrValue>,
+        value: &AttrValue,
         set_value: F,
     ) -> bool {
         dbg!("resolve: ", value);
-        if let config::AttrValue::VarRef(name) = value {
-            if let Some(value) = self.state.get(name).cloned() {
-                self.on_change_handlers
-                    .entry(name.to_string())
-                    .or_insert_with(Vec::new)
-                    .push(Box::new(set_value.clone()));
-                self.resolve(local_env, &value, set_value)
-            } else if let Some(value) = local_env.get(name).cloned() {
-                self.resolve(local_env, &value, set_value)
-            } else {
-                false
+        match value {
+            AttrValue::VarRef(name) => {
+                if let Some(value) = self.state.get(name).cloned() {
+                    self.on_change_handlers
+                        .entry(name.to_string())
+                        .or_insert_with(Vec::new)
+                        .push(Box::new(set_value.clone()));
+                    self.resolve(local_env, &value.into(), set_value)
+                } else if let Some(value) = local_env.get(name).cloned() {
+                    self.resolve(local_env, &value, set_value)
+                } else {
+                    false
+                }
             }
-        } else {
-            set_value(value.clone());
-            true
+            AttrValue::Concrete(value) => {
+                set_value(value.clone());
+                true
+            }
         }
     }
 
     pub fn resolve_f64<F: Fn(f64) + 'static + Clone>(
         &mut self,
-        local_env: &HashMap<String, config::AttrValue>,
-        value: &config::AttrValue,
+        local_env: &HashMap<String, AttrValue>,
+        value: &AttrValue,
         set_value: F,
     ) -> bool {
         self.resolve(local_env, value, move |x| {
-            x.as_f64().map(|v| set_value(v));
+            if let Err(e) = x.as_f64().map(|v| set_value(v)) {
+                eprintln!("error while resolving value: {}", e);
+            };
         })
     }
+
+    #[allow(dead_code)]
     pub fn resolve_bool<F: Fn(bool) + 'static + Clone>(
         &mut self,
-        local_env: &HashMap<String, config::AttrValue>,
-        value: &config::AttrValue,
+        local_env: &HashMap<String, AttrValue>,
+        value: &AttrValue,
         set_value: F,
     ) -> bool {
         self.resolve(local_env, value, move |x| {
-            x.as_bool().map(|v| set_value(v));
+            if let Err(e) = x.as_bool().map(|v| set_value(v)) {
+                eprintln!("error while resolving value: {}", e);
+            };
         })
     }
     pub fn resolve_string<F: Fn(String) + 'static + Clone>(
         &mut self,
-        local_env: &HashMap<String, config::AttrValue>,
-        value: &config::AttrValue,
+        local_env: &HashMap<String, AttrValue>,
+        value: &AttrValue,
         set_value: F,
     ) -> bool {
         self.resolve(local_env, value, move |x| {
-            x.as_string().map(|s| set_value(s.clone()));
+            if let Err(e) = x.as_string().map(|v| set_value(v.clone())) {
+                eprintln!("error while resolving value: {}", e);
+            };
         })
     }
 }
