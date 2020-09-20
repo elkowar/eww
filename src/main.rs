@@ -7,45 +7,16 @@ use gdk::*;
 use gio::prelude::*;
 use gtk::prelude::*;
 use gtk::{Application, ApplicationWindow};
-use std::{collections::HashMap, process::Command};
-
+use std::{collections::HashMap, process::Command, fs};
 pub mod config;
 pub mod widgets;
 
 const CMD_STRING_PLACEHODLER: &str = "{}";
 
-const EXAMPLE_CONFIG: &str = r#"{
-    widgets: {
-        some_widget: {
-            structure: {
-                layout_horizontal: {
-                    class: "container",
-                    children: [
-                        "hi",
-                        { button: { children: "click me you" } }
-                        { slider: { value: 12, min: 0, max: 50, onchange: "notify-send 'changed' {}" } }
-                        "hu"
-                    ]
-                }
-            }
-        }
-    },
-    windows: {
-        main_window: {
-            pos.x: 200
-            pos.y: 1550
-            size.x: 500
-            size.y: 50
-            widget: {
-                some_widget: {}
-            }
-        }
-    },
-
-}"#;
-
 fn main() -> Result<()> {
-    let eww_config = config::EwwConfig::from_hocon(&config::parse_hocon(EXAMPLE_CONFIG)?)?;
+    let config = fs::read_to_string(format!("{}/.config/eww/config.hocon", std::env::var("HOME")?))?;
+
+    let eww_config: config::EwwConfig = config::EwwConfig::from_hocon(&config::parse_hocon(&config)?)?;
 
     let application = Application::new(Some("de.elkowar.eww"), gio::ApplicationFlags::FLAGS_NONE)
         .expect("failed to initialize GTK application");
