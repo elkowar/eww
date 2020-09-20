@@ -5,7 +5,6 @@ use hocon::*;
 use hocon_ext::HoconExt;
 use std::collections::HashMap;
 use std::convert::TryFrom;
-use try_match::try_match;
 
 pub mod element;
 pub mod hocon_ext;
@@ -107,55 +106,6 @@ impl EwwWindowDefinition {
             position: position.context("pos.x and pos.y need to be set")?,
             size: size.context("size.x and size.y need to be set")?,
             widget: element,
-        })
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum AttrValue {
-    Concrete(PrimitiveValue),
-    VarRef(String),
-}
-
-impl AttrValue {
-    pub fn as_string(&self) -> Result<&String> {
-        try_match!(AttrValue::Concrete(x) = self)
-            .map_err(|e| anyhow!("{:?} is not a string", e))?
-            .as_string()
-    }
-    pub fn as_f64(&self) -> Result<f64> {
-        try_match!(AttrValue::Concrete(x) = self)
-            .map_err(|e| anyhow!("{:?} is not an f64", e))?
-            .as_f64()
-    }
-    pub fn as_bool(&self) -> Result<bool> {
-        try_match!(AttrValue::Concrete(x) = self)
-            .map_err(|e| anyhow!("{:?} is not a bool", e))?
-            .as_bool()
-    }
-    pub fn as_var_ref(&self) -> Result<&String> {
-        try_match!(AttrValue::VarRef(x) = self).map_err(|e| anyhow!("{:?} is not a VarRef", e))
-    }
-}
-
-impl From<PrimitiveValue> for AttrValue {
-    fn from(value: PrimitiveValue) -> Self {
-        AttrValue::Concrete(value)
-    }
-}
-
-impl std::convert::TryFrom<&Hocon> for AttrValue {
-    type Error = anyhow::Error;
-    fn try_from(value: &Hocon) -> Result<Self> {
-        Ok(match value {
-            Hocon::String(s) if s.starts_with("$$") => {
-                AttrValue::VarRef(s.trim_start_matches("$$").to_string())
-            }
-            Hocon::String(s) => AttrValue::Concrete(PrimitiveValue::String(s.clone())),
-            Hocon::Integer(n) => AttrValue::Concrete(PrimitiveValue::Number(*n as f64)),
-            Hocon::Real(n) => AttrValue::Concrete(PrimitiveValue::Number(*n as f64)),
-            Hocon::Boolean(b) => AttrValue::Concrete(PrimitiveValue::Boolean(*b)),
-            _ => return Err(anyhow!("cannot convert {:?} to config::AttrValue", &value)),
         })
     }
 }

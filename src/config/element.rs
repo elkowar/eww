@@ -1,5 +1,6 @@
 use super::*;
 
+use crate::value::AttrValue;
 use hocon_ext::HoconExt;
 use std::collections::HashMap;
 use std::convert::TryFrom;
@@ -94,6 +95,13 @@ impl WidgetUse {
             children,
             attrs,
         })
+    }
+
+    pub fn get_attr(&self, key: &str) -> Result<&AttrValue> {
+        self.attrs.get(key).context(format!(
+            "attribute {} missing from widgetuse of {}",
+            key, &self.name
+        ))
     }
 }
 
