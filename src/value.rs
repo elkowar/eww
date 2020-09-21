@@ -1,5 +1,4 @@
 use anyhow::*;
-use derive_more::From;
 use derive_more::*;
 use hocon::Hocon;
 use try_match::try_match;
@@ -11,6 +10,12 @@ pub enum PrimitiveValue {
     String(String),
     Number(f64),
     Boolean(bool),
+}
+
+impl From<&str> for PrimitiveValue {
+    fn from(s: &str) -> Self {
+        PrimitiveValue::String(s.to_string())
+    }
 }
 
 impl PrimitiveValue {

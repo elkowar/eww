@@ -30,7 +30,6 @@ impl EwwState {
         value: &AttrValue,
         set_value: F,
     ) -> bool {
-        dbg!("resolve: ", value);
         match value {
             AttrValue::VarRef(name) => {
                 if let Some(value) = self.state.get(name).cloned() {

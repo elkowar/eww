@@ -45,7 +45,7 @@ impl ElementUse {
         match hocon {
             Hocon::String(s) => Ok(ElementUse::Text(s)),
             Hocon::Hash(hash) => WidgetUse::parse_hocon_hash(hash).map(ElementUse::Widget),
-            _ => Err(anyhow!("{:?} is not a valid element", hocon)),
+            _ => Err(anyhow!("'{:?}' is not a valid element", hocon)),
         }
     }
 }
@@ -81,7 +81,7 @@ impl WidgetUse {
                 .collect::<Result<Vec<_>>>(),
             None => Ok(Vec::new()),
             _ => Err(anyhow!(
-                "children must be either a list of elements or a string, but was {:?}"
+                "children must be either a list of elements or a string, but was '{:?}'"
             )),
         }?;
 
@@ -99,7 +99,7 @@ impl WidgetUse {
 
     pub fn get_attr(&self, key: &str) -> Result<&AttrValue> {
         self.attrs.get(key).context(format!(
-            "attribute {} missing from widgetuse of {}",
+            "attribute '{}' missing from widgetuse of '{}'",
             key, &self.name
         ))
     }

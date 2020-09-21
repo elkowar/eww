@@ -1,3 +1,4 @@
+#![feature(trace_macros)]
 #![feature(try_blocks)]
 extern crate gio;
 extern crate gtk;
@@ -14,9 +15,8 @@ pub mod eww_state;
 pub mod value;
 pub mod widgets;
 
-use config::element;
 use eww_state::*;
-use value::{AttrValue, PrimitiveValue};
+use value::PrimitiveValue;
 
 #[macro_export]
 macro_rules! build {
@@ -82,7 +82,6 @@ fn main() {
 
 fn try_main() -> Result<()> {
     let eww_config = config::EwwConfig::from_hocon(&config::parse_hocon(EXAMPLE_CONFIG)?)?;
-    dbg!(&eww_config);
 
     let application = Application::new(Some("de.elkowar.eww"), gio::ApplicationFlags::FLAGS_NONE)
         .expect("failed to initialize GTK application ");
@@ -90,60 +89,63 @@ fn try_main() -> Result<()> {
     let window_def = eww_config.get_windows()["main_window"].clone();
 
     application.connect_activate(move |app| {
-        let app_window = ApplicationWindow::new(app);
-        app_window.set_title("Eww");
-        app_window.set_wmclass("noswallow", "noswallow");
-        app_window.set_type_hint(gdk::WindowTypeHint::Dock);
-        app_window.set_position(gtk::WindowPosition::Center);
-        app_window.set_keep_above(true);
-        app_window.set_default_size(window_def.size.0, window_def.size.1);
-        app_window.set_visual(
-            app_window
-                .get_display()
-                .get_default_screen()
-                .get_rgba_visual()
-                .or_else(|| {
-                    app_window
-                        .get_display()
-                        .get_default_screen()
-                        .get_system_visual()
-                })
-                .as_ref(),
-        );
+        let result: Result<()> = try {
+            let app_window = ApplicationWindow::new(app);
+            app_window.set_title("Eww");
+            app_window.set_wmclass("noswallow", "noswallow");
+            app_window.set_type_hint(gdk::WindowTypeHint::Dock);
+            app_window.set_position(gtk::WindowPosition::Center);
+            app_window.set_keep_above(true);
+            app_window.set_default_size(window_def.size.0, window_def.size.1);
+            app_window.set_visual(
+                app_window
+                    .get_display()
+                    .get_default_screen()
+                    .get_rgba_visual()
+                    .or_else(|| {
+                        app_window
+                            .get_display()
+                            .get_default_screen()
+                            .get_system_visual()
+                    })
+                    .as_ref(),
+            );
 
-        app_window.fullscreen();
+            app_window.fullscreen();
 
-        let mut eww_state = EwwState::from_default_vars(eww_config.get_default_vars().clone());
-        let empty_local_state = HashMap::new();
+            let mut eww_state = EwwState::from_default_vars(eww_config.get_default_vars().clone());
+            let empty_local_state = HashMap::new();
 
-        app_window.add(
-            &widgets::element_to_gtk_thing(
+            app_window.add(&widgets::element_to_gtk_thing(
                 &eww_config.get_widgets(),
                 &mut eww_state,
                 &empty_local_state,
                 &window_def.widget,
-            )
-            .unwrap(),
-        );
+            )?);
 
-        app_window.show_all();
+            app_window.show_all();
 
-        let (tx, rx) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
-        std::thread::spawn(move || event_loop(tx));
+            let (tx, rx) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
+            std::thread::spawn(move || event_loop(tx));
 
-        rx.attach(None, move |msg| {
-            match msg {
-                MuhhMsg::UpdateValue(key, value) => eww_state.update_value(key, value),
-            }
+            rx.attach(None, move |msg| {
+                match msg {
+                    MuhhMsg::UpdateValue(key, value) => eww_state.update_value(key, value),
+                }
 
-            glib::Continue(true)
-        });
+                glib::Continue(true)
+            });
 
-        let window = app_window.get_window().unwrap();
-        window.set_override_redirect(true);
-        window.move_(window_def.position.0, window_def.position.1);
-        window.show();
-        window.raise();
+            let window = app_window.get_window().unwrap();
+            window.set_override_redirect(true);
+            window.move_(window_def.position.0, window_def.position.1);
+            window.show();
+            window.raise();
+        };
+        if let Err(err) = result {
+            eprintln!("{:?}", err);
+            std::process::exit(1);
+        }
     });
 
     application.run(&[]);

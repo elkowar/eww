@@ -1,7 +1,6 @@
-use crate::build;
 use crate::config::element;
 use crate::eww_state::*;
-use crate::value::AttrValue;
+use crate::value::{AttrValue, PrimitiveValue};
 use anyhow::*;
 use gtk::prelude::*;
 use std::{collections::HashMap, process::Command};
@@ -10,21 +9,41 @@ const CMD_STRING_PLACEHODLER: &str = "{}";
 
 macro_rules! resolve {
     ($args:ident, $gtk_widget:ident, {
-         $($func:ident =>
-           {
-             $($attr:literal => |$arg:ident| $body:expr),+
-           }
-         ),+
+        $($func:ident => {
+            $($attr:literal $([$default:literal])? $(req $(@$required:tt)?)? => |$arg:ident| $body:expr),+ $(,)?
+        }),+ $(,)?
     }) => {
-      $(
-        $(
-          $args.eww_state.$func($args.local_env, $args.widget.get_attr($attr)?, {
+        $($(
+            resolve!($args, $gtk_widget, $func => $attr $( [ $default ] )* $($($required)*)* => |$arg| $body);
+        )+)+
+    };
+
+    // optional
+    ($args:ident, $gtk_widget:ident, $func:ident => $attr:literal => |$arg:ident| $body:expr) => {
+        if let Some(attr_value) = $args.widget.attrs.get($attr) {
+            $args.eww_state.$func($args.local_env, attr_value, {
+                let $gtk_widget = $gtk_widget.clone();
+                move |$arg| { $body; }
+            });
+        }
+    };
+
+    // required
+    ($args:ident, $gtk_widget:ident, $func:ident => $attr:literal req => |$arg:ident| $body:expr) => {
+        $args.eww_state.$func($args.local_env, $args.widget.get_attr($attr)?, {
             let $gtk_widget = $gtk_widget.clone();
             move |$arg| { $body; }
-          });
-        )+
-      )+
-    }
+        });
+    };
+
+    // with default
+    ($args:ident, $gtk_widget:ident, $func:ident => $attr:literal [$default:expr] => |$arg:ident| $body:expr) => {
+        $args.eww_state.$func($args.local_env, $args.widget.attrs.get($attr).unwrap_or(&AttrValue::Concrete(PrimitiveValue::from($default))), {
+            let $gtk_widget = $gtk_widget.clone();
+            move |$arg| { $body; }
+        });
+    };
+
 }
 
 fn run_command<T: std::fmt::Display>(cmd: &str, arg: T) {
@@ -44,23 +63,17 @@ pub fn element_to_gtk_thing(
         element::ElementUse::Text(text) => Ok(gtk::Label::new(Some(&text)).upcast()),
         element::ElementUse::Widget(widget) => {
             let gtk_container =
-                build_gtk_widget_or_container(widget_definitions, eww_state, local_env, widget);
-            let gtk_widget = gtk_container.or_else(|_| {
-                if let Some(def) = widget_definitions.get(widget.name.as_str()) {
-                    let local_environment = build!(env = local_env.clone(); {
-                        env.extend(widget.attrs.clone());
-                    });
+                build_gtk_widget_or_container(widget_definitions, eww_state, local_env, widget)?;
 
-                    element_to_gtk_thing(
-                        widget_definitions,
-                        eww_state,
-                        &local_environment,
-                        &def.structure,
-                    )
-                } else {
-                    Err(anyhow!("unknown widget {}", &widget.name))
-                }
-            })?;
+            let gtk_widget = if let Some(gtk_container) = gtk_container {
+                gtk_container
+            } else if let Some(def) = widget_definitions.get(widget.name.as_str()) {
+                let mut local_env = local_env.clone();
+                local_env.extend(widget.attrs.clone());
+                element_to_gtk_thing(widget_definitions, eww_state, &local_env, &def.structure)?
+            } else {
+                return Err(anyhow!("unknown widget: '{}'", &widget.name));
+            };
 
             if let Ok(css_class) = widget
                 .get_attr("class")
@@ -85,24 +98,29 @@ pub fn build_gtk_widget_or_container(
     eww_state: &mut EwwState,
     local_env: &HashMap<String, AttrValue>,
     widget: &element::WidgetUse,
-) -> Result<gtk::Widget> {
+) -> Result<Option<gtk::Widget>> {
     let mut builder_args = BuilderArgs {
         eww_state,
         local_env: &local_env,
         widget: &widget,
     };
-    let gtk_widget: Option<gtk::Widget> =
-        if let Some(gtk_widget) = build_gtk_container(&mut builder_args)? {
-            for child in &widget.children {
-                let child_widget =
-                    &element_to_gtk_thing(widget_definitions, eww_state, local_env, child)?;
-                gtk_widget.add(child_widget);
-            }
-            Some(gtk_widget.upcast())
-        } else {
-            build_gtk_widget(&mut builder_args)?
-        };
-    gtk_widget.context(format!("unknown widget {:?}", widget))
+    if let Some(gtk_widget) = build_gtk_container(&mut builder_args)? {
+        for child in &widget.children {
+            let child_widget =
+                &element_to_gtk_thing(widget_definitions, eww_state, local_env, child)
+                    .with_context(|| {
+                        format!(
+                            "error while building child '{:?}' of '{:?}'",
+                            &child,
+                            &gtk_widget.get_widget_name()
+                        )
+                    })?;
+            gtk_widget.add(child_widget);
+        }
+        Ok(Some(gtk_widget.upcast()))
+    } else {
+        build_gtk_widget(&mut builder_args).context("error building gtk widget")
+    }
 }
 
 // widget definitions
@@ -133,18 +151,18 @@ fn build_gtk_scale(builder_args: &mut BuilderArgs) -> Result<gtk::Scale> {
     );
 
     resolve!(builder_args, gtk_widget, {
-      resolve_f64 => {
-        "value" => |v| gtk_widget.set_value(v),
-        "min"   => |v| gtk_widget.get_adjustment().set_lower(v),
-        "max"   => |v| gtk_widget.get_adjustment().set_upper(v)
-      },
-      resolve_string => {
-        "onchange" => |cmd| {
-          gtk_widget.connect_value_changed(move |gtk_widget| {
-              run_command(&cmd, gtk_widget.get_value());
-          });
+        resolve_f64 => {
+            "value" req => |v| gtk_widget.set_value(v),
+            "min"   => |v| gtk_widget.get_adjustment().set_lower(v),
+            "max"   => |v| gtk_widget.get_adjustment().set_upper(v)
+        },
+        resolve_string => {
+            "onchange" => |cmd| {
+                gtk_widget.connect_value_changed(move |gtk_widget| {
+                    run_command(&cmd, gtk_widget.get_value());
+                });
+            }
         }
-      }
     });
     Ok(gtk_widget)
 }
@@ -152,12 +170,12 @@ fn build_gtk_scale(builder_args: &mut BuilderArgs) -> Result<gtk::Scale> {
 fn build_gtk_button(builder_args: &mut BuilderArgs) -> Result<gtk::Button> {
     let gtk_widget = gtk::Button::new();
     resolve!(builder_args, gtk_widget, {
-      resolve_bool => {
-        "active" => |v| gtk_widget.set_sensitive(v)
-      },
-      resolve_string => {
-        "onclick" => |cmd| gtk_widget.connect_clicked(move |_| run_command(&cmd, ""))
-      }
+        resolve_bool => {
+            "active" [true] => |v| gtk_widget.set_sensitive(v)
+        },
+        resolve_string => {
+            "onclick" => |cmd| gtk_widget.connect_clicked(move |_| run_command(&cmd, ""))
+        }
     });
     Ok(gtk_widget)
 }
@@ -165,10 +183,9 @@ fn build_gtk_button(builder_args: &mut BuilderArgs) -> Result<gtk::Button> {
 fn build_gtk_layout(builder_args: &mut BuilderArgs) -> Result<gtk::Box> {
     let gtk_widget = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     resolve!(builder_args, gtk_widget, {
-      resolve_f64 => {
-        "spacing" => |v| gtk_widget.set_spacing(v as i32)
-      }
+        resolve_f64 => {
+            "spacing" [10.0] => |v| gtk_widget.set_spacing(v as i32)
+        }
     });
-
     Ok(gtk_widget)
 }
