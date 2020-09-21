@@ -37,8 +37,9 @@ const EXAMPLE_CONFIG: &str = r#"{
                         "hi",
                         { button: { children: "click me you" } }
                         { slider: { value: "$$some_value", min: 0, max: 100, onchange: "notify-send 'changed' {}" } }
-                        { slider: { value: "$$some_value", min: 0, max: 100, onchange: "notify-send 'changed' {}" } }
+                        { slider: { value: "$$some_value", orientation: "vertical" } }
                         "hu"
+                        { image: { path: "/home/leon/Bilder/ElCoward.png" } }
                     ]
                 }
             }

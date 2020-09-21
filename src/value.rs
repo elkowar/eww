@@ -1,15 +1,41 @@
 use anyhow::*;
-use derive_more::*;
+use derive_more;
 use hocon::Hocon;
+use std::convert::TryFrom;
 use try_match::try_match;
 
-// TODO implement TryFrom for the types properly
-
-#[derive(Clone, Debug, PartialEq, From)]
+#[derive(Clone, Debug, PartialEq, derive_more::From)]
 pub enum PrimitiveValue {
     String(String),
     Number(f64),
     Boolean(bool),
+}
+
+impl TryFrom<PrimitiveValue> for String {
+    type Error = anyhow::Error;
+    fn try_from(x: PrimitiveValue) -> Result<Self> {
+        match x {
+            PrimitiveValue::String(x) => Ok(x),
+            _ => return Err(anyhow!("'{:?}' is not a string", x.clone())),
+        }
+    }
+}
+impl TryFrom<PrimitiveValue> for f64 {
+    type Error = anyhow::Error;
+    fn try_from(x: PrimitiveValue) -> Result<Self> {
+        try_match!(PrimitiveValue::Number(x) = &x)
+            .map_err(|_| anyhow!("'{:?}' is not a number", &x))
+            .map(|&x| x)
+    }
+}
+
+impl TryFrom<PrimitiveValue> for bool {
+    type Error = anyhow::Error;
+    fn try_from(x: PrimitiveValue) -> Result<Self> {
+        try_match!(PrimitiveValue::Boolean(x) = &x)
+            .map_err(|_| anyhow!("'{:?}' is not a bool", &x))
+            .map(|&x| x)
+    }
 }
 
 impl From<&str> for PrimitiveValue {

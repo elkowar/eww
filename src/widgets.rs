@@ -3,14 +3,35 @@ use crate::eww_state::*;
 use crate::value::{AttrValue, PrimitiveValue};
 use anyhow::*;
 use gtk::prelude::*;
+use gtk::ImageExt;
+use std::path::Path;
 use std::{collections::HashMap, process::Command};
 
 const CMD_STRING_PLACEHODLER: &str = "{}";
 
+macro_rules! log_errors {
+    ($body:expr) => {{
+        let result = try { $body };
+        if let Err(e) = result {
+            eprintln!("WARN: {}", e);
+        }
+    }};
+}
+
 macro_rules! resolve {
     ($args:ident, $gtk_widget:ident, {
+        $(
+            $func:ident => $attr:literal $( = $default:literal)? $( = req $(@$required:tt)?)? => |$arg:ident| $body:expr
+        ),+ $(,)?
+    }) => {
+        $(
+            resolve!($args, $gtk_widget, $func => $attr $( [ $default ] )* $($($required)*)* => |$arg| $body);
+        )+
+    };
+
+    ($args:ident, $gtk_widget:ident, {
         $($func:ident => {
-            $($attr:literal $([$default:literal])? $(req $(@$required:tt)?)? => |$arg:ident| $body:expr),+ $(,)?
+            $($attr:literal $(= $default:literal)? $(= req $(@$required:tt)?)? => |$arg:ident| $body:expr),+ $(,)?
         }),+ $(,)?
     }) => {
         $($(
@@ -43,7 +64,6 @@ macro_rules! resolve {
             move |$arg| { $body; }
         });
     };
-
 }
 
 fn run_command<T: std::fmt::Display>(cmd: &str, arg: T) {
@@ -110,7 +130,7 @@ pub fn build_gtk_widget_or_container(
                 &element_to_gtk_thing(widget_definitions, eww_state, local_env, child)
                     .with_context(|| {
                         format!(
-                            "error while building child '{:?}' of '{:?}'",
+                            "error while building child '{:?}' of '{}'",
                             &child,
                             &gtk_widget.get_widget_name()
                         )
@@ -128,6 +148,7 @@ pub fn build_gtk_widget_or_container(
 fn build_gtk_widget(builder_args: &mut BuilderArgs) -> Result<Option<gtk::Widget>> {
     let gtk_widget = match builder_args.widget.name.as_str() {
         "slider" => build_gtk_scale(builder_args)?.upcast(),
+        "image" => build_gtk_image(builder_args)?.upcast(),
         _ => return Ok(None),
     };
     Ok(Some(gtk_widget))
@@ -152,11 +173,12 @@ fn build_gtk_scale(builder_args: &mut BuilderArgs) -> Result<gtk::Scale> {
 
     resolve!(builder_args, gtk_widget, {
         resolve_f64 => {
-            "value" req => |v| gtk_widget.set_value(v),
-            "min"   => |v| gtk_widget.get_adjustment().set_lower(v),
-            "max"   => |v| gtk_widget.get_adjustment().set_upper(v)
+            "value" = req => |v| gtk_widget.set_value(v),
+            "min"         => |v| gtk_widget.get_adjustment().set_lower(v),
+            "max"         => |v| gtk_widget.get_adjustment().set_upper(v),
         },
-        resolve_string => {
+        resolve_str => {
+            "orientation" => |v| gtk_widget.set_orientation(parse_orientation(&v)),
             "onchange" => |cmd| {
                 gtk_widget.connect_value_changed(move |gtk_widget| {
                     run_command(&cmd, gtk_widget.get_value());
@@ -170,12 +192,17 @@ fn build_gtk_scale(builder_args: &mut BuilderArgs) -> Result<gtk::Scale> {
 fn build_gtk_button(builder_args: &mut BuilderArgs) -> Result<gtk::Button> {
     let gtk_widget = gtk::Button::new();
     resolve!(builder_args, gtk_widget, {
-        resolve_bool => {
-            "active" [true] => |v| gtk_widget.set_sensitive(v)
-        },
-        resolve_string => {
-            "onclick" => |cmd| gtk_widget.connect_clicked(move |_| run_command(&cmd, ""))
-        }
+        resolve_bool => "active" = true => |v| gtk_widget.set_sensitive(v),
+        resolve_str  => "onclick"       => |v| gtk_widget.connect_clicked(move |_| run_command(&v, ""))
+
+    });
+    Ok(gtk_widget)
+}
+
+fn build_gtk_image(builder_args: &mut BuilderArgs) -> Result<gtk::Image> {
+    let gtk_widget = gtk::Image::new();
+    resolve!(builder_args, gtk_widget, {
+        resolve_str => "path" = req => |v| gtk_widget.set_from_file(Path::new(&v))
     });
     Ok(gtk_widget)
 }
@@ -183,9 +210,16 @@ fn build_gtk_button(builder_args: &mut BuilderArgs) -> Result<gtk::Button> {
 fn build_gtk_layout(builder_args: &mut BuilderArgs) -> Result<gtk::Box> {
     let gtk_widget = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     resolve!(builder_args, gtk_widget, {
-        resolve_f64 => {
-            "spacing" [10.0] => |v| gtk_widget.set_spacing(v as i32)
-        }
+        resolve_f64 => "spacing" = 10.0 => |v| gtk_widget.set_spacing(v as i32),
+        resolve_str => "orientation"    => |v| gtk_widget.set_orientation(parse_orientation(&v)),
+
     });
     Ok(gtk_widget)
+}
+
+fn parse_orientation(o: &str) -> gtk::Orientation {
+    match o {
+        "vertical" => gtk::Orientation::Vertical,
+        _ => gtk::Orientation::Horizontal,
+    }
 }

@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::convert::TryFrom;
+use std::convert::TryInto;
 
 use crate::value::{AttrValue, PrimitiveValue};
 
@@ -51,6 +53,22 @@ impl EwwState {
         }
     }
 
+    pub fn resolve_into<
+        TE: std::fmt::Debug,
+        V: TryFrom<PrimitiveValue, Error = TE>,
+        F: Fn(V) + 'static + Clone,
+    >(
+        &mut self,
+        local_env: &HashMap<String, AttrValue>,
+        value: &AttrValue,
+        set_value: F,
+    ) -> bool {
+        self.resolve(local_env, value, move |x| {
+            if let Err(e) = x.try_into().map(|v| set_value(v)) {
+                eprintln!("error while resolving value: {:?}", e);
+            };
+        })
+    }
     pub fn resolve_f64<F: Fn(f64) + 'static + Clone>(
         &mut self,
         local_env: &HashMap<String, AttrValue>,
@@ -77,7 +95,7 @@ impl EwwState {
             };
         })
     }
-    pub fn resolve_string<F: Fn(String) + 'static + Clone>(
+    pub fn resolve_str<F: Fn(String) + 'static + Clone>(
         &mut self,
         local_env: &HashMap<String, AttrValue>,
         value: &AttrValue,
