@@ -34,6 +34,7 @@ impl EwwState {
     ) -> bool {
         match value {
             AttrValue::VarRef(name) => {
+                // get value from globals
                 if let Some(value) = self.state.get(name).cloned() {
                     self.on_change_handlers
                         .entry(name.to_string())
@@ -41,6 +42,7 @@ impl EwwState {
                         .push(Box::new(set_value.clone()));
                     self.resolve(local_env, &value.into(), set_value)
                 } else if let Some(value) = local_env.get(name).cloned() {
+                    // get value from local
                     self.resolve(local_env, &value, set_value)
                 } else {
                     false
@@ -53,11 +55,7 @@ impl EwwState {
         }
     }
 
-    pub fn resolve_into<
-        TE: std::fmt::Debug,
-        V: TryFrom<PrimitiveValue, Error = TE>,
-        F: Fn(V) + 'static + Clone,
-    >(
+    pub fn resolve_into<TE: std::fmt::Debug, V: TryFrom<PrimitiveValue, Error = TE>, F: Fn(V) + 'static + Clone>(
         &mut self,
         local_env: &HashMap<String, AttrValue>,
         value: &AttrValue,

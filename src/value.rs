@@ -20,6 +20,7 @@ impl TryFrom<PrimitiveValue> for String {
         }
     }
 }
+
 impl TryFrom<PrimitiveValue> for f64 {
     type Error = anyhow::Error;
     fn try_from(x: PrimitiveValue) -> Result<Self> {
@@ -65,10 +66,7 @@ impl std::convert::TryFrom<&Hocon> for PrimitiveValue {
     fn try_from(value: &Hocon) -> Result<Self> {
         Ok(match value {
             Hocon::String(s) if s.starts_with("$$") => {
-                return Err(anyhow!(
-                    "Tried to use variable reference {} as primitive value",
-                    s
-                ))
+                return Err(anyhow!("Tried to use variable reference {} as primitive value", s))
             }
             Hocon::String(s) => PrimitiveValue::String(s.to_string()),
             Hocon::Integer(n) => PrimitiveValue::Number(*n as f64),
@@ -116,9 +114,7 @@ impl std::convert::TryFrom<&Hocon> for AttrValue {
     type Error = anyhow::Error;
     fn try_from(value: &Hocon) -> Result<Self> {
         Ok(match value {
-            Hocon::String(s) if s.starts_with("$$") => {
-                AttrValue::VarRef(s.trim_start_matches("$$").to_string())
-            }
+            Hocon::String(s) if s.starts_with("$$") => AttrValue::VarRef(s.trim_start_matches("$$").to_string()),
             Hocon::String(s) => AttrValue::Concrete(PrimitiveValue::String(s.clone())),
             Hocon::Integer(n) => AttrValue::Concrete(PrimitiveValue::Number(*n as f64)),
             Hocon::Real(n) => AttrValue::Concrete(PrimitiveValue::Number(*n as f64)),

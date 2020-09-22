@@ -34,12 +34,22 @@ const EXAMPLE_CONFIG: &str = r#"{
                 layout: {
                     class: "container",
                     children: [
-                        "hi",
-                        { button: { children: "click me you" } }
-                        { slider: { value: "$$some_value", min: 0, max: 100, onchange: "notify-send 'changed' {}" } }
-                        { slider: { value: "$$some_value", orientation: "vertical" } }
-                        "hu"
-                        { image: { path: "/home/leon/Bilder/ElCoward.png" } }
+                        { layout: {
+                            orientation: "v"
+                            children: [
+                                "fancy button"
+                                { button: { children: "reeee" } }
+                            ]
+                        } }
+                        { layout: {
+                            children: [
+                                "hi",
+                                { button: { children: "click me you" } }
+                                { slider: { value: "$$some_value", min: 0, max: 100, onchange: "notify-send 'changed' {}" } }
+                                { slider: { value: "$$some_value", orientation: "vertical" } }
+                                "hu"
+                            ]
+                        } }
                     ]
                 }
             }
@@ -103,12 +113,7 @@ fn try_main() -> Result<()> {
                     .get_display()
                     .get_default_screen()
                     .get_rgba_visual()
-                    .or_else(|| {
-                        app_window
-                            .get_display()
-                            .get_default_screen()
-                            .get_system_visual()
-                    })
+                    .or_else(|| app_window.get_display().get_default_screen().get_system_visual())
                     .as_ref(),
             );
 

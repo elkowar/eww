@@ -98,10 +98,9 @@ impl WidgetUse {
     }
 
     pub fn get_attr(&self, key: &str) -> Result<&AttrValue> {
-        self.attrs.get(key).context(format!(
-            "attribute '{}' missing from widgetuse of '{}'",
-            key, &self.name
-        ))
+        self.attrs
+            .get(key)
+            .context(format!("attribute '{}' missing from widgetuse of '{}'", key, &self.name))
     }
 }
 
@@ -145,14 +144,7 @@ mod test {
             attrs: hashmap! { "value".to_string() => AttrValue::Concrete(PrimitiveValue::String("test".to_string()))},
         };
         assert_eq!(
-            WidgetUse::parse_hocon_hash(
-                parse_hocon(input_complex)
-                    .unwrap()
-                    .as_hash()
-                    .unwrap()
-                    .clone()
-            )
-            .unwrap(),
+            WidgetUse::parse_hocon_hash(parse_hocon(input_complex).unwrap().as_hash().unwrap().clone()).unwrap(),
             expected
         );
     }
@@ -168,11 +160,7 @@ mod test {
             size: None,
         };
         assert_eq!(
-            WidgetDefinition::parse_hocon(
-                "widget_name".to_string(),
-                &parse_hocon(input_complex).unwrap()
-            )
-            .unwrap(),
+            WidgetDefinition::parse_hocon("widget_name".to_string(), &parse_hocon(input_complex).unwrap()).unwrap(),
             expected
         );
     }

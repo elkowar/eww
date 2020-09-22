@@ -83,9 +83,7 @@ pub struct EwwWindowDefinition {
 
 impl EwwWindowDefinition {
     pub fn from_hocon(hocon: &Hocon) -> Result<EwwWindowDefinition> {
-        let data = hocon
-            .as_hash()
-            .context("window config has to be a map structure")?;
+        let data = hocon.as_hash().context("window config has to be a map structure")?;
         let position: Option<_> = try {
             (
                 data.get("pos")?.as_hash().ok()?.get("x")?.as_i64()? as i32,
@@ -99,8 +97,7 @@ impl EwwWindowDefinition {
             )
         };
 
-        let element =
-            ElementUse::parse_hocon(data.get("widget").context("no widget use given")?.clone())?;
+        let element = ElementUse::parse_hocon(data.get("widget").context("no widget use given")?.clone())?;
 
         Ok(EwwWindowDefinition {
             position: position.context("pos.x and pos.y need to be set")?,
