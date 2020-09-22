@@ -13,18 +13,17 @@ gio = { version = "", features = ["v2_44"] }
 glib = { version = "", features = ["v2_44"] }
 
 regex = "1"
-
-
 hocon = { version = "0.3", default-features = false, features = [ "serde-support" ]}
-
 try_match = "0.2.2"
-
 anyhow = "1.0"
-#thiserror = "1.0"
-
-
 derive_more = "0.99"
 maplit = "1"
+structopt = "0.3"
+ipc-channel="0.14.1"
+serde = {version = "1.0", features = ["derive"]}
+extend = "0.3.0"
+
+#thiserror = "1.0"
 
 [dev-dependencies]
 pretty_assertions = "0.6.1"

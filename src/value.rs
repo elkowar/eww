@@ -1,14 +1,30 @@
 use anyhow::*;
 use derive_more;
 use hocon::Hocon;
+use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use try_match::try_match;
 
-#[derive(Clone, Debug, PartialEq, derive_more::From)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, derive_more::From)]
 pub enum PrimitiveValue {
     String(String),
     Number(f64),
     Boolean(bool),
+}
+
+impl std::str::FromStr for PrimitiveValue {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<PrimitiveValue> {
+        Ok(s.parse()
+            .map(PrimitiveValue::Number)
+            .or_else(|_| s.parse().map(PrimitiveValue::Boolean))
+            .unwrap_or_else(|_| PrimitiveValue::String(remove_surrounding(s, '\'').to_string())))
+    }
+}
+
+fn remove_surrounding(s: &str, surround: char) -> &str {
+    s.strip_prefix(surround).unwrap_or(s).strip_suffix(surround).unwrap_or(s)
 }
 
 impl TryFrom<PrimitiveValue> for String {
@@ -102,8 +118,15 @@ impl AttrValue {
     pub fn as_var_ref(&self) -> Result<&String> {
         try_match!(AttrValue::VarRef(x) = self).map_err(|e| anyhow!("{:?} is not a VarRef", e))
     }
-}
 
+    pub fn from_string(s: String) -> Self {
+        if s.starts_with("$$") {
+            AttrValue::VarRef(s.trim_start_matches("$$").to_string())
+        } else {
+            AttrValue::Concrete(PrimitiveValue::String(s.clone()))
+        }
+    }
+}
 impl From<PrimitiveValue> for AttrValue {
     fn from(value: PrimitiveValue) -> Self {
         AttrValue::Concrete(value)
@@ -114,8 +137,7 @@ impl std::convert::TryFrom<&Hocon> for AttrValue {
     type Error = anyhow::Error;
     fn try_from(value: &Hocon) -> Result<Self> {
         Ok(match value {
-            Hocon::String(s) if s.starts_with("$$") => AttrValue::VarRef(s.trim_start_matches("$$").to_string()),
-            Hocon::String(s) => AttrValue::Concrete(PrimitiveValue::String(s.clone())),
+            Hocon::String(s) => AttrValue::from_string(s.clone()),
             Hocon::Integer(n) => AttrValue::Concrete(PrimitiveValue::Number(*n as f64)),
             Hocon::Real(n) => AttrValue::Concrete(PrimitiveValue::Number(*n as f64)),
             Hocon::Boolean(b) => AttrValue::Concrete(PrimitiveValue::Boolean(*b)),

@@ -55,6 +55,7 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<Option<gtk
         "image" => build_gtk_image(bargs)?.upcast(),
         "layout" => build_gtk_layout(bargs)?.upcast(),
         "button" => build_gtk_button(bargs)?.upcast(),
+        "label" => build_gtk_label(bargs)?.upcast(),
         _ => return Ok(None),
     };
     Ok(Some(gtk_widget))
@@ -96,6 +97,14 @@ fn build_gtk_layout(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
         resolve_f64  => "spacing" = 10.0 => |v| gtk_widget.set_spacing(v as i32),
         resolve_str  => "orientation"    => |v| gtk_widget.set_orientation(parse_orientation(&v)),
 
+    });
+    Ok(gtk_widget)
+}
+
+fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
+    let gtk_widget = gtk::Label::new(None);
+    resolve!(bargs, gtk_widget, {
+        resolve_str => "text" = 10.0 => |v| gtk_widget.set_text(&v),
     });
     Ok(gtk_widget)
 }

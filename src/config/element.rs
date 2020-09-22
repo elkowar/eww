@@ -37,13 +37,13 @@ impl WidgetDefinition {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ElementUse {
     Widget(WidgetUse),
-    Text(String),
+    Text(AttrValue),
 }
 
 impl ElementUse {
     pub fn parse_hocon(hocon: Hocon) -> Result<Self> {
         match hocon {
-            Hocon::String(s) => Ok(ElementUse::Text(s)),
+            Hocon::String(s) => Ok(ElementUse::Text(AttrValue::from_string(s))),
             Hocon::Hash(hash) => WidgetUse::parse_hocon_hash(hash).map(ElementUse::Widget),
             _ => Err(anyhow!("'{:?}' is not a valid element", hocon)),
         }
@@ -73,7 +73,7 @@ impl WidgetUse {
         // TODO allow for `layout_horizontal: [ elements ]` shorthand
 
         let children = match &widget_config.get("children") {
-            Some(Hocon::String(text)) => Ok(vec![ElementUse::Text(text.to_string())]),
+            Some(Hocon::String(text)) => Ok(vec![ElementUse::Text(AttrValue::from_string(text.to_string()))]),
             Some(Hocon::Array(children)) => children
                 .clone()
                 .into_iter()
@@ -120,7 +120,7 @@ mod test {
     fn test_parse_text() {
         assert_eq!(
             ElementUse::parse_hocon(Hocon::String("hi".to_string())).unwrap(),
-            ElementUse::Text("hi".to_string())
+            ElementUse::Text(AttrValue::Concrete(PrimitiveValue::String("hi".to_string())))
         );
     }
 

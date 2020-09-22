@@ -30,7 +30,7 @@ pub fn element_to_gtk_thing(
     element: &element::ElementUse,
 ) -> Result<gtk::Widget> {
     match element {
-        element::ElementUse::Text(text) => Ok(gtk::Label::new(Some(&text)).upcast()),
+        element::ElementUse::Text(text) => Ok(gtk::Label::new(Some(text.as_string()?)).upcast()), // TODO this should use resolve
         element::ElementUse::Widget(widget) => {
             let gtk_container = build_gtk_widget(widget_definitions, eww_state, local_env, widget)?;
 

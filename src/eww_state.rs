@@ -10,6 +10,12 @@ pub struct EwwState {
     state: HashMap<String, PrimitiveValue>,
 }
 
+impl std::fmt::Debug for EwwState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "EwwState {{ state: {:?} }}", self.state)
+    }
+}
+
 impl EwwState {
     pub fn from_default_vars(defaults: HashMap<String, PrimitiveValue>) -> Self {
         EwwState {
