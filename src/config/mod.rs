@@ -78,7 +78,7 @@ impl EwwConfig {
 pub struct EwwWindowDefinition {
     pub position: (i32, i32),
     pub size: (i32, i32),
-    pub widget: ElementUse,
+    pub widget: WidgetUse,
 }
 
 impl EwwWindowDefinition {
@@ -97,7 +97,7 @@ impl EwwWindowDefinition {
             )
         };
 
-        let element = ElementUse::parse_hocon(data.get("widget").context("no widget use given")?.clone())?;
+        let element = WidgetUse::parse_hocon(data.get("widget").context("no widget use given")?.clone())?;
 
         Ok(EwwWindowDefinition {
             position: position.context("pos.x and pos.y need to be set")?,

@@ -27,28 +27,23 @@ pub fn element_to_gtk_thing(
     widget_definitions: &HashMap<String, element::WidgetDefinition>,
     eww_state: &mut EwwState,
     local_env: &HashMap<String, AttrValue>,
-    element: &element::ElementUse,
+    widget: &element::WidgetUse,
 ) -> Result<gtk::Widget> {
-    match element {
-        element::ElementUse::Text(text) => Ok(gtk::Label::new(Some(&text.as_string()?)).upcast()), // TODO this should use resolve
-        element::ElementUse::Widget(widget) => {
-            let gtk_container = build_gtk_widget(widget_definitions, eww_state, local_env, widget)?;
+    let gtk_container = build_gtk_widget(widget_definitions, eww_state, local_env, widget)?;
 
-            let gtk_widget = if let Some(gtk_container) = gtk_container {
-                gtk_container
-            } else if let Some(def) = widget_definitions.get(widget.name.as_str()) {
-                let mut local_env = local_env.clone();
-                local_env.extend(widget.attrs.clone());
-                let custom_widget = element_to_gtk_thing(widget_definitions, eww_state, &local_env, &def.structure)?;
-                custom_widget.get_style_context().add_class(widget.name.as_str());
-                custom_widget
-            } else {
-                return Err(anyhow!("unknown widget: '{}'", &widget.name));
-            };
+    let gtk_widget = if let Some(gtk_container) = gtk_container {
+        gtk_container
+    } else if let Some(def) = widget_definitions.get(widget.name.as_str()) {
+        let mut local_env = local_env.clone();
+        local_env.extend(widget.attrs.clone());
+        let custom_widget = element_to_gtk_thing(widget_definitions, eww_state, &local_env, &def.structure)?;
+        custom_widget.get_style_context().add_class(widget.name.as_str());
+        custom_widget
+    } else {
+        bail!("unknown widget: '{}'", &widget.name);
+    };
 
-            Ok(gtk_widget)
-        }
-    }
+    Ok(gtk_widget)
 }
 
 pub fn build_gtk_widget(

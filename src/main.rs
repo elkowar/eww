@@ -252,7 +252,7 @@ impl App {
 
         window.show_all();
 
-        let gdk_window = window.get_window().unwrap();
+        let gdk_window = window.get_window().context("couldn't get gdk window from gtk window")?;
         gdk_window.set_override_redirect(true);
         gdk_window.move_(window_def.position.0, window_def.position.1);
         gdk_window.show();
@@ -266,7 +266,7 @@ impl App {
 
     fn reload_all_windows(&mut self, config: config::EwwConfig) -> Result<()> {
         self.eww_config = config;
-
+        // TODO this needs to handle removing the callbacks to the old gtk windows, as otherwise this might by horribly fucked.
         let windows = self.windows.clone();
         for (window_name, window) in windows {
             window.close();
@@ -277,10 +277,6 @@ impl App {
 
     fn load_css(&mut self, css: &str) -> Result<()> {
         self.css_provider.load_from_data(css.as_bytes())?;
-        //self.css_provider.load_from_data(eww_css.as_bytes())?;
-        //gdk::Screen::get_default().map(|screen| {
-        //gtk::StyleContext::add_provider_for_screen(&screen, &self.css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
-        //});
         Ok(())
     }
 
