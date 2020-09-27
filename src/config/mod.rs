@@ -108,5 +108,6 @@ impl EwwWindowDefinition {
 }
 
 pub fn parse_hocon(s: &str) -> Result<Hocon> {
-    Ok(HoconLoader::new().load_str(s)?.hocon()?)
+    let s = s.trim();
+    Ok(HoconLoader::new().strict().load_str(s)?.hocon()?)
 }

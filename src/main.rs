@@ -5,11 +5,9 @@ extern crate gtk;
 
 use anyhow::*;
 use gdk::*;
-use gio::prelude::*;
 use grass;
 use gtk::prelude::*;
 use ipc_channel::ipc;
-use notify::{self, Watcher};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path;
@@ -21,6 +19,7 @@ pub mod value;
 pub mod widgets;
 
 use eww_state::*;
+use hotwatch;
 use value::PrimitiveValue;
 
 #[macro_export]
@@ -98,11 +97,18 @@ fn initialize_server(opts: Opt) -> Result<()> {
         .to_path_buf();
     let scss_file_path = config_dir.join("eww.scss");
 
-    let (watcher_tx, watcher_rx) = std::sync::mpsc::channel();
+    let (watcher_tx, watcher_rx) = crossbeam_channel::unbounded();
 
-    let mut file_watcher = notify::watcher(watcher_tx, std::time::Duration::from_millis(100))?;
-    file_watcher.watch(config_file_path.clone(), notify::RecursiveMode::NonRecursive)?;
-    if let Err(e) = file_watcher.watch(scss_file_path.clone(), notify::RecursiveMode::NonRecursive) {
+    let mut hotwatch = hotwatch::Hotwatch::new()?;
+    hotwatch.watch(
+        config_file_path.clone(),
+        glib::clone!(@strong watcher_tx => move |evt| watcher_tx.send(evt).unwrap()),
+    )?;
+
+    if let Err(e) = hotwatch.watch(
+        scss_file_path.clone(),
+        glib::clone!(@strong watcher_tx => move |evt| watcher_tx.send(evt).unwrap()),
+    ) {
         eprintln!("WARN: error while loading CSS file for hot-reloading: \n{}", e)
     }
 
@@ -113,20 +119,21 @@ fn initialize_server(opts: Opt) -> Result<()> {
     let eww_css =
         grass::from_string(scss_content, &grass::Options::default()).map_err(|err| anyhow!("SCSS parsing error: {:?}", err))?;
 
+    gtk::init()?;
+
     let mut app = App {
         eww_state: EwwState::from_default_vars(eww_config.get_default_vars().clone()),
         eww_config,
         eww_css: eww_css.clone(),
         windows: HashMap::new(),
+        css_provider: gtk::CssProvider::new(),
     };
-    gtk::init()?;
 
-    let css_provider = gtk::CssProvider::new();
-    css_provider.load_from_data(eww_css.as_bytes())?;
     gdk::Screen::get_default().map(|screen| {
-        gtk::StyleContext::add_provider_for_screen(&screen, &css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
+        gtk::StyleContext::add_provider_for_screen(&screen, &app.css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
     });
 
+    app.load_css(&eww_css)?;
     app.handle_user_command(opts)?;
 
     let (send, recv) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
@@ -152,15 +159,13 @@ fn initialize_server(opts: Opt) -> Result<()> {
     std::thread::spawn(move || {
         while let Ok(event) = watcher_rx.recv() {
             let result: Result<_> = try {
-                dbg!(&event);
                 match event {
-                    notify::DebouncedEvent::Write(updated_path) | notify::DebouncedEvent::NoticeWrite(updated_path)
-                        if updated_path == config_file_path =>
-                    {
+                    hotwatch::Event::Write(path) | hotwatch::Event::NoticeWrite(path) if path == config_file_path => {
+                        let config_content = std::fs::read_to_string(path).unwrap_or_default();
                         let new_eww_config = config::EwwConfig::from_hocon(&config::parse_hocon(&config_content)?)?;
                         send.send(EwwEvent::ReloadConfig(new_eww_config))?;
                     }
-                    notify::DebouncedEvent::Write(updated_path) if updated_path == scss_file_path => {
+                    hotwatch::Event::Write(path) if path == scss_file_path => {
                         let scss_content = std::fs::read_to_string(scss_file_path.clone()).unwrap_or_default();
                         let eww_css = grass::from_string(scss_content, &grass::Options::default())
                             .map_err(|err| anyhow!("SCSS parsing error: {:?}", err))?;
@@ -170,8 +175,7 @@ fn initialize_server(opts: Opt) -> Result<()> {
                 }
             };
             if let Err(err) = result {
-                eprintln!("error in server thread: {}", err);
-                std::process::exit(1);
+                eprintln!("error in file watcher thread: {}", err);
             }
         }
     });
@@ -192,6 +196,7 @@ struct App {
     eww_config: config::EwwConfig,
     eww_css: String,
     windows: HashMap<String, gtk::Window>,
+    css_provider: gtk::CssProvider,
 }
 
 impl App {
@@ -231,7 +236,9 @@ impl App {
         window.set_type_hint(gdk::WindowTypeHint::Dock);
         window.set_position(gtk::WindowPosition::Center);
         window.set_default_size(window_def.size.0, window_def.size.1);
+        window.set_size_request(window_def.size.0, window_def.size.1);
         window.set_decorated(false);
+        window.set_resizable(false);
 
         let empty_local_state = HashMap::new();
         let root_widget = &widgets::element_to_gtk_thing(
@@ -259,18 +266,21 @@ impl App {
 
     fn reload_all_windows(&mut self, config: config::EwwConfig) -> Result<()> {
         self.eww_config = config;
+
         let windows = self.windows.clone();
         for (window_name, window) in windows {
-            dbg!(&window_name);
             window.close();
-            window.hide();
             self.open_window(&window_name)?;
         }
         Ok(())
     }
 
-    fn reload_css(&mut self, css: String) -> Result<()> {
-        for window in self.windows.values() {}
+    fn load_css(&mut self, css: &str) -> Result<()> {
+        self.css_provider.load_from_data(css.as_bytes())?;
+        //self.css_provider.load_from_data(eww_css.as_bytes())?;
+        //gdk::Screen::get_default().map(|screen| {
+        //gtk::StyleContext::add_provider_for_screen(&screen, &self.css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
+        //});
         Ok(())
     }
 
@@ -279,7 +289,7 @@ impl App {
             match event {
                 EwwEvent::UserCommand(command) => self.handle_user_command(command)?,
                 EwwEvent::ReloadConfig(config) => self.reload_all_windows(config)?,
-                EwwEvent::ReloadCss(css) => self.reload_css(css)?,
+                EwwEvent::ReloadCss(css) => self.load_css(&css)?,
             }
         };
         if let Err(err) = result {

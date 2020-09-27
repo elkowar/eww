@@ -1,12 +1,15 @@
+use anyhow::*;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::convert::TryInto;
+use std::process::Command;
 
-use crate::value::{AttrValue, PrimitiveValue};
+use crate::value::{AttrValue, CommandPollingUse, PrimitiveValue};
 
 #[derive(Default)]
 pub struct EwwState {
     on_change_handlers: HashMap<String, Vec<Box<dyn Fn(PrimitiveValue) + 'static>>>,
+    polling_commands: Vec<(CommandPollingUse, Box<dyn Fn(PrimitiveValue) + 'static>)>,
     state: HashMap<String, PrimitiveValue>,
 }
 
@@ -53,6 +56,13 @@ impl EwwState {
                 } else {
                     false
                 }
+            }
+            AttrValue::CommandPolling(command_polling_use) => {
+                self.polling_commands
+                    .push((command_polling_use.clone(), Box::new(set_value.clone())));
+                // TODO how do i handle commands needing to be run on the first resolve? this is an issue,....
+                //self.resolve(local_env, &value.into(), set_value);
+                true
             }
             AttrValue::Concrete(value) => {
                 set_value(value.clone());
@@ -111,4 +121,9 @@ impl EwwState {
             };
         })
     }
+}
+
+pub fn run_command(cmd: &str) -> Result<PrimitiveValue> {
+    let output = String::from_utf8(Command::new("/bin/bash").arg("-c").arg(cmd).output()?.stdout)?;
+    Ok(PrimitiveValue::from(output))
 }

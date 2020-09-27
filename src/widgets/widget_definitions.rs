@@ -16,6 +16,8 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
     resolve!(bargs, gtk_widget, {
         resolve_str  => "class"         => |v| gtk_widget.get_style_context().add_class(&v),
         resolve_bool => "active" = true => |v| gtk_widget.set_sensitive(v),
+        resolve_str  => "valign" => |v| gtk_widget.set_valign(parse_align(&v)),
+        resolve_str  => "halign" => |v| gtk_widget.set_halign(parse_align(&v)),
     });
 }
 
@@ -51,9 +53,9 @@ pub(super) fn resolve_orientable_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk
 
 pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<Option<gtk::Widget>> {
     let gtk_widget = match bargs.widget.name.as_str() {
+        "layout" => build_gtk_layout(bargs)?.upcast(),
         "slider" => build_gtk_scale(bargs)?.upcast(),
         "image" => build_gtk_image(bargs)?.upcast(),
-        "layout" => build_gtk_layout(bargs)?.upcast(),
         "button" => build_gtk_button(bargs)?.upcast(),
         "label" => build_gtk_label(bargs)?.upcast(),
         _ => return Ok(None),
@@ -69,7 +71,8 @@ fn build_gtk_scale(bargs: &mut BuilderArgs) -> Result<gtk::Scale> {
         Some(&gtk::Adjustment::new(0.0, 0.0, 100.0, 1.0, 1.0, 1.0)),
     );
     resolve!(bargs, gtk_widget, {
-        resolve_bool => "flipped" => |v| gtk_widget.set_inverted(v)
+        resolve_bool => "flipped"            => |v| gtk_widget.set_inverted(v),
+        resolve_bool => "draw-value" = false => |v| gtk_widget.set_draw_value(v),
     });
     Ok(gtk_widget)
 }
@@ -94,9 +97,9 @@ fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
 fn build_gtk_layout(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
     let gtk_widget = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     resolve!(bargs, gtk_widget, {
-        resolve_f64  => "spacing" = 10.0 => |v| gtk_widget.set_spacing(v as i32),
-        resolve_str  => "orientation"    => |v| gtk_widget.set_orientation(parse_orientation(&v)),
-
+        resolve_f64  => "spacing" = 0.0     => |v| gtk_widget.set_spacing(v as i32),
+        resolve_str  => "orientation"       => |v| gtk_widget.set_orientation(parse_orientation(&v)),
+        resolve_bool => "homogenous" = true => |v| gtk_widget.set_homogeneous(v),
     });
     Ok(gtk_widget)
 }
@@ -113,5 +116,16 @@ fn parse_orientation(o: &str) -> gtk::Orientation {
     match o {
         "vertical" | "v" => gtk::Orientation::Vertical,
         _ => gtk::Orientation::Horizontal,
+    }
+}
+
+fn parse_align(o: &str) -> gtk::Align {
+    match o {
+        "fill" => gtk::Align::Fill,
+        "baseline" => gtk::Align::Baseline,
+        "center" => gtk::Align::Center,
+        "start" => gtk::Align::Start,
+        "end" => gtk::Align::End,
+        _ => gtk::Align::Start,
     }
 }

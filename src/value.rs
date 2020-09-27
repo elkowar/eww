@@ -12,6 +12,12 @@ pub enum PrimitiveValue {
     Boolean(bool),
 }
 
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct PollingCommandValue {
+    command: String,
+    interval: std::time::Duration,
+}
+
 impl std::str::FromStr for PrimitiveValue {
     type Err = anyhow::Error;
 
@@ -30,28 +36,21 @@ fn remove_surrounding(s: &str, surround: char) -> &str {
 impl TryFrom<PrimitiveValue> for String {
     type Error = anyhow::Error;
     fn try_from(x: PrimitiveValue) -> Result<Self> {
-        match x {
-            PrimitiveValue::String(x) => Ok(x),
-            _ => return Err(anyhow!("'{:?}' is not a string", x.clone())),
-        }
+        x.as_string()
     }
 }
 
 impl TryFrom<PrimitiveValue> for f64 {
     type Error = anyhow::Error;
     fn try_from(x: PrimitiveValue) -> Result<Self> {
-        try_match!(PrimitiveValue::Number(x) = &x)
-            .map_err(|_| anyhow!("'{:?}' is not a number", &x))
-            .map(|&x| x)
+        x.as_f64()
     }
 }
 
 impl TryFrom<PrimitiveValue> for bool {
     type Error = anyhow::Error;
     fn try_from(x: PrimitiveValue) -> Result<Self> {
-        try_match!(PrimitiveValue::Boolean(x) = &x)
-            .map_err(|_| anyhow!("'{:?}' is not a bool", &x))
-            .map(|&x| x)
+        x.as_bool()
     }
 }
 
@@ -62,18 +61,30 @@ impl From<&str> for PrimitiveValue {
 }
 
 impl PrimitiveValue {
-    pub fn as_string(&self) -> Result<&String> {
-        try_match!(PrimitiveValue::String(x) = self).map_err(|x| anyhow!("{:?} is not a string", x))
+    pub fn as_string(&self) -> Result<String> {
+        match self {
+            PrimitiveValue::String(x) => Ok(x.clone()),
+            PrimitiveValue::Number(x) => Ok(format!("{}", x)),
+            PrimitiveValue::Boolean(x) => Ok(format!("{}", x)),
+        }
     }
     pub fn as_f64(&self) -> Result<f64> {
-        try_match!(PrimitiveValue::Number(x) = self)
-            .map_err(|x| anyhow!("{:?} is not an f64", x))
-            .map(|&x| x)
+        match self {
+            PrimitiveValue::Number(x) => Ok(*x),
+            PrimitiveValue::String(x) => x
+                .parse()
+                .map_err(|e| anyhow!("couldn't convert string {:?} to f64: {}", &self, e)),
+            _ => Err(anyhow!("{:?} is not an f64", &self)),
+        }
     }
     pub fn as_bool(&self) -> Result<bool> {
-        try_match!(PrimitiveValue::Boolean(x) = self)
-            .map_err(|x| anyhow!("{:?} is not a bool", x))
-            .map(|&x| x)
+        match self {
+            PrimitiveValue::Boolean(x) => Ok(*x),
+            PrimitiveValue::String(x) => x
+                .parse()
+                .map_err(|e| anyhow!("couldn't convert string {:?} to bool: {}", &self, e)),
+            _ => Err(anyhow!("{:?} is not a string", &self)),
+        }
     }
 }
 
@@ -88,7 +99,7 @@ impl std::convert::TryFrom<&Hocon> for PrimitiveValue {
             Hocon::Integer(n) => PrimitiveValue::Number(*n as f64),
             Hocon::Real(n) => PrimitiveValue::Number(*n as f64),
             Hocon::Boolean(b) => PrimitiveValue::Boolean(*b),
-            _ => return Err(anyhow!("cannot convert {} to config::PrimitiveValue")),
+            _ => return Err(anyhow!("cannot convert {} to config::ConcreteValue")),
         })
     }
 }
@@ -97,10 +108,17 @@ impl std::convert::TryFrom<&Hocon> for PrimitiveValue {
 pub enum AttrValue {
     Concrete(PrimitiveValue),
     VarRef(String),
+    CommandPolling(CommandPollingUse),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct CommandPollingUse {
+    command: String,
+    interval: std::time::Duration,
 }
 
 impl AttrValue {
-    pub fn as_string(&self) -> Result<&String> {
+    pub fn as_string(&self) -> Result<String> {
         try_match!(AttrValue::Concrete(x) = self)
             .map_err(|e| anyhow!("{:?} is not a string", e))?
             .as_string()
