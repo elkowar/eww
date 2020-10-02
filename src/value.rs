@@ -12,20 +12,12 @@ pub enum PrimitiveValue {
     Boolean(bool),
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct PollingCommandValue {
-    command: String,
-    interval: std::time::Duration,
-}
-
 impl std::str::FromStr for PrimitiveValue {
     type Err = anyhow::Error;
 
+    /// parses the value, trying to turn it into a number and a boolean first, before deciding that it is a string.
     fn from_str(s: &str) -> Result<PrimitiveValue> {
-        Ok(s.parse()
-            .map(PrimitiveValue::Number)
-            .or_else(|_| s.parse().map(PrimitiveValue::Boolean))
-            .unwrap_or_else(|_| PrimitiveValue::String(remove_surrounding(s, '\'').to_string())))
+        Ok(PrimitiveValue::parse_string(s))
     }
 }
 
@@ -61,6 +53,13 @@ impl From<&str> for PrimitiveValue {
 }
 
 impl PrimitiveValue {
+    /// parses the value, trying to turn it into a number and a boolean first, before deciding that it is a string.
+    pub fn parse_string(s: &str) -> Self {
+        s.parse()
+            .map(PrimitiveValue::Number)
+            .or_else(|_| s.parse().map(PrimitiveValue::Boolean))
+            .unwrap_or_else(|_| PrimitiveValue::String(remove_surrounding(s, '\'').to_string()))
+    }
     pub fn as_string(&self) -> Result<String> {
         match self {
             PrimitiveValue::String(x) => Ok(x.clone()),
@@ -137,11 +136,13 @@ impl AttrValue {
         try_match!(AttrValue::VarRef(x) = self).map_err(|e| anyhow!("{:?} is not a VarRef", e))
     }
 
-    pub fn from_string(s: String) -> Self {
+    /// parses the value, trying to turn it into VarRef,
+    /// a number and a boolean first, before deciding that it is a string.
+    pub fn parse_string(s: String) -> Self {
         if s.starts_with("$$") {
             AttrValue::VarRef(s.trim_start_matches("$$").to_string())
         } else {
-            AttrValue::Concrete(PrimitiveValue::String(s.clone()))
+            AttrValue::Concrete(PrimitiveValue::parse_string(&s))
         }
     }
 }
@@ -155,7 +156,7 @@ impl std::convert::TryFrom<&Hocon> for AttrValue {
     type Error = anyhow::Error;
     fn try_from(value: &Hocon) -> Result<Self> {
         Ok(match value {
-            Hocon::String(s) => AttrValue::from_string(s.clone()),
+            Hocon::String(s) => AttrValue::parse_string(s.clone()),
             Hocon::Integer(n) => AttrValue::Concrete(PrimitiveValue::Number(*n as f64)),
             Hocon::Real(n) => AttrValue::Concrete(PrimitiveValue::Number(*n as f64)),
             Hocon::Boolean(b) => AttrValue::Concrete(PrimitiveValue::Boolean(*b)),

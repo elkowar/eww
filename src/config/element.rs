@@ -14,6 +14,35 @@ pub struct WidgetDefinition {
 }
 
 impl WidgetDefinition {
+    pub fn from_xml(xml: roxmltree::Node) -> Result<Self> {
+        if !xml.is_element() {
+            bail!("Tried to parse element of type {:?} as Widget definition", xml.node_type());
+        } else if xml.tag_name().name().to_lowercase() != "def" {
+            bail!(
+                "Illegal element: only <def> may be used in definition block, but found '{}'",
+                xml.tag_name().name()
+            );
+        } else if xml.children().count() != 1 {
+            bail!(
+                "Widget definition '{}' needs to contain exactly one element",
+                xml.tag_name().name()
+            );
+        }
+
+        Ok(WidgetDefinition {
+            name: xml.try_attribute("name")?.to_owned(),
+
+            size: if let Some(node) = xml.children().find(|child| child.tag_name().name() == "size") {
+                Some((node.try_attribute("x")?.parse()?, node.try_attribute("y")?.parse()?))
+            } else {
+                None
+            },
+
+            // we can unwrap here, because we previously verified that there is exactly one child
+            structure: WidgetUse::from_xml(xml.first_child().unwrap())?,
+        })
+    }
+
     pub fn parse_hocon(name: String, hocon: &Hocon) -> Result<Self> {
         let definition = hocon.as_hash()?;
         let structure = definition
@@ -40,6 +69,40 @@ pub struct WidgetUse {
     pub name: String,
     pub children: Vec<WidgetUse>,
     pub attrs: HashMap<String, AttrValue>,
+}
+
+impl WidgetUse {
+    pub fn from_xml(xml: roxmltree::Node) -> Result<Self> {
+        match xml.node_type() {
+            roxmltree::NodeType::Text => Ok(WidgetUse::simple_text(AttrValue::parse_string(
+                xml.text()
+                    .context("couldn't get text from node")?
+                    .trim_matches('\n')
+                    .trim()
+                    .to_owned(),
+            ))),
+            roxmltree::NodeType::Element => {
+                let widget_name = xml.tag_name();
+                let attrs = xml
+                    .attributes()
+                    .iter()
+                    .map(|attr| (attr.name().to_owned(), AttrValue::parse_string(attr.value().to_owned())))
+                    .collect::<HashMap<_, _>>();
+                let children = xml
+                    .children()
+                    .filter(|child| !child.is_comment())
+                    .filter(|child| !(child.is_text() && child.text().unwrap().trim().trim_matches('\n').is_empty()))
+                    .map(|child| WidgetUse::from_xml(child))
+                    .collect::<Result<_>>()?;
+                Ok(WidgetUse {
+                    name: widget_name.name().to_string(),
+                    attrs,
+                    children,
+                })
+            }
+            _ => Err(anyhow!("Tried to parse node of type {:?} as widget use", xml.node_type())),
+        }
+    }
 }
 
 impl WidgetUse {
@@ -173,5 +236,30 @@ mod test {
             WidgetDefinition::parse_hocon("widget_name".to_string(), &parse_hocon(input_complex).unwrap()).unwrap(),
             expected
         );
+    }
+
+    #[test]
+    fn test_parse_widget_use_xml() {
+        let input = r#"
+        <widget_name attr1="hi" attr2="12">
+            <child_widget/>
+            foo
+        </widget_name>
+        "#;
+        let document = roxmltree::Document::parse(input).unwrap();
+        let xml = document.root_element().clone();
+
+        let expected = WidgetUse {
+            name: "widget_name".to_owned(),
+            attrs: hashmap! {
+                "attr1".to_owned() => AttrValue::Concrete(PrimitiveValue::String("hi".to_owned())),
+                "attr2".to_owned() => AttrValue::Concrete(PrimitiveValue::Number(12f64)),
+            },
+            children: vec![
+                WidgetUse::new("child_widget".to_owned(), Vec::new()),
+                WidgetUse::simple_text(AttrValue::Concrete(PrimitiveValue::String("foo".to_owned()))),
+            ],
+        };
+        assert_eq!(expected, WidgetUse::from_xml(xml).unwrap());
     }
 }
