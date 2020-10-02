@@ -26,6 +26,15 @@ impl EwwState {
             ..EwwState::default()
         }
     }
+
+    pub fn clear_callbacks(&mut self) {
+        self.on_change_handlers.clear();
+    }
+
+    pub fn get_command_polling_uses(&self) -> Vec<&CommandPollingUse> {
+        self.polling_commands.iter().map(|(x, _)| x).collect()
+    }
+
     pub fn update_value(&mut self, key: String, value: PrimitiveValue) {
         if let Some(handlers) = self.on_change_handlers.get(&key) {
             for on_change in handlers {
