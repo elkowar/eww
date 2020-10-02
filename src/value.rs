@@ -113,8 +113,8 @@ pub enum AttrValue {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct CommandPollingUse {
-    command: String,
-    interval: std::time::Duration,
+    pub command: String,
+    pub interval: std::time::Duration,
 }
 
 impl AttrValue {

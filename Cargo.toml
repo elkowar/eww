@@ -26,6 +26,8 @@ grass = "0.10"
 hotwatch = "0.4"
 calloop = "0.6"
 crossbeam-channel = "0.4"
+num = "0.3"
+stoppable_thread = "0.2"
 
 #thiserror = "1.0"
 

@@ -9,13 +9,6 @@ use std::convert::TryFrom;
 pub mod element;
 pub mod hocon_ext;
 
-#[derive(Debug, Clone)]
-pub struct EwwConfig {
-    widgets: HashMap<String, WidgetDefinition>,
-    windows: HashMap<String, EwwWindowDefinition>,
-    default_vars: HashMap<String, PrimitiveValue>,
-}
-
 #[allow(unused)]
 macro_rules! try_type {
     ($typ:ty; $code:expr) => {{
@@ -28,8 +21,20 @@ macro_rules! try_type {
     }};
 }
 
+#[derive(Debug, Clone)]
+pub struct EwwConfig {
+    widgets: HashMap<String, WidgetDefinition>,
+    windows: HashMap<String, EwwWindowDefinition>,
+    default_vars: HashMap<String, PrimitiveValue>,
+}
+
 impl EwwConfig {
-    pub fn from_hocon(hocon: &Hocon) -> Result<EwwConfig> {
+    pub fn read_from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self> {
+        let content = std::fs::read_to_string(path)?;
+        EwwConfig::from_hocon(&parse_hocon(&content)?)
+    }
+
+    pub fn from_hocon(hocon: &Hocon) -> Result<Self> {
         let data = hocon.as_hash()?;
 
         let widgets = data
