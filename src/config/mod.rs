@@ -5,9 +5,11 @@ use hocon::*;
 use hocon_ext::HoconExt;
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use xml_ext::*;
 
 pub mod element;
 pub mod hocon_ext;
+pub mod xml_ext;
 
 #[allow(unused)]
 macro_rules! try_type {
@@ -31,7 +33,49 @@ pub struct EwwConfig {
 impl EwwConfig {
     pub fn read_from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self> {
         let content = std::fs::read_to_string(path)?;
-        EwwConfig::from_hocon(&parse_hocon(&content)?)
+        let document = roxmltree::Document::parse(&content)?;
+        EwwConfig::from_xml(document.root_element())
+    }
+
+    pub fn from_xml(xml: roxmltree::Node) -> Result<Self> {
+        let definitions = xml
+            .find_child_with_tag("definitions")?
+            .children()
+            .map(|child| {
+                let def = WidgetDefinition::from_xml(child)?;
+                Ok((def.name.clone(), def))
+            })
+            .collect::<Result<HashMap<_, _>>>()
+            .context("error parsing widget definitions")?;
+
+        let windows = xml
+            .find_child_with_tag("windows")?
+            .children()
+            .map(|child| Ok((child.try_attribute("name")?.to_owned(), EwwWindowDefinition::from_xml(child)?)))
+            .collect::<Result<HashMap<_, _>>>()
+            .context("error parsing window definitions")?;
+
+        let default_vars = xml
+            .find_child_with_tag("variables")
+            .map(|variables_node| {
+                variables_node
+                    .children()
+                    .map(|child| {
+                        Some((
+                            child.tag_name().name().to_owned(),
+                            PrimitiveValue::parse_string(child.text()?.trim_matches('\n').trim()),
+                        ))
+                    })
+                    .collect::<Option<HashMap<_, _>>>()
+            })
+            .unwrap_or_default()
+            .context("error parsing default variable value")?;
+
+        Ok(EwwConfig {
+            widgets: definitions,
+            windows,
+            default_vars,
+        })
     }
 
     pub fn from_hocon(hocon: &Hocon) -> Result<Self> {
@@ -87,7 +131,24 @@ pub struct EwwWindowDefinition {
 }
 
 impl EwwWindowDefinition {
-    pub fn from_hocon(hocon: &Hocon) -> Result<EwwWindowDefinition> {
+    pub fn from_xml(xml: roxmltree::Node) -> Result<Self> {
+        if xml.tag_name().name() != "window" {
+            bail!(
+                "Only <window> tags are valid window definitions, but found {}",
+                xml.tag_name().name()
+            );
+        }
+
+        let size_node = xml.find_child_with_tag("size")?;
+        let size = (size_node.try_attribute("x")?.parse()?, size_node.try_attribute("y")?.parse()?);
+        let pos_node = xml.find_child_with_tag("pos")?;
+        let position = (pos_node.try_attribute("x")?.parse()?, pos_node.try_attribute("y")?.parse()?);
+
+        let widget = WidgetUse::from_xml(xml.find_child_with_tag("widget")?)?;
+        Ok(EwwWindowDefinition { position, size, widget })
+    }
+
+    pub fn from_hocon(hocon: &Hocon) -> Result<Self> {
         let data = hocon.as_hash().context("window config has to be a map structure")?;
         let position: Option<_> = try {
             (
