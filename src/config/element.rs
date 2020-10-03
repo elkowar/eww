@@ -1,10 +1,9 @@
 use super::*;
 
 use crate::value::AttrValue;
-use hocon_ext::HoconExt;
+use crate::with_text_pos_context;
 use maplit::hashmap;
 use std::collections::HashMap;
-use std::convert::TryFrom;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct WidgetDefinition {
@@ -14,24 +13,26 @@ pub struct WidgetDefinition {
 }
 
 impl WidgetDefinition {
-    pub fn parse_hocon(name: String, hocon: &Hocon) -> Result<Self> {
-        let definition = hocon.as_hash()?;
-        let structure = definition
-            .get("structure")
-            .cloned()
-            .context("structure must be set in widget definition")
-            .and_then(WidgetUse::parse_hocon)?;
+    pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
+        with_text_pos_context! { xml =>
+            if xml.tag_name() != "def" {
+                bail!(
+                    "Illegal element: only <def> may be used in definition block, but found '{}'",
+                    xml.as_tag_string()
+                );
+            }
 
-        Ok(WidgetDefinition {
-            name,
-            structure,
-            size: try {
-                (
-                    definition.get("size_x")?.as_i64()? as i32,
-                    definition.get("size_y")?.as_i64()? as i32,
-                )
-            },
-        })
+            let size: Option<_> = try {
+                (xml.attr("width").ok()?, xml.attr("height").ok()?)
+            };
+            let size: Option<Result<_>> = size.map(|(x, y)| Ok((x.parse()?, y.parse()?)));
+
+            WidgetDefinition {
+                name: xml.attr("name")?.to_owned(),
+                size: size.transpose()?,
+                structure: WidgetUse::from_xml_node(xml.only_child()?)?,
+            }
+        }
     }
 }
 
@@ -50,48 +51,20 @@ impl WidgetUse {
             attrs: HashMap::new(),
         }
     }
-
-    pub fn parse_hocon(data: Hocon) -> Result<Self> {
-        match data {
-            Hocon::Hash(data) => {
-                let (widget_name, widget_config) = data.into_iter().next().context("tried to parse empty hash as widget use")?;
-                match widget_config {
-                    Hocon::Hash(widget_config) => WidgetUse::from_hash_definition(widget_name.clone(), widget_config),
-                    direct_childen => Ok(WidgetUse::new(
-                        widget_name.clone(),
-                        parse_widget_use_children(direct_childen)?,
-                    )),
-                }
-            }
-            primitive => Ok(WidgetUse::simple_text(AttrValue::try_from(&primitive)?)),
+    pub fn from_xml_node(xml: XmlNode) -> Result<Self> {
+        match xml {
+            XmlNode::Text(text) => Ok(WidgetUse::simple_text(AttrValue::parse_string(text.text()))),
+            XmlNode::Element(elem) => Ok(WidgetUse {
+                name: elem.tag_name().to_string(),
+                children: with_text_pos_context! { elem => elem.children().map(WidgetUse::from_xml_node).collect::<Result<_>>()?}?,
+                attrs: elem
+                    .attributes()
+                    .iter()
+                    .map(|attr| (attr.name().to_owned(), AttrValue::parse_string(attr.value().to_owned())))
+                    .collect::<HashMap<_, _>>(),
+            }),
+            XmlNode::Ignored(_) => Err(anyhow!("Failed to parse node {:?} as widget use", xml))?,
         }
-    }
-
-    /// generate a WidgetUse from an array-style definition
-    /// i.e.: { layout: [ "hi", "ho" ] }
-    pub fn from_array_definition(widget_name: String, children: Vec<Hocon>) -> Result<Self> {
-        let children = children.into_iter().map(WidgetUse::parse_hocon).collect::<Result<_>>()?;
-        Ok(WidgetUse::new(widget_name, children))
-    }
-
-    /// generate a WidgetUse from a hash-style definition
-    /// i.e.: { layout: { orientation: "v", children: ["hi", "Ho"] } }
-    pub fn from_hash_definition(widget_name: String, mut widget_config: HashMap<String, Hocon>) -> Result<Self> {
-        let children = widget_config
-            .remove("children")
-            .map(parse_widget_use_children)
-            .unwrap_or(Ok(Vec::new()))?;
-
-        let attrs = widget_config
-            .into_iter()
-            .filter_map(|(key, value)| Some((key.to_lowercase(), AttrValue::try_from(&value).ok()?)))
-            .collect();
-
-        Ok(WidgetUse {
-            name: widget_name.to_string(),
-            children,
-            attrs,
-        })
     }
 
     pub fn simple_text(text: AttrValue) -> Self {
@@ -109,20 +82,6 @@ impl WidgetUse {
     }
 }
 
-pub fn parse_widget_use_children(children: Hocon) -> Result<Vec<WidgetUse>> {
-    match children {
-        Hocon::Hash(_) => bail!(
-            "children of a widget must either be a list of widgets or a primitive value, but got hash: {:?}",
-            children
-        ),
-        Hocon::Array(widget_children) => widget_children
-            .into_iter()
-            .map(WidgetUse::parse_hocon)
-            .collect::<Result<Vec<_>>>(),
-        primitive => Ok(vec![WidgetUse::simple_text(AttrValue::try_from(&primitive)?)]),
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -130,48 +89,72 @@ mod test {
     use pretty_assertions::assert_eq;
 
     #[test]
-    fn test_parse_widget_use() {
-        let input_complex = r#"{
-            widget_name: {
-                value: "test"
-                children: [
-                    { child: {} }
-                    { child: { children: ["hi"] } }
-                ]
-            }
-        }"#;
-        let expected = WidgetUse {
-            name: "widget_name".to_string(),
-            children: vec![
-                WidgetUse::new("child".to_string(), vec![]),
-                WidgetUse::new(
-                    "child".to_string(),
-                    vec![WidgetUse::simple_text(AttrValue::Concrete(PrimitiveValue::String(
-                        "hi".to_string(),
-                    )))],
-                ),
-            ],
-            attrs: hashmap! { "value".to_string() => AttrValue::Concrete(PrimitiveValue::String("test".to_string()))},
-        };
+    fn test_simple_text() {
+        let expected_attr_value = AttrValue::Concrete(PrimitiveValue::String("my text".to_owned()));
+        let widget = WidgetUse::simple_text(expected_attr_value.clone());
         assert_eq!(
-            WidgetUse::parse_hocon(parse_hocon(input_complex).unwrap().clone()).unwrap(),
-            expected
-        );
+            widget,
+            WidgetUse {
+                name: "label".to_owned(),
+                children: Vec::new(),
+                attrs: hashmap! { "text".to_owned() => expected_attr_value},
+            },
+        )
+    }
+
+    #[test]
+    fn test_parse_widget_use() {
+        let input = r#"
+        <widget_name attr1="hi" attr2="12">
+            <child_widget/>
+            foo
+        </widget_name>
+    "#;
+        let document = roxmltree::Document::parse(input).unwrap();
+        let xml = XmlNode::from(document.root_element().clone());
+
+        println!("{}", xml);
+        assert_eq!(true, false);
+
+        let expected = WidgetUse {
+            name: "widget_name".to_owned(),
+            attrs: hashmap! {
+            "attr1".to_owned() => AttrValue::Concrete(PrimitiveValue::String("hi".to_owned())),
+            "attr2".to_owned() => AttrValue::Concrete(PrimitiveValue::Number(12f64)),
+            },
+            children: vec![
+                WidgetUse::new("child_widget".to_owned(), Vec::new()),
+                WidgetUse::simple_text(AttrValue::Concrete(PrimitiveValue::String("foo".to_owned()))),
+            ],
+        };
+        assert_eq!(expected, WidgetUse::from_xml_node(xml).unwrap());
     }
 
     #[test]
     fn test_parse_widget_definition() {
-        let input_complex = r#"{
-            structure: { foo: {} }
-        }"#;
+        let input = r#"
+            <def name="foo" width="12" height="20">
+                <layout>test</layout>
+            </def>
+        "#;
+        let document = roxmltree::Document::parse(input).unwrap();
+        let xml = XmlNode::from(document.root_element().clone());
+
         let expected = WidgetDefinition {
-            name: "widget_name".to_string(),
-            structure: WidgetUse::new("foo".to_string(), vec![]),
-            size: None,
+            name: "foo".to_owned(),
+            size: Some((12, 20)),
+            structure: WidgetUse {
+                name: "layout".to_owned(),
+                children: vec![WidgetUse::simple_text(AttrValue::Concrete(PrimitiveValue::String(
+                    "test".to_owned(),
+                )))],
+                attrs: HashMap::new(),
+            },
         };
+
         assert_eq!(
-            WidgetDefinition::parse_hocon("widget_name".to_string(), &parse_hocon(input_complex).unwrap()).unwrap(),
-            expected
+            expected,
+            WidgetDefinition::from_xml_element(xml.as_element().unwrap()).unwrap()
         );
     }
 }

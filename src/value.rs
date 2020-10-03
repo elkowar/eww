@@ -1,31 +1,38 @@
 use anyhow::*;
 use derive_more;
-use hocon::Hocon;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
+use std::fmt;
 use try_match::try_match;
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, derive_more::From)]
+#[derive(Clone, PartialEq, Deserialize, Serialize, derive_more::From)]
 pub enum PrimitiveValue {
     String(String),
     Number(f64),
     Boolean(bool),
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct PollingCommandValue {
-    command: String,
-    interval: std::time::Duration,
+impl fmt::Display for PrimitiveValue {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            PrimitiveValue::String(s) => write!(f, "\"{}\"", s),
+            PrimitiveValue::Number(n) => write!(f, "{}", n),
+            PrimitiveValue::Boolean(b) => write!(f, "{}", b),
+        }
+    }
+}
+impl fmt::Debug for PrimitiveValue {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self)
+    }
 }
 
 impl std::str::FromStr for PrimitiveValue {
     type Err = anyhow::Error;
 
-    fn from_str(s: &str) -> Result<PrimitiveValue> {
-        Ok(s.parse()
-            .map(PrimitiveValue::Number)
-            .or_else(|_| s.parse().map(PrimitiveValue::Boolean))
-            .unwrap_or_else(|_| PrimitiveValue::String(remove_surrounding(s, '\'').to_string())))
+    /// parses the value, trying to turn it into a number and a boolean first, before deciding that it is a string.
+    fn from_str(s: &str) -> Result<Self> {
+        Ok(PrimitiveValue::parse_string(s))
     }
 }
 
@@ -61,6 +68,13 @@ impl From<&str> for PrimitiveValue {
 }
 
 impl PrimitiveValue {
+    /// parses the value, trying to turn it into a number and a boolean first, before deciding that it is a string.
+    pub fn parse_string(s: &str) -> Self {
+        s.parse()
+            .map(PrimitiveValue::Number)
+            .or_else(|_| s.parse().map(PrimitiveValue::Boolean))
+            .unwrap_or_else(|_| PrimitiveValue::String(remove_surrounding(s, '\'').to_string()))
+    }
     pub fn as_string(&self) -> Result<String> {
         match self {
             PrimitiveValue::String(x) => Ok(x.clone()),
@@ -88,22 +102,6 @@ impl PrimitiveValue {
     }
 }
 
-impl std::convert::TryFrom<&Hocon> for PrimitiveValue {
-    type Error = anyhow::Error;
-    fn try_from(value: &Hocon) -> Result<Self> {
-        Ok(match value {
-            Hocon::String(s) if s.starts_with("$$") => {
-                return Err(anyhow!("Tried to use variable reference {} as primitive value", s))
-            }
-            Hocon::String(s) => PrimitiveValue::String(s.to_string()),
-            Hocon::Integer(n) => PrimitiveValue::Number(*n as f64),
-            Hocon::Real(n) => PrimitiveValue::Number(*n as f64),
-            Hocon::Boolean(b) => PrimitiveValue::Boolean(*b),
-            _ => return Err(anyhow!("cannot convert {} to config::ConcreteValue")),
-        })
-    }
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub enum AttrValue {
     Concrete(PrimitiveValue),
@@ -113,8 +111,8 @@ pub enum AttrValue {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct CommandPollingUse {
-    command: String,
-    interval: std::time::Duration,
+    pub command: String,
+    pub interval: std::time::Duration,
 }
 
 impl AttrValue {
@@ -137,29 +135,18 @@ impl AttrValue {
         try_match!(AttrValue::VarRef(x) = self).map_err(|e| anyhow!("{:?} is not a VarRef", e))
     }
 
-    pub fn from_string(s: String) -> Self {
+    /// parses the value, trying to turn it into VarRef,
+    /// a number and a boolean first, before deciding that it is a string.
+    pub fn parse_string(s: String) -> Self {
         if s.starts_with("$$") {
             AttrValue::VarRef(s.trim_start_matches("$$").to_string())
         } else {
-            AttrValue::Concrete(PrimitiveValue::String(s.clone()))
+            AttrValue::Concrete(PrimitiveValue::parse_string(&s))
         }
     }
 }
 impl From<PrimitiveValue> for AttrValue {
     fn from(value: PrimitiveValue) -> Self {
         AttrValue::Concrete(value)
-    }
-}
-
-impl std::convert::TryFrom<&Hocon> for AttrValue {
-    type Error = anyhow::Error;
-    fn try_from(value: &Hocon) -> Result<Self> {
-        Ok(match value {
-            Hocon::String(s) => AttrValue::from_string(s.clone()),
-            Hocon::Integer(n) => AttrValue::Concrete(PrimitiveValue::Number(*n as f64)),
-            Hocon::Real(n) => AttrValue::Concrete(PrimitiveValue::Number(*n as f64)),
-            Hocon::Boolean(b) => AttrValue::Concrete(PrimitiveValue::Boolean(*b)),
-            _ => return Err(anyhow!("cannot convert {:?} to config::AttrValue", &value)),
-        })
     }
 }
