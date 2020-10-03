@@ -1,3 +1,4 @@
+use crate::util;
 use crate::value::PrimitiveValue;
 use anyhow::*;
 use element::*;
@@ -19,11 +20,45 @@ macro_rules! try_type {
     }};
 }
 
+#[macro_export]
+macro_rules! ensure_xml_tag_is {
+    ($element:ident, $name:literal) => {
+        ensure!(
+            $element.tag_name() == $name,
+            anyhow!(
+                "{} | Tag needed to be of type '{}', but was: {}",
+                $element.text_pos(),
+                $name,
+                $element.as_tag_string()
+            )
+        )
+    };
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ScriptVar {
+    pub name: String,
+    pub command: String,
+    pub interval: std::time::Duration,
+}
+
+impl ScriptVar {
+    pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
+        ensure_xml_tag_is!(xml, "script-var");
+
+        let name = xml.attr("name")?.to_owned();
+        let interval = util::parse_duration(xml.attr("interval")?)?;
+        let command = xml.only_child()?.as_text()?.text();
+        Ok(ScriptVar { name, interval, command })
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct EwwConfig {
     widgets: HashMap<String, WidgetDefinition>,
     windows: HashMap<String, EwwWindowDefinition>,
-    default_vars: HashMap<String, PrimitiveValue>,
+    initial_variables: HashMap<String, PrimitiveValue>,
+    script_vars: Vec<ScriptVar>,
 }
 
 impl EwwConfig {
@@ -51,29 +86,44 @@ impl EwwConfig {
             .collect::<Result<HashMap<_, _>>>()
             .context("error parsing window definitions")?;
 
-        let default_vars = xml
-            .child("variables")
-            .ok()
-            .map(|variables_node| {
-                variables_node
-                    .child_elements()
-                    .map(|child| {
-                        Ok((
-                            child.tag_name().to_owned(),
-                            PrimitiveValue::parse_string(&child.only_child()?.as_text()?.text()),
-                        ))
-                    })
-                    .collect::<Result<HashMap<_, _>>>()
-            })
-            .transpose()
-            .context("error parsing default variable value")?
-            .unwrap_or_default();
+        let variables_block = xml.child("variables").ok();
 
-        Ok(dbg!(EwwConfig {
+        let mut initial_variables = HashMap::new();
+        let mut script_vars = Vec::new();
+        if let Some(variables_block) = variables_block {
+            for node in variables_block.child_elements() {
+                match node.tag_name() {
+                    "var" => {
+                        initial_variables.insert(
+                            node.attr("name")?.to_owned(),
+                            PrimitiveValue::parse_string(&node.only_child()?.as_text()?.text()),
+                        );
+                    }
+                    "script-var" => {
+                        script_vars.push(ScriptVar::from_xml_element(node)?);
+                    }
+                    _ => bail!("Illegal element in variables block: {}", node.as_tag_string()),
+                }
+            }
+        }
+
+        Ok(EwwConfig {
             widgets: definitions,
             windows,
-            default_vars,
-        }))
+            initial_variables,
+            script_vars,
+        })
+    }
+
+    // TODO this is kinda ugly
+    pub fn generate_initial_state(&self) -> Result<HashMap<String, PrimitiveValue>> {
+        let mut vars = self
+            .script_vars
+            .iter()
+            .map(|var| Ok((var.name.to_string(), crate::eww_state::run_command(&var.command)?)))
+            .collect::<Result<HashMap<_, _>>>()?;
+        vars.extend(self.get_default_vars().into_iter().map(|(k, v)| (k.clone(), v.clone())));
+        Ok(vars)
     }
 
     pub fn get_widgets(&self) -> &HashMap<String, WidgetDefinition> {
@@ -83,7 +133,10 @@ impl EwwConfig {
         &self.windows
     }
     pub fn get_default_vars(&self) -> &HashMap<String, PrimitiveValue> {
-        &self.default_vars
+        &self.initial_variables
+    }
+    pub fn get_script_vars(&self) -> &Vec<ScriptVar> {
+        &self.script_vars
     }
 }
 
@@ -96,12 +149,7 @@ pub struct EwwWindowDefinition {
 
 impl EwwWindowDefinition {
     pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
-        if xml.tag_name() != "window" {
-            bail!(
-                "Only <window> tags are valid window definitions, but found {}",
-                xml.as_tag_string()
-            );
-        }
+        ensure_xml_tag_is!(xml, "window");
 
         let size_node = xml.child("size")?;
         let size = (size_node.attr("x")?.parse()?, size_node.attr("y")?.parse()?);

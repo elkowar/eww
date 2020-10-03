@@ -24,8 +24,8 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
 /// attributes that apply to all container widgets
 pub(super) fn resolve_container_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Container) {
     resolve!(bargs, gtk_widget, {
-        resolve_bool => "vexpand" = true => |v| gtk_widget.set_vexpand(v),
-        resolve_bool => "hexpand" = true => |v| gtk_widget.set_hexpand(v),
+        resolve_bool => "vexpand" = false => |v| gtk_widget.set_vexpand(v),
+        resolve_bool => "hexpand" = false => |v| gtk_widget.set_hexpand(v),
     });
 }
 
@@ -98,9 +98,9 @@ fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
 fn build_gtk_layout(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
     let gtk_widget = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     resolve!(bargs, gtk_widget, {
-        resolve_f64  => "spacing" = 0.0     => |v| gtk_widget.set_spacing(v as i32),
-        resolve_str  => "orientation"       => |v| gtk_widget.set_orientation(parse_orientation(&v)),
-        resolve_bool => "homogenous" = true => |v| gtk_widget.set_homogeneous(v),
+        resolve_f64  => "spacing" = 0.0       => |v| gtk_widget.set_spacing(v as i32),
+        resolve_str  => "orientation"         => |v| gtk_widget.set_orientation(parse_orientation(&v)),
+        resolve_bool => "space-evenly" = true => |v| gtk_widget.set_homogeneous(v),
     });
     Ok(gtk_widget)
 }

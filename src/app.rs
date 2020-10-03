@@ -1,19 +1,27 @@
 use crate::*;
+use debug_stub_derive::*;
 use std::collections::HashMap;
 
 #[derive(Debug)]
 pub enum EwwEvent {
     UserCommand(Opt),
+    UpdateVar(String, PrimitiveValue),
     ReloadConfig(config::EwwConfig),
     ReloadCss(String),
 }
 
-#[derive(Debug)]
+#[derive(DebugStub)]
 pub struct App {
     pub eww_state: EwwState,
     pub eww_config: config::EwwConfig,
     pub windows: HashMap<String, gtk::Window>,
     pub css_provider: gtk::CssProvider,
+    #[debug_stub = "script-var poll script handles"]
+    pub script_var_poll_handles: Vec<scheduled_executor::executor::TaskHandle>,
+    #[debug_stub = "script-var poll executor"]
+    pub script_var_poll_executor: scheduled_executor::CoreExecutor,
+
+    pub app_evt_send: glib::Sender<EwwEvent>,
 }
 
 impl App {
@@ -30,6 +38,7 @@ impl App {
         let result: Result<_> = try {
             match event {
                 EwwEvent::UserCommand(command) => self.handle_user_command(command)?,
+                EwwEvent::UpdateVar(key, value) => self.update_state(key, value),
                 EwwEvent::ReloadConfig(config) => self.reload_all_windows(config)?,
                 EwwEvent::ReloadCss(css) => self.load_css(&css)?,
             }
@@ -70,6 +79,10 @@ impl App {
         window.set_decorated(false);
         window.set_resizable(false);
 
+        // run on_screen_changed to set the visual correctly initially.
+        on_screen_changed(&window, None);
+        window.connect_screen_changed(on_screen_changed);
+
         let empty_local_state = HashMap::new();
         let root_widget = &widgets::element_to_gtk_thing(
             &self.eww_config.get_widgets(),
@@ -95,8 +108,16 @@ impl App {
     }
 
     pub fn reload_all_windows(&mut self, config: config::EwwConfig) -> Result<()> {
+        // refresh script-var poll stuff
+        self.script_var_poll_handles.iter().for_each(|handle| handle.stop());
+        self.script_var_poll_handles.clear();
+        if let Err(e) = self.init_command_poll_tasks() {
+            eprintln!("Error while setting up script-var commands: {:?}", e);
+        }
+
         self.eww_config = config;
         self.eww_state.clear_callbacks();
+
         let windows = self.windows.clone();
         for (window_name, window) in windows {
             window.close();
@@ -109,4 +130,41 @@ impl App {
         self.css_provider.load_from_data(css.as_bytes())?;
         Ok(())
     }
+
+    pub fn init_command_poll_tasks(&mut self) -> Result<()> {
+        let evt_send = self.app_evt_send.clone();
+        self.script_var_poll_handles = self
+            .eww_config
+            .get_script_vars()
+            .iter()
+            .map(|var| {
+                self.script_var_poll_executor.schedule_fixed_interval(
+                    std::time::Duration::from_secs(0),
+                    var.interval,
+                    glib::clone!(@strong var, @strong evt_send => move |_| {
+                        let result = eww_state::run_command(&var.command);
+                        match result {
+                            Ok(value) => {
+                                let _ = evt_send.send(app::EwwEvent::UpdateVar(var.name.clone(), value));
+                            }
+                            Err(e) => {
+                                eprintln!("Error while running script-var command: {:?}", e);
+                            }
+                        }
+                    }),
+                )
+            })
+            .collect_vec();
+        Ok(())
+    }
+}
+
+fn on_screen_changed(window: &gtk::Window, _old_screen: Option<&gdk::Screen>) {
+    let visual = window.get_screen().and_then(|screen| {
+        screen
+            .get_rgba_visual()
+            .filter(|_| screen.is_composited())
+            .or_else(|| screen.get_system_visual())
+    });
+    window.set_visual(visual.as_ref());
 }
