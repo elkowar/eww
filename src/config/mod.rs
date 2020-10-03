@@ -34,48 +34,50 @@ impl EwwConfig {
     pub fn read_from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self> {
         let content = std::fs::read_to_string(path)?;
         let document = roxmltree::Document::parse(&content)?;
-        EwwConfig::from_xml(document.root_element())
+        EwwConfig::from_xml_element(XmlNode::from(document.root_element()).as_element()?)
     }
 
-    pub fn from_xml(xml: roxmltree::Node) -> Result<Self> {
+    pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
         let definitions = xml
-            .find_child_with_tag("definitions")?
-            .children()
+            .child("definitions")?
+            .child_elements()
             .map(|child| {
-                let def = WidgetDefinition::from_xml(child)?;
+                let def = WidgetDefinition::from_xml_element(child)?;
                 Ok((def.name.clone(), def))
             })
             .collect::<Result<HashMap<_, _>>>()
             .context("error parsing widget definitions")?;
 
         let windows = xml
-            .find_child_with_tag("windows")?
-            .children()
-            .map(|child| Ok((child.try_attribute("name")?.to_owned(), EwwWindowDefinition::from_xml(child)?)))
+            .child("windows")?
+            .child_elements()
+            .map(|child| Ok((child.attr("name")?.to_owned(), EwwWindowDefinition::from_xml_element(child)?)))
             .collect::<Result<HashMap<_, _>>>()
             .context("error parsing window definitions")?;
 
         let default_vars = xml
-            .find_child_with_tag("variables")
+            .child("variables")
+            .ok()
             .map(|variables_node| {
                 variables_node
-                    .children()
+                    .child_elements()
                     .map(|child| {
-                        Some((
-                            child.tag_name().name().to_owned(),
-                            PrimitiveValue::parse_string(child.text()?.trim_matches('\n').trim()),
+                        Ok((
+                            child.tag_name().to_owned(),
+                            PrimitiveValue::parse_string(&child.only_child()?.as_text()?.text()),
                         ))
                     })
-                    .collect::<Option<HashMap<_, _>>>()
+                    .collect::<Result<HashMap<_, _>>>()
             })
-            .unwrap_or_default()
-            .context("error parsing default variable value")?;
+            .transpose()
+            .context("error parsing default variable value")?
+            .unwrap_or_default();
 
-        Ok(EwwConfig {
+        Ok(dbg!(EwwConfig {
             widgets: definitions,
             windows,
             default_vars,
-        })
+        }))
     }
 
     pub fn from_hocon(hocon: &Hocon) -> Result<Self> {
@@ -131,20 +133,20 @@ pub struct EwwWindowDefinition {
 }
 
 impl EwwWindowDefinition {
-    pub fn from_xml(xml: roxmltree::Node) -> Result<Self> {
-        if xml.tag_name().name() != "window" {
+    pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
+        if xml.tag_name() != "window" {
             bail!(
                 "Only <window> tags are valid window definitions, but found {}",
-                xml.tag_name().name()
+                xml.as_tag_string()
             );
         }
 
-        let size_node = xml.find_child_with_tag("size")?;
-        let size = (size_node.try_attribute("x")?.parse()?, size_node.try_attribute("y")?.parse()?);
-        let pos_node = xml.find_child_with_tag("pos")?;
-        let position = (pos_node.try_attribute("x")?.parse()?, pos_node.try_attribute("y")?.parse()?);
+        let size_node = xml.child("size")?;
+        let size = (size_node.attr("x")?.parse()?, size_node.attr("y")?.parse()?);
+        let pos_node = xml.child("pos")?;
+        let position = (pos_node.attr("x")?.parse()?, pos_node.attr("y")?.parse()?);
 
-        let widget = WidgetUse::from_xml(xml.find_child_with_tag("widget")?)?;
+        let widget = WidgetUse::from_xml_node(xml.child("widget")?.only_child()?)?;
         Ok(EwwWindowDefinition { position, size, widget })
     }
 

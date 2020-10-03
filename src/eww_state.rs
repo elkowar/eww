@@ -63,6 +63,7 @@ impl EwwState {
                     // get value from local
                     self.resolve(local_env, &value, set_value)
                 } else {
+                    eprintln!("WARN: unknown variable '{}' was referenced", name);
                     false
                 }
             }

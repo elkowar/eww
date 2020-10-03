@@ -58,6 +58,7 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<Option<gtk
         "image" => build_gtk_image(bargs)?.upcast(),
         "button" => build_gtk_button(bargs)?.upcast(),
         "label" => build_gtk_label(bargs)?.upcast(),
+        "text" => build_gtk_text(bargs)?.upcast(),
         _ => return Ok(None),
     };
     Ok(Some(gtk_widget))
@@ -107,11 +108,21 @@ fn build_gtk_layout(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
 fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
     let gtk_widget = gtk::Label::new(None);
     resolve!(bargs, gtk_widget, {
-        resolve_str => "text" = 10.0 => |v| gtk_widget.set_text(&v),
+        resolve_str => "text" => |v| gtk_widget.set_text(&v),
     });
     Ok(gtk_widget)
 }
 
+fn build_gtk_text(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
+    let text = bargs.widget.children.first().unwrap().get_attr("text")?;
+    let gtk_widget = gtk::Label::new(None);
+    bargs.eww_state.resolve_str(
+        bargs.local_env,
+        text,
+        glib::clone!(@strong gtk_widget => move |v| gtk_widget.set_text(&v)),
+    );
+    Ok(gtk_widget)
+}
 fn parse_orientation(o: &str) -> gtk::Orientation {
     match o {
         "vertical" | "v" => gtk::Orientation::Vertical,
