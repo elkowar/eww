@@ -334,6 +334,7 @@ dependencies = [
  "hocon",
  "hotwatch",
  "ipc-channel",
+ "itertools",
  "maplit",
  "num",
  "pretty_assertions",
