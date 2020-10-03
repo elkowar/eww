@@ -1,5 +1,4 @@
 use super::*;
-use itertools::Itertools;
 
 use crate::value::AttrValue;
 use crate::with_text_pos_context;
@@ -85,16 +84,16 @@ impl WidgetUse {
     //)
     //}
 
-    //pub fn text_with_var_refs(elements: Vec<AttrValue>) -> Self {
-    //dbg!(WidgetUse {
-    //name: "layout".to_owned(),
-    //attrs: hashmap! {
-    //"halign".to_owned() => AttrValue::Concrete(PrimitiveValue::String("center".to_owned())),
-    //"space-evenly".to_owned() => AttrValue::Concrete(PrimitiveValue::String("false".to_owned())),
-    //},
-    //children: elements.into_iter().map(WidgetUse::simple_text).collect(),
-    //})
-    //}
+    pub fn text_with_var_refs(elements: Vec<AttrValue>) -> Self {
+        dbg!(WidgetUse {
+            name: "layout".to_owned(),
+            attrs: hashmap! {
+            "halign".to_owned() => AttrValue::Concrete(PrimitiveValue::String("center".to_owned())),
+            "space-evenly".to_owned() => AttrValue::Concrete(PrimitiveValue::String("false".to_owned())),
+            },
+            children: elements.into_iter().map(WidgetUse::simple_text).collect(),
+        })
+    }
 
     pub fn get_attr(&self, key: &str) -> Result<&AttrValue> {
         self.attrs
