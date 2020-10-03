@@ -110,22 +110,28 @@ pub enum AttrValue {
 
 impl AttrValue {
     pub fn as_string(&self) -> Result<String> {
-        try_match!(AttrValue::Concrete(x) = self)
-            .map_err(|e| anyhow!("{:?} is not a string", e))?
-            .as_string()
+        match self {
+            AttrValue::Concrete(x) => Ok(x.as_string()?),
+            _ => Err(anyhow!("{:?} is not a string", self)),
+        }
     }
     pub fn as_f64(&self) -> Result<f64> {
-        try_match!(AttrValue::Concrete(x) = self)
-            .map_err(|e| anyhow!("{:?} is not an f64", e))?
-            .as_f64()
+        match self {
+            AttrValue::Concrete(x) => Ok(x.as_f64()?),
+            _ => Err(anyhow!("{:?} is not an f64", self)),
+        }
     }
     pub fn as_bool(&self) -> Result<bool> {
-        try_match!(AttrValue::Concrete(x) = self)
-            .map_err(|e| anyhow!("{:?} is not a bool", e))?
-            .as_bool()
+        match self {
+            AttrValue::Concrete(x) => Ok(x.as_bool()?),
+            _ => Err(anyhow!("{:?} is not a bool", self)),
+        }
     }
     pub fn as_var_ref(&self) -> Result<&String> {
-        try_match!(AttrValue::VarRef(x) = self).map_err(|e| anyhow!("{:?} is not a VarRef", e))
+        match self {
+            AttrValue::VarRef(x) => Ok(x),
+            _ => Err(anyhow!("{:?} is not a VarRef", self)),
+        }
     }
 
     /// parses the value, trying to turn it into VarRef,
