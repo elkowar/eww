@@ -54,9 +54,7 @@ impl WidgetUse {
     }
     pub fn from_xml_node(xml: XmlNode) -> Result<Self> {
         match xml {
-            XmlNode::Text(text) => Ok(WidgetUse::simple_text(AttrValue::Concrete(PrimitiveValue::String(
-                text.text(),
-            )))),
+            XmlNode::Text(text) => Ok(WidgetUse::simple_text(AttrValue::parse_string(text.text()))),
             XmlNode::Element(elem) => Ok(WidgetUse {
                 name: elem.tag_name().to_string(),
                 children: with_text_pos_context! { elem => elem.children().map(WidgetUse::from_xml_node).collect::<Result<_>>()?}?,
