@@ -4,12 +4,11 @@ use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::process::Command;
 
-use crate::value::{AttrValue, CommandPollingUse, PrimitiveValue};
+use crate::value::{AttrValue, PrimitiveValue};
 
 #[derive(Default)]
 pub struct EwwState {
     on_change_handlers: HashMap<String, Vec<Box<dyn Fn(PrimitiveValue) + 'static>>>,
-    polling_commands: Vec<(CommandPollingUse, Box<dyn Fn(PrimitiveValue) + 'static>)>,
     state: HashMap<String, PrimitiveValue>,
 }
 
@@ -29,10 +28,6 @@ impl EwwState {
 
     pub fn clear_callbacks(&mut self) {
         self.on_change_handlers.clear();
-    }
-
-    pub fn get_command_polling_uses(&self) -> Vec<&CommandPollingUse> {
-        self.polling_commands.iter().map(|(x, _)| x).collect()
     }
 
     pub fn update_value(&mut self, key: String, value: PrimitiveValue) {
@@ -66,13 +61,6 @@ impl EwwState {
                     eprintln!("WARN: unknown variable '{}' was referenced", name);
                     false
                 }
-            }
-            AttrValue::CommandPolling(command_polling_use) => {
-                self.polling_commands
-                    .push((command_polling_use.clone(), Box::new(set_value.clone())));
-                // TODO how do i handle commands needing to be run on the first resolve? this is an issue,....
-                //self.resolve(local_env, &value.into(), set_value);
-                true
             }
             AttrValue::Concrete(value) => {
                 set_value(value.clone());
@@ -135,5 +123,6 @@ impl EwwState {
 
 pub fn run_command(cmd: &str) -> Result<PrimitiveValue> {
     let output = String::from_utf8(Command::new("/bin/bash").arg("-c").arg(cmd).output()?.stdout)?;
+    let output = output.trim_matches('\n');
     Ok(PrimitiveValue::from(output))
 }

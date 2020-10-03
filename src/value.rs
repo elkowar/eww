@@ -106,13 +106,6 @@ impl PrimitiveValue {
 pub enum AttrValue {
     Concrete(PrimitiveValue),
     VarRef(String),
-    CommandPolling(CommandPollingUse),
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct CommandPollingUse {
-    pub command: String,
-    pub interval: std::time::Duration,
 }
 
 impl AttrValue {

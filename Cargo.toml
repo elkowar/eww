@@ -23,11 +23,14 @@ serde = {version = "1.0", features = ["derive"]}
 extend = "0.3.0"
 grass = "0.10"
 hotwatch = "0.4"
+notify = "4.0"
 crossbeam-channel = "0.4"
 num = "0.3"
 stoppable_thread = "0.2"
 roxmltree = "0.13"
 itertools = "0.9"
+scheduled-executor = "0.4"
+debug_stub_derive = "0.3"
 
 #thiserror = "1.0"
 

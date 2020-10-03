@@ -1,4 +1,5 @@
 use super::*;
+use itertools::Itertools;
 
 use crate::value::AttrValue;
 use crate::with_text_pos_context;
@@ -53,7 +54,9 @@ impl WidgetUse {
     }
     pub fn from_xml_node(xml: XmlNode) -> Result<Self> {
         match xml {
-            XmlNode::Text(text) => Ok(WidgetUse::simple_text(AttrValue::parse_string(text.text()))),
+            XmlNode::Text(text) => Ok(WidgetUse::simple_text(AttrValue::Concrete(PrimitiveValue::String(
+                text.text(),
+            )))),
             XmlNode::Element(elem) => Ok(WidgetUse {
                 name: elem.tag_name().to_string(),
                 children: with_text_pos_context! { elem => elem.children().map(WidgetUse::from_xml_node).collect::<Result<_>>()?}?,
@@ -75,6 +78,26 @@ impl WidgetUse {
         }
     }
 
+    // TODO Even just thinking of this gives me horrible nightmares.....
+    //pub fn from_text(text: String) -> Self {
+    //WidgetUse::text_with_var_refs(
+    //text.split(" ")
+    //.map(|word| AttrValue::parse_string(word.to_owned()))
+    //.collect_vec(),
+    //)
+    //}
+
+    //pub fn text_with_var_refs(elements: Vec<AttrValue>) -> Self {
+    //dbg!(WidgetUse {
+    //name: "layout".to_owned(),
+    //attrs: hashmap! {
+    //"halign".to_owned() => AttrValue::Concrete(PrimitiveValue::String("center".to_owned())),
+    //"space-evenly".to_owned() => AttrValue::Concrete(PrimitiveValue::String("false".to_owned())),
+    //},
+    //children: elements.into_iter().map(WidgetUse::simple_text).collect(),
+    //})
+    //}
+
     pub fn get_attr(&self, key: &str) -> Result<&AttrValue> {
         self.attrs
             .get(key)
@@ -88,6 +111,10 @@ mod test {
     use maplit::hashmap;
     use pretty_assertions::assert_eq;
 
+    fn mk_attr_str(s: &str) -> AttrValue {
+        AttrValue::Concrete(PrimitiveValue::String(s.to_owned()))
+    }
+
     #[test]
     fn test_simple_text() {
         let expected_attr_value = AttrValue::Concrete(PrimitiveValue::String("my text".to_owned()));
@@ -99,6 +126,24 @@ mod test {
                 children: Vec::new(),
                 attrs: hashmap! { "text".to_owned() => expected_attr_value},
             },
+        )
+    }
+
+    #[test]
+    fn test_text_with_var_refs() {
+        let expected_attr_value1 = mk_attr_str("my text");
+        let expected_attr_value2 = AttrValue::VarRef("var".to_owned());
+        let widget = WidgetUse::text_with_var_refs(vec![expected_attr_value1.clone(), expected_attr_value2.clone()]);
+        assert_eq!(
+            widget,
+            WidgetUse {
+                name: "layout".to_owned(),
+                attrs: hashmap! { "halign".to_owned() => mk_attr_str("center"), "space-evenly".to_owned() => mk_attr_str("false")},
+                children: vec![
+                    WidgetUse::simple_text(expected_attr_value1),
+                    WidgetUse::simple_text(expected_attr_value2),
+                ]
+            }
         )
     }
 

@@ -1,4 +1,5 @@
 #![feature(trace_macros)]
+#![feature(iterator_fold_self)]
 #![feature(try_blocks)]
 extern crate gio;
 extern crate gtk;
@@ -9,6 +10,8 @@ use gdk::*;
 use gtk::prelude::*;
 use hotwatch;
 use ipc_channel::ipc;
+use itertools::Itertools;
+use scheduled_executor;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -24,9 +27,9 @@ pub mod widgets;
 
 #[macro_export]
 macro_rules! build {
-    ($var_name:ident = $value:expr ; $code:block) => {{
+    ($var_name:ident = $value:expr ; $($code:tt)*) => {{
         let mut $var_name = $value;
-        $code;
+        $($code)*
         $var_name
     }};
 }
@@ -102,12 +105,16 @@ fn initialize_server(opts: Opt) -> Result<()> {
     let eww_config = config::EwwConfig::read_from_file(&config_file_path)?;
 
     gtk::init()?;
+    let (evt_send, evt_recv) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
 
     let mut app = app::App {
-        eww_state: EwwState::from_default_vars(eww_config.get_default_vars().clone()),
+        eww_state: EwwState::from_default_vars(eww_config.generate_initial_state()?.clone()),
         eww_config,
         windows: HashMap::new(),
         css_provider: gtk::CssProvider::new(),
+        script_var_poll_handles: Vec::new(),
+        script_var_poll_executor: scheduled_executor::CoreExecutor::new()?,
+        app_evt_send: evt_send.clone(),
     };
 
     if let Some(screen) = gdk::Screen::get_default() {
@@ -121,9 +128,10 @@ fn initialize_server(opts: Opt) -> Result<()> {
     // run the command that eww was started with
     app.handle_user_command(opts)?;
 
-    let (evt_send, evt_recv) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
     run_server_thread(evt_send.clone());
-    run_filewatch_thread(&config_file_path, &scss_file_path, evt_send.clone())?;
+    let _hotwatch = run_filewatch_thread(&config_file_path, &scss_file_path, evt_send.clone())?;
+
+    app.init_command_poll_tasks()?;
 
     evt_recv.attach(None, move |msg| {
         app.handle_event(msg);
@@ -135,7 +143,7 @@ fn initialize_server(opts: Opt) -> Result<()> {
     Ok(())
 }
 
-fn run_server_thread(evt_send: glib::Sender<app::EwwEvent>) -> std::thread::JoinHandle<()> {
+fn run_server_thread(evt_send: glib::Sender<app::EwwEvent>) {
     std::thread::spawn(move || {
         let result: Result<_> = try {
             loop {
@@ -149,24 +157,23 @@ fn run_server_thread(evt_send: glib::Sender<app::EwwEvent>) -> std::thread::Join
             eprintln!("error in server thread: {}", err);
             std::process::exit(1);
         }
-    })
+    });
 }
 
 fn run_filewatch_thread<P: AsRef<Path>>(
     config_file_path: P,
     scss_file_path: P,
     evt_send: glib::Sender<app::EwwEvent>,
-) -> Result<()> {
+) -> Result<hotwatch::Hotwatch> {
     let mut hotwatch = hotwatch::Hotwatch::new()?;
-    hotwatch.watch_file_changes(
-        config_file_path,
-        glib::clone!(@strong evt_send => move |path| {
-            try_logging_errors!("handling change of config file" => {
-                let new_eww_config = config::EwwConfig::read_from_file(path)?;
-                evt_send.send(app::EwwEvent::ReloadConfig(new_eww_config))?;
-            });
-        }),
-    )?;
+
+    let config_file_change_send = evt_send.clone();
+    hotwatch.watch_file_changes(config_file_path, move |path| {
+        try_logging_errors!("handling change of config file" => {
+            let new_eww_config = config::EwwConfig::read_from_file(path)?;
+            config_file_change_send.send(app::EwwEvent::ReloadConfig(new_eww_config))?;
+        });
+    })?;
 
     let result = hotwatch.watch_file_changes(scss_file_path, move |path| {
         try_logging_errors!("handling change of scss file" =>  {
@@ -177,20 +184,19 @@ fn run_filewatch_thread<P: AsRef<Path>>(
     if let Err(e) = result {
         eprintln!("WARN: error while loading CSS file for hot-reloading: \n{}", e)
     };
-    Ok(())
+    Ok(hotwatch)
 }
 
 #[extend::ext(pub)]
 impl hotwatch::Hotwatch {
-    fn watch_file_changes<P, F>(&mut self, path: P, callback: F) -> Result<()>
+    fn watch_file_changes<P, F>(&mut self, file_path: P, callback: F) -> Result<()>
     where
         P: AsRef<Path>,
         F: 'static + Fn(PathBuf) + Send,
     {
-        let result = self.watch(path, move |evt| match evt {
+        Ok(self.watch(file_path, move |evt| match evt {
             hotwatch::Event::Write(path) | hotwatch::Event::NoticeWrite(path) => callback(path),
             _ => {}
-        });
-        Ok(result?)
+        })?)
     }
 }
