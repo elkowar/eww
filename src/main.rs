@@ -86,7 +86,7 @@ fn get_config_file_path() -> PathBuf {
         .map(|v| PathBuf::from(v))
         .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap()).join(".config"))
         .join("eww")
-        .join("eww.conf")
+        .join("eww.xml")
 }
 
 fn initialize_server(opts: Opt) -> Result<()> {
