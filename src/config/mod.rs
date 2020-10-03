@@ -1,14 +1,10 @@
 use crate::value::PrimitiveValue;
 use anyhow::*;
 use element::*;
-use hocon::*;
-use hocon_ext::HoconExt;
 use std::collections::HashMap;
-use std::convert::TryFrom;
 use xml_ext::*;
 
 pub mod element;
-pub mod hocon_ext;
 pub mod xml_ext;
 
 #[allow(unused)]
@@ -80,40 +76,6 @@ impl EwwConfig {
         }))
     }
 
-    pub fn from_hocon(hocon: &Hocon) -> Result<Self> {
-        let data = hocon.as_hash()?;
-
-        let widgets = data
-            .get("widgets")
-            .context("widgets field missing")?
-            .as_hash()?
-            .iter()
-            .map(|(n, def)| Ok((n.clone(), WidgetDefinition::parse_hocon(n.clone(), def)?)))
-            .collect::<Result<_>>()?;
-
-        let windows = data
-            .get("windows")
-            .context("windows field missing")?
-            .as_hash()?
-            .iter()
-            .map(|(name, def)| Ok((name.clone(), EwwWindowDefinition::from_hocon(def)?)))
-            .collect::<Result<_>>()?;
-
-        let default_vars = data
-            .get("default_vars")
-            .unwrap_or(&Hocon::Hash(HashMap::new()))
-            .as_hash()?
-            .iter()
-            .map(|(name, def)| Ok((name.clone(), PrimitiveValue::try_from(def)?)))
-            .collect::<Result<_>>()?;
-
-        Ok(EwwConfig {
-            widgets,
-            windows,
-            default_vars,
-        })
-    }
-
     pub fn get_widgets(&self) -> &HashMap<String, WidgetDefinition> {
         &self.widgets
     }
@@ -149,33 +111,4 @@ impl EwwWindowDefinition {
         let widget = WidgetUse::from_xml_node(xml.child("widget")?.only_child()?)?;
         Ok(EwwWindowDefinition { position, size, widget })
     }
-
-    pub fn from_hocon(hocon: &Hocon) -> Result<Self> {
-        let data = hocon.as_hash().context("window config has to be a map structure")?;
-        let position: Option<_> = try {
-            (
-                data.get("pos")?.as_hash().ok()?.get("x")?.as_i64()? as i32,
-                data.get("pos")?.as_hash().ok()?.get("y")?.as_i64()? as i32,
-            )
-        };
-        let size: Option<_> = try {
-            (
-                data.get("size")?.as_hash().ok()?.get("x")?.as_i64()? as i32,
-                data.get("size")?.as_hash().ok()?.get("y")?.as_i64()? as i32,
-            )
-        };
-
-        let element = WidgetUse::parse_hocon(data.get("widget").context("no widget use given")?.clone())?;
-
-        Ok(EwwWindowDefinition {
-            position: position.context("pos.x and pos.y need to be set")?,
-            size: size.context("size.x and size.y need to be set")?,
-            widget: element,
-        })
-    }
-}
-
-pub fn parse_hocon(s: &str) -> Result<Hocon> {
-    let s = s.trim();
-    Ok(HoconLoader::new().strict().load_str(s)?.hocon()?)
 }

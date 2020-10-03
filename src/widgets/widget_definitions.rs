@@ -113,8 +113,14 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
     Ok(gtk_widget)
 }
 
+// TODO this is rather ugly,.....
 fn build_gtk_text(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
-    let text = bargs.widget.children.first().unwrap().get_attr("text")?;
+    let text = bargs
+        .widget
+        .children
+        .first()
+        .context("text node must contain exactly one child")?
+        .get_attr("text")?;
     let gtk_widget = gtk::Label::new(None);
     bargs.eww_state.resolve_str(
         bargs.local_env,

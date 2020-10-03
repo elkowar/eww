@@ -1,22 +1,37 @@
 use anyhow::*;
 use derive_more;
-use hocon::Hocon;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
+use std::fmt;
 use try_match::try_match;
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, derive_more::From)]
+#[derive(Clone, PartialEq, Deserialize, Serialize, derive_more::From)]
 pub enum PrimitiveValue {
     String(String),
     Number(f64),
     Boolean(bool),
 }
 
+impl fmt::Display for PrimitiveValue {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            PrimitiveValue::String(s) => write!(f, "\"{}\"", s),
+            PrimitiveValue::Number(n) => write!(f, "{}", n),
+            PrimitiveValue::Boolean(b) => write!(f, "{}", b),
+        }
+    }
+}
+impl fmt::Debug for PrimitiveValue {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
 impl std::str::FromStr for PrimitiveValue {
     type Err = anyhow::Error;
 
     /// parses the value, trying to turn it into a number and a boolean first, before deciding that it is a string.
-    fn from_str(s: &str) -> Result<PrimitiveValue> {
+    fn from_str(s: &str) -> Result<Self> {
         Ok(PrimitiveValue::parse_string(s))
     }
 }
@@ -87,22 +102,6 @@ impl PrimitiveValue {
     }
 }
 
-impl std::convert::TryFrom<&Hocon> for PrimitiveValue {
-    type Error = anyhow::Error;
-    fn try_from(value: &Hocon) -> Result<Self> {
-        Ok(match value {
-            Hocon::String(s) if s.starts_with("$$") => {
-                return Err(anyhow!("Tried to use variable reference {} as primitive value", s))
-            }
-            Hocon::String(s) => PrimitiveValue::String(s.to_string()),
-            Hocon::Integer(n) => PrimitiveValue::Number(*n as f64),
-            Hocon::Real(n) => PrimitiveValue::Number(*n as f64),
-            Hocon::Boolean(b) => PrimitiveValue::Boolean(*b),
-            _ => return Err(anyhow!("cannot convert {} to config::ConcreteValue")),
-        })
-    }
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub enum AttrValue {
     Concrete(PrimitiveValue),
@@ -149,18 +148,5 @@ impl AttrValue {
 impl From<PrimitiveValue> for AttrValue {
     fn from(value: PrimitiveValue) -> Self {
         AttrValue::Concrete(value)
-    }
-}
-
-impl std::convert::TryFrom<&Hocon> for AttrValue {
-    type Error = anyhow::Error;
-    fn try_from(value: &Hocon) -> Result<Self> {
-        Ok(match value {
-            Hocon::String(s) => AttrValue::parse_string(s.clone()),
-            Hocon::Integer(n) => AttrValue::Concrete(PrimitiveValue::Number(*n as f64)),
-            Hocon::Real(n) => AttrValue::Concrete(PrimitiveValue::Number(*n as f64)),
-            Hocon::Boolean(b) => AttrValue::Concrete(PrimitiveValue::Boolean(*b)),
-            _ => return Err(anyhow!("cannot convert {:?} to config::AttrValue", &value)),
-        })
     }
 }
