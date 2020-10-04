@@ -33,12 +33,12 @@ Eww&rsquo;s configuration should be placed in `~/.config/eww/eww.xml` and any `s
   <definitions>
     <def name="test">
       <layout orientation="v">
-        <text>$$foo</text>
+        {{foo}}
         <button onclick='notify-send "that hurt,..."'>
             click me if you dare :&lt;
           </button>
         <layout>
-          <text>$$ree</text>
+          {{ree}}
           <slider min="0" max="100" value="50" onchange="notify-send {}"/>
         </layout>
       </layout>
@@ -46,7 +46,7 @@ Eww&rsquo;s configuration should be placed in `~/.config/eww/eww.xml` and any `s
   </definitions>
 
   <variables>
-    <foo>test</foo>
+    <var name="foo">test</var>
   </variables>
 
 
