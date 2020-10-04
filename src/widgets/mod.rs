@@ -61,7 +61,15 @@ pub fn build_gtk_widget(
     };
     let gtk_widget = match widget_to_gtk_widget(&mut bargs) {
         Ok(Some(gtk_widget)) => gtk_widget,
-        result => return result,
+        result => {
+            return result.with_context(|| {
+                anyhow!(
+                    "{}Error building widget {}",
+                    bargs.widget.text_pos.map(|x| format!("{} |", x)).unwrap_or_default(),
+                    bargs.widget.name,
+                )
+            })
+        }
     };
 
     if let Some(gtk_widget) = gtk_widget.dynamic_cast_ref::<gtk::Container>() {
@@ -70,7 +78,8 @@ pub fn build_gtk_widget(
             let child_widget = element_to_gtk_thing(widget_definitions, bargs.eww_state, local_env, child);
             let child_widget = child_widget.with_context(|| {
                 format!(
-                    "error while building child '{:#?}' of '{}'",
+                    "{}error while building child '{:#?}' of '{}'",
+                    widget.text_pos.map(|x| format!("{} |", x)).unwrap_or_default(),
                     &child,
                     &gtk_widget.get_widget_name()
                 )
@@ -86,7 +95,8 @@ pub fn build_gtk_widget(
 
     if !bargs.unhandled_attrs.is_empty() {
         eprintln!(
-            "WARN: Unknown attribute used in {}: {}",
+            "{}WARN: Unknown attribute used in {}: {}",
+            widget.text_pos.map(|x| format!("{} |", x)).unwrap_or_default(),
             widget.name,
             bargs.unhandled_attrs.join(", ")
         )
