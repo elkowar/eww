@@ -21,6 +21,7 @@ struct BuilderArgs<'a, 'b, 'c> {
     eww_state: &'a mut EwwState,
     local_env: &'b HashMap<String, AttrValue>,
     widget: &'c element::WidgetUse,
+    unhandled_attrs: Vec<&'c str>,
 }
 
 pub fn element_to_gtk_thing(
@@ -56,6 +57,7 @@ pub fn build_gtk_widget(
         eww_state,
         local_env,
         widget,
+        unhandled_attrs: widget.attrs.keys().map(|x| x.as_str()).collect(),
     };
     let gtk_widget = match widget_to_gtk_widget(&mut bargs) {
         Ok(Some(gtk_widget)) => gtk_widget,
@@ -82,6 +84,14 @@ pub fn build_gtk_widget(
         .map(|w| resolve_orientable_attrs(&mut bargs, &w));
     resolve_widget_attrs(&mut bargs, &gtk_widget);
 
+    if !bargs.unhandled_attrs.is_empty() {
+        eprintln!(
+            "WARN: Unknown attribute used in {}: {}",
+            widget.name,
+            bargs.unhandled_attrs.join(", ")
+        )
+    }
+
     Ok(Some(gtk_widget))
 }
 
@@ -91,24 +101,25 @@ macro_rules! resolve {
         $(
             $func:ident => $attr:literal $( = $default:literal)? $( = req $(@$required:tt)?)? => |$arg:ident| $body:expr
         ),+ $(,)?
-    }) => {
+    }) => {{
         $(
             resolve!($args, $gtk_widget, $func => $attr $( [ $default ] )* $($($required)*)* => |$arg| $body);
         )+
-    };
+    }};
 
     ($args:ident, $gtk_widget:ident, {
         $($func:ident => {
             $($attr:literal $(= $default:literal)? $(= req $(@$required:tt)?)? => |$arg:ident| $body:expr),+ $(,)?
         }),+ $(,)?
-    }) => {
+    }) => {{
         $($(
             resolve!($args, $gtk_widget, $func => $attr $( [ $default ] )* $($($required)*)* => |$arg| $body);
         )+)+
-    };
+    }};
 
     // optional
     ($args:ident, $gtk_widget:ident, $func:ident => $attr:literal => |$arg:ident| $body:expr) => {
+        $args.unhandled_attrs.retain(|a| a != &$attr);
         if let Some(attr_value) = $args.widget.attrs.get($attr) {
             $args.eww_state.$func($args.local_env, attr_value, {
                 let $gtk_widget = $gtk_widget.clone();
@@ -119,6 +130,7 @@ macro_rules! resolve {
 
     // required
     ($args:ident, $gtk_widget:ident, $func:ident => $attr:literal req => |$arg:ident| $body:expr) => {
+        $args.unhandled_attrs.retain(|a| a != &$attr);
         $args.eww_state.$func($args.local_env, $args.widget.get_attr($attr)?, {
             let $gtk_widget = $gtk_widget.clone();
             move |$arg| { $body; }
@@ -127,6 +139,7 @@ macro_rules! resolve {
 
     // with default
     ($args:ident, $gtk_widget:ident, $func:ident => $attr:literal [$default:expr] => |$arg:ident| $body:expr) => {
+        $args.unhandled_attrs.retain(|a| a != &$attr);
         $args.eww_state.$func($args.local_env, $args.widget.attrs.get($attr).unwrap_or(&AttrValue::Concrete(PrimitiveValue::from($default))), {
             let $gtk_widget = $gtk_widget.clone();
             move |$arg| { $body; }

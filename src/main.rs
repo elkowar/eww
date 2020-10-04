@@ -10,8 +10,8 @@ use gdk::*;
 use gtk::prelude::*;
 use hotwatch;
 use ipc_channel::ipc;
-use itertools::Itertools;
-use scheduled_executor;
+use log;
+use pretty_env_logger;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -21,6 +21,7 @@ use value::PrimitiveValue;
 pub mod app;
 pub mod config;
 pub mod eww_state;
+pub mod script_var_handler;
 pub mod util;
 pub mod value;
 pub mod widgets;
@@ -44,6 +45,7 @@ macro_rules! try_logging_errors {
 }
 
 fn main() {
+    pretty_env_logger::init();
     if let Err(e) = try_main() {
         eprintln!("{:?}", e);
     }
@@ -71,9 +73,12 @@ pub enum OptAction {
 
 fn try_main() -> Result<()> {
     let opts: Opt = StructOpt::from_args();
+    log::info!("Trying to find server process");
     if let Ok(sender) = find_server_process() {
+        log::info!("Forwarding options to server");
         sender.send(opts)?;
     } else {
+        log::info!("No instance found... Initializing server.");
         initialize_server(opts)?;
     }
     Ok(())
@@ -102,18 +107,21 @@ fn initialize_server(opts: Opt) -> Result<()> {
         .to_path_buf();
     let scss_file_path = config_dir.join("eww.scss");
 
+    log::info!("reading configuration from {:?}", &config_file_path);
     let eww_config = config::EwwConfig::read_from_file(&config_file_path)?;
 
     gtk::init()?;
     let (evt_send, evt_recv) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
+
+    let mut script_var_handler = script_var_handler::ScriptVarHandler::new(evt_send.clone())?;
+    script_var_handler.setup_command_poll_tasks(&eww_config)?;
 
     let mut app = app::App {
         eww_state: EwwState::from_default_vars(eww_config.generate_initial_state()?.clone()),
         eww_config,
         windows: HashMap::new(),
         css_provider: gtk::CssProvider::new(),
-        script_var_poll_handles: Vec::new(),
-        script_var_poll_executor: scheduled_executor::CoreExecutor::new()?,
+        script_var_handler,
         app_evt_send: evt_send.clone(),
     };
 
@@ -131,8 +139,6 @@ fn initialize_server(opts: Opt) -> Result<()> {
     run_server_thread(evt_send.clone());
     let _hotwatch = run_filewatch_thread(&config_file_path, &scss_file_path, evt_send.clone())?;
 
-    app.init_command_poll_tasks()?;
-
     evt_recv.attach(None, move |msg| {
         app.handle_event(msg);
         glib::Continue(true)
@@ -145,11 +151,13 @@ fn initialize_server(opts: Opt) -> Result<()> {
 
 fn run_server_thread(evt_send: glib::Sender<app::EwwEvent>) {
     std::thread::spawn(move || {
+        log::info!("Starting up eww server");
         let result: Result<_> = try {
             loop {
                 let (ipc_server, instance_path): (ipc::IpcOneShotServer<Opt>, _) = ipc::IpcOneShotServer::new()?;
                 std::fs::write("/tmp/eww-instance-path", instance_path)?;
                 let (_, initial) = ipc_server.accept()?;
+                log::info!("received command from IPC: {:?}", &initial);
                 evt_send.send(app::EwwEvent::UserCommand(initial))?;
             }
         };
@@ -165,11 +173,13 @@ fn run_filewatch_thread<P: AsRef<Path>>(
     scss_file_path: P,
     evt_send: glib::Sender<app::EwwEvent>,
 ) -> Result<hotwatch::Hotwatch> {
+    log::info!("Initializing config file watcher");
     let mut hotwatch = hotwatch::Hotwatch::new()?;
 
     let config_file_change_send = evt_send.clone();
     hotwatch.watch_file_changes(config_file_path, move |path| {
         try_logging_errors!("handling change of config file" => {
+            log::info!("Reloading eww configuration");
             let new_eww_config = config::EwwConfig::read_from_file(path)?;
             config_file_change_send.send(app::EwwEvent::ReloadConfig(new_eww_config))?;
         });
@@ -177,6 +187,7 @@ fn run_filewatch_thread<P: AsRef<Path>>(
 
     let result = hotwatch.watch_file_changes(scss_file_path, move |path| {
         try_logging_errors!("handling change of scss file" =>  {
+            log::info!("reloading eww css file");
             let eww_css = util::parse_scss_from_file(path)?;
             evt_send.send(app::EwwEvent::ReloadCss(eww_css))?;
         })
