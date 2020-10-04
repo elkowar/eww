@@ -33,6 +33,7 @@ scheduled-executor = "0.4"
 debug_stub_derive = "0.3"
 log = "0.4"
 pretty_env_logger = "0.4"
+lazy_static = "1.4.0"
 
 #thiserror = "1.0"
 

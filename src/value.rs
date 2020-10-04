@@ -1,7 +1,8 @@
 use anyhow::*;
 use derive_more;
+use lazy_static::lazy_static;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt;
 
@@ -127,20 +128,18 @@ impl AttrValue {
             _ => Err(anyhow!("{:?} is not a bool", self)),
         }
     }
-    pub fn as_var_ref(&self) -> Result<&String> {
-        match self {
-            AttrValue::VarRef(x) => Ok(x),
-            _ => Err(anyhow!("{:?} is not a VarRef", self)),
-        }
-    }
 
     /// parses the value, trying to turn it into VarRef,
     /// a number and a boolean first, before deciding that it is a string.
     pub fn parse_string(s: String) -> Self {
-        if s.starts_with("$$") {
-            AttrValue::VarRef(s.trim_start_matches("$$").to_string())
+        lazy_static! {
+            static ref PATTERN: Regex = Regex::new("^\\{\\{(.*)\\}\\}$").unwrap();
+        };
+
+        if let Some(ref_name) = PATTERN.captures(&s).and_then(|cap| cap.get(1)).map(|x| x.as_str()) {
+            AttrValue::VarRef(ref_name.to_owned())
         } else {
-            AttrValue::Concrete(PrimitiveValue::parse_string(&s))
+            AttrValue::Concrete(PrimitiveValue::String(s))
         }
     }
 }
