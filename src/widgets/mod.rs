@@ -70,7 +70,7 @@ pub fn build_gtk_widget(
             let child_widget = element_to_gtk_thing(widget_definitions, bargs.eww_state, local_env, child);
             let child_widget = child_widget.with_context(|| {
                 format!(
-                    "error while building child '{:?}' of '{}'",
+                    "error while building child '{:#?}' of '{}'",
                     &child,
                     &gtk_widget.get_widget_name()
                 )

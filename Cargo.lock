@@ -310,6 +310,7 @@ dependencies = [
  "hotwatch",
  "ipc-channel",
  "itertools",
+ "lazy_static",
  "log 0.4.11",
  "maplit",
  "notify",

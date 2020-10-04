@@ -1,4 +1,6 @@
 use super::*;
+use lazy_static::lazy_static;
+use regex::Regex;
 
 use crate::value::AttrValue;
 use crate::with_text_pos_context;
@@ -52,7 +54,13 @@ impl WidgetUse {
         }
     }
     pub fn from_xml_node(xml: XmlNode) -> Result<Self> {
+        lazy_static! {
+            static ref PATTERN: Regex = Regex::new("\\{\\{(.*)\\}\\}").unwrap();
+        };
         match xml {
+            // TODO the matching here is stupid. This currently uses the inefficient function to parse simple single varrefs,
+            // TODO and does the regex match twice in the from_text_with_var_refs part
+            XmlNode::Text(text) if PATTERN.is_match(&text.text()) => Ok(WidgetUse::from_text_with_var_refs(&text.text())),
             XmlNode::Text(text) => Ok(WidgetUse::simple_text(AttrValue::parse_string(text.text()))),
             XmlNode::Element(elem) => Ok(WidgetUse {
                 name: elem.tag_name().to_string(),
@@ -75,24 +83,19 @@ impl WidgetUse {
         }
     }
 
-    // TODO Even just thinking of this gives me horrible nightmares.....
-    //pub fn from_text(text: String) -> Self {
-    //WidgetUse::text_with_var_refs(
-    //text.split(" ")
-    //.map(|word| AttrValue::parse_string(word.to_owned()))
-    //.collect_vec(),
-    //)
-    //}
-
-    pub fn text_with_var_refs(elements: Vec<AttrValue>) -> Self {
-        dbg!(WidgetUse {
+    pub fn from_text_with_var_refs(text: &str) -> Self {
+        WidgetUse {
             name: "layout".to_owned(),
             attrs: hashmap! {
-            "halign".to_owned() => AttrValue::Concrete(PrimitiveValue::String("center".to_owned())),
-            "space-evenly".to_owned() => AttrValue::Concrete(PrimitiveValue::String("false".to_owned())),
+                "halign".to_owned() => AttrValue::Concrete(PrimitiveValue::String("center".to_owned())),
+                "space-evenly".to_owned() => AttrValue::Concrete(PrimitiveValue::String("false".to_owned())),
             },
-            children: elements.into_iter().map(WidgetUse::simple_text).collect(),
-        })
+            children: parse_string_with_var_refs(text)
+                .into_iter()
+                .map(StringOrVarRef::to_attr_value)
+                .map(WidgetUse::simple_text)
+                .collect(),
+        }
     }
 
     pub fn get_attr(&self, key: &str) -> Result<&AttrValue> {
@@ -100,6 +103,62 @@ impl WidgetUse {
             .get(key)
             .context(format!("attribute '{}' missing from widgetuse of '{}'", key, &self.name))
     }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+enum StringOrVarRef {
+    String(String),
+    VarRef(String),
+}
+
+impl StringOrVarRef {
+    fn to_attr_value(self) -> AttrValue {
+        match self {
+            StringOrVarRef::String(x) => AttrValue::Concrete(PrimitiveValue::parse_string(&x)),
+            StringOrVarRef::VarRef(x) => AttrValue::VarRef(x),
+        }
+    }
+}
+
+// TODO this could be a fancy Iterator implementation, ig
+fn parse_string_with_var_refs(s: &str) -> Vec<StringOrVarRef> {
+    let mut elements = Vec::new();
+
+    let mut cur_word = "".to_owned();
+    let mut cur_varref: Option<String> = None;
+    let mut curly_count = 0;
+    for c in s.chars() {
+        if let Some(ref mut varref) = cur_varref {
+            if c == '}' {
+                curly_count -= 1;
+                if curly_count == 0 {
+                    elements.push(StringOrVarRef::VarRef(std::mem::take(varref)));
+                    cur_varref = None
+                }
+            } else {
+                curly_count = 2;
+                varref.push(c);
+            }
+        } else {
+            if c == '{' {
+                curly_count += 1;
+                if curly_count == 2 {
+                    if !cur_word.is_empty() {
+                        elements.push(StringOrVarRef::String(std::mem::take(&mut cur_word)));
+                    }
+                    cur_varref = Some(String::new())
+                }
+            } else {
+                cur_word.push(c);
+            }
+        }
+    }
+    if let Some(unfinished_varref) = cur_varref.take() {
+        elements.push(StringOrVarRef::String(unfinished_varref));
+    } else if !cur_word.is_empty() {
+        elements.push(StringOrVarRef::String(cur_word.to_owned()));
+    }
+    elements
 }
 
 #[cfg(test)]
@@ -130,7 +189,7 @@ mod test {
     fn test_text_with_var_refs() {
         let expected_attr_value1 = mk_attr_str("my text");
         let expected_attr_value2 = AttrValue::VarRef("var".to_owned());
-        let widget = WidgetUse::text_with_var_refs(vec![expected_attr_value1.clone(), expected_attr_value2.clone()]);
+        let widget = WidgetUse::from_text_with_var_refs("my text{{var}}");
         assert_eq!(
             widget,
             WidgetUse {
@@ -198,5 +257,22 @@ mod test {
             expected,
             WidgetDefinition::from_xml_element(xml.as_element().unwrap()).unwrap()
         );
+    }
+
+    #[test]
+    fn test_parse_string_or_var_ref_list() {
+        let input = "{{foo}}{{bar}}baz{{bat}}quok{{test}}";
+        let output = parse_string_with_var_refs(input);
+        assert_eq!(
+            output,
+            vec![
+                StringOrVarRef::VarRef("foo".to_owned()),
+                StringOrVarRef::VarRef("bar".to_owned()),
+                StringOrVarRef::String("baz".to_owned()),
+                StringOrVarRef::VarRef("bat".to_owned()),
+                StringOrVarRef::String("quok".to_owned()),
+                StringOrVarRef::VarRef("test".to_owned()),
+            ],
+        )
     }
 }
