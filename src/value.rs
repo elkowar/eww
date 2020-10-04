@@ -1,9 +1,9 @@
 use anyhow::*;
 use derive_more;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt;
-use try_match::try_match;
 
 #[derive(Clone, PartialEq, Deserialize, Serialize, derive_more::From)]
 pub enum PrimitiveValue {

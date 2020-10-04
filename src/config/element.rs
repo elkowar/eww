@@ -147,11 +147,11 @@ mod test {
     #[test]
     fn test_parse_widget_use() {
         let input = r#"
-        <widget_name attr1="hi" attr2="12">
-            <child_widget/>
-            foo
-        </widget_name>
-    "#;
+            <widget_name attr1="hi" attr2="12">
+                <child_widget/>
+                foo
+            </widget_name>
+        "#;
         let document = roxmltree::Document::parse(input).unwrap();
         let xml = XmlNode::from(document.root_element().clone());
 

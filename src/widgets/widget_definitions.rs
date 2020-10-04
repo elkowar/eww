@@ -7,7 +7,7 @@ use gtk::ImageExt;
 use std::path::Path;
 
 // TODO figure out how to
-// https://developer.gnome.org/gtk3/stable/GtkFixed.html
+// TODO https://developer.gnome.org/gtk3/stable/GtkFixed.html
 
 // general attributes
 
@@ -20,6 +20,10 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
         resolve_str  => "halign"        => |v| gtk_widget.set_halign(parse_align(&v)),
         resolve_f64  => "width"         => |v| gtk_widget.set_size_request(v as i32, gtk_widget.get_allocated_height()),
         resolve_f64  => "height"        => |v| gtk_widget.set_size_request(gtk_widget.get_allocated_width(), v as i32),
+        resolve_bool => "visible"       => |v| {
+            // TODO how do i call this only after the widget has been mapped? this is actually an issue,....
+            if v { gtk_widget.show(); } else { gtk_widget.hide(); }
+        }
     });
 }
 
@@ -85,7 +89,6 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
     let gtk_widget = gtk::Button::new();
     resolve!(bargs, gtk_widget, {
         resolve_str => "onclick" => |v| gtk_widget.connect_clicked(move |_| run_command(&v, ""))
-
     });
     Ok(gtk_widget)
 }
