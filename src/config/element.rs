@@ -1,6 +1,7 @@
 use super::*;
 use lazy_static::lazy_static;
 use regex::Regex;
+use std::ops::Range;
 
 use crate::value::AttrValue;
 use crate::with_text_pos_context;
@@ -38,11 +39,23 @@ impl WidgetDefinition {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct WidgetUse {
     pub name: String,
     pub children: Vec<WidgetUse>,
     pub attrs: HashMap<String, AttrValue>,
+    pub text_pos: Option<roxmltree::TextPos>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PositionData {
+    pub range: Range<usize>,
+}
+
+impl PartialEq for WidgetUse {
+    fn eq(&self, other: &WidgetUse) -> bool {
+        self.name == other.name && self.children == other.children && self.attrs == other.attrs
+    }
 }
 
 impl WidgetUse {
@@ -51,18 +64,21 @@ impl WidgetUse {
             name,
             children,
             attrs: HashMap::new(),
+            ..WidgetUse::default()
         }
     }
+
     pub fn from_xml_node(xml: XmlNode) -> Result<Self> {
         lazy_static! {
             static ref PATTERN: Regex = Regex::new("\\{\\{(.*)\\}\\}").unwrap();
         };
-        match xml {
+        let text_pos = xml.text_pos();
+        let widget_use = match xml {
             // TODO the matching here is stupid. This currently uses the inefficient function to parse simple single varrefs,
             // TODO and does the regex match twice in the from_text_with_var_refs part
-            XmlNode::Text(text) if PATTERN.is_match(&text.text()) => Ok(WidgetUse::from_text_with_var_refs(&text.text())),
-            XmlNode::Text(text) => Ok(WidgetUse::simple_text(AttrValue::parse_string(text.text()))),
-            XmlNode::Element(elem) => Ok(WidgetUse {
+            XmlNode::Text(text) if PATTERN.is_match(&text.text()) => WidgetUse::from_text_with_var_refs(&text.text()),
+            XmlNode::Text(text) => WidgetUse::simple_text(AttrValue::parse_string(text.text())),
+            XmlNode::Element(elem) => WidgetUse {
                 name: elem.tag_name().to_string(),
                 children: with_text_pos_context! { elem => elem.children().map(WidgetUse::from_xml_node).collect::<Result<_>>()?}?,
                 attrs: elem
@@ -70,9 +86,11 @@ impl WidgetUse {
                     .iter()
                     .map(|attr| (attr.name().to_owned(), AttrValue::parse_string(attr.value().to_owned())))
                     .collect::<HashMap<_, _>>(),
-            }),
+                ..WidgetUse::default()
+            },
             XmlNode::Ignored(_) => Err(anyhow!("Failed to parse node {:?} as widget use", xml))?,
-        }
+        };
+        Ok(widget_use.at_pos(text_pos))
     }
 
     pub fn simple_text(text: AttrValue) -> Self {
@@ -80,6 +98,7 @@ impl WidgetUse {
             name: "label".to_owned(),
             children: vec![],
             attrs: hashmap! { "text".to_string() => text }, // TODO this hardcoded "text" is dumdum
+            ..WidgetUse::default()
         }
     }
 
@@ -95,7 +114,13 @@ impl WidgetUse {
                 .map(StringOrVarRef::to_attr_value)
                 .map(WidgetUse::simple_text)
                 .collect(),
+            ..WidgetUse::default()
         }
+    }
+
+    pub fn at_pos(mut self, text_pos: roxmltree::TextPos) -> Self {
+        self.text_pos = Some(text_pos);
+        self
     }
 
     pub fn get_attr(&self, key: &str) -> Result<&AttrValue> {
@@ -181,6 +206,7 @@ mod test {
                 name: "label".to_owned(),
                 children: Vec::new(),
                 attrs: hashmap! { "text".to_owned() => expected_attr_value},
+                ..WidgetUse::default()
             },
         )
     }
@@ -198,7 +224,8 @@ mod test {
                 children: vec![
                     WidgetUse::simple_text(expected_attr_value1),
                     WidgetUse::simple_text(expected_attr_value2),
-                ]
+                ],
+                ..WidgetUse::default()
             }
         )
     }
@@ -227,6 +254,7 @@ mod test {
                 WidgetUse::new("child_widget".to_owned(), Vec::new()),
                 WidgetUse::simple_text(AttrValue::Concrete(PrimitiveValue::String("foo".to_owned()))),
             ],
+            ..WidgetUse::default()
         };
         assert_eq!(expected, WidgetUse::from_xml_node(xml).unwrap());
     }
@@ -250,6 +278,7 @@ mod test {
                     "test".to_owned(),
                 )))],
                 attrs: HashMap::new(),
+                ..WidgetUse::default()
             },
         };
 

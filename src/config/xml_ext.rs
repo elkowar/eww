@@ -42,6 +42,10 @@ impl<'a, 'b> XmlNode<'a, 'b> {
         }
     }
 
+    pub fn text_range(&self) -> std::ops::Range<usize> {
+        self.node().range()
+    }
+
     pub fn text_pos(&self) -> roxmltree::TextPos {
         let document = self.node().document();
         let range = self.node().range();

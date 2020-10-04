@@ -65,7 +65,12 @@ impl EwwConfig {
     pub fn read_from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self> {
         let content = std::fs::read_to_string(path)?;
         let document = roxmltree::Document::parse(&content)?;
-        EwwConfig::from_xml_element(XmlNode::from(document.root_element()).as_element()?)
+
+        let start = std::time::Instant::now();
+        let result = EwwConfig::from_xml_element(XmlNode::from(document.root_element()).as_element()?);
+        let end = std::time::Instant::now();
+        dbg!(end - start);
+        result
     }
 
     pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
