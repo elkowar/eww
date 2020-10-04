@@ -1,5 +1,6 @@
 use crate::*;
 use debug_stub_derive::*;
+use script_var_handler::*;
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -16,12 +17,9 @@ pub struct App {
     pub eww_config: config::EwwConfig,
     pub windows: HashMap<String, gtk::Window>,
     pub css_provider: gtk::CssProvider,
-    #[debug_stub = "script-var poll script handles"]
-    pub script_var_poll_handles: Vec<scheduled_executor::executor::TaskHandle>,
-    #[debug_stub = "script-var poll executor"]
-    pub script_var_poll_executor: scheduled_executor::CoreExecutor,
-
     pub app_evt_send: glib::Sender<EwwEvent>,
+    #[debug_stub = "ScriptVarHandler(...)"]
+    pub script_var_handler: ScriptVarHandler,
 }
 
 impl App {
@@ -35,6 +33,7 @@ impl App {
     }
 
     pub fn handle_event(&mut self, event: EwwEvent) {
+        log::debug!("Handling event: {:?}", &event);
         let result: Result<_> = try {
             match event {
                 EwwEvent::UserCommand(command) => self.handle_user_command(command)?,
@@ -109,9 +108,7 @@ impl App {
 
     pub fn reload_all_windows(&mut self, config: config::EwwConfig) -> Result<()> {
         // refresh script-var poll stuff
-        self.script_var_poll_handles.iter().for_each(|handle| handle.stop());
-        self.script_var_poll_handles.clear();
-        if let Err(e) = self.init_command_poll_tasks() {
+        if let Err(e) = self.script_var_handler.setup_command_poll_tasks(&config) {
             eprintln!("Error while setting up script-var commands: {:?}", e);
         }
 
@@ -128,33 +125,6 @@ impl App {
 
     pub fn load_css(&mut self, css: &str) -> Result<()> {
         self.css_provider.load_from_data(css.as_bytes())?;
-        Ok(())
-    }
-
-    pub fn init_command_poll_tasks(&mut self) -> Result<()> {
-        let evt_send = self.app_evt_send.clone();
-        self.script_var_poll_handles = self
-            .eww_config
-            .get_script_vars()
-            .iter()
-            .map(|var| {
-                self.script_var_poll_executor.schedule_fixed_interval(
-                    std::time::Duration::from_secs(0),
-                    var.interval,
-                    glib::clone!(@strong var, @strong evt_send => move |_| {
-                        let result = eww_state::run_command(&var.command);
-                        match result {
-                            Ok(value) => {
-                                let _ = evt_send.send(app::EwwEvent::UpdateVar(var.name.clone(), value));
-                            }
-                            Err(e) => {
-                                eprintln!("Error while running script-var command: {:?}", e);
-                            }
-                        }
-                    }),
-                )
-            })
-            .collect_vec();
         Ok(())
     }
 }

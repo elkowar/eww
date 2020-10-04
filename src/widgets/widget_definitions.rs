@@ -16,8 +16,10 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
     resolve!(bargs, gtk_widget, {
         resolve_str  => "class"         => |v| gtk_widget.get_style_context().add_class(&v),
         resolve_bool => "active" = true => |v| gtk_widget.set_sensitive(v),
-        resolve_str  => "valign" => |v| gtk_widget.set_valign(parse_align(&v)),
-        resolve_str  => "halign" => |v| gtk_widget.set_halign(parse_align(&v)),
+        resolve_str  => "valign"        => |v| gtk_widget.set_valign(parse_align(&v)),
+        resolve_str  => "halign"        => |v| gtk_widget.set_halign(parse_align(&v)),
+        resolve_f64  => "width"         => |v| gtk_widget.set_size_request(v as i32, gtk_widget.get_allocated_height()),
+        resolve_f64  => "height"        => |v| gtk_widget.set_size_request(gtk_widget.get_allocated_width(), v as i32),
     });
 }
 
@@ -59,6 +61,7 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<Option<gtk
         "button" => build_gtk_button(bargs)?.upcast(),
         "label" => build_gtk_label(bargs)?.upcast(),
         "text" => build_gtk_text(bargs)?.upcast(),
+        "aspect" => build_gtk_aspect_frame(bargs)?.upcast(),
         _ => return Ok(None),
     };
     Ok(Some(gtk_widget))
@@ -129,6 +132,13 @@ fn build_gtk_text(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
     );
     Ok(gtk_widget)
 }
+
+fn build_gtk_aspect_frame(bargs: &mut BuilderArgs) -> Result<gtk::AspectFrame> {
+    let gtk_widget = gtk::AspectFrame::new(None, 0.5, 0.5, 1.0, true);
+    //resolve!(bargs, gtk_widget, {});
+    Ok(gtk_widget)
+}
+
 fn parse_orientation(o: &str) -> gtk::Orientation {
     match o {
         "vertical" | "v" => gtk::Orientation::Vertical,
