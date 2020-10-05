@@ -58,6 +58,9 @@ pub struct Opt {
 
     #[structopt(subcommand)]
     action: OptAction,
+
+    #[structopt(short = "-d", long = "--detach")]
+    should_detach: bool,
 }
 #[derive(StructOpt, Debug, Serialize, Deserialize)]
 pub enum OptAction {
@@ -69,6 +72,9 @@ pub enum OptAction {
 
     #[structopt(name = "close")]
     CloseWindow { window_name: String },
+
+    #[structopt(name = "kill")]
+    KillServer,
 }
 
 fn try_main() -> Result<()> {
@@ -79,6 +85,11 @@ fn try_main() -> Result<()> {
         sender.send(opts)?;
     } else {
         log::info!("No instance found... Initializing server.");
+
+        if opts.should_detach {
+            do_detach();
+        }
+
         initialize_server(opts)?;
     }
     Ok(())
@@ -134,7 +145,7 @@ fn initialize_server(opts: Opt) -> Result<()> {
     }
 
     // run the command that eww was started with
-    app.handle_user_command(opts)?;
+    app.handle_user_command(&opts)?;
 
     run_server_thread(evt_send.clone());
     let _hotwatch = run_filewatch_thread(&config_file_path, &scss_file_path, evt_send.clone())?;
@@ -196,6 +207,41 @@ fn run_filewatch_thread<P: AsRef<Path>>(
         eprintln!("WARN: error while loading CSS file for hot-reloading: \n{}", e)
     };
     Ok(hotwatch)
+}
+
+fn do_detach() {
+    // detach from terminal
+    let pid = unsafe { libc::fork() };
+    if dbg!(pid) < 0 {
+        panic!("Phailed to Phork: {}", std::io::Error::last_os_error());
+    }
+    if pid != 0 {
+        std::process::exit(0);
+    }
+
+    // close stdout to not spam output
+    if unsafe { libc::isatty(1) } != 0 {
+        unsafe {
+            libc::close(1);
+        }
+    }
+    //close stderr to not spam output
+    if unsafe { libc::isatty(2) } != 0 {
+        unsafe {
+            let fd = libc::open(std::ffi::CString::new("/dev/null").unwrap().as_ptr(), libc::O_RDWR);
+            if fd < 0 {
+                panic!("Phailed to open /dev/null?!: {}", std::io::Error::last_os_error());
+            } else {
+                if libc::dup2(fd, libc::STDERR_FILENO) < 0 {
+                    panic!(
+                        "Phailed to dup stderr phd to /dev/null: {:?}",
+                        std::io::Error::last_os_error()
+                    );
+                }
+                libc::close(fd);
+            }
+        }
+    }
 }
 
 #[extend::ext(pub)]

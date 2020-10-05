@@ -96,7 +96,9 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
 fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
     let gtk_widget = gtk::Image::new();
     resolve!(bargs, gtk_widget, {
-        resolve_str => "path" = req => |v| gtk_widget.set_from_file(Path::new(&v))
+        resolve_str => "path" = req => |v| {
+            gtk_widget.set_from_file(Path::new(&v));
+        }
     });
     Ok(gtk_widget)
 }

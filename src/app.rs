@@ -23,11 +23,15 @@ pub struct App {
 }
 
 impl App {
-    pub fn handle_user_command(&mut self, opts: Opt) -> Result<()> {
-        match opts.action {
-            OptAction::Update { fieldname, value } => self.update_state(fieldname, value),
+    pub fn handle_user_command(&mut self, opts: &Opt) -> Result<()> {
+        match &opts.action {
+            OptAction::Update { fieldname, value } => self.update_state(fieldname.clone(), value.clone()),
             OptAction::OpenWindow { window_name } => self.open_window(&window_name)?,
             OptAction::CloseWindow { window_name } => self.close_window(&window_name)?,
+            OptAction::KillServer => {
+                log::info!("Received kill command, stopping server!");
+                std::process::exit(0)
+            }
         }
         Ok(())
     }
@@ -36,7 +40,7 @@ impl App {
         log::debug!("Handling event: {:?}", &event);
         let result: Result<_> = try {
             match event {
-                EwwEvent::UserCommand(command) => self.handle_user_command(command)?,
+                EwwEvent::UserCommand(command) => self.handle_user_command(&command)?,
                 EwwEvent::UpdateVar(key, value) => self.update_state(key, value),
                 EwwEvent::ReloadConfig(config) => self.reload_all_windows(config)?,
                 EwwEvent::ReloadCss(css) => self.load_css(&css)?,
