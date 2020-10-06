@@ -1,6 +1,7 @@
 use anyhow::*;
 use derive_more;
 use lazy_static::lazy_static;
+use ref_cast::RefCast;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -103,10 +104,38 @@ impl PrimitiveValue {
     }
 }
 
+#[repr(transparent)]
+#[derive(
+    Debug,
+    Clone,
+    Hash,
+    PartialEq,
+    Eq,
+    derive_more::AsRef,
+    derive_more::From,
+    derive_more::FromStr,
+    Serialize,
+    Deserialize,
+    RefCast,
+)]
+pub struct VarName(pub String);
+
+impl std::borrow::Borrow<str> for VarName {
+    fn borrow(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Display for VarName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum AttrValue {
     Concrete(PrimitiveValue),
-    VarRef(String),
+    VarRef(VarName),
 }
 
 impl AttrValue {
@@ -129,6 +158,13 @@ impl AttrValue {
         }
     }
 
+    pub fn as_var_ref(&self) -> Result<VarName> {
+        match self {
+            AttrValue::VarRef(x) => Ok(x),
+            _ => Err(anyhow!("{:?} is not a variable reference", self)),
+        }
+    }
+
     /// parses the value, trying to turn it into VarRef,
     /// a number and a boolean first, before deciding that it is a string.
     pub fn parse_string(s: String) -> Self {
@@ -137,7 +173,7 @@ impl AttrValue {
         };
 
         if let Some(ref_name) = PATTERN.captures(&s).and_then(|cap| cap.get(1)).map(|x| x.as_str()) {
-            AttrValue::VarRef(ref_name.to_owned())
+            AttrValue::VarRef(VarName(ref_name.to_owned()))
         } else {
             AttrValue::Concrete(PrimitiveValue::String(s))
         }

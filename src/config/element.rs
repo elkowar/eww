@@ -4,6 +4,7 @@ use regex::Regex;
 use std::ops::Range;
 
 use crate::value::AttrValue;
+use crate::value::VarName;
 use crate::with_text_pos_context;
 use maplit::hashmap;
 use std::collections::HashMap;
@@ -140,7 +141,7 @@ impl StringOrVarRef {
     fn to_attr_value(self) -> AttrValue {
         match self {
             StringOrVarRef::String(x) => AttrValue::Concrete(PrimitiveValue::parse_string(&x)),
-            StringOrVarRef::VarRef(x) => AttrValue::VarRef(x),
+            StringOrVarRef::VarRef(x) => AttrValue::VarRef(VarName(x)),
         }
     }
 }
@@ -214,7 +215,7 @@ mod test {
     #[test]
     fn test_text_with_var_refs() {
         let expected_attr_value1 = mk_attr_str("my text");
-        let expected_attr_value2 = AttrValue::VarRef("var".to_owned());
+        let expected_attr_value2 = AttrValue::VarRef(VarName("var".to_owned()));
         let widget = WidgetUse::from_text_with_var_refs("my text{{var}}");
         assert_eq!(
             widget,

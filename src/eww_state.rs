@@ -1,15 +1,42 @@
+use crate::value::VarName;
 use anyhow::*;
 use std::collections::HashMap;
-use std::convert::TryFrom;
-use std::convert::TryInto;
 use std::process::Command;
+use std::sync::Arc;
 
 use crate::value::{AttrValue, PrimitiveValue};
 
-#[derive(Default)]
+//pub struct StateChangeHandler(Box<dyn Fn(HashMap<String, PrimitiveValue>) + 'static>);
+
+pub struct StateChangeHandlers {
+    handlers: HashMap<VarName, Vec<Arc<dyn Fn(HashMap<String, PrimitiveValue>) + 'static>>>,
+}
+
+impl StateChangeHandlers {
+    fn put_handler(&mut self, var_names: Vec<VarName>, handler: Arc<dyn Fn(HashMap<String, PrimitiveValue>) + 'static>) {
+        for var_name in var_names {
+            let entry: &mut Vec<Arc<dyn Fn(HashMap<String, PrimitiveValue>) + 'static>> =
+                self.handlers.entry(var_name).or_insert_with(Vec::new);
+            entry.push(handler);
+        }
+    }
+}
+
 pub struct EwwState {
-    on_change_handlers: HashMap<String, Vec<Box<dyn Fn(PrimitiveValue) + 'static>>>,
-    state: HashMap<String, PrimitiveValue>,
+    state_change_handlers: StateChangeHandlers,
+    //on_change_handlers: HashMap<VarName, Vec<StateChangeHandler>>,
+    state: HashMap<VarName, PrimitiveValue>,
+}
+
+impl Default for EwwState {
+    fn default() -> Self {
+        EwwState {
+            state_change_handlers: StateChangeHandlers {
+                handlers: HashMap::new(),
+            },
+            state: HashMap::new(),
+        }
+    }
 }
 
 impl std::fmt::Debug for EwwState {
@@ -19,7 +46,7 @@ impl std::fmt::Debug for EwwState {
 }
 
 impl EwwState {
-    pub fn from_default_vars(defaults: HashMap<String, PrimitiveValue>) -> Self {
+    pub fn from_default_vars(defaults: HashMap<VarName, PrimitiveValue>) -> Self {
         EwwState {
             state: defaults,
             ..EwwState::default()
@@ -30,7 +57,7 @@ impl EwwState {
         self.on_change_handlers.clear();
     }
 
-    pub fn update_value(&mut self, key: String, value: PrimitiveValue) {
+    pub fn update_value(&mut self, key: VarName, value: PrimitiveValue) {
         if let Some(handlers) = self.on_change_handlers.get(&key) {
             for on_change in handlers {
                 on_change(value.clone());
@@ -41,20 +68,20 @@ impl EwwState {
 
     pub fn resolve<F: Fn(PrimitiveValue) + 'static + Clone>(
         &mut self,
-        local_env: &HashMap<String, AttrValue>,
+        local_env: &HashMap<VarName, AttrValue>,
         value: &AttrValue,
         set_value: F,
     ) -> bool {
         match value {
             AttrValue::VarRef(name) => {
                 // get value from globals
-                if let Some(value) = self.state.get(name).cloned() {
+                if let Some(value) = self.state.get(&name).cloned() {
                     self.on_change_handlers
-                        .entry(name.to_string())
+                        .entry(name.clone())
                         .or_insert_with(Vec::new)
                         .push(Box::new(set_value.clone()));
                     self.resolve(local_env, &value.into(), set_value)
-                } else if let Some(value) = local_env.get(name).cloned() {
+                } else if let Some(value) = local_env.get(&name).cloned() {
                     // get value from local
                     self.resolve(local_env, &value, set_value)
                 } else {
@@ -69,21 +96,20 @@ impl EwwState {
         }
     }
 
-    pub fn resolve_into<TE: std::fmt::Debug, V: TryFrom<PrimitiveValue, Error = TE>, F: Fn(V) + 'static + Clone>(
-        &mut self,
-        local_env: &HashMap<String, AttrValue>,
-        value: &AttrValue,
-        set_value: F,
-    ) -> bool {
-        self.resolve(local_env, value, move |x| {
-            if let Err(e) = x.try_into().map(|v| set_value(v)) {
-                eprintln!("error while resolving value: {:?}", e);
-            };
-        })
-    }
+    //pub fn resolve_attrs<F: Fn(HashMap<String, PrimitiveValue>) + 'static + Clone>(
+    //&mut self,
+    //local_env: &HashMap<VarName, AttrValue>,
+    //unresolved_attrs: HashMap<String, AttrValue>,
+    //state_update_handler: F,
+    //) {
+    //let var_names = values.iter().filter_map(|value| value.as_var_ref().ok()).collect();
+    //self.state_change_handlers
+    //.put_handler(var_names, Arc::new(state_update_handler))
+    //}
+
     pub fn resolve_f64<F: Fn(f64) + 'static + Clone>(
         &mut self,
-        local_env: &HashMap<String, AttrValue>,
+        local_env: &HashMap<VarName, AttrValue>,
         value: &AttrValue,
         set_value: F,
     ) -> bool {
@@ -97,7 +123,7 @@ impl EwwState {
     #[allow(dead_code)]
     pub fn resolve_bool<F: Fn(bool) + 'static + Clone>(
         &mut self,
-        local_env: &HashMap<String, AttrValue>,
+        local_env: &HashMap<VarName, AttrValue>,
         value: &AttrValue,
         set_value: F,
     ) -> bool {
@@ -109,7 +135,7 @@ impl EwwState {
     }
     pub fn resolve_str<F: Fn(String) + 'static + Clone>(
         &mut self,
-        local_env: &HashMap<String, AttrValue>,
+        local_env: &HashMap<VarName, AttrValue>,
         value: &AttrValue,
         set_value: F,
     ) -> bool {

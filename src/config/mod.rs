@@ -1,5 +1,6 @@
 use crate::util;
 use crate::value::PrimitiveValue;
+use crate::value::VarName;
 use anyhow::*;
 use element::*;
 use std::collections::HashMap;
@@ -37,7 +38,7 @@ macro_rules! ensure_xml_tag_is {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ScriptVar {
-    pub name: String,
+    pub name: VarName,
     pub command: String,
     pub interval: std::time::Duration,
 }
@@ -46,7 +47,7 @@ impl ScriptVar {
     pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
         ensure_xml_tag_is!(xml, "script-var");
 
-        let name = xml.attr("name")?.to_owned();
+        let name = VarName(xml.attr("name")?.to_owned());
         let interval = util::parse_duration(xml.attr("interval")?)?;
         let command = xml.only_child()?.as_text()?.text();
         Ok(ScriptVar { name, interval, command })
@@ -121,13 +122,17 @@ impl EwwConfig {
     }
 
     // TODO this is kinda ugly
-    pub fn generate_initial_state(&self) -> Result<HashMap<String, PrimitiveValue>> {
+    pub fn generate_initial_state(&self) -> Result<HashMap<VarName, PrimitiveValue>> {
         let mut vars = self
             .script_vars
             .iter()
-            .map(|var| Ok((var.name.to_string(), crate::eww_state::run_command(&var.command)?)))
+            .map(|var| Ok((var.name.clone(), crate::eww_state::run_command(&var.command)?)))
             .collect::<Result<HashMap<_, _>>>()?;
-        vars.extend(self.get_default_vars().into_iter().map(|(k, v)| (k.clone(), v.clone())));
+        vars.extend(
+            self.get_default_vars()
+                .into_iter()
+                .map(|(k, v)| (VarName(k.clone()), v.clone())),
+        );
         Ok(vars)
     }
 
