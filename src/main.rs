@@ -17,6 +17,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 use value::PrimitiveValue;
+use value::VarName;
 
 pub mod app;
 pub mod config;
@@ -65,7 +66,7 @@ pub struct Opt {
 #[derive(StructOpt, Debug, Serialize, Deserialize)]
 pub enum OptAction {
     #[structopt(name = "update")]
-    Update { fieldname: String, value: PrimitiveValue },
+    Update { fieldname: VarName, value: PrimitiveValue },
 
     #[structopt(name = "open")]
     OpenWindow { window_name: String },

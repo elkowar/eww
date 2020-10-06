@@ -1,8 +1,10 @@
 use crate::config::element;
 use crate::eww_state::*;
-use crate::value::AttrValue;
+use crate::value::{AttrValue, VarName};
 use anyhow::*;
 use gtk::prelude::*;
+use itertools::Itertools;
+use ref_cast::RefCast;
 use std::{collections::HashMap, process::Command};
 use widget_definitions::*;
 
@@ -19,7 +21,7 @@ pub fn run_command<T: std::fmt::Display>(cmd: &str, arg: T) {
 
 struct BuilderArgs<'a, 'b, 'c> {
     eww_state: &'a mut EwwState,
-    local_env: &'b HashMap<String, AttrValue>,
+    local_env: &'b HashMap<VarName, AttrValue>,
     widget: &'c element::WidgetUse,
     unhandled_attrs: Vec<&'c str>,
 }
@@ -27,7 +29,7 @@ struct BuilderArgs<'a, 'b, 'c> {
 pub fn element_to_gtk_thing(
     widget_definitions: &HashMap<String, element::WidgetDefinition>,
     eww_state: &mut EwwState,
-    local_env: &HashMap<String, AttrValue>,
+    local_env: &HashMap<VarName, AttrValue>,
     widget: &element::WidgetUse,
 ) -> Result<gtk::Widget> {
     let gtk_container = build_gtk_widget(widget_definitions, eww_state, local_env, widget)?;
@@ -36,7 +38,7 @@ pub fn element_to_gtk_thing(
         gtk_container
     } else if let Some(def) = widget_definitions.get(widget.name.as_str()) {
         let mut local_env = local_env.clone();
-        local_env.extend(widget.attrs.clone());
+        local_env.extend(widget.attrs.clone().into_iter().map(|(k, v)| (VarName(k), v)));
         let custom_widget = element_to_gtk_thing(widget_definitions, eww_state, &local_env, &def.structure)?;
         custom_widget.get_style_context().add_class(widget.name.as_str());
         custom_widget
@@ -50,14 +52,14 @@ pub fn element_to_gtk_thing(
 pub fn build_gtk_widget(
     widget_definitions: &HashMap<String, element::WidgetDefinition>,
     eww_state: &mut EwwState,
-    local_env: &HashMap<String, AttrValue>,
+    local_env: &HashMap<VarName, AttrValue>,
     widget: &element::WidgetUse,
 ) -> Result<Option<gtk::Widget>> {
     let mut bargs = BuilderArgs {
         eww_state,
         local_env,
         widget,
-        unhandled_attrs: widget.attrs.keys().map(|x| x.as_str()).collect(),
+        unhandled_attrs: widget.attrs.keys().map(|x| x.as_ref()).collect(),
     };
     let gtk_widget = match widget_to_gtk_widget(&mut bargs) {
         Ok(Some(gtk_widget)) => gtk_widget,
@@ -150,10 +152,13 @@ macro_rules! resolve {
     // with default
     ($args:ident, $gtk_widget:ident, $func:ident => $attr:literal [$default:expr] => |$arg:ident| $body:expr) => {
         $args.unhandled_attrs.retain(|a| a != &$attr);
-        $args.eww_state.$func($args.local_env, $args.widget.attrs.get($attr).unwrap_or(&AttrValue::Concrete(PrimitiveValue::from($default))), {
-            let $gtk_widget = $gtk_widget.clone();
-            move |$arg| { $body; }
-        });
+        $args.eww_state.$func(
+            $args.local_env, $args.widget.attrs.get($attr).unwrap_or(&AttrValue::Concrete(PrimitiveValue::from($default))),
+            {
+                let $gtk_widget = $gtk_widget.clone();
+                move |$arg| { $body; }
+            }
+        );
     };
 }
 

@@ -1,6 +1,6 @@
 use super::{run_command, BuilderArgs};
 use crate::resolve;
-use crate::value::{AttrValue, PrimitiveValue};
+use crate::value::{AttrValue, PrimitiveValue, VarName};
 use anyhow::*;
 use gtk::prelude::*;
 use gtk::ImageExt;

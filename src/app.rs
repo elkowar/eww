@@ -2,11 +2,12 @@ use crate::*;
 use debug_stub_derive::*;
 use script_var_handler::*;
 use std::collections::HashMap;
+use value::VarName;
 
 #[derive(Debug)]
 pub enum EwwEvent {
     UserCommand(Opt),
-    UpdateVar(String, PrimitiveValue),
+    UpdateVar(VarName, PrimitiveValue),
     ReloadConfig(config::EwwConfig),
     ReloadCss(String),
 }
@@ -33,6 +34,7 @@ impl App {
                 std::process::exit(0)
             }
         }
+
         Ok(())
     }
 
@@ -51,7 +53,7 @@ impl App {
         }
     }
 
-    fn update_state(&mut self, fieldname: String, value: PrimitiveValue) {
+    fn update_state(&mut self, fieldname: VarName, value: PrimitiveValue) {
         self.eww_state.update_value(fieldname, value);
     }
 
