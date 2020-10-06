@@ -4,58 +4,101 @@ use crate::value::{AttrValue, PrimitiveValue, VarName};
 use anyhow::*;
 use gtk::prelude::*;
 use gtk::ImageExt;
+use maplit::hashmap;
 use std::path::Path;
 
 // TODO figure out how to
 // TODO https://developer.gnome.org/gtk3/stable/GtkFixed.html
 
-// general attributes
+#[macro_export]
+macro_rules! resolve_block {
+    ($args:ident, $gtk_widget:ident, {
+        $(
+            prop( $( $attr_name:ident : $typecast_func:ident ),*) $code:block
+        ),+ $(,)?
+    }) => {
+        $({
+            $(
+                $args.unhandled_attrs.retain(|a| a != &::std::stringify!($attr_name).replace('_', "-"));
+            )*
+            // TODO reimplement unused warnings
+            let attr_map: Result<_> = try {
+                ::maplit::hashmap! {
+                    $(
+                        ::std::stringify!($attr_name).to_owned() => $args.widget.get_attr(&::std::stringify!($attr_name).replace('_', "-"))?.clone()
+                    ),*
+                }
+            };
+            if let Ok(attr_map) = attr_map {
+                $args.eww_state.resolve(
+                    $args.local_env,
+                    attr_map,
+                    ::glib::clone!(@strong $gtk_widget => move |attrs| {
+                        $(
+                            let $attr_name = attrs.get( ::std::stringify!($attr_name) ).context("REEE")?.$typecast_func()?;
+                        )*
+                        $code
+                        Ok(())
+                    })
+                );
+            }
+        })+
+    };
 
+    // required
+    //($args:ident, $gtk_widget:ident, $func:ident => $attr:literal req => |$arg:ident| $body:expr) => {
+        //$args.unhandled_attrs.retain(|a| a != &$attr);
+        //$args.eww_state.$func($args.local_env, $args.widget.get_attr($attr)?, {
+            //let $gtk_widget = $gtk_widget.clone();
+            //move |$arg| { $body; }
+        //});
+    //};
+}
 /// attributes that apply to all widgets
 pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Widget) {
-    resolve!(bargs, gtk_widget, {
-        resolve_str  => "class"         => |v| gtk_widget.get_style_context().add_class(&v),
-        resolve_bool => "active" = true => |v| gtk_widget.set_sensitive(v),
-        resolve_str  => "valign"        => |v| gtk_widget.set_valign(parse_align(&v)),
-        resolve_str  => "halign"        => |v| gtk_widget.set_halign(parse_align(&v)),
-        resolve_f64  => "width"         => |v| gtk_widget.set_size_request(v as i32, gtk_widget.get_allocated_height()),
-        resolve_f64  => "height"        => |v| gtk_widget.set_size_request(gtk_widget.get_allocated_width(), v as i32),
-        resolve_bool => "visible"       => |v| {
+    resolve_block!(bargs, gtk_widget, {
+        prop(class:   as_string) { gtk_widget.get_style_context().add_class(&class) },
+        prop(valign:  as_string) { gtk_widget.set_valign(parse_align(&valign)) },
+        prop(halign:  as_string) { gtk_widget.set_halign(parse_align(&halign)) },
+        prop(width:   as_f64   ) { gtk_widget.set_size_request(width as i32, gtk_widget.get_allocated_height()) },
+        prop(height:  as_f64   ) { gtk_widget.set_size_request(gtk_widget.get_allocated_width(), height as i32) },
+        prop(active:  as_bool  ) { gtk_widget.set_sensitive(active) },
+        prop(visible: as_bool  ) {
             // TODO how do i call this only after the widget has been mapped? this is actually an issue,....
-            if v { gtk_widget.show(); } else { gtk_widget.hide(); }
-        }
+            if visible { gtk_widget.show(); } else { gtk_widget.hide(); }
+        },
     });
 }
 
 /// attributes that apply to all container widgets
 pub(super) fn resolve_container_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Container) {
-    resolve!(bargs, gtk_widget, {
-        resolve_bool => "vexpand" = false => |v| gtk_widget.set_vexpand(v),
-        resolve_bool => "hexpand" = false => |v| gtk_widget.set_hexpand(v),
+    resolve_block!(bargs, gtk_widget, {
+        prop(vexpand: as_bool) { gtk_widget.set_vexpand(vexpand) },
+        prop(hexpand: as_bool) { gtk_widget.set_hexpand(hexpand) },
     });
 }
 
 pub(super) fn resolve_range_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Range) {
-    resolve!(bargs, gtk_widget, {
-        resolve_f64 => "value" = req => |v| gtk_widget.set_value(v),
-        resolve_f64 => "min"         => |v| gtk_widget.get_adjustment().set_lower(v),
-        resolve_f64 => "max"         => |v| gtk_widget.get_adjustment().set_upper(v),
-        resolve_str => "orientation" => |v| gtk_widget.set_orientation(parse_orientation(&v)),
-        resolve_str => "onchange"    => |cmd| {
+    resolve_block!(bargs, gtk_widget, {
+        prop(value       : as_f64)    { gtk_widget.set_value(value)},
+        prop(min         : as_f64)    { gtk_widget.get_adjustment().set_lower(min)},
+        prop(max         : as_f64)    { gtk_widget.get_adjustment().set_upper(max)},
+        prop(orientation : as_string) { gtk_widget.set_orientation(parse_orientation(&orientation)) },
+        prop(onchange    : as_string) {
             gtk_widget.connect_value_changed(move |gtk_widget| {
-                run_command(&cmd, gtk_widget.get_value());
+                run_command(&onchange, gtk_widget.get_value());
             });
         }
     });
 }
 
 pub(super) fn resolve_orientable_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Range) {
-    resolve!(bargs, gtk_widget, {
-        resolve_str => "orientation" => |v| gtk_widget.set_orientation(parse_orientation(&v)),
+    resolve_block!(bargs, gtk_widget, {
+        prop(orientation: as_string) { gtk_widget.set_orientation(parse_orientation(&orientation)) },
     });
 }
 
-// widget definitions
+//// widget definitions
 
 pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<Option<gtk::Widget>> {
     let gtk_widget = match bargs.widget.name.as_str() {
@@ -78,45 +121,43 @@ fn build_gtk_scale(bargs: &mut BuilderArgs) -> Result<gtk::Scale> {
         gtk::Orientation::Horizontal,
         Some(&gtk::Adjustment::new(0.0, 0.0, 100.0, 1.0, 1.0, 1.0)),
     );
-    resolve!(bargs, gtk_widget, {
-        resolve_bool => "flipped"            => |v| gtk_widget.set_inverted(v),
-        resolve_bool => "draw-value" = false => |v| gtk_widget.set_draw_value(v),
+    resolve_block!(bargs, gtk_widget, {
+        prop(flipped: as_bool)    { gtk_widget.set_inverted(flipped) },
+        prop(draw_value: as_bool) { gtk_widget.set_draw_value(draw_value) },
     });
     Ok(gtk_widget)
 }
 
 fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
     let gtk_widget = gtk::Button::new();
-    resolve!(bargs, gtk_widget, {
-        resolve_str => "onclick" => |v| gtk_widget.connect_clicked(move |_| run_command(&v, ""))
+    resolve_block!(bargs, gtk_widget, {
+        prop(onclick: as_string) { gtk_widget.connect_clicked(move |_| run_command(&onclick, "")); }
     });
     Ok(gtk_widget)
 }
 
 fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
     let gtk_widget = gtk::Image::new();
-    resolve!(bargs, gtk_widget, {
-        resolve_str => "path" = req => |v| {
-            gtk_widget.set_from_file(Path::new(&v));
-        }
+    resolve_block!(bargs, gtk_widget, {
+        prop(path: as_string) { gtk_widget.set_from_file(Path::new(&path)); }
     });
     Ok(gtk_widget)
 }
 
 fn build_gtk_layout(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
     let gtk_widget = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-    resolve!(bargs, gtk_widget, {
-        resolve_f64  => "spacing" = 0.0       => |v| gtk_widget.set_spacing(v as i32),
-        resolve_str  => "orientation"         => |v| gtk_widget.set_orientation(parse_orientation(&v)),
-        resolve_bool => "space-evenly" = true => |v| gtk_widget.set_homogeneous(v),
+    resolve_block!(bargs, gtk_widget, {
+        prop(spacing: as_f64 )        { gtk_widget.set_spacing(spacing as i32) },
+        prop(orientation: as_string ) { gtk_widget.set_orientation(parse_orientation(&orientation)) },
+        prop(space_evenly: as_bool)   { gtk_widget.set_homogeneous(space_evenly) },
     });
     Ok(gtk_widget)
 }
 
 fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
     let gtk_widget = gtk::Label::new(None);
-    resolve!(bargs, gtk_widget, {
-        resolve_str => "text" => |v| gtk_widget.set_text(&v),
+    resolve_block!(bargs, gtk_widget, {
+        prop(text: as_string) { gtk_widget.set_text(&text) },
     });
     Ok(gtk_widget)
 }
@@ -130,17 +171,16 @@ fn build_gtk_text(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
         .context("text node must contain exactly one child")?
         .get_attr("text")?;
     let gtk_widget = gtk::Label::new(None);
-    bargs.eww_state.resolve_str(
+    bargs.eww_state.resolve(
         bargs.local_env,
-        text,
-        glib::clone!(@strong gtk_widget => move |v| gtk_widget.set_text(&v)),
+        hashmap! {"text".to_owned() => text.clone() },
+        glib::clone!(@strong gtk_widget => move |v| { gtk_widget.set_text(&v.get("text").unwrap().as_string().unwrap()); Ok(())}),
     );
     Ok(gtk_widget)
 }
 
 fn build_gtk_aspect_frame(bargs: &mut BuilderArgs) -> Result<gtk::AspectFrame> {
     let gtk_widget = gtk::AspectFrame::new(None, 0.5, 0.5, 1.0, true);
-    //resolve!(bargs, gtk_widget, {});
     Ok(gtk_widget)
 }
 
