@@ -158,7 +158,7 @@ impl AttrValue {
         }
     }
 
-    pub fn as_var_ref(&self) -> Result<VarName> {
+    pub fn as_var_ref(&self) -> Result<&VarName> {
         match self {
             AttrValue::VarRef(x) => Ok(x),
             _ => Err(anyhow!("{:?} is not a variable reference", self)),

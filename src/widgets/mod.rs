@@ -37,6 +37,7 @@ pub fn element_to_gtk_thing(
     let gtk_widget = if let Some(gtk_container) = gtk_container {
         gtk_container
     } else if let Some(def) = widget_definitions.get(widget.name.as_str()) {
+        // TODO widget cleanup phase, where widget arguments are resolved as far as possible beforehand?
         let mut local_env = local_env.clone();
         local_env.extend(widget.attrs.clone().into_iter().map(|(k, v)| (VarName(k), v)));
         let custom_widget = element_to_gtk_thing(widget_definitions, eww_state, &local_env, &def.structure)?;

@@ -7,24 +7,56 @@ use std::sync::Arc;
 use crate::value::{AttrValue, PrimitiveValue};
 
 //pub struct StateChangeHandler(Box<dyn Fn(HashMap<String, PrimitiveValue>) + 'static>);
+pub struct StateChangeHandler {
+    func: Box<dyn Fn(HashMap<String, PrimitiveValue>) -> Result<()> + 'static>,
+    constant_values: HashMap<String, PrimitiveValue>,
+    unresolved_attrs: HashMap<String, VarName>,
+}
+
+impl StateChangeHandler {
+    fn run_with_state(&self, state: &HashMap<VarName, PrimitiveValue>) -> Result<()> {
+        let mut all_resolved_attrs = self.constant_values.clone();
+        for (attr_name, var_ref) in self.unresolved_attrs.iter() {
+            let resolved = state
+                .get(var_ref)
+                // TODO provide context here, including line numbers
+                .with_context(|| format!("Unknown variable '{}' was referenced", var_ref))?;
+            all_resolved_attrs.insert(attr_name.to_owned(), resolved.clone());
+        }
+
+        let result: Result<_> = (self.func)(all_resolved_attrs);
+        if let Err(err) = result {
+            eprintln!("WARN: Error while resolving attributes: {}", err);
+        }
+
+        Ok(())
+    }
+}
 
 pub struct StateChangeHandlers {
-    handlers: HashMap<VarName, Vec<Arc<dyn Fn(HashMap<String, PrimitiveValue>) + 'static>>>,
+    handlers: HashMap<VarName, Vec<Arc<StateChangeHandler>>>,
 }
 
 impl StateChangeHandlers {
-    fn put_handler(&mut self, var_names: Vec<VarName>, handler: Arc<dyn Fn(HashMap<String, PrimitiveValue>) + 'static>) {
-        for var_name in var_names {
-            let entry: &mut Vec<Arc<dyn Fn(HashMap<String, PrimitiveValue>) + 'static>> =
-                self.handlers.entry(var_name).or_insert_with(Vec::new);
-            entry.push(handler);
+    fn put_handler(&mut self, handler: StateChangeHandler) {
+        let handler = Arc::new(handler);
+        for var_name in handler.unresolved_attrs.values() {
+            let entry: &mut Vec<Arc<StateChangeHandler>> = self.handlers.entry(var_name.clone()).or_insert_with(Vec::new);
+            entry.push(handler.clone());
         }
+    }
+
+    fn get(&self, key: &VarName) -> Option<&Vec<Arc<StateChangeHandler>>> {
+        self.handlers.get(key)
+    }
+
+    fn clear(&mut self) {
+        self.handlers.clear();
     }
 }
 
 pub struct EwwState {
     state_change_handlers: StateChangeHandlers,
-    //on_change_handlers: HashMap<VarName, Vec<StateChangeHandler>>,
     state: HashMap<VarName, PrimitiveValue>,
 }
 
@@ -54,96 +86,64 @@ impl EwwState {
     }
 
     pub fn clear_callbacks(&mut self) {
-        self.on_change_handlers.clear();
+        self.state_change_handlers.clear();
     }
 
-    pub fn update_value(&mut self, key: VarName, value: PrimitiveValue) {
-        if let Some(handlers) = self.on_change_handlers.get(&key) {
-            for on_change in handlers {
-                on_change(value.clone());
+    pub fn update_value(&mut self, key: VarName, value: PrimitiveValue) -> Result<()> {
+        if let Some(handlers) = self.state_change_handlers.get(&key) {
+            self.state.insert(key.clone(), value);
+            for handler in handlers {
+                handler
+                    .run_with_state(&self.state)
+                    .with_context(|| format!("When updating value of {}", &key))?;
             }
         }
-        self.state.insert(key, value);
+        Ok(())
     }
 
-    pub fn resolve<F: Fn(PrimitiveValue) + 'static + Clone>(
+    pub fn resolve<F: Fn(HashMap<String, PrimitiveValue>) -> Result<()> + 'static + Clone>(
         &mut self,
         local_env: &HashMap<VarName, AttrValue>,
-        value: &AttrValue,
+        mut needed_attributes: HashMap<String, AttrValue>,
         set_value: F,
-    ) -> bool {
-        match value {
-            AttrValue::VarRef(name) => {
-                // get value from globals
-                if let Some(value) = self.state.get(&name).cloned() {
-                    self.on_change_handlers
-                        .entry(name.clone())
-                        .or_insert_with(Vec::new)
-                        .push(Box::new(set_value.clone()));
-                    self.resolve(local_env, &value.into(), set_value)
-                } else if let Some(value) = local_env.get(&name).cloned() {
-                    // get value from local
-                    self.resolve(local_env, &value, set_value)
-                } else {
-                    eprintln!("WARN: unknown variable '{}' was referenced", name);
-                    false
+    ) {
+        let mut resolved_attrs = HashMap::new();
+        let mut unresolved_attrs: HashMap<String, VarName> = HashMap::new();
+        needed_attributes
+            .drain()
+            .for_each(|(attr_name, attr_value)| match attr_value {
+                AttrValue::Concrete(primitive) => {
+                    resolved_attrs.insert(attr_name, primitive);
                 }
+                AttrValue::VarRef(var_name) => match local_env.get(&var_name) {
+                    Some(AttrValue::VarRef(var_ref_from_local)) => {
+                        unresolved_attrs.insert(attr_name, var_ref_from_local.clone());
+                    }
+                    Some(AttrValue::Concrete(concrete_from_local)) => {
+                        resolved_attrs.insert(attr_name, concrete_from_local.clone());
+                    }
+                    None => {
+                        unresolved_attrs.insert(attr_name, var_name);
+                    }
+                },
+            });
+
+        let result: Result<_> = try {
+            if unresolved_attrs.is_empty() {
+                set_value(resolved_attrs)?;
+            } else {
+                let handler = StateChangeHandler {
+                    func: Box::new(set_value.clone()),
+                    constant_values: resolved_attrs,
+                    unresolved_attrs,
+                };
+                handler.run_with_state(&self.state)?;
+                self.state_change_handlers.put_handler(handler);
             }
-            AttrValue::Concrete(value) => {
-                set_value(value.clone());
-                true
-            }
+        };
+        if let Err(e) = result {
+            eprintln!("{}", e);
         }
-    }
-
-    //pub fn resolve_attrs<F: Fn(HashMap<String, PrimitiveValue>) + 'static + Clone>(
-    //&mut self,
-    //local_env: &HashMap<VarName, AttrValue>,
-    //unresolved_attrs: HashMap<String, AttrValue>,
-    //state_update_handler: F,
-    //) {
-    //let var_names = values.iter().filter_map(|value| value.as_var_ref().ok()).collect();
-    //self.state_change_handlers
-    //.put_handler(var_names, Arc::new(state_update_handler))
-    //}
-
-    pub fn resolve_f64<F: Fn(f64) + 'static + Clone>(
-        &mut self,
-        local_env: &HashMap<VarName, AttrValue>,
-        value: &AttrValue,
-        set_value: F,
-    ) -> bool {
-        self.resolve(local_env, value, move |x| {
-            if let Err(e) = x.as_f64().map(|v| set_value(v)) {
-                eprintln!("error while resolving value: {}", e);
-            };
-        })
-    }
-
-    #[allow(dead_code)]
-    pub fn resolve_bool<F: Fn(bool) + 'static + Clone>(
-        &mut self,
-        local_env: &HashMap<VarName, AttrValue>,
-        value: &AttrValue,
-        set_value: F,
-    ) -> bool {
-        self.resolve(local_env, value, move |x| {
-            if let Err(e) = x.as_bool().map(|v| set_value(v)) {
-                eprintln!("error while resolving value: {}", e);
-            };
-        })
-    }
-    pub fn resolve_str<F: Fn(String) + 'static + Clone>(
-        &mut self,
-        local_env: &HashMap<VarName, AttrValue>,
-        value: &AttrValue,
-        set_value: F,
-    ) -> bool {
-        self.resolve(local_env, value, move |x| {
-            if let Err(e) = x.as_string().map(|v| set_value(v.clone())) {
-                eprintln!("error while resolving value: {}", e);
-            };
-        })
     }
 }
 
@@ -151,4 +151,12 @@ pub fn run_command(cmd: &str) -> Result<PrimitiveValue> {
     let output = String::from_utf8(Command::new("/bin/bash").arg("-c").arg(cmd).output()?.stdout)?;
     let output = output.trim_matches('\n');
     Ok(PrimitiveValue::from(output))
+}
+
+pub fn recursive_lookup<'a>(data: &'a HashMap<VarName, AttrValue>, key: &VarName) -> Result<&'a PrimitiveValue> {
+    match data.get(key) {
+        Some(AttrValue::Concrete(x)) => Ok(x),
+        Some(AttrValue::VarRef(x)) => recursive_lookup(data, x),
+        None => Err(anyhow!("No value found for key '{}'", key)),
+    }
 }
