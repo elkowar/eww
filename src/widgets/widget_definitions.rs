@@ -1,6 +1,6 @@
 use super::{run_command, BuilderArgs};
 use crate::resolve_block;
-use crate::value::{AttrValue, PrimitiveValue, VarName};
+use crate::value::{AttrValue, PrimitiveValue};
 use anyhow::*;
 use gtk::prelude::*;
 use gtk::ImageExt;
@@ -128,6 +128,7 @@ fn build_gtk_text(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
         .get_attr("text")?;
     let gtk_widget = gtk::Label::new(None);
     bargs.eww_state.resolve(
+        bargs.window_name,
         bargs.local_env,
         hashmap! {"text".to_owned() => text.clone() },
         glib::clone!(@strong gtk_widget => move |v| { gtk_widget.set_text(&v.get("text").unwrap().as_string().unwrap()); Ok(())}),
@@ -135,7 +136,7 @@ fn build_gtk_text(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
     Ok(gtk_widget)
 }
 
-fn build_gtk_aspect_frame(bargs: &mut BuilderArgs) -> Result<gtk::AspectFrame> {
+fn build_gtk_aspect_frame(_bargs: &mut BuilderArgs) -> Result<gtk::AspectFrame> {
     let gtk_widget = gtk::AspectFrame::new(None, 0.5, 0.5, 1.0, true);
     Ok(gtk_widget)
 }

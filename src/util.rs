@@ -37,17 +37,3 @@ pub fn parse_duration(s: &str) -> Result<std::time::Duration> {
         Err(anyhow!("unrecognized time format: {}", s))
     }
 }
-
-//#[macro_export]
-//macro_rules! check_that {
-//($(
-//$cond:expr => $err:expr
-//),*$(,)?) => {
-//$(
-//if !($cond) {
-//return Err($err);
-//}
-//)*
-//}
-
-//}

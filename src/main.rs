@@ -70,10 +70,10 @@ pub enum OptAction {
     Update { fieldname: VarName, value: PrimitiveValue },
 
     #[structopt(name = "open")]
-    OpenWindow { window_name: String },
+    OpenWindow { window_name: config::WindowName },
 
     #[structopt(name = "close")]
-    CloseWindow { window_name: String },
+    CloseWindow { window_name: config::WindowName },
 
     #[structopt(name = "kill")]
     KillServer,
@@ -211,6 +211,7 @@ fn run_filewatch_thread<P: AsRef<Path>>(
     Ok(hotwatch)
 }
 
+/// detach the process from the terminal, also closing stdout and redirecting stderr into /dev/null
 fn do_detach() {
     // detach from terminal
     let pid = unsafe { libc::fork() };

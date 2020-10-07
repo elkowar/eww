@@ -3,23 +3,13 @@ use crate::value::PrimitiveValue;
 use crate::value::VarName;
 use anyhow::*;
 use element::*;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fmt;
 use xml_ext::*;
 
 pub mod element;
 pub mod xml_ext;
-
-#[allow(unused)]
-macro_rules! try_type {
-    ($typ:ty; $code:expr) => {{
-        let x: $typ = try { $code };
-        x
-    }};
-    ($typ:ty; $code:block) => {{
-        let x: $typ = try { $code };
-        x
-    }};
-}
 
 #[macro_export]
 macro_rules! ensure_xml_tag_is {
@@ -57,8 +47,8 @@ impl ScriptVar {
 #[derive(Debug, Clone)]
 pub struct EwwConfig {
     widgets: HashMap<String, WidgetDefinition>,
-    windows: HashMap<String, EwwWindowDefinition>,
-    initial_variables: HashMap<String, PrimitiveValue>,
+    windows: HashMap<WindowName, EwwWindowDefinition>,
+    initial_variables: HashMap<VarName, PrimitiveValue>,
     script_vars: Vec<ScriptVar>,
 }
 
@@ -88,7 +78,12 @@ impl EwwConfig {
         let windows = xml
             .child("windows")?
             .child_elements()
-            .map(|child| Ok((child.attr("name")?.to_owned(), EwwWindowDefinition::from_xml_element(child)?)))
+            .map(|child| {
+                Ok((
+                    WindowName(child.attr("name")?.to_owned()),
+                    EwwWindowDefinition::from_xml_element(child)?,
+                ))
+            })
             .collect::<Result<HashMap<_, _>>>()
             .context("error parsing window definitions")?;
 
@@ -101,7 +96,7 @@ impl EwwConfig {
                 match node.tag_name() {
                     "var" => {
                         initial_variables.insert(
-                            node.attr("name")?.to_owned(),
+                            VarName(node.attr("name")?.to_owned()),
                             PrimitiveValue::parse_string(&node.only_child()?.as_text()?.text()),
                         );
                     }
@@ -128,25 +123,39 @@ impl EwwConfig {
             .iter()
             .map(|var| Ok((var.name.clone(), crate::eww_state::run_command(&var.command)?)))
             .collect::<Result<HashMap<_, _>>>()?;
-        vars.extend(
-            self.get_default_vars()
-                .into_iter()
-                .map(|(k, v)| (VarName(k.clone()), v.clone())),
-        );
+        vars.extend(self.get_default_vars().clone());
         Ok(vars)
     }
 
     pub fn get_widgets(&self) -> &HashMap<String, WidgetDefinition> {
         &self.widgets
     }
-    pub fn get_windows(&self) -> &HashMap<String, EwwWindowDefinition> {
+    pub fn get_windows(&self) -> &HashMap<WindowName, EwwWindowDefinition> {
         &self.windows
     }
-    pub fn get_default_vars(&self) -> &HashMap<String, PrimitiveValue> {
+    pub fn get_default_vars(&self) -> &HashMap<VarName, PrimitiveValue> {
         &self.initial_variables
     }
     pub fn get_script_vars(&self) -> &Vec<ScriptVar> {
         &self.script_vars
+    }
+}
+
+#[repr(transparent)]
+#[derive(
+    Debug, Clone, Hash, PartialEq, Eq, derive_more::AsRef, derive_more::From, derive_more::FromStr, Serialize, Deserialize,
+)]
+pub struct WindowName(String);
+
+impl std::borrow::Borrow<str> for WindowName {
+    fn borrow(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Display for WindowName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 

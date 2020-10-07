@@ -16,7 +16,7 @@ pub enum EwwEvent {
 pub struct App {
     pub eww_state: EwwState,
     pub eww_config: config::EwwConfig,
-    pub windows: HashMap<String, gtk::Window>,
+    pub windows: HashMap<config::WindowName, gtk::Window>,
     pub css_provider: gtk::CssProvider,
     pub app_evt_send: glib::Sender<EwwEvent>,
     #[debug_stub = "ScriptVarHandler(...)"]
@@ -54,19 +54,21 @@ impl App {
     }
 
     fn update_state(&mut self, fieldname: VarName, value: PrimitiveValue) -> Result<()> {
-        self.eww_state.update_value(fieldname, value)
+        self.eww_state.update_variable(fieldname, value)
     }
 
-    fn close_window(&mut self, window_name: &str) -> Result<()> {
+    fn close_window(&mut self, window_name: &config::WindowName) -> Result<()> {
         let window = self
             .windows
             .get(window_name)
             .context(format!("No window with name '{}' is running.", window_name))?;
         window.close();
+        self.eww_state.clear_window_state(window_name);
+
         Ok(())
     }
 
-    fn open_window(&mut self, window_name: &str) -> Result<()> {
+    fn open_window(&mut self, window_name: &config::WindowName) -> Result<()> {
         let window_def = self
             .eww_config
             .get_windows()
@@ -89,13 +91,14 @@ impl App {
         window.connect_screen_changed(on_screen_changed);
 
         let empty_local_state = HashMap::new();
-        let root_widget = &widgets::element_to_gtk_thing(
+        let root_widget = &widgets::widget_use_to_gtk_widget(
             &self.eww_config.get_widgets(),
             &mut self.eww_state,
+            window_name,
             &empty_local_state,
             &window_def.widget,
         )?;
-        root_widget.get_style_context().add_class(window_name);
+        root_widget.get_style_context().add_class(&window_name.to_string());
         window.add(root_widget);
 
         window.show_all();
@@ -107,7 +110,7 @@ impl App {
         gdk_window.raise();
         window.set_keep_above(true);
 
-        self.windows.insert(window_name.to_string(), window);
+        self.windows.insert(window_name.clone(), window);
 
         Ok(())
     }
@@ -119,7 +122,7 @@ impl App {
         }
 
         self.eww_config = config;
-        self.eww_state.clear_callbacks();
+        self.eww_state.clear_all_window_states();
 
         let windows = self.windows.clone();
         for (window_name, window) in windows {
