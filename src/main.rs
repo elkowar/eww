@@ -1,4 +1,5 @@
 #![feature(trace_macros)]
+#![feature(result_cloned)]
 #![feature(iterator_fold_self)]
 #![feature(try_blocks)]
 extern crate gio;
