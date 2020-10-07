@@ -109,58 +109,47 @@ pub fn build_gtk_widget(
 }
 
 #[macro_export]
-macro_rules! resolve {
+macro_rules! resolve_block {
     ($args:ident, $gtk_widget:ident, {
         $(
-            $func:ident => $attr:literal $( = $default:literal)? $( = req $(@$required:tt)?)? => |$arg:ident| $body:expr
+            prop( $( $attr_name:ident : $typecast_func:ident $(= $default:expr)?),*) $code:block
         ),+ $(,)?
-    }) => {{
-        $(
-            resolve!($args, $gtk_widget, $func => $attr $( [ $default ] )* $($($required)*)* => |$arg| $body);
-        )+
-    }};
+    }) => {
+        $({
+            $(
+                $args.unhandled_attrs.retain(|a| a != &::std::stringify!($attr_name).replace('_', "-"));
+            )*
 
-    ($args:ident, $gtk_widget:ident, {
-        $($func:ident => {
-            $($attr:literal $(= $default:literal)? $(= req $(@$required:tt)?)? => |$arg:ident| $body:expr),+ $(,)?
-        }),+ $(,)?
-    }) => {{
-        $($(
-            resolve!($args, $gtk_widget, $func => $attr $( [ $default ] )* $($($required)*)* => |$arg| $body);
-        )+)+
-    }};
-
-    // optional
-    ($args:ident, $gtk_widget:ident, $func:ident => $attr:literal => |$arg:ident| $body:expr) => {
-        $args.unhandled_attrs.retain(|a| a != &$attr);
-        if let Some(attr_value) = $args.widget.attrs.get($attr) {
-            $args.eww_state.$func($args.local_env, attr_value, {
-                let $gtk_widget = $gtk_widget.clone();
-                move |$arg| { $body; }
-            });
-        }
-    };
-
-    // required
-    ($args:ident, $gtk_widget:ident, $func:ident => $attr:literal req => |$arg:ident| $body:expr) => {
-        $args.unhandled_attrs.retain(|a| a != &$attr);
-        $args.eww_state.$func($args.local_env, $args.widget.get_attr($attr)?, {
-            let $gtk_widget = $gtk_widget.clone();
-            move |$arg| { $body; }
-        });
-    };
-
-    // with default
-    ($args:ident, $gtk_widget:ident, $func:ident => $attr:literal [$default:expr] => |$arg:ident| $body:expr) => {
-        $args.unhandled_attrs.retain(|a| a != &$attr);
-        $args.eww_state.$func(
-            $args.local_env, $args.widget.attrs.get($attr).unwrap_or(&AttrValue::Concrete(PrimitiveValue::from($default))),
-            {
-                let $gtk_widget = $gtk_widget.clone();
-                move |$arg| { $body; }
+            let attr_map: Result<_> = try {
+                ::maplit::hashmap! {
+                    $(
+                        ::std::stringify!($attr_name).to_owned() => resolve_block!(@get_value $args, &::std::stringify!($attr_name).replace('_', "-"), $(= $default)?)
+                    ),*
+                }
+            };
+            if let Ok(attr_map) = attr_map {
+                $args.eww_state.resolve(
+                    $args.local_env,
+                    attr_map,
+                    ::glib::clone!(@strong $gtk_widget => move |attrs| {
+                        $(
+                            let $attr_name = attrs.get( ::std::stringify!($attr_name) ).context("something went terribly wrong....")?.$typecast_func()?;
+                        )*
+                        $code
+                        Ok(())
+                    })
+                );
             }
-        );
+        })+
     };
+
+    (@get_value $args:ident, $name:expr, = $default:expr) => {
+        $args.widget.get_attr($name).cloned().unwrap_or(AttrValue::Concrete(PrimitiveValue::from($default)))
+    };
+
+    (@get_value $args:ident, $name:expr,) => {
+        $args.widget.get_attr($name)?.clone()
+    }
 }
 
 #[allow(unused)]
