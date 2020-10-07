@@ -21,7 +21,8 @@ impl WidgetDefinition {
         with_text_pos_context! { xml =>
             if xml.tag_name() != "def" {
                 bail!(
-                    "Illegal element: only <def> may be used in definition block, but found '{}'",
+                    "{} | Illegal element: only <def> may be used in definition block, but found '{}'",
+                    xml.text_pos(),
                     xml.as_tag_string()
                 );
             }
@@ -89,7 +90,7 @@ impl WidgetUse {
                     .collect::<HashMap<_, _>>(),
                 ..WidgetUse::default()
             },
-            XmlNode::Ignored(_) => Err(anyhow!("Failed to parse node {:?} as widget use", xml))?,
+            XmlNode::Ignored(_) => bail!("{} | Failed to parse node {:?} as widget use", xml.text_pos(), xml),
         };
         Ok(widget_use.at_pos(text_pos))
     }
