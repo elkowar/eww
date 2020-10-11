@@ -31,6 +31,7 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<Option<gtk
 
 /// attributes that apply to all widgets
 pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Widget) {
+    let css_provider = gtk::CssProvider::new();
     resolve_block!(bargs, gtk_widget, {
         prop(class:   as_string) { gtk_widget.get_style_context().add_class(&class) },
         prop(valign:  as_string) { gtk_widget.set_valign(parse_align(&valign)?) },
@@ -42,6 +43,11 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
             // TODO how do i call this only after the widget has been mapped? this is actually an issue,....
             if visible { gtk_widget.show(); } else { gtk_widget.hide(); }
         },
+        prop(style: as_string) {
+            gtk_widget.reset_style();
+            css_provider.load_from_data(format!("* {{ {} }}", style).as_bytes())?;
+            gtk_widget.get_style_context().add_provider(&css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION)
+        }
     });
 }
 
