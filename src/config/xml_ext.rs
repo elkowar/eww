@@ -11,7 +11,7 @@ macro_rules! with_text_pos_context {
     }};
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum XmlNode<'a, 'b> {
     Element(XmlElement<'a, 'b>),
     Text(XmlText<'a, 'b>),
@@ -28,15 +28,44 @@ impl<'a, 'b> fmt::Display for XmlNode<'a, 'b> {
     }
 }
 
+/// Get the part of a string that is selected by the start and end TextPos.
+/// Will panic if the range is out of bounds in any way.
+fn get_text_from_text_range(s: &str, (start_pos, end_pos): (roxmltree::TextPos, roxmltree::TextPos)) -> String {
+    let mut code_text = s
+        .lines()
+        .dropping(start_pos.row as usize - 1)
+        .take(end_pos.row as usize - (start_pos.row as usize - 1))
+        .collect_vec();
+    if let Some(first_line) = code_text.first_mut() {
+        *first_line = first_line.split_at(start_pos.col as usize - 1).1;
+    }
+    if let Some(last_line) = code_text.last_mut() {
+        *last_line = last_line.split_at(end_pos.col as usize - 1).0;
+    }
+    code_text.join("\n")
+}
+
 impl<'a, 'b> XmlNode<'a, 'b> {
-    pub fn as_text(self) -> Result<XmlText<'a, 'b>> {
+    pub fn get_sourcecode(&self) -> String {
+        let input_text = self.node().document().input_text();
+        let range = self.node().range();
+        let start_pos = self.node().document().text_pos_at(range.start);
+        let end_pos = self.node().document().text_pos_at(range.end);
+        get_text_from_text_range(input_text, (start_pos, end_pos))
+    }
+
+    pub fn as_text_or_sourcecode(&self) -> String {
+        self.as_text().map(|c| c.text()).unwrap_or_else(|_| self.get_sourcecode())
+    }
+
+    pub fn as_text(&self) -> Result<&XmlText<'a, 'b>> {
         match self {
             XmlNode::Text(text) => Ok(text),
             _ => Err(anyhow!("'{}' is not a text node", self)),
         }
     }
 
-    pub fn as_element(self) -> Result<XmlElement<'a, 'b>> {
+    pub fn as_element(&self) -> Result<&XmlElement<'a, 'b>> {
         match self {
             XmlNode::Element(element) => Ok(element),
             _ => Err(anyhow!("'{}' is not an element node", self)),
@@ -62,7 +91,7 @@ impl<'a, 'b> XmlNode<'a, 'b> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct XmlText<'a, 'b>(roxmltree::Node<'a, 'b>);
 
 impl<'a, 'b> fmt::Display for XmlText<'a, 'b> {
@@ -83,7 +112,7 @@ impl<'a, 'b> XmlText<'a, 'b> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct XmlElement<'a, 'b>(roxmltree::Node<'a, 'b>);
 
 impl<'a, 'b> fmt::Display for XmlElement<'a, 'b> {
@@ -161,7 +190,7 @@ impl<'a, 'b> XmlElement<'a, 'b> {
 
     pub fn only_child_element(&self) -> Result<XmlElement> {
         with_text_pos_context! { self =>
-            self.only_child()?.as_element()?
+            self.only_child()?.as_element()?.clone()
         }
     }
 

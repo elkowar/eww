@@ -286,7 +286,7 @@ mod test {
 
         assert_eq!(
             expected,
-            WidgetDefinition::from_xml_element(xml.as_element().unwrap()).unwrap()
+            WidgetDefinition::from_xml_element(xml.as_element().unwrap().to_owned()).unwrap()
         );
     }
 

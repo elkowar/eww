@@ -146,18 +146,20 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Frame> {
     let widget_definitions = bargs.widget_definitions.clone();
     resolve_block!(bargs, gtk_widget, {
         prop(content: as_string) {
-            let document = roxmltree::Document::parse(&content)?;
-            let content_widget_use = config::element::WidgetUse::from_xml_node(document.root_element().into())?;
-            let child_widget = super::widget_use_to_gtk_widget(
-                &widget_definitions,
-                &mut eww_state::EwwState::default(),
-                &window_name,
-                &std::collections::HashMap::new(),
-                &content_widget_use,
-            )?;
             gtk_widget.get_children().iter().for_each(|w| gtk_widget.remove(w));
-            gtk_widget.add(&child_widget);
-            child_widget.show();
+            if !content.is_empty() {
+                let document = roxmltree::Document::parse(&content)?;
+                let content_widget_use = config::element::WidgetUse::from_xml_node(document.root_element().into())?;
+                let child_widget = super::widget_use_to_gtk_widget(
+                    &widget_definitions,
+                    &mut eww_state::EwwState::default(),
+                    &window_name,
+                    &std::collections::HashMap::new(),
+                    &content_widget_use,
+                )?;
+                gtk_widget.add(&child_widget);
+                child_widget.show();
+            }
         }
     });
     Ok(gtk_widget)
