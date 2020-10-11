@@ -8,7 +8,6 @@ use gtk::prelude::*;
 use gtk::ImageExt;
 use maplit::hashmap;
 use std::cell::RefCell;
-use std::fmt;
 use std::path::Path;
 use std::rc::Rc;
 
