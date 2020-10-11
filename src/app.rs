@@ -86,8 +86,9 @@ impl App {
         window_def.size = size.unwrap_or_else(|| window_def.size);
 
         let window = gtk::Window::new(gtk::WindowType::Popup);
-        window.set_title("Eww");
-        window.set_wmclass("noswallow", "noswallow");
+        window.set_title(&format!("Eww - {}", window_name));
+        let wm_class_name = format!("eww-{}", window_name);
+        window.set_wmclass(&wm_class_name, &wm_class_name);
         window.set_type_hint(gdk::WindowTypeHint::Dock);
         window.set_position(gtk::WindowPosition::Center);
         window.set_default_size(window_def.size.0, window_def.size.1);
