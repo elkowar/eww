@@ -1,5 +1,4 @@
-use crate::config::element;
-use crate::config::WindowName;
+use crate::config::{element, WindowName};
 use crate::eww_state::*;
 use crate::value::{AttrValue, VarName};
 use anyhow::*;
@@ -21,12 +20,13 @@ pub fn run_command<T: std::fmt::Display>(cmd: &str, arg: T) {
     }
 }
 
-struct BuilderArgs<'a, 'b, 'c, 'd> {
+struct BuilderArgs<'a, 'b, 'c, 'd, 'e> {
     eww_state: &'a mut EwwState,
     local_env: &'b HashMap<VarName, AttrValue>,
     widget: &'c element::WidgetUse,
     unhandled_attrs: Vec<&'c str>,
     window_name: &'d WindowName,
+    widget_definitions: &'e HashMap<String, element::WidgetDefinition>,
 }
 
 /// Generate a [gtk::Widget] from a [element::WidgetUse].
@@ -43,7 +43,7 @@ pub fn widget_use_to_gtk_widget(
     local_env: &HashMap<VarName, AttrValue>,
     widget: &element::WidgetUse,
 ) -> Result<gtk::Widget> {
-    let builtin_gtk_widget = build_gtk_widget(widget_definitions, eww_state, window_name, local_env, widget)?;
+    let builtin_gtk_widget = build_builtin_gtk_widget(widget_definitions, eww_state, window_name, local_env, widget)?;
 
     let gtk_widget = if let Some(builtin_gtk_widget) = builtin_gtk_widget {
         builtin_gtk_widget
@@ -100,7 +100,7 @@ pub fn widget_use_to_gtk_widget(
 ///
 /// This may return `Err` in case there was an actual error while parsing or resolving the widget,
 /// Or `Ok(None)` if the widget_use just didn't match any widget name.
-fn build_gtk_widget(
+fn build_builtin_gtk_widget(
     widget_definitions: &HashMap<String, element::WidgetDefinition>,
     eww_state: &mut EwwState,
     window_name: &WindowName,
@@ -113,6 +113,7 @@ fn build_gtk_widget(
         widget,
         window_name,
         unhandled_attrs: widget.attrs.keys().map(|x| x.as_ref()).collect(),
+        widget_definitions,
     };
     let gtk_widget = match widget_to_gtk_widget(&mut bargs) {
         Ok(Some(gtk_widget)) => gtk_widget,
@@ -142,6 +143,7 @@ fn build_gtk_widget(
                 )
             })?;
             gtk_widget.add(&child_widget);
+            child_widget.show();
         }
     }
 
