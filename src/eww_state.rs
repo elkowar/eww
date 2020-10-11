@@ -109,7 +109,34 @@ impl EwwState {
         Ok(())
     }
 
+    /// resolves a value if possible, using the current eww_state
+    /// Expects there to be at max one level of nesting var_refs from local-env.
+    /// This means that no elements in the local_env may be var-refs into the local_env again, but only into the global state.
+    pub fn resolve_once<'a>(
+        &'a self,
+        local_env: &'a HashMap<VarName, AttrValue>,
+        value: &'a AttrValue,
+    ) -> Result<&'a PrimitiveValue> {
+        match value {
+            AttrValue::Concrete(primitive) => Ok(&primitive),
+            AttrValue::VarRef(var_name) => match local_env.get(var_name) {
+                // look up if variables are found in the local env, and resolve as far as possible
+                Some(AttrValue::Concrete(primitive)) => Ok(primitive),
+                Some(AttrValue::VarRef(var_name)) => self
+                    .variables_state
+                    .get(var_name)
+                    .ok_or_else(|| anyhow!("Unknown variable '{}' referenced", var_name)),
+                None => self
+                    .variables_state
+                    .get(var_name)
+                    .ok_or_else(|| anyhow!("Unknown variable '{}' referenced", var_name)),
+            },
+        }
+    }
+
     /// Resolve takes a function that applies a set of fully resolved attribute values to it's gtk widget.
+    /// Expects there to be at max one level of nesting var_refs from local-env.
+    /// This means that no elements in the local_env may be var-refs into the local_env again, but only into the global state.
     pub fn resolve<F: Fn(HashMap<String, PrimitiveValue>) -> Result<()> + 'static + Clone>(
         &mut self,
         window_name: &WindowName,

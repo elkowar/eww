@@ -9,6 +9,8 @@ use gtk::ImageExt;
 use maplit::hashmap;
 use std::path::Path;
 
+use gdk_pixbuf;
+
 // TODO figure out how to
 // TODO https://developer.gnome.org/gtk3/stable/GtkFixed.html
 
@@ -32,6 +34,21 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<Option<gtk
 /// attributes that apply to all widgets
 pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Widget) {
     let css_provider = gtk::CssProvider::new();
+
+    if let Ok(visible) = bargs
+        .widget
+        .get_attr("visible")
+        .and_then(|v| bargs.eww_state.resolve_once(bargs.local_env, v)?.as_bool())
+    {
+        connect_first_map(gtk_widget, move |w| {
+            if visible {
+                w.show();
+            } else {
+                w.hide();
+            }
+        })
+    }
+
     resolve_block!(bargs, gtk_widget, {
         prop(class:   as_string) { gtk_widget.get_style_context().add_class(&class) },
         prop(valign:  as_string) { gtk_widget.set_valign(parse_align(&valign)?) },
@@ -39,7 +56,7 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
         prop(width:   as_f64   ) { gtk_widget.set_size_request(width as i32, gtk_widget.get_allocated_height()) },
         prop(height:  as_f64   ) { gtk_widget.set_size_request(gtk_widget.get_allocated_width(), height as i32) },
         prop(active:  as_bool = true) { gtk_widget.set_sensitive(active) },
-        prop(visible: as_bool  ) {
+        prop(visible: as_bool = true) {
             // TODO how do i call this only after the widget has been mapped? this is actually an issue,....
             if visible { gtk_widget.show(); } else { gtk_widget.hide(); }
         },
@@ -104,7 +121,13 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
 fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
     let gtk_widget = gtk::Image::new();
     resolve_block!(bargs, gtk_widget, {
-        prop(path: as_string) { gtk_widget.set_from_file(Path::new(&path)); }
+        prop(path: as_string) {
+            gtk_widget.set_from_file(Path::new(&path));
+        },
+        prop(path: as_string, width: as_f64, height: as_f64) {
+            let pixbuf = gdk_pixbuf::Pixbuf::from_file_at_size(std::path::PathBuf::from(path), width as i32, height as i32)?;
+            gtk_widget.set_from_pixbuf(Some(&pixbuf));
+        }
     });
     Ok(gtk_widget)
 }
@@ -193,4 +216,14 @@ fn parse_align(o: &str) -> Result<gtk::Align> {
         "end" => gtk::Align::End,
         _ => bail!("Couldn't parse alignment: '{}'", o),
     })
+}
+
+fn connect_first_map<W: IsA<gtk::Widget>, F: Fn(&W) + 'static>(widget: &W, func: F) {
+    // TODO it would be better to actually remove the connect_map after first map, but that would be highly annoying to implement...
+    let is_first_map = std::rc::Rc::new(std::cell::RefCell::new(true));
+    widget.connect_map(move |w| {
+        if is_first_map.replace(false) {
+            func(&w);
+        }
+    });
 }
