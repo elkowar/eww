@@ -1,4 +1,5 @@
 use crate::*;
+use config::WindowStacking;
 use debug_stub_derive::*;
 use script_var_handler::*;
 use std::collections::HashMap;
@@ -27,7 +28,7 @@ impl App {
     pub fn handle_user_command(&mut self, opts: &Opt) -> Result<()> {
         match &opts.action {
             OptAction::Update { fieldname, value } => self.update_state(fieldname.clone(), value.clone())?,
-            OptAction::OpenWindow { window_name } => self.open_window(&window_name)?,
+            OptAction::OpenWindow { window_name, pos, size } => self.open_window(&window_name, *pos, *size)?,
             OptAction::CloseWindow { window_name } => self.close_window(&window_name)?,
             OptAction::KillServer => {
                 log::info!("Received kill command, stopping server!");
@@ -68,13 +69,21 @@ impl App {
         Ok(())
     }
 
-    fn open_window(&mut self, window_name: &config::WindowName) -> Result<()> {
-        let window_def = self
+    fn open_window(
+        &mut self,
+        window_name: &config::WindowName,
+        pos: Option<util::Coords>,
+        size: Option<util::Coords>,
+    ) -> Result<()> {
+        let mut window_def = self
             .eww_config
             .get_windows()
             .get(window_name)
             .context(format!("No window named '{}' defined", window_name))?
             .clone();
+
+        window_def.position = pos.unwrap_or_else(|| window_def.position);
+        window_def.size = size.unwrap_or_else(|| window_def.size);
 
         let window = gtk::Window::new(gtk::WindowType::Popup);
         window.set_title("Eww");
@@ -107,8 +116,14 @@ impl App {
         gdk_window.set_override_redirect(true);
         gdk_window.move_(window_def.position.0, window_def.position.1);
         gdk_window.show();
-        gdk_window.raise();
-        window.set_keep_above(true);
+
+        if window_def.stacking == WindowStacking::Foreground {
+            gdk_window.raise();
+            window.set_keep_above(true);
+        } else {
+            gdk_window.lower();
+            window.set_keep_below(true);
+        }
 
         self.windows.insert(window_name.clone(), window);
 
@@ -126,8 +141,10 @@ impl App {
 
         let windows = self.windows.clone();
         for (window_name, window) in windows {
+            let old_pos = window.get_position();
+            let old_size = window.get_size();
             window.close();
-            self.open_window(&window_name)?;
+            self.open_window(&window_name, Some(old_pos.into()), Some(old_size.into()))?;
         }
         Ok(())
     }

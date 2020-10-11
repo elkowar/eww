@@ -2,6 +2,8 @@ use anyhow::*;
 use extend::ext;
 use grass;
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
+use std::fmt;
 use std::path::Path;
 
 pub fn parse_scss_from_file<P: AsRef<Path>>(path: P) -> Result<String> {
@@ -35,5 +37,28 @@ pub fn parse_duration(s: &str) -> Result<std::time::Duration> {
         Ok(Duration::from_secs(s.trim_end_matches("h").parse::<u64>()? * 60 * 60))
     } else {
         Err(anyhow!("unrecognized time format: {}", s))
+    }
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+pub struct Coords(pub i32, pub i32);
+
+impl fmt::Display for Coords {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}x{}", self.0, self.1)
+    }
+}
+
+impl std::str::FromStr for Coords {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> Result<Self> {
+        let (x, y) = s.split_once('x').ok_or_else(|| anyhow!("must be formatted like 200x500"))?;
+        Ok(Coords(x.parse()?, y.parse()?))
+    }
+}
+
+impl From<(i32, i32)> for Coords {
+    fn from((x, y): (i32, i32)) -> Self {
+        Coords(x, y)
     }
 }
