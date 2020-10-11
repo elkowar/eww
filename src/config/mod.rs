@@ -2,10 +2,12 @@ use crate::util;
 use crate::value::PrimitiveValue;
 use crate::value::VarName;
 use anyhow::*;
+use derive_more;
 use element::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
+use util::Coords;
 use xml_ext::*;
 
 pub mod element;
@@ -163,8 +165,9 @@ impl fmt::Display for WindowName {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct EwwWindowDefinition {
-    pub position: (i32, i32),
-    pub size: (i32, i32),
+    pub position: Coords,
+    pub size: Coords,
+    pub stacking: WindowStacking,
     pub widget: WidgetUse,
 }
 
@@ -173,11 +176,50 @@ impl EwwWindowDefinition {
         ensure_xml_tag_is!(xml, "window");
 
         let size_node = xml.child("size")?;
-        let size = (size_node.attr("x")?.parse()?, size_node.attr("y")?.parse()?);
+        let size = Coords(size_node.attr("x")?.parse()?, size_node.attr("y")?.parse()?);
         let pos_node = xml.child("pos")?;
-        let position = (pos_node.attr("x")?.parse()?, pos_node.attr("y")?.parse()?);
+        let position = Coords(pos_node.attr("x")?.parse()?, pos_node.attr("y")?.parse()?);
+
+        let stacking = xml
+            .attr("stacking")
+            .ok()
+            .map(|stacking| stacking.parse::<WindowStacking>())
+            .transpose()?
+            .unwrap_or_else(WindowStacking::default);
 
         let widget = WidgetUse::from_xml_node(xml.child("widget")?.only_child()?)?;
-        Ok(EwwWindowDefinition { position, size, widget })
+        Ok(EwwWindowDefinition {
+            position,
+            size,
+            widget,
+            stacking,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, derive_more::Display)]
+pub enum WindowStacking {
+    Foreground,
+    Background,
+}
+
+impl Default for WindowStacking {
+    fn default() -> Self {
+        WindowStacking::Foreground
+    }
+}
+
+impl std::str::FromStr for WindowStacking {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> Result<Self> {
+        let s = s.to_lowercase();
+        match s.as_str() {
+            "foreground" | "fg" | "f" => Ok(WindowStacking::Foreground),
+            "background" | "bg" | "b" => Ok(WindowStacking::Background),
+            _ => Err(anyhow!(
+                "Couldn't parse '{}' as window stacking, must be either foreground, fg, background or bg",
+                s
+            )),
+        }
     }
 }

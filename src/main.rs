@@ -2,6 +2,8 @@
 #![feature(result_cloned)]
 #![feature(iterator_fold_self)]
 #![feature(try_blocks)]
+#![feature(str_split_once)]
+
 extern crate gio;
 extern crate gtk;
 
@@ -70,7 +72,15 @@ pub enum OptAction {
     Update { fieldname: VarName, value: PrimitiveValue },
 
     #[structopt(name = "open")]
-    OpenWindow { window_name: config::WindowName },
+    OpenWindow {
+        window_name: config::WindowName,
+
+        #[structopt(short, long)]
+        pos: Option<util::Coords>,
+
+        #[structopt(short, long)]
+        size: Option<util::Coords>,
+    },
 
     #[structopt(name = "close")]
     CloseWindow { window_name: config::WindowName },
