@@ -57,7 +57,7 @@ impl EwwConfig {
         let content = std::fs::read_to_string(path)?;
         let document = roxmltree::Document::parse(&content)?;
 
-        let result = EwwConfig::from_xml_element(XmlNode::from(document.root_element()).as_element()?);
+        let result = EwwConfig::from_xml_element(XmlNode::from(document.root_element()).as_element()?.clone());
         result
     }
 
@@ -97,7 +97,7 @@ impl EwwConfig {
                             PrimitiveValue::parse_string(
                                 &node
                                     .only_child()
-                                    .and_then(|c| Ok(c.as_text()?.text()))
+                                    .map(|c| c.as_text_or_sourcecode())
                                     .unwrap_or_else(|_| String::new()),
                             ),
                         );
