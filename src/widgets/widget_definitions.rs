@@ -1,4 +1,6 @@
 use super::{run_command, BuilderArgs};
+use crate::config;
+use crate::eww_state;
 use crate::resolve_block;
 use crate::value::{AttrValue, PrimitiveValue};
 use anyhow::*;
@@ -21,6 +23,7 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<Option<gtk
         "label" => build_gtk_label(bargs)?.upcast(),
         "text" => build_gtk_text(bargs)?.upcast(),
         "aspect" => build_gtk_aspect_frame(bargs)?.upcast(),
+        "literal" => build_gtk_literal(bargs)?.upcast(),
         _ => return Ok(None),
     };
     Ok(Some(gtk_widget))
@@ -133,6 +136,30 @@ fn build_gtk_text(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
         hashmap! {"text".to_owned() => text.clone() },
         glib::clone!(@strong gtk_widget => move |v| { gtk_widget.set_text(&v.get("text").unwrap().as_string().unwrap()); Ok(())}),
     );
+    Ok(gtk_widget)
+}
+
+fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Frame> {
+    let gtk_widget = gtk::Frame::new(None);
+    // TODO these clones here are dumdum
+    let window_name = bargs.window_name.clone();
+    let widget_definitions = bargs.widget_definitions.clone();
+    resolve_block!(bargs, gtk_widget, {
+        prop(content: as_string) {
+            let document = roxmltree::Document::parse(&content)?;
+            let content_widget_use = config::element::WidgetUse::from_xml_node(document.root_element().into())?;
+            let child_widget = super::widget_use_to_gtk_widget(
+                &widget_definitions,
+                &mut eww_state::EwwState::default(),
+                &window_name,
+                &std::collections::HashMap::new(),
+                &content_widget_use,
+            )?;
+            gtk_widget.get_children().iter().for_each(|w| gtk_widget.remove(w));
+            gtk_widget.add(&child_widget);
+            child_widget.show();
+        }
+    });
     Ok(gtk_widget)
 }
 

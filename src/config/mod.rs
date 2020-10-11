@@ -57,10 +57,7 @@ impl EwwConfig {
         let content = std::fs::read_to_string(path)?;
         let document = roxmltree::Document::parse(&content)?;
 
-        let start = std::time::Instant::now();
         let result = EwwConfig::from_xml_element(XmlNode::from(document.root_element()).as_element()?);
-        let end = std::time::Instant::now();
-        dbg!(end - start);
         result
     }
 
@@ -97,7 +94,12 @@ impl EwwConfig {
                     "var" => {
                         initial_variables.insert(
                             VarName(node.attr("name")?.to_owned()),
-                            PrimitiveValue::parse_string(&node.only_child()?.as_text()?.text()),
+                            PrimitiveValue::parse_string(
+                                &node
+                                    .only_child()
+                                    .and_then(|c| Ok(c.as_text()?.text()))
+                                    .unwrap_or_else(|_| String::new()),
+                            ),
                         );
                     }
                     "script-var" => {
