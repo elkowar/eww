@@ -17,6 +17,7 @@ pub enum XmlNode<'a, 'b> {
     Text(XmlText<'a, 'b>),
     Ignored(roxmltree::Node<'a, 'b>),
 }
+
 impl<'a, 'b> fmt::Display for XmlNode<'a, 'b> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {

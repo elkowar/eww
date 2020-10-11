@@ -168,7 +168,7 @@ impl EwwState {
             }
         };
         if let Err(e) = result {
-            eprintln!("{:?}", e);
+            eprintln!("Error resolving values: {:?}", e);
         }
     }
 }
