@@ -7,7 +7,10 @@ use anyhow::*;
 use gtk::prelude::*;
 use gtk::ImageExt;
 use maplit::hashmap;
+use std::cell::RefCell;
+use std::fmt;
 use std::path::Path;
+use std::rc::Rc;
 
 use gdk_pixbuf;
 
@@ -49,6 +52,16 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
         })
     }
 
+    let on_scroll_handler: Rc<RefCell<Option<Box<dyn Fn(ScrollDir)>>>> = Rc::new(RefCell::new(None));
+    gtk_widget.add_events(gdk::EventMask::SCROLL_MASK);
+    gtk_widget.add_events(gdk::EventMask::SMOOTH_SCROLL_MASK);
+    gtk_widget.connect_scroll_event(glib::clone!(@strong on_scroll_handler => move |_, evt| {
+        if let Some(ref handler) = *on_scroll_handler.borrow() {
+            handler(if evt.get_delta().1 < 0f64 {ScrollDir::Up } else {ScrollDir::Down});
+        }
+        gtk::Inhibit(false)
+    }));
+
     resolve_block!(bargs, gtk_widget, {
         prop(class:   as_string) { gtk_widget.get_style_context().add_class(&class) },
         prop(valign:  as_string) { gtk_widget.set_valign(parse_align(&valign)?) },
@@ -64,6 +77,16 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
             gtk_widget.reset_style();
             css_provider.load_from_data(format!("* {{ {} }}", style).as_bytes())?;
             gtk_widget.get_style_context().add_provider(&css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION)
+        },
+        prop(onscroll: as_string) {
+            on_scroll_handler.replace(Some(Box::new(move |evt| run_command(&onscroll, evt))));
+        },
+        prop(onhover: as_string) {
+            gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
+            gtk_widget.connect_enter_notify_event(move |_, evt| {
+                run_command(&onhover, format!("{} {}", evt.get_position().0, evt.get_position().1));
+                gtk::Inhibit(false)
+            });
         }
     });
 }
@@ -83,6 +106,7 @@ pub(super) fn resolve_range_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Ran
         prop(max         : as_f64)    { gtk_widget.get_adjustment().set_upper(max)},
         prop(orientation : as_string) { gtk_widget.set_orientation(parse_orientation(&orientation)?) },
         prop(onchange    : as_string) {
+            // TODO FIX: if this is loaded by a varref, and changes, the value _must_ be disconnected.
             gtk_widget.connect_value_changed(move |gtk_widget| {
                 run_command(&onchange, gtk_widget.get_value());
             });
@@ -113,7 +137,10 @@ fn build_gtk_scale(bargs: &mut BuilderArgs) -> Result<gtk::Scale> {
 fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
     let gtk_widget = gtk::Button::new();
     resolve_block!(bargs, gtk_widget, {
-        prop(onclick: as_string) { gtk_widget.connect_clicked(move |_| run_command(&onclick, "")); }
+        prop(onclick: as_string) {
+            // TODO FIX: if this is loaded by a varref, and changes, the value _must_ be disconnected.
+            gtk_widget.connect_clicked(move |_| run_command(&onclick, ""));
+        }
     });
     Ok(gtk_widget)
 }
@@ -226,4 +253,19 @@ fn connect_first_map<W: IsA<gtk::Widget>, F: Fn(&W) + 'static>(widget: &W, func:
             func(&w);
         }
     });
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum ScrollDir {
+    Up,
+    Down,
+}
+
+impl fmt::Display for ScrollDir {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ScrollDir::Up => write!(f, "up"),
+            ScrollDir::Down => write!(f, "down"),
+        }
+    }
 }
