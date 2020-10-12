@@ -4,8 +4,7 @@ use lazy_static::lazy_static;
 use ref_cast::RefCast;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
-use std::fmt;
+use std::{convert::TryFrom, fmt};
 
 #[derive(Clone, PartialEq, Deserialize, Serialize, derive_more::From)]
 pub enum PrimitiveValue {
@@ -32,7 +31,8 @@ impl fmt::Debug for PrimitiveValue {
 impl std::str::FromStr for PrimitiveValue {
     type Err = anyhow::Error;
 
-    /// parses the value, trying to turn it into a number and a boolean first, before deciding that it is a string.
+    /// parses the value, trying to turn it into a number and a boolean first,
+    /// before deciding that it is a string.
     fn from_str(s: &str) -> Result<Self> {
         Ok(PrimitiveValue::parse_string(s))
     }
@@ -44,6 +44,7 @@ fn remove_surrounding(s: &str, surround: char) -> &str {
 
 impl TryFrom<PrimitiveValue> for String {
     type Error = anyhow::Error;
+
     fn try_from(x: PrimitiveValue) -> Result<Self> {
         x.as_string()
     }
@@ -51,6 +52,7 @@ impl TryFrom<PrimitiveValue> for String {
 
 impl TryFrom<PrimitiveValue> for f64 {
     type Error = anyhow::Error;
+
     fn try_from(x: PrimitiveValue) -> Result<Self> {
         x.as_f64()
     }
@@ -58,6 +60,7 @@ impl TryFrom<PrimitiveValue> for f64 {
 
 impl TryFrom<PrimitiveValue> for bool {
     type Error = anyhow::Error;
+
     fn try_from(x: PrimitiveValue) -> Result<Self> {
         x.as_bool()
     }
@@ -70,13 +73,15 @@ impl From<&str> for PrimitiveValue {
 }
 
 impl PrimitiveValue {
-    /// parses the value, trying to turn it into a number and a boolean first, before deciding that it is a string.
+    /// parses the value, trying to turn it into a number and a boolean first,
+    /// before deciding that it is a string.
     pub fn parse_string(s: &str) -> Self {
         s.parse()
             .map(PrimitiveValue::Number)
             .or_else(|_| s.parse().map(PrimitiveValue::Boolean))
             .unwrap_or_else(|_| PrimitiveValue::String(remove_surrounding(s, '\'').to_string()))
     }
+
     pub fn as_string(&self) -> Result<String> {
         match self {
             PrimitiveValue::String(x) => Ok(x.clone()),
@@ -84,6 +89,7 @@ impl PrimitiveValue {
             PrimitiveValue::Boolean(x) => Ok(format!("{}", x)),
         }
     }
+
     pub fn as_f64(&self) -> Result<f64> {
         match self {
             PrimitiveValue::Number(x) => Ok(*x),
@@ -93,6 +99,7 @@ impl PrimitiveValue {
             _ => Err(anyhow!("{:?} is not an f64", &self)),
         }
     }
+
     pub fn as_bool(&self) -> Result<bool> {
         match self {
             PrimitiveValue::Boolean(x) => Ok(*x),
@@ -145,12 +152,14 @@ impl AttrValue {
             _ => Err(anyhow!("{:?} is not a string", self)),
         }
     }
+
     pub fn as_f64(&self) -> Result<f64> {
         match self {
             AttrValue::Concrete(x) => Ok(x.as_f64()?),
             _ => Err(anyhow!("{:?} is not an f64", self)),
         }
     }
+
     pub fn as_bool(&self) -> Result<bool> {
         match self {
             AttrValue::Concrete(x) => Ok(x.as_bool()?),

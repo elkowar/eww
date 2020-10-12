@@ -19,7 +19,8 @@ impl ScriptVarHandler {
         })
     }
 
-    /// clears and stops the currently running poll handles, then opens the new ones as configured
+    /// clears and stops the currently running poll handles, then opens the new
+    /// ones as configured
     pub fn setup_command_poll_tasks(&mut self, config: &config::EwwConfig) -> Result<()> {
         log::info!("reloading handler for poll script vars");
         self.poll_handles.iter().for_each(|handle| handle.stop());

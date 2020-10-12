@@ -1,14 +1,11 @@
-use crate::config::WindowName;
-use crate::value::VarName;
+use crate::{config::WindowName, value::VarName};
 use anyhow::*;
-use std::collections::HashMap;
-use std::process::Command;
-use std::sync::Arc;
+use std::{collections::HashMap, process::Command, sync::Arc};
 
 use crate::value::{AttrValue, PrimitiveValue};
 
-/// Handler that get's executed to apply the necessary parts of the eww state to a gtk widget.
-/// These are created and initialized in EwwState::resolve.
+/// Handler that get's executed to apply the necessary parts of the eww state to
+/// a gtk widget. These are created and initialized in EwwState::resolve.
 pub struct StateChangeHandler {
     func: Box<dyn Fn(HashMap<String, PrimitiveValue>) -> Result<()> + 'static>,
     constant_values: HashMap<String, PrimitiveValue>,
@@ -57,7 +54,8 @@ impl EwwWindowState {
     }
 }
 
-/// Stores the actual state of eww, including the variable state and the window-specific state-change handlers.
+/// Stores the actual state of eww, including the variable state and the
+/// window-specific state-change handlers.
 #[derive(Default)]
 pub struct EwwState {
     windows: HashMap<WindowName, EwwWindowState>,
@@ -88,7 +86,8 @@ impl EwwState {
         self.windows.clear();
     }
 
-    /// Update the value of a variable, running all registered [StateChangeHandler]s.
+    /// Update the value of a variable, running all registered
+    /// [StateChangeHandler]s.
     pub fn update_variable(&mut self, key: VarName, value: PrimitiveValue) -> Result<()> {
         if !self.variables_state.contains_key(&key) {
             bail!("Tried to set unknown variable '{}'", key);
@@ -111,7 +110,8 @@ impl EwwState {
 
     /// resolves a value if possible, using the current eww_state
     /// Expects there to be at max one level of nesting var_refs from local-env.
-    /// This means that no elements in the local_env may be var-refs into the local_env again, but only into the global state.
+    /// This means that no elements in the local_env may be var-refs into the
+    /// local_env again, but only into the global state.
     pub fn resolve_once<'a>(
         &'a self,
         local_env: &'a HashMap<VarName, AttrValue>,
@@ -134,9 +134,11 @@ impl EwwState {
         }
     }
 
-    /// Resolve takes a function that applies a set of fully resolved attribute values to it's gtk widget.
-    /// Expects there to be at max one level of nesting var_refs from local-env.
-    /// This means that no elements in the local_env may be var-refs into the local_env again, but only into the global state.
+    /// Resolve takes a function that applies a set of fully resolved attribute
+    /// values to it's gtk widget. Expects there to be at max one level of
+    /// nesting var_refs from local-env. This means that no elements in the
+    /// local_env may be var-refs into the local_env again, but only into the
+    /// global state.
     pub fn resolve<F: Fn(HashMap<String, PrimitiveValue>) -> Result<()> + 'static + Clone>(
         &mut self,
         window_name: &WindowName,
@@ -144,9 +146,11 @@ impl EwwState {
         mut needed_attributes: HashMap<String, AttrValue>,
         set_value: F,
     ) {
-        // Resolve first collects all variable references and creates a set of unresolved attribute -> VarName pairs.
-        // additionally, all constant values are looked up and collected, including the values from the local environment
-        // These are then used to generate a StateChangeHandler, which is then executed and registered in the windows state.
+        // Resolve first collects all variable references and creates a set of
+        // unresolved attribute -> VarName pairs. additionally, all constant values are
+        // looked up and collected, including the values from the local environment
+        // These are then used to generate a StateChangeHandler, which is then executed
+        // and registered in the windows state.
 
         let result: Result<_> = try {
             let window_state = self

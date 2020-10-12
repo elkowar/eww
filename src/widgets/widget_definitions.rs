@@ -1,15 +1,12 @@
 use super::{run_command, BuilderArgs};
-use crate::config;
-use crate::eww_state;
-use crate::resolve_block;
-use crate::value::{AttrValue, PrimitiveValue};
+use crate::{
+    config, eww_state, resolve_block,
+    value::{AttrValue, PrimitiveValue},
+};
 use anyhow::*;
-use gtk::prelude::*;
-use gtk::ImageExt;
+use gtk::{prelude::*, ImageExt};
 use maplit::hashmap;
-use std::cell::RefCell;
-use std::path::Path;
-use std::rc::Rc;
+use std::{cell::RefCell, path::Path, rc::Rc};
 
 use gdk_pixbuf;
 
@@ -259,7 +256,8 @@ fn parse_align(o: &str) -> Result<gtk::Align> {
 }
 
 fn connect_first_map<W: IsA<gtk::Widget>, F: Fn(&W) + 'static>(widget: &W, func: F) {
-    // TODO it would be better to actually remove the connect_map after first map, but that would be highly annoying to implement...
+    // TODO it would be better to actually remove the connect_map after first map,
+    // but that would be highly annoying to implement...
     let is_first_map = std::rc::Rc::new(std::cell::RefCell::new(true));
     widget.connect_map(move |w| {
         if is_first_map.replace(false) {

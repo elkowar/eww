@@ -1,0 +1,26 @@
+name: test
+
+on:
+   push:
+      branches: [main]
+   pull_request:
+      branches: [main]
+
+env:
+   CARGO_TERM_COLOR: always
+
+jobs:
+   test:
+      runs-on: ubuntu-latest
+
+      steps:
+         - name: Set up
+           uses: actions-rs/toolchain@v1
+           with:
+              toolchain: nightly
+              override: true
+              components: rustfmt
+
+         - uses: actions/checkout@v2
+         - name: Test
+           run: cargo test --verbose

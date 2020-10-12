@@ -16,11 +16,12 @@ use ipc_channel::ipc;
 use log;
 use pretty_env_logger;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 use structopt::StructOpt;
-use value::PrimitiveValue;
-use value::VarName;
+use value::{PrimitiveValue, VarName};
 
 pub mod app;
 pub mod config;
@@ -221,7 +222,8 @@ fn run_filewatch_thread<P: AsRef<Path>>(
     Ok(hotwatch)
 }
 
-/// detach the process from the terminal, also closing stdout and redirecting stderr into /dev/null
+/// detach the process from the terminal, also closing stdout and redirecting
+/// stderr into /dev/null
 fn do_detach() {
     // detach from terminal
     let pid = unsafe { libc::fork() };
@@ -238,7 +240,7 @@ fn do_detach() {
             libc::close(1);
         }
     }
-    //close stderr to not spam output
+    // close stderr to not spam output
     if unsafe { libc::isatty(2) } != 0 {
         unsafe {
             let fd = libc::open(std::ffi::CString::new("/dev/null").unwrap().as_ptr(), libc::O_RDWR);
