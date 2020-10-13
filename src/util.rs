@@ -5,8 +5,10 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::{fmt, path::Path};
 
+/// read an scss file, replace all environment variable references within it and
+/// then parse it into css.
 pub fn parse_scss_from_file<P: AsRef<Path>>(path: P) -> Result<String> {
-    let scss_content = std::fs::read_to_string(path)?;
+    let scss_content = replace_env_var_references(std::fs::read_to_string(path)?);
     grass::from_string(scss_content, &grass::Options::default())
         .map_err(|err| anyhow!("encountered SCSS parsing error: {:?}", err))
 }
@@ -62,4 +64,18 @@ impl From<(i32, i32)> for Coords {
     fn from((x, y): (i32, i32)) -> Self {
         Coords(x, y)
     }
+}
+
+/// Replace all env-var references of the format `"something $foo"` in a string
+/// by the actual env-variables. If the env-var isn't found, will replace the
+/// reference with an empty string.
+pub fn replace_env_var_references(input: String) -> String {
+    lazy_static::lazy_static! {
+        static ref ENV_VAR_PATTERN: regex::Regex = regex::Regex::new(r"\$([^\s]*)").unwrap();
+    }
+    ENV_VAR_PATTERN
+        .replace_all(&input, |var_name: &regex::Captures| {
+            std::env::var(var_name.get(1).unwrap().as_str()).unwrap_or_default()
+        })
+        .into_owned()
 }
