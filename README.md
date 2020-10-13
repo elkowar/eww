@@ -71,10 +71,10 @@ Eww&rsquo;s configuration should be placed in `~/.config/eww/eww.xml` and any `s
 
 ## Prerequisites
 
--   rustc
--   cargo
+- cargo with nightly toolchain
 
-Get them at <https://www.rust-lang.org/tools/install>
+Rather than with your system package manager, I recommend installing it using [rustup](https://rustup.rs/),
+as this makes it easy to use the nightly toolchain, which is necessary to build eww.
 
 
 <a id="orgdd31739"></a>
