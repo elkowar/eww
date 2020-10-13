@@ -75,6 +75,9 @@ impl App {
         pos: Option<util::Coords>,
         size: Option<util::Coords>,
     ) -> Result<()> {
+        // remove and close existing window of the same type
+        self.windows.remove(window_name).map(|window| window.close());
+
         let mut window_def = self
             .eww_config
             .get_windows()
