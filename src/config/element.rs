@@ -3,9 +3,10 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use std::ops::Range;
 
-use crate::value::AttrValue;
-use crate::value::VarName;
-use crate::with_text_pos_context;
+use crate::{
+    value::{AttrValue, VarName},
+    with_text_pos_context,
+};
 use maplit::hashmap;
 use std::collections::HashMap;
 

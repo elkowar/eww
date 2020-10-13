@@ -1,15 +1,12 @@
-
 # Table of Contents
 
-*  [About](#org4ab08b6)
-*  [Configuration](#org581ca61)
-    *  [Example Config](#orgb769597)
-*  [Building](#orgbf66ce2)
-    *  [Prerequisites](#org727b3da)
-    *  [Installation](#orgdd31739)
-*  [Usage](#org4a9b3c6)
-
-
+-  [About](#org4ab08b6)
+-  [Configuration](#org581ca61)
+   -  [Example Config](#orgb769597)
+-  [Building](#orgbf66ce2)
+   -  [Prerequisites](#org727b3da)
+   -  [Installation](#orgdd31739)
+-  [Usage](#org4a9b3c6)
 
 <a id="org4ab08b6"></a>
 
@@ -17,17 +14,16 @@
 
 Elkowar&rsquo;s Wacky Widgets is a standalone Widget System made in rust to add AwesomeWM like widgets to any WM
 
-
 <a id="org581ca61"></a>
 
 # Configuration
 
 Eww&rsquo;s configuration should be placed in `~/.config/eww/eww.xml` and any `scss` styles you want to add should be put into `~/.config/eww/eww.scss`.
 
-
 <a id="orgb769597"></a>
 
 ## Example Config
+
 ```xml
 <eww>
   <definitions>
@@ -66,16 +62,15 @@ Eww&rsquo;s configuration should be placed in `~/.config/eww/eww.xml` and any `s
 
 # Building
 
-
 <a id="org727b3da"></a>
 
 ## Prerequisites
 
-- cargo with nightly toolchain
+-  rustc
+-  cargo (nightly toolchain)
 
 Rather than with your system package manager, I recommend installing it using [rustup](https://rustup.rs/),
 as this makes it easy to use the nightly toolchain, which is necessary to build eww.
-
 
 <a id="orgdd31739"></a>
 
@@ -89,10 +84,8 @@ Build the Binary using -:
 
 then copy the built binary from `./target/release` to anywhere in `$PATH` (example - `~/.local/bin`)
 
-
 <a id="org4a9b3c6"></a>
 
 # Usage
 
 Create a Config and then just do `eww`!
-
