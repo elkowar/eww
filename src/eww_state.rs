@@ -89,9 +89,6 @@ impl EwwState {
     /// Update the value of a variable, running all registered
     /// [StateChangeHandler]s.
     pub fn update_variable(&mut self, key: VarName, value: PrimitiveValue) -> Result<()> {
-        if !self.variables_state.contains_key(&key) {
-            bail!("Tried to set unknown variable '{}'", key);
-        }
         self.variables_state.insert(key.clone(), value);
 
         let handlers = self
