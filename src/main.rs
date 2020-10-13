@@ -56,7 +56,7 @@ fn main() {
     }
 }
 
-#[derive(StructOpt, Debug, Serialize, Deserialize)]
+#[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Opt {
     #[structopt(short = "-c", parse(from_os_str))]
     config_file: Option<PathBuf>,
@@ -67,7 +67,7 @@ pub struct Opt {
     #[structopt(short = "-d", long = "--detach")]
     should_detach: bool,
 }
-#[derive(StructOpt, Debug, Serialize, Deserialize)]
+#[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
 pub enum OptAction {
     #[structopt(name = "update")]
     Update { fieldname: VarName, value: PrimitiveValue },
@@ -122,6 +122,10 @@ fn get_config_file_path() -> PathBuf {
 }
 
 fn initialize_server(opts: Opt) -> Result<()> {
+    if opts.action == OptAction::KillServer {
+        return Ok(());
+    }
+
     let config_file_path = opts.config_file.clone().unwrap_or_else(get_config_file_path);
     let config_dir = config_file_path
         .clone()
@@ -138,7 +142,7 @@ fn initialize_server(opts: Opt) -> Result<()> {
     let (evt_send, evt_recv) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
 
     let mut script_var_handler = script_var_handler::ScriptVarHandler::new(evt_send.clone())?;
-    script_var_handler.setup_command_poll_tasks(&eww_config)?;
+    script_var_handler.initialize_clean(eww_config.get_script_vars().clone())?;
 
     let mut app = app::App {
         eww_state: EwwState::from_default_vars(eww_config.generate_initial_state()?.clone()),

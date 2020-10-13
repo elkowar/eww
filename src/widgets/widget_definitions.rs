@@ -5,7 +5,6 @@ use crate::{
 };
 use anyhow::*;
 use gtk::{prelude::*, ImageExt};
-use maplit::hashmap;
 use std::{cell::RefCell, path::Path, rc::Rc};
 
 use gdk_pixbuf;
@@ -187,21 +186,10 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
     Ok(gtk_widget)
 }
 
-// TODO this is rather ugly,.....
-fn build_gtk_text(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
-    let text = bargs
-        .widget
-        .children
-        .first()
-        .context("text node must contain exactly one child")?
-        .get_attr("text")?;
-    let gtk_widget = gtk::Label::new(None);
-    bargs.eww_state.resolve(
-        bargs.window_name,
-        bargs.local_env,
-        hashmap! {"text".to_owned() => text.clone() },
-        glib::clone!(@strong gtk_widget => move |v| { gtk_widget.set_text(&v.get("text").unwrap().as_string().unwrap()); Ok(())}),
-    );
+fn build_gtk_text(_bargs: &mut BuilderArgs) -> Result<gtk::Box> {
+    let gtk_widget = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    gtk_widget.set_halign(gtk::Align::Center);
+    gtk_widget.set_homogeneous(false);
     Ok(gtk_widget)
 }
 

@@ -29,20 +29,50 @@ macro_rules! ensure_xml_tag_is {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct ScriptVar {
+pub struct PollScriptVar {
     pub name: VarName,
     pub command: String,
     pub interval: std::time::Duration,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct TailScriptVar {
+    pub name: VarName,
+    pub command: String,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum ScriptVar {
+    Poll(PollScriptVar),
+    Tail(TailScriptVar),
+}
+
 impl ScriptVar {
+    pub fn name(&self) -> &VarName {
+        match self {
+            ScriptVar::Poll(x) => &x.name,
+            ScriptVar::Tail(x) => &x.name,
+        }
+    }
+
+    pub fn initial_value(&self) -> Result<PrimitiveValue> {
+        match self {
+            ScriptVar::Poll(x) => Ok(crate::run_command(&x.command)?),
+            ScriptVar::Tail(_) => Ok(PrimitiveValue::String(String::new())),
+        }
+    }
+
     pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
         ensure_xml_tag_is!(xml, "script-var");
 
         let name = VarName(xml.attr("name")?.to_owned());
-        let interval = util::parse_duration(xml.attr("interval")?)?;
         let command = xml.only_child()?.as_text()?.text();
-        Ok(ScriptVar { name, interval, command })
+        if let Ok(interval) = xml.attr("interval") {
+            let interval = util::parse_duration(interval)?;
+            Ok(ScriptVar::Poll(PollScriptVar { name, command, interval }))
+        } else {
+            Ok(ScriptVar::Tail(TailScriptVar { name, command }))
+        }
     }
 }
 
@@ -125,7 +155,7 @@ impl EwwConfig {
         let mut vars = self
             .script_vars
             .iter()
-            .map(|var| Ok((var.name.clone(), crate::eww_state::run_command(&var.command)?)))
+            .map(|var| Ok((var.name().clone(), var.initial_value()?)))
             .collect::<Result<HashMap<_, _>>>()?;
         vars.extend(self.get_default_vars().clone());
         Ok(vars)

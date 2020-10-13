@@ -206,7 +206,7 @@ impl EwwState {
 
 /// Run a command and get the output
 pub fn run_command(cmd: &str) -> Result<PrimitiveValue> {
-    let output = String::from_utf8(Command::new("/bin/bash").arg("-c").arg(cmd).output()?.stdout)?;
+    let output = String::from_utf8(Command::new("/bin/sh").arg("-c").arg(cmd).output()?.stdout)?;
     let output = output.trim_matches('\n');
     Ok(PrimitiveValue::from(output))
 }
