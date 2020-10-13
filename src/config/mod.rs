@@ -56,7 +56,7 @@ pub struct EwwConfig {
 
 impl EwwConfig {
     pub fn read_from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self> {
-        let content = std::fs::read_to_string(path)?;
+        let content = util::replace_env_var_references(std::fs::read_to_string(path)?);
         let document = roxmltree::Document::parse(&content)?;
 
         let result = EwwConfig::from_xml_element(XmlNode::from(document.root_element()).as_element()?.clone());
