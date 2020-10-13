@@ -61,7 +61,7 @@ impl App {
     fn close_window(&mut self, window_name: &config::WindowName) -> Result<()> {
         let window = self
             .windows
-            .get(window_name)
+            .remove(window_name)
             .context(format!("No window with name '{}' is running.", window_name))?;
         window.close();
         self.eww_state.clear_window_state(window_name);
@@ -76,7 +76,7 @@ impl App {
         size: Option<util::Coords>,
     ) -> Result<()> {
         // remove and close existing window of the same type
-        self.windows.remove(window_name).map(|window| window.close());
+        let _ = self.close_window(window_name);
 
         let mut window_def = self
             .eww_config
