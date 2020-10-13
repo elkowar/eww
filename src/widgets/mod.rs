@@ -17,7 +17,7 @@ const CMD_STRING_PLACEHODLER: &str = "{}";
 /// placeholder ('{}') which will be replaced by the value provided as [arg]
 pub fn run_command<T: std::fmt::Display>(cmd: &str, arg: T) {
     let cmd = cmd.replace(CMD_STRING_PLACEHODLER, &format!("{}", arg));
-    if let Err(e) = Command::new("bash").arg("-c").arg(cmd).output() {
+    if let Err(e) = Command::new("/bin/sh").arg("-c").arg(cmd).output() {
         eprintln!("{}", e);
     }
 }

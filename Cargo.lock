@@ -317,6 +317,7 @@ dependencies = [
  "maplit",
  "notify",
  "num",
+ "popol",
  "pretty_assertions",
  "pretty_env_logger",
  "ref-cast",
@@ -1268,6 +1269,15 @@ name = "pkg-config"
 version = "0.3.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d36492546b6af1463394d46f0c834346f31548646f6ba10849802c9c9a27ac33"
+
+[[package]]
+name = "popol"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "53bb69490e466db39a4442cc36fa3a593cbe94f688c55ecd2568dc1535c4fabf"
+dependencies = [
+ "libc",
+]
 
 [[package]]
 name = "ppv-lite86"

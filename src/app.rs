@@ -136,7 +136,7 @@ impl App {
 
     pub fn reload_all_windows(&mut self, config: config::EwwConfig) -> Result<()> {
         // refresh script-var poll stuff
-        if let Err(e) = self.script_var_handler.setup_command_poll_tasks(&config) {
+        if let Err(e) = self.script_var_handler.initialize_clean(config.get_script_vars().clone()) {
             eprintln!("Error while setting up script-var commands: {:?}", e);
         }
 

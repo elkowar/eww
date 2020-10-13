@@ -28,9 +28,7 @@ impl WidgetDefinition {
                 );
             }
 
-            let size: Option<_> = try {
-                (xml.attr("width").ok()?, xml.attr("height").ok()?)
-            };
+            let size: Option<_> = Option::zip(xml.attr("width").ok(), xml.attr("height").ok());
             let size: Option<Result<_>> = size.map(|(x, y)| Ok((x.parse()?, y.parse()?)));
 
             WidgetDefinition {
@@ -107,11 +105,7 @@ impl WidgetUse {
 
     pub fn from_text_with_var_refs(text: &str) -> Self {
         WidgetUse {
-            name: "layout".to_owned(),
-            attrs: hashmap! {
-                "halign".to_owned() => AttrValue::Concrete(PrimitiveValue::String("center".to_owned())),
-                "space-evenly".to_owned() => AttrValue::Concrete(PrimitiveValue::String("false".to_owned())),
-            },
+            name: "text".to_owned(),
             children: parse_string_with_var_refs(text)
                 .into_iter()
                 .map(StringOrVarRef::to_attr_value)
