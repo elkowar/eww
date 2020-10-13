@@ -1,6 +1,8 @@
-use crate::config::{element, WindowName};
-use crate::eww_state::*;
-use crate::value::{AttrValue, VarName};
+use crate::{
+    config::{element, WindowName},
+    eww_state::*,
+    value::{AttrValue, VarName},
+};
 use anyhow::*;
 use gtk::prelude::*;
 
@@ -11,8 +13,8 @@ pub mod widget_definitions;
 
 const CMD_STRING_PLACEHODLER: &str = "{}";
 
-/// Run a command that was provided as an attribute. This command may use a placeholder ('{}')
-/// which will be replaced by the value provided as [arg]
+/// Run a command that was provided as an attribute. This command may use a
+/// placeholder ('{}') which will be replaced by the value provided as [arg]
 pub fn run_command<T: std::fmt::Display>(cmd: &str, arg: T) {
     let cmd = cmd.replace(CMD_STRING_PLACEHODLER, &format!("{}", arg));
     if let Err(e) = Command::new("bash").arg("-c").arg(cmd).output() {
@@ -30,12 +32,14 @@ struct BuilderArgs<'a, 'b, 'c, 'd, 'e> {
 }
 
 /// Generate a [gtk::Widget] from a [element::WidgetUse].
-/// The widget_use may be using a builtin widget, or a custom [element::WidgetDefinition].
+/// The widget_use may be using a builtin widget, or a custom
+/// [element::WidgetDefinition].
 ///
 /// Also registers all the necessary state-change handlers in the eww_state.
 ///
-/// This may return `Err` in case there was an actual error while parsing or resolving the widget,
-/// Or `Ok(None)` if the widget_use just didn't match any widget name.
+/// This may return `Err` in case there was an actual error while parsing or
+/// resolving the widget, Or `Ok(None)` if the widget_use just didn't match any
+/// widget name.
 pub fn widget_use_to_gtk_widget(
     widget_definitions: &HashMap<String, element::WidgetDefinition>,
     eww_state: &mut EwwState,
@@ -48,18 +52,20 @@ pub fn widget_use_to_gtk_widget(
     let gtk_widget = if let Some(builtin_gtk_widget) = builtin_gtk_widget {
         builtin_gtk_widget
     } else if let Some(def) = widget_definitions.get(widget.name.as_str()) {
-        //let mut local_env = local_env.clone();
+        // let mut local_env = local_env.clone();
 
-        // the attributes that are set on the widget need to be resolved as far as possible.
-        // If an attribute is a variable reference, it must either reference a variable in the current local_env, or in the global state.
-        // As we are building widgets from the outer most to the most nested, we can resolve attributes at every step.
-        // This way, any definition that is affected by changes in the eww_state will be directly linked to the eww_state's value.
-        // Example:
-        // foo="{{in_eww_state}}"  => attr_in_child="{{foo}}"  => attr_in_nested_child="{{attr_in_child}}"
-        // will be resolved step by step. This code will first resolve attr_in_child to directly be attr_in_child={{in_eww_state}}.
-        // then, in the widget_use_to_gtk_widget call of that child element,
-        // attr_in_nested_child will again be resolved to point to the value of attr_in_child,
-        // and thus: attr_in_nested_child="{{in_eww_state}}"
+        // the attributes that are set on the widget need to be resolved as far as
+        // possible. If an attribute is a variable reference, it must either reference a
+        // variable in the current local_env, or in the global state. As we are building
+        // widgets from the outer most to the most nested, we can resolve attributes at
+        // every step. This way, any definition that is affected by changes in the
+        // eww_state will be directly linked to the eww_state's value. Example:
+        // foo="{{in_eww_state}}"  => attr_in_child="{{foo}}"  =>
+        // attr_in_nested_child="{{attr_in_child}}" will be resolved step by step. This
+        // code will first resolve attr_in_child to directly be
+        // attr_in_child={{in_eww_state}}. then, in the widget_use_to_gtk_widget call of
+        // that child element, attr_in_nested_child will again be resolved to point to
+        // the value of attr_in_child, and thus: attr_in_nested_child="{{in_eww_state}}"
         let resolved_widget_attr_env = widget
             .attrs
             .clone()
@@ -93,13 +99,14 @@ pub fn widget_use_to_gtk_widget(
     Ok(gtk_widget)
 }
 
-/// build a [gtk::Widget] out of a [element::WidgetUse] that uses a **builtin widget**.
-/// User defined widgets are handled by [widget_use_to_gtk_widget].
+/// build a [gtk::Widget] out of a [element::WidgetUse] that uses a **builtin
+/// widget**. User defined widgets are handled by [widget_use_to_gtk_widget].
 ///
 /// Also registers all the necessary handlers in the `eww_state`.
 ///
-/// This may return `Err` in case there was an actual error while parsing or resolving the widget,
-/// Or `Ok(None)` if the widget_use just didn't match any widget name.
+/// This may return `Err` in case there was an actual error while parsing or
+/// resolving the widget, Or `Ok(None)` if the widget_use just didn't match any
+/// widget name.
 fn build_builtin_gtk_widget(
     widget_definitions: &HashMap<String, element::WidgetDefinition>,
     eww_state: &mut EwwState,

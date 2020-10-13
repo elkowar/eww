@@ -3,8 +3,7 @@ use extend::ext;
 use grass;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use std::fmt;
-use std::path::Path;
+use std::{fmt, path::Path};
 
 pub fn parse_scss_from_file<P: AsRef<Path>>(path: P) -> Result<String> {
     let scss_content = std::fs::read_to_string(path)?;
@@ -14,7 +13,8 @@ pub fn parse_scss_from_file<P: AsRef<Path>>(path: P) -> Result<String> {
 
 #[ext(pub, name = StringExt)]
 impl<T: AsRef<str>> T {
-    /// check if the string is empty after removing all linebreaks and trimming whitespace
+    /// check if the string is empty after removing all linebreaks and trimming
+    /// whitespace
     fn is_blank(self) -> bool {
         self.as_ref().replace('\n', "").trim().is_empty()
     }
@@ -51,6 +51,7 @@ impl fmt::Display for Coords {
 
 impl std::str::FromStr for Coords {
     type Err = anyhow::Error;
+
     fn from_str(s: &str) -> Result<Self> {
         let (x, y) = s.split_once('x').ok_or_else(|| anyhow!("must be formatted like 200x500"))?;
         Ok(Coords(x.parse()?, y.parse()?))

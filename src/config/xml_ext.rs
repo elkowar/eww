@@ -141,6 +141,7 @@ impl<'a, 'b> XmlElement<'a, 'b> {
 
         format!("<{} {}>", self.tag_name(), attrs)
     }
+
     pub fn tag_name(&self) -> &str {
         self.0.tag_name().name()
     }
@@ -159,6 +160,7 @@ impl<'a, 'b> XmlElement<'a, 'b> {
             .filter(|child| child.is_element() || (child.is_text() && !child.text().unwrap_or_default().is_blank()))
             .map(XmlNode::from)
     }
+
     pub fn child_elements(&self) -> impl Iterator<Item = XmlElement> {
         self.0.children().filter(|child| child.is_element()).map(XmlElement)
     }

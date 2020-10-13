@@ -1,12 +1,12 @@
-use crate::util;
-use crate::value::PrimitiveValue;
-use crate::value::VarName;
+use crate::{
+    util,
+    value::{PrimitiveValue, VarName},
+};
 use anyhow::*;
 use derive_more;
 use element::*;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::fmt;
+use std::{collections::HashMap, fmt};
 use util::Coords;
 use xml_ext::*;
 
@@ -134,12 +134,15 @@ impl EwwConfig {
     pub fn get_widgets(&self) -> &HashMap<String, WidgetDefinition> {
         &self.widgets
     }
+
     pub fn get_windows(&self) -> &HashMap<WindowName, EwwWindowDefinition> {
         &self.windows
     }
+
     pub fn get_default_vars(&self) -> &HashMap<VarName, PrimitiveValue> {
         &self.initial_variables
     }
+
     pub fn get_script_vars(&self) -> &Vec<ScriptVar> {
         &self.script_vars
     }
@@ -211,6 +214,7 @@ impl Default for WindowStacking {
 
 impl std::str::FromStr for WindowStacking {
     type Err = anyhow::Error;
+
     fn from_str(s: &str) -> Result<Self> {
         let s = s.to_lowercase();
         match s.as_str() {
