@@ -112,6 +112,8 @@ fn try_main() -> Result<()> {
     } else {
         log::info!("No instance found... Initializing server.");
 
+        let _ = std::fs::remove_file(&*IPC_SOCKET_PATH);
+
         if opts.should_detach {
             do_detach();
         }
