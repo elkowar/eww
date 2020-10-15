@@ -23,6 +23,7 @@ This documentation is designed for very beginners and tries to simplify as much 
 	- [The Definitions  block](#the-definitions-block)
 		- [Custom Widgets](#custom-widgets)
 	- [The Windows block](#the-windows-block)
+    - [Widgets made in Eww](#widgets-made-in-eww)
 - [GTK](#gtk)
 	- [GTK-Temeing / Eww Themeing](#gtk-temeing)
 	- [GTK-Debugger](#gtk-debugger)
@@ -316,6 +317,11 @@ and then look at
         </widget>
 ```
 we will see that eww will run `<def name="main">` and not `<def name="clock">`.
+
+### Widgets made in Eww
+
+![one](one.png)
+![two](two.png)
 
 ## GTK
 
