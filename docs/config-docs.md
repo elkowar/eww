@@ -321,7 +321,10 @@ we will see that eww will run `<def name="main">` and not `<def name="clock">`.
 ### Widgets made in Eww
 
 ![one](one.png)
+One of the first eww sidebars.
+
 ![two](two.png)
+u/empressnoodle awesomeWM sidebar recreation
 
 ## GTK
 
