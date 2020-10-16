@@ -25,7 +25,7 @@ This documentation is designed for very beginners and tries to simplify as much 
 	- [The Windows block](#the-windows-block)
     - [Widgets made in Eww](#widgets-made-in-eww)
 - [GTK](#gtk)
-	- [GTK-Temeing / Eww Themeing](#gtk-temeing)
+	- [GTK-Temeing / Eww Themeing](#gtk-themeing)
 	- [GTK-Debugger](#gtk-debugger)
 - [Troubleshooting](#troubleshooting)
 	- [My scss isn't being loaded](#my-scss-isnt-being-loaded)
