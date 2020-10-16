@@ -97,33 +97,11 @@ If you create a `<var>` or a `<script-var>`, you can reference them in your `<bo
 #### The `<var>` tag
 Allows you to repeat the same text multiple times through  without retyping it multiple times.
 
-Example:
+Example: This will define a variable named `banana`, with the default value "I like bananas.".
 ```xml
 <variables>
 	<var name="banana">I like bananas.</var>
 </variables>
-```
-
-and then reference it in your `<box>` by doing:
-```xml
-<box>
-	{{banana}}
-</box>
-```
- the `banana` is the variable name we set by doing: 
- ```xml
- <var name="banana">
-```
- If we were to set it to:
- ```xml
-<var name="potatoes">
-```
-We would reference it by doing:
-```xml
-<box>
-	{{potatoes}}
-</box>
-```
 You can also change the variable name in CLI by doing:
 ```sh
 eww update potatoes carrots
