@@ -267,7 +267,7 @@ This is the part the Eww reads and loads. The `<windows>` config should look som
 ```bash
 ./eww open main_window
 ```
-but if renamed the `<window>` to be `<window name="apple"> we would run eww by doing:
+but if renamed the `<window>` to be `<window name="apple">` we would run eww by doing:
 ```bash
 ./eww open apple
 ```
