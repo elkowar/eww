@@ -249,6 +249,13 @@ but if renamed the `<window>` to be `<window name="apple">` we would run eww by 
 ```bash
 ./eww open apple
 ```
+
+The `stacking="fg"` says where the widget will be stacked. Possible values here are `foreground`, `fg`, `background` and `bg`.
+`foreground` or `fg` *always* stays above windows.
+`background` or `bg` *always* stays behind windows. So it will stay on your desktop.
+
+If you were to remove the `stacking="fg"` it would default it to `fg`.
+
 You can also have multiple windows in one document by  doing:
 
 ```xml
