@@ -304,7 +304,7 @@ we will see that eww will run `<def name="main">` and not `<def name="clock">`.
 
 ### Gtk-Themeing
 
-Eww is styled in GTK CSS or SCSS as it's called. If you don't know any way to style something check out the [GTK CSS Overview wiki](https://developer.gnome.org/gtk3/stable/chap-css-overview.html), the [GTK CSS Properties Overview wiki ](https://developer.gnome.org/gtk3/stable/chap-css-properties.html). Or check the [GTK-Debugger](#gtk-debugger)
+Eww is styled in GTK CSS. To make theming even easier, it makes use of `scss` and then compiles that into CSS for you. If you don't know any way to style something check out the [GTK CSS Overview wiki](https://developer.gnome.org/gtk3/stable/chap-css-overview.html), the [GTK CSS Properties Overview wiki ](https://developer.gnome.org/gtk3/stable/chap-css-properties.html). Or check the [GTK-Debugger](#gtk-debugger)
 
 If you have **NO** clue about how to do CSS, check out some online guides or tutorials.
 
