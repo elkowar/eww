@@ -96,17 +96,21 @@ If you create a `<var>` or a `<script-var>`, you can reference them in your `<bo
 #### The `<var>` tag
 Allows you to repeat the same text multiple times through  without retyping it multiple times.
 
-Example: This will define a variable named `banana`, with the default value "I like bananas.".
+Example: This will define a variable named `banana`, with the default value "I like bananas."
 ```xml
 <variables>
 	<var name="banana">I like bananas.</var>
 </variables>
-
-You can also change the variable name in CLI by doing:
-```sh
-eww update banana blueberries
 ```
-This will change the variable name `potatoes` to `carrots`
+You can then reference it in your widgets by doing:
+
+```xml
+<box>
+	{{banana}}
+</box>
+```
+
+To change the value of the variable, and thus change the UI, you can run eww update banana "I like apples"
 
 #### The `<script-var>` tag 
 
