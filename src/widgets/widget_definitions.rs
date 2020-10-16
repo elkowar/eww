@@ -16,7 +16,7 @@ use gdk_pixbuf;
 
 pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<Option<gtk::Widget>> {
     let gtk_widget = match bargs.widget.name.as_str() {
-        "layout" => build_gtk_layout(bargs)?.upcast(),
+        "box" => build_gtk_box(bargs)?.upcast(),
         "slider" => build_gtk_scale(bargs)?.upcast(),
         "image" => build_gtk_image(bargs)?.upcast(),
         "button" => build_gtk_button(bargs)?.upcast(),
@@ -24,6 +24,7 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<Option<gtk
         "text" => build_gtk_text(bargs)?.upcast(),
         "aspect" => build_gtk_aspect_frame(bargs)?.upcast(),
         "literal" => build_gtk_literal(bargs)?.upcast(),
+        "input" => build_gtk_input(bargs)?.upcast(),
         _ => return Ok(None),
     };
     Ok(Some(gtk_widget))
@@ -100,12 +101,14 @@ pub(super) fn resolve_container_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk:
 
 pub(super) fn resolve_range_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Range) {
     let on_change_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
+    gtk_widget.set_sensitive(false);
     resolve_block!(bargs, gtk_widget, {
         prop(value       : as_f64)    { gtk_widget.set_value(value)},
         prop(min         : as_f64)    { gtk_widget.get_adjustment().set_lower(min)},
         prop(max         : as_f64)    { gtk_widget.get_adjustment().set_upper(max)},
         prop(orientation : as_string) { gtk_widget.set_orientation(parse_orientation(&orientation)?) },
         prop(onchange    : as_string) {
+            gtk_widget.set_sensitive(true);
             gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
             let old_id = on_change_handler_id.replace(Some(
                 gtk_widget.connect_value_changed(move |gtk_widget| {
@@ -134,6 +137,26 @@ fn build_gtk_scale(bargs: &mut BuilderArgs) -> Result<gtk::Scale> {
     resolve_block!(bargs, gtk_widget, {
         prop(flipped: as_bool)            { gtk_widget.set_inverted(flipped) },
         prop(draw_value: as_bool = false) { gtk_widget.set_draw_value(draw_value) },
+    });
+    Ok(gtk_widget)
+}
+
+fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
+    let gtk_widget = gtk::Entry::new();
+    let on_change_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
+    gtk_widget.set_editable(true);
+    gtk_widget.set_visible(true);
+    gtk_widget.set_text("fuck");
+    gtk_widget.set_can_focus(true);
+    resolve_block!(bargs, gtk_widget, {
+        prop(onchange: as_string) {
+            let old_id = on_change_handler_id.replace(Some(
+                gtk_widget.connect_insert_text(move |_, text, _| {
+                    run_command(&onchange, text);
+                })
+            ));
+            old_id.map(|id| gtk_widget.disconnect(id));
+        }
     });
     Ok(gtk_widget)
 }
@@ -168,7 +191,7 @@ fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
     Ok(gtk_widget)
 }
 
-fn build_gtk_layout(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
+fn build_gtk_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
     let gtk_widget = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     resolve_block!(bargs, gtk_widget, {
         prop(spacing: as_f64  = 0.0)       { gtk_widget.set_spacing(spacing as i32) },

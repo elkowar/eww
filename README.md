@@ -28,16 +28,16 @@ Eww&rsquo;s configuration should be placed in `~/.config/eww/eww.xml` and any `s
 <eww>
   <definitions>
     <def name="test">
-      <layout orientation="v">
+      <box orientation="v">
         {{foo}}
         <button onclick='notify-send "that hurt,..."'>
             click me if you dare :&lt;
           </button>
-        <layout>
+        <box>
           {{ree}}
           <slider min="0" max="100" value="50" onchange="notify-send {}"/>
-        </layout>
-      </layout>
+        </box>
+      </box>
     </def>
   </definitions>
 
