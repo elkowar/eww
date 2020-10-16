@@ -254,7 +254,7 @@ This is the part the Eww reads and loads. The `<windows>` config should look som
 
 ```xml
 <windows>
-      <window name="main_window">
+      <window name="main_window" stacking="fg">
         <size x="300" y="300" />
         <pos x="0" y="500" />
         <widget>
