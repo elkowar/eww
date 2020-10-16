@@ -6,7 +6,6 @@ Eww (ElKowar's Wacky Widgets) Is a widgeting system made in [rust](https://www.r
 
 Configured in XML it allows easy customizability and alot of flexibility which allows you to make amazing widgets.
 
-This documentation is designed for very beginners and tries to simplify as much as possible so it's easier to understand.
 
 ## Contents
 
