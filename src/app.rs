@@ -1,56 +1,64 @@
-use crate::*;
-use config::WindowStacking;
+use crate::config::WindowStacking;
+use crate::{config, script_var_handler::*, util, widgets};
+use crate::{config::WindowName, util::Coords, value::PrimitiveValue};
+use crate::{eww_state, value::VarName};
+use anyhow::*;
+use crossbeam_channel::Sender;
 use debug_stub_derive::*;
-use script_var_handler::*;
+use gdk::WindowExt;
+use gtk::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt};
 use std::collections::HashMap;
-use value::VarName;
 
 #[derive(Debug)]
-pub enum EwwEvent {
-    UserCommand(Opt),
+pub enum EwwCommand {
     UpdateVar(VarName, PrimitiveValue),
     ReloadConfig(config::EwwConfig),
     ReloadCss(String),
+    OpenWindow {
+        window_name: WindowName,
+        pos: Option<Coords>,
+        size: Option<Coords>,
+    },
+    CloseWindow {
+        window_name: WindowName,
+    },
+    KillServer,
+    PrintState,
 }
 
 #[derive(DebugStub)]
 pub struct App {
-    pub eww_state: EwwState,
+    pub eww_state: eww_state::EwwState,
     pub eww_config: config::EwwConfig,
     pub windows: HashMap<config::WindowName, gtk::Window>,
     pub css_provider: gtk::CssProvider,
-    pub app_evt_send: glib::Sender<EwwEvent>,
+    pub app_evt_send: glib::Sender<EwwCommand>,
     #[debug_stub = "ScriptVarHandler(...)"]
     pub script_var_handler: ScriptVarHandler,
 }
 
 impl App {
-    pub fn handle_user_command(&mut self, opts: &Opt) -> Result<()> {
-        match &opts.action {
-            OptAction::Update { fieldname, value } => self.update_state(fieldname.clone(), value.clone())?,
-            OptAction::OpenWindow { window_name, pos, size } => self.open_window(&window_name, *pos, *size)?,
-            OptAction::CloseWindow { window_name } => self.close_window(&window_name)?,
-            OptAction::KillServer => {
-                log::info!("Received kill command, stopping server!");
-                std::process::exit(0)
-            }
-        }
-
-        Ok(())
-    }
-
-    pub fn handle_event(&mut self, event: EwwEvent) {
+    pub fn handle_command(&mut self, event: EwwCommand, response_sender: Option<Sender<String>>) {
         log::debug!("Handling event: {:?}", &event);
-        let result: Result<_> = try {
-            match event {
-                EwwEvent::UserCommand(command) => self.handle_user_command(&command)?,
-                EwwEvent::UpdateVar(key, value) => self.update_state(key, value)?,
-                EwwEvent::ReloadConfig(config) => self.reload_all_windows(config)?,
-                EwwEvent::ReloadCss(css) => self.load_css(&css)?,
+        let result: Result<_> = match event {
+            EwwCommand::UpdateVar(key, value) => self.update_state(key, value),
+            EwwCommand::ReloadConfig(config) => self.reload_all_windows(config),
+            EwwCommand::ReloadCss(css) => self.load_css(&css),
+            EwwCommand::KillServer => {
+                log::info!("Received kill command, stopping server!");
+                std::process::exit(0);
             }
+            EwwCommand::OpenWindow { window_name, pos, size } => self.open_window(&window_name, pos, size),
+            EwwCommand::CloseWindow { window_name } => self.close_window(&window_name),
+            EwwCommand::PrintState => Ok(()),
         };
+
         if let Err(err) = result {
-            eprintln!("Error while handling event: {:?}", err);
+            if let Some(response_sender) = response_sender {
+                let _ = response_sender.send(format!("Error while handling event: {:?}", err));
+            } else {
+                eprintln!("Error while handling event: {:?}", err);
+            }
         }
     }
 

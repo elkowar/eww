@@ -17,14 +17,15 @@ use std::io::BufRead;
 
 /// Handler that manages running and updating [ScriptVar]s
 pub struct ScriptVarHandler {
-    evt_send: glib::Sender<app::EwwEvent>,
+    evt_send: glib::Sender<app::EwwCommand>,
     pub poll_handles: Vec<scheduled_executor::executor::TaskHandle>,
     pub poll_executor: scheduled_executor::CoreExecutor,
     pub tail_handler_thread: Option<stoppable_thread::StoppableHandle<()>>,
 }
 
 impl ScriptVarHandler {
-    pub fn new(evt_send: glib::Sender<app::EwwEvent>) -> Result<Self> {
+    pub fn new(evt_send: glib::Sender<app::EwwCommand>) -> Result<Self> {
+        log::info!("initializing handler for poll script vars");
         Ok(ScriptVarHandler {
             evt_send,
             poll_handles: Vec::new(),
@@ -73,7 +74,7 @@ impl ScriptVarHandler {
                     var.interval,
                     glib::clone!(@strong var, @strong evt_send => move |_| {
                         let result = eww_state::run_command(&var.command)
-                            .and_then(|output| Ok(evt_send.send(app::EwwEvent::UpdateVar(var.name.clone(), output))?));
+                            .and_then(|output| Ok(evt_send.send(app::EwwCommand::UpdateVar(var.name.clone(), output))?));
                         if let Err(e) = result {
                             eprintln!("Error while running script-var command: {:?}", e);
                         }
@@ -112,7 +113,7 @@ impl ScriptVarHandler {
                                 .with_context(|| format!("No command output handle found for variable '{}'", var_name))?;
                             let mut buffer = String::new();
                             handle.read_line(&mut buffer)?;
-                            evt_send.send(app::EwwEvent::UpdateVar(
+                            evt_send.send(app::EwwCommand::UpdateVar(
                                 var_name.clone(),
                                 PrimitiveValue::parse_string(&buffer),
                             ))?;
