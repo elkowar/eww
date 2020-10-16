@@ -101,9 +101,10 @@ Example: This will define a variable named `banana`, with the default value "I l
 <variables>
 	<var name="banana">I like bananas.</var>
 </variables>
+
 You can also change the variable name in CLI by doing:
 ```sh
-eww update potatoes carrots
+eww update banana blueberries
 ```
 This will change the variable name `potatoes` to `carrots`
 
