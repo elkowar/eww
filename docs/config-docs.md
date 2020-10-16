@@ -335,7 +335,7 @@ SCSS is *very* close to CSS so if you know CSS you'll have no problem learning S
 
 ### GTK-Debugger
 
-The debugger can be used for **alot** of things. Especially if something doesn't work or isn't styled right. to enable it do
+The debugger can be used for **a lot** of things. Especially if something doesn't work or isn't styled right. to enable it do
 ```bash
 GTK_DEBUG=interactive ./eww open main_window
 ```
