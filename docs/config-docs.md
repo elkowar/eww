@@ -1,5 +1,5 @@
 
-# Eww | *widgeting for the system*
+# Eww - Widgets for everyone!
 
 
 Eww (ElKowar's Wacky Widgets) Is a widgeting system made in [rust](https://www.rust-lang.org/) similar to AwesomeWM's widgts, but works in **any** window manager.
