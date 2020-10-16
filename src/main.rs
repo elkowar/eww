@@ -12,12 +12,13 @@ use eww_state::*;
 use gdk::*;
 use gtk::prelude::*;
 use hotwatch;
-use ipc_channel::ipc;
 use log;
 use pretty_env_logger;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
+    io::{Read, Write},
+    os::unix::net,
     path::{Path, PathBuf},
 };
 use structopt::StructOpt;
@@ -49,6 +50,18 @@ macro_rules! try_logging_errors {
     }};
 }
 
+lazy_static::lazy_static! {
+    static ref IPC_SOCKET_PATH: std::path::PathBuf = std::env::var("XDG_RUNTIME_DIR")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| std::path::PathBuf::from("/tmp"))
+        .join("eww-server");
+
+    static ref CONFIG_DIR: std::path::PathBuf = std::env::var("XDG_CONFIG_HOME")
+        .map(|v| PathBuf::from(v))
+        .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap()).join(".config"))
+        .join("eww");
+}
+
 fn main() {
     pretty_env_logger::init();
     if let Err(e) = try_main() {
@@ -58,9 +71,6 @@ fn main() {
 
 #[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Opt {
-    #[structopt(short = "-c", parse(from_os_str))]
-    config_file: Option<PathBuf>,
-
     #[structopt(subcommand)]
     action: OptAction,
 
@@ -88,16 +98,33 @@ pub enum OptAction {
 
     #[structopt(name = "kill")]
     KillServer,
+
+    #[structopt(name = "state")]
+    ShowState,
+}
+
+impl Into<app::EwwCommand> for OptAction {
+    fn into(self) -> app::EwwCommand {
+        match self {
+            OptAction::Update { fieldname, value } => app::EwwCommand::UpdateVar(fieldname, value),
+            OptAction::OpenWindow { window_name, pos, size } => app::EwwCommand::OpenWindow { window_name, pos, size },
+            OptAction::CloseWindow { window_name } => app::EwwCommand::CloseWindow { window_name },
+            OptAction::KillServer => app::EwwCommand::KillServer,
+            OptAction::ShowState => unimplemented!(),
+        }
+    }
 }
 
 fn try_main() -> Result<()> {
     let opts: Opt = StructOpt::from_args();
     log::info!("Trying to find server process");
-    if let Ok(sender) = find_server_process() {
+    if let Ok(mut stream) = net::UnixStream::connect(&*IPC_SOCKET_PATH) {
         log::info!("Forwarding options to server");
-        sender.send(opts)?;
+        stream.write_all(&bincode::serialize(&opts)?)?;
     } else {
         log::info!("No instance found... Initializing server.");
+
+        let _ = std::fs::remove_file(&*IPC_SOCKET_PATH);
 
         if opts.should_detach {
             do_detach();
@@ -108,27 +135,13 @@ fn try_main() -> Result<()> {
     Ok(())
 }
 
-fn find_server_process() -> Result<ipc::IpcSender<Opt>> {
-    let instance_path = std::fs::read_to_string("/tmp/eww-instance-path")?;
-    Ok(ipc::IpcSender::connect(instance_path)?)
-}
-
-fn get_config_file_path() -> PathBuf {
-    std::env::var("XDG_CONFIG_HOME")
-        .map(|v| PathBuf::from(v))
-        .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap()).join(".config"))
-        .join("eww")
-        .join("eww.xml")
-}
-
 fn initialize_server(opts: Opt) -> Result<()> {
     if opts.action == OptAction::KillServer {
         return Ok(());
     }
 
-    let config_file_path = opts.config_file.clone().unwrap_or_else(get_config_file_path);
+    let config_file_path = CONFIG_DIR.join("eww.xml");
     let config_dir = config_file_path
-        .clone()
         .parent()
         .context("config file did not have a parent?!")?
         .to_owned()
@@ -162,13 +175,13 @@ fn initialize_server(opts: Opt) -> Result<()> {
     }
 
     // run the command that eww was started with
-    app.handle_user_command(&opts)?;
+    app.handle_command(opts.action.into(), None);
 
-    run_server_thread(evt_send.clone());
+    run_server_thread(evt_send.clone())?;
     let _hotwatch = run_filewatch_thread(&config_file_path, &scss_file_path, evt_send.clone())?;
 
     evt_recv.attach(None, move |msg| {
-        app.handle_event(msg);
+        app.handle_command(msg, None);
         glib::Continue(true)
     });
 
@@ -177,16 +190,15 @@ fn initialize_server(opts: Opt) -> Result<()> {
     Ok(())
 }
 
-fn run_server_thread(evt_send: glib::Sender<app::EwwEvent>) {
+fn run_server_thread(evt_send: glib::Sender<app::EwwCommand>) -> Result<()> {
     std::thread::spawn(move || {
-        log::info!("Starting up eww server");
         let result: Result<_> = try {
-            loop {
-                let (ipc_server, instance_path): (ipc::IpcOneShotServer<Opt>, _) = ipc::IpcOneShotServer::new()?;
-                std::fs::write("/tmp/eww-instance-path", instance_path)?;
-                let (_, initial) = ipc_server.accept()?;
-                log::info!("received command from IPC: {:?}", &initial);
-                evt_send.send(app::EwwEvent::UserCommand(initial))?;
+            log::info!("Starting up eww server");
+            let listener = net::UnixListener::bind(&*IPC_SOCKET_PATH)?;
+            for stream in listener.incoming() {
+                let command: Opt = bincode::deserialize_from(stream?)?;
+                log::info!("received command from IPC: {:?}", &command);
+                evt_send.send(command.action.into())?;
             }
         };
         if let Err(err) = result {
@@ -194,12 +206,13 @@ fn run_server_thread(evt_send: glib::Sender<app::EwwEvent>) {
             std::process::exit(1);
         }
     });
+    Ok(())
 }
 
 fn run_filewatch_thread<P: AsRef<Path>>(
     config_file_path: P,
     scss_file_path: P,
-    evt_send: glib::Sender<app::EwwEvent>,
+    evt_send: glib::Sender<app::EwwCommand>,
 ) -> Result<hotwatch::Hotwatch> {
     log::info!("Initializing config file watcher");
     let mut hotwatch = hotwatch::Hotwatch::new()?;
@@ -209,7 +222,7 @@ fn run_filewatch_thread<P: AsRef<Path>>(
         try_logging_errors!("handling change of config file" => {
             log::info!("Reloading eww configuration");
             let new_eww_config = config::EwwConfig::read_from_file(path)?;
-            config_file_change_send.send(app::EwwEvent::ReloadConfig(new_eww_config))?;
+            config_file_change_send.send(app::EwwCommand::ReloadConfig(new_eww_config))?;
         });
     })?;
 
@@ -217,7 +230,7 @@ fn run_filewatch_thread<P: AsRef<Path>>(
         try_logging_errors!("handling change of scss file" =>  {
             log::info!("reloading eww css file");
             let eww_css = util::parse_scss_from_file(path)?;
-            evt_send.send(app::EwwEvent::ReloadCss(eww_css))?;
+            evt_send.send(app::EwwCommand::ReloadCss(eww_css))?;
         })
     });
     if let Err(e) = result {
