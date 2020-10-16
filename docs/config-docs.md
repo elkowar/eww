@@ -13,7 +13,7 @@ This documentation is designed for very beginners and tries to simplify as much 
 - [How to install Eww](#how-to-install-eww)
 	- [Prerequisites](#prerequisites)
 	- [Building](#building)
-	- [Starting  Eww](starting-eww)
+	- [Starting  Eww](#starting-eww)
 -  [Configuration](#configuration)
 	- [Placing the configuration file](#placing-the-configuration-file)
 	- [Variables](#variables)
