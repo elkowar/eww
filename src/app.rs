@@ -1,12 +1,19 @@
-use crate::config::WindowStacking;
-use crate::{config, script_var_handler::*, util, widgets};
-use crate::{config::WindowName, util::Coords, value::PrimitiveValue};
-use crate::{eww_state, value::VarName};
+use crate::{
+    config,
+    config::{WindowName, WindowStacking},
+    eww_state,
+    script_var_handler::*,
+    util,
+    util::Coords,
+    value::{PrimitiveValue, VarName},
+    widgets,
+};
 use anyhow::*;
-use crossbeam_channel::Sender;
+use crossbeam_channel;
 use debug_stub_derive::*;
 use gdk::WindowExt;
 use gtk::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt};
+use itertools::Itertools;
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -23,7 +30,7 @@ pub enum EwwCommand {
         window_name: WindowName,
     },
     KillServer,
-    PrintState,
+    PrintState(crossbeam_channel::Sender<String>),
 }
 
 #[derive(DebugStub)]
@@ -38,7 +45,7 @@ pub struct App {
 }
 
 impl App {
-    pub fn handle_command(&mut self, event: EwwCommand, response_sender: Option<Sender<String>>) {
+    pub fn handle_command(&mut self, event: EwwCommand) {
         log::debug!("Handling event: {:?}", &event);
         let result: Result<_> = match event {
             EwwCommand::UpdateVar(key, value) => self.update_state(key, value),
@@ -50,16 +57,18 @@ impl App {
             }
             EwwCommand::OpenWindow { window_name, pos, size } => self.open_window(&window_name, pos, size),
             EwwCommand::CloseWindow { window_name } => self.close_window(&window_name),
-            EwwCommand::PrintState => Ok(()),
+            EwwCommand::PrintState(sender) => {
+                let output = self
+                    .eww_state
+                    .get_variables()
+                    .iter()
+                    .map(|(key, value)| format!("{}: {}", key, value))
+                    .join("\n");
+                sender.send(output).context("sending response from main thread")
+            }
         };
 
-        if let Err(err) = result {
-            if let Some(response_sender) = response_sender {
-                let _ = response_sender.send(format!("Error while handling event: {:?}", err));
-            } else {
-                eprintln!("Error while handling event: {:?}", err);
-            }
-        }
+        util::print_result_err("while handling event", &result);
     }
 
     fn update_state(&mut self, fieldname: VarName, value: PrimitiveValue) -> Result<()> {
@@ -144,9 +153,10 @@ impl App {
 
     pub fn reload_all_windows(&mut self, config: config::EwwConfig) -> Result<()> {
         // refresh script-var poll stuff
-        if let Err(e) = self.script_var_handler.initialize_clean(config.get_script_vars().clone()) {
-            eprintln!("Error while setting up script-var commands: {:?}", e);
-        }
+        util::print_result_err(
+            "while setting up script-var commands",
+            &self.script_var_handler.initialize_clean(config.get_script_vars().clone()),
+        );
 
         self.eww_config = config;
         self.eww_state.clear_all_window_states();

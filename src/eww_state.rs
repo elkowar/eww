@@ -76,6 +76,10 @@ impl EwwState {
         }
     }
 
+    pub fn get_variables(&self) -> &HashMap<VarName, PrimitiveValue> {
+        &self.variables_state
+    }
+
     /// remove all state stored specific to one window
     pub fn clear_window_state(&mut self, window_name: &WindowName) {
         self.windows.remove(window_name);
