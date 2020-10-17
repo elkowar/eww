@@ -25,6 +25,7 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<Option<gtk
         "aspect" => build_gtk_aspect_frame(bargs)?.upcast(),
         "literal" => build_gtk_literal(bargs)?.upcast(),
         "input" => build_gtk_input(bargs)?.upcast(),
+        "calendar" => build_gtk_calendar(bargs)?.upcast(),
         _ => return Ok(None),
     };
     Ok(Some(gtk_widget))
@@ -239,6 +240,35 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Frame> {
             }
         }
     });
+    Ok(gtk_widget)
+}
+
+fn build_gtk_calendar(bargs: &mut BuilderArgs) -> Result<gtk::Calendar> {
+    let gtk_widget = gtk::Calendar::new();
+    let on_click_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
+    resolve_block!(bargs, gtk_widget, {
+        prop(day:                as_f64)  { gtk_widget.set_property_day(day as i32) },
+        prop(month:              as_f64)  { gtk_widget.set_property_day(month as i32) },
+        prop(year:               as_f64)  { gtk_widget.set_property_day(year as i32) },
+        prop(show_details:       as_bool) { gtk_widget.set_property_show_details(show_details) },
+        prop(show_heading:       as_bool) { gtk_widget.set_property_show_details(show_heading) },
+        prop(show_day_names:     as_bool) { gtk_widget.set_property_show_day_names(show_day_names) },
+        prop(show_week_numbers:  as_bool) { gtk_widget.set_property_show_week_numbers(show_week_numbers) },
+        prop(show_heading:       as_bool) { gtk_widget.set_property_show_heading(show_heading) },
+        prop(onclick: as_string) {
+            let old_id = on_click_handler_id.replace(Some(
+                gtk_widget.connect_day_selected(move |w| {
+                    run_command(
+                        &onclick,
+                        format!("{}.{}.{}", w.get_property_day(), w.get_property_month(), w.get_property_year())
+                    )
+                })
+            ));
+            old_id.map(|id| gtk_widget.disconnect(id));
+        }
+
+    });
+
     Ok(gtk_widget)
 }
 
