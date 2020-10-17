@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     io::{Read, Write},
-    os::unix::net,
+    os::unix::{io::AsRawFd, net},
     path::{Path, PathBuf},
 };
 use structopt::StructOpt;
@@ -57,6 +57,11 @@ lazy_static::lazy_static! {
         .map(|v| PathBuf::from(v))
         .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap()).join(".config"))
         .join("eww");
+
+    static ref LOG_FILE: std::path::PathBuf = std::env::var("XDG_CACHE_HOME")
+        .map(|v| PathBuf::from(v))
+        .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap()).join(".cache"))
+        .join("eww.log");
 }
 
 fn main() {
@@ -257,40 +262,40 @@ fn run_filewatch_thread<P: AsRef<Path>>(
     Ok(hotwatch)
 }
 
-/// detach the process from the terminal, also closing stdout and redirecting
-/// stderr into /dev/null
+/// detach the process from the terminal, also redirecting stdout and stderr to
+/// LOG_FILE
 fn do_detach() {
     // detach from terminal
     let pid = unsafe { libc::fork() };
-    if dbg!(pid) < 0 {
+    if pid < 0 {
         panic!("Phailed to Phork: {}", std::io::Error::last_os_error());
     }
     if pid != 0 {
         std::process::exit(0);
     }
 
-    // close stdout to not spam output
-    if unsafe { libc::isatty(1) } != 0 {
-        unsafe {
-            libc::close(1);
-        }
-    }
-    // close stderr to not spam output
-    if unsafe { libc::isatty(2) } != 0 {
-        unsafe {
-            let fd = libc::open(std::ffi::CString::new("/dev/null").unwrap().as_ptr(), libc::O_RDWR);
-            if fd < 0 {
-                panic!("Phailed to open /dev/null?!: {}", std::io::Error::last_os_error());
-            } else {
-                if libc::dup2(fd, libc::STDERR_FILENO) < 0 {
-                    panic!(
-                        "Phailed to dup stderr phd to /dev/null: {:?}",
-                        std::io::Error::last_os_error()
-                    );
-                }
-                libc::close(fd);
+    let file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&*LOG_FILE)
+        .expect(&format!(
+            "Error opening log file ({}), for writing",
+            &*LOG_FILE.to_string_lossy()
+        ));
+    let fd = file.as_raw_fd();
+
+    unsafe {
+        if libc::isatty(1) != 0 {
+            if libc::dup2(fd, libc::STDOUT_FILENO) < 0 {
+                panic!("Phailed to dup stdout to log file: {:?}", std::io::Error::last_os_error());
             }
         }
+        if libc::isatty(2) != 0 {
+            if libc::dup2(fd, libc::STDERR_FILENO) < 0 {
+                panic!("Phailed to dup stderr to log file: {:?}", std::io::Error::last_os_error());
+            }
+        }
+        libc::close(fd);
     }
 }
 
