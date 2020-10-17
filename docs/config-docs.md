@@ -264,20 +264,20 @@ You can also have multiple windows in one document by  doing:
 
 ```xml
 <windows>
-      <window name="main_window">
-        <size x="300" y="300" />
-        <pos x="0" y="500" />
-        <widget>
-          <main/>
-        </widget>
-      </window>
-      <window name="main_window2">
-	   <size x="400" y="600"/>
-	   <pos x="0" y="0"/>
-	   <widget>
-		<main2/>
-	   </widget>
-      </window>
+  <window name="main_window">
+    <size x="300" y="300" />
+    <pos x="0" y="500" />
+    <widget>
+      <main/>
+    </widget>
+  </window>
+  <window name="main_window2">
+    <size x="400" y="600"/>
+	<pos x="0" y="0"/>
+    <widget>
+      <main2/>
+    </widget>
+  </window>
 </windows>
 ```
 ---
