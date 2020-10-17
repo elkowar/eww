@@ -110,7 +110,7 @@ You can then reference it in your widgets by doing:
 </box>
 ```
 
-To change the value of the variable, and thus change the UI, you can run eww update banana "I like apples"
+To change the value of the variable, and thus change the UI, you can run `eww update banana "I like apples"`
 
 #### The `<script-var>` tag 
 
