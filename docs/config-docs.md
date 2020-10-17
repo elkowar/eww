@@ -282,9 +282,9 @@ You can also have multiple windows in one document by  doing:
 ```
 ---
 
-`<size>` sets x-y size of the widget.
-`<pos>` sets x-y position of the widget.
-`<widget>` is the part which you say which `<def>` eww should run. So if we take the example config from before:
+- `<size>` sets x-y size of the widget.
+- `<pos>` sets x-y position of the widget.
+- `<widget>` is the part which you say which `<def>` eww should run. So if we take the example config from before:
 ```xml
 <definitions>
 	<def name="clock">
