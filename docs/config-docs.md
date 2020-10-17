@@ -32,7 +32,7 @@ Configured in XML and themed using CSS, it is easy to customize and provides all
 	- [Something isn't styled correctly!](#something-isnt-styled-correctly)
 
 
-## How to install Eww 
+## How to install Eww
 
 ### Prerequisites
 
@@ -112,12 +112,12 @@ You can then reference it in your widgets by doing:
 
 To change the value of the variable, and thus change the UI, you can run `eww update banana "I like apples"`
 
-#### The `<script-var>` tag 
+#### The `<script-var>` tag
 
 Allows you to create a script that eww runs.
 Useful for creating volume sliders or anything similar.
 
-Example: 
+Example:
 ```xml
 <variables>
 	<script-var name="date" interval="5s">
@@ -135,12 +135,12 @@ and then reference it by doing:
 
 The `interval="5s"` part says how long time it should take before Eww runs the command again.
 Here are the available times you can set:
-| Shortened | Full name | 
-| :------------- | :----------:|  
-| ms | Miliseconds |  
+| Shortened | Full name |
+| :------------- | :----------:|
+| ms | Miliseconds |
 | s | Seconds |
-| m | Minutes |  
-| h | Hours | 
+| m | Minutes |
+| h | Hours |
 
 #### Tail
 If you don't want a set interval and instead want it to tail (run the script when it detects a change is present) you can simply remove the `interval="5s"` so it becomes:
@@ -189,8 +189,8 @@ This part:
 		</box>
 	</def>
 ```
-Is the custom widget. As we can see by the 
-```xml 
+Is the custom widget. As we can see by the
+```xml
 <def name="clock">
 ```
 the widget is called `clock.`Or referenced `<clock>`
@@ -204,7 +204,7 @@ So if we look at:
 		</box>
 	</def>
 ```
-we can see that we assign `{{my_time}}` to be `{{date}}` and if we look at 
+we can see that we assign `{{my_time}}` to be `{{date}}` and if we look at
 ```xml
 	<script-var name="date">
 		date
@@ -309,7 +309,7 @@ we will see that eww will run `<def name="main">` and not `<def name="clock">`.
 
 ### Widgets made in Eww
 
-![two](two.png) ![one](one.png)
+![two](images/two.png) ![one](images/one.png)
 
 
 ## GTK
