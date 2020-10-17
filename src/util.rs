@@ -79,3 +79,10 @@ pub fn replace_env_var_references(input: String) -> String {
         })
         .into_owned()
 }
+
+/// If the given result is `Err`, prints out the error value using `{:?}`
+pub fn print_result_err<T, E: std::fmt::Debug>(context: &str, result: &std::result::Result<T, E>) {
+    if let Err(err) = result {
+        eprintln!("Error {}: {:?}", context, err);
+    }
+}

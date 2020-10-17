@@ -9,9 +9,6 @@ extern crate gtk;
 
 use anyhow::*;
 use eww_state::*;
-use gdk::*;
-use gtk::prelude::*;
-use hotwatch;
 use log;
 use pretty_env_logger;
 use serde::{Deserialize, Serialize};
@@ -79,10 +76,10 @@ pub struct Opt {
 }
 #[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
 pub enum OptAction {
-    #[structopt(name = "update")]
+    #[structopt(name = "update", help = "update the value of a variable")]
     Update { fieldname: VarName, value: PrimitiveValue },
 
-    #[structopt(name = "open")]
+    #[structopt(name = "open", help = "open a window")]
     OpenWindow {
         window_name: config::WindowName,
 
@@ -93,24 +90,27 @@ pub enum OptAction {
         size: Option<util::Coords>,
     },
 
-    #[structopt(name = "close")]
+    #[structopt(name = "close", help = "close the window with the given name")]
     CloseWindow { window_name: config::WindowName },
 
-    #[structopt(name = "kill")]
+    #[structopt(name = "kill", help = "kill the eww daemon")]
     KillServer,
 
-    #[structopt(name = "state")]
+    #[structopt(name = "state", help = "Print the current eww-state")]
     ShowState,
 }
 
-impl Into<app::EwwCommand> for OptAction {
-    fn into(self) -> app::EwwCommand {
+impl OptAction {
+    fn into_eww_command(self) -> (app::EwwCommand, Option<crossbeam_channel::Receiver<String>>) {
         match self {
-            OptAction::Update { fieldname, value } => app::EwwCommand::UpdateVar(fieldname, value),
-            OptAction::OpenWindow { window_name, pos, size } => app::EwwCommand::OpenWindow { window_name, pos, size },
-            OptAction::CloseWindow { window_name } => app::EwwCommand::CloseWindow { window_name },
-            OptAction::KillServer => app::EwwCommand::KillServer,
-            OptAction::ShowState => unimplemented!(),
+            OptAction::Update { fieldname, value } => (app::EwwCommand::UpdateVar(fieldname, value), None),
+            OptAction::OpenWindow { window_name, pos, size } => (app::EwwCommand::OpenWindow { window_name, pos, size }, None),
+            OptAction::CloseWindow { window_name } => (app::EwwCommand::CloseWindow { window_name }, None),
+            OptAction::KillServer => (app::EwwCommand::KillServer, None),
+            OptAction::ShowState => {
+                let (send, recv) = crossbeam_channel::unbounded();
+                (app::EwwCommand::PrintState(send), Some(recv))
+            }
         }
     }
 }
@@ -121,6 +121,10 @@ fn try_main() -> Result<()> {
     if let Ok(mut stream) = net::UnixStream::connect(&*IPC_SOCKET_PATH) {
         log::info!("Forwarding options to server");
         stream.write_all(&bincode::serialize(&opts)?)?;
+
+        let mut buf = String::new();
+        stream.read_to_string(&mut buf)?;
+        println!("{}", buf);
     } else {
         log::info!("No instance found... Initializing server.");
 
@@ -175,13 +179,19 @@ fn initialize_server(opts: Opt) -> Result<()> {
     }
 
     // run the command that eww was started with
-    app.handle_command(opts.action.into(), None);
+    let (command, maybe_response_recv) = opts.action.into_eww_command();
+    app.handle_command(command);
+    if let Some(response_recv) = maybe_response_recv {
+        if let Ok(response) = response_recv.recv_timeout(std::time::Duration::from_millis(100)) {
+            println!("{}", response);
+        }
+    }
 
     run_server_thread(evt_send.clone())?;
     let _hotwatch = run_filewatch_thread(&config_file_path, &scss_file_path, evt_send.clone())?;
 
     evt_recv.attach(None, move |msg| {
-        app.handle_command(msg, None);
+        app.handle_command(msg);
         glib::Continue(true)
     });
 
@@ -196,9 +206,19 @@ fn run_server_thread(evt_send: glib::Sender<app::EwwCommand>) -> Result<()> {
             log::info!("Starting up eww server");
             let listener = net::UnixListener::bind(&*IPC_SOCKET_PATH)?;
             for stream in listener.incoming() {
-                let command: Opt = bincode::deserialize_from(stream?)?;
-                log::info!("received command from IPC: {:?}", &command);
-                evt_send.send(command.action.into())?;
+                try_logging_errors!("handling message from IPC client" => {
+                    let mut stream = stream?;
+                    let opts: Opt = bincode::deserialize_from(&stream)?;
+                    log::info!("received command from IPC: {:?}", &opts);
+                    let (command, maybe_response_recv) = opts.action.into_eww_command();
+                    evt_send.send(command)?;
+                    if let Some(response_recv) = maybe_response_recv {
+                        if let Ok(response) = response_recv.recv_timeout(std::time::Duration::from_millis(100)) {
+                            let result = &stream.write_all(response.as_bytes());
+                            util::print_result_err("Sending text response to ipc client", &result);
+                        }
+                    }
+                });
             }
         };
         if let Err(err) = result {
@@ -233,9 +253,7 @@ fn run_filewatch_thread<P: AsRef<Path>>(
             evt_send.send(app::EwwCommand::ReloadCss(eww_css))?;
         })
     });
-    if let Err(e) = result {
-        eprintln!("WARN: error while loading CSS file for hot-reloading: \n{}", e)
-    };
+    util::print_result_err("while loading CSS file for hot-reloading", &result);
     Ok(hotwatch)
 }
 
