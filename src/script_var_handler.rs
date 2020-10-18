@@ -115,7 +115,7 @@ impl ScriptVarHandler {
                             handle.read_line(&mut buffer)?;
                             evt_send.send(app::EwwCommand::UpdateVar(
                                 var_name.clone(),
-                                PrimitiveValue::parse_string(&buffer),
+                                PrimitiveValue::from_string(buffer),
                             ))?;
                         } else if event.hangup {
                             command_out_readers.remove(var_name);

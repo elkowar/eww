@@ -58,7 +58,7 @@ impl ScriptVar {
     pub fn initial_value(&self) -> Result<PrimitiveValue> {
         match self {
             ScriptVar::Poll(x) => Ok(crate::run_command(&x.command)?),
-            ScriptVar::Tail(_) => Ok(PrimitiveValue::String(String::new())),
+            ScriptVar::Tail(_) => Ok(PrimitiveValue::from_string(String::new())),
         }
     }
 
@@ -126,9 +126,8 @@ impl EwwConfig {
                     "var" => {
                         initial_variables.insert(
                             VarName(node.attr("name")?.to_owned()),
-                            PrimitiveValue::parse_string(
-                                &node
-                                    .only_child()
+                            PrimitiveValue::from_string(
+                                node.only_child()
                                     .map(|c| c.as_text_or_sourcecode())
                                     .unwrap_or_else(|_| String::new()),
                             ),

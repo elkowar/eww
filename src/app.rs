@@ -33,11 +33,18 @@ pub enum EwwCommand {
     PrintState(crossbeam_channel::Sender<String>),
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct EwwWindow {
+    pub name: config::WindowName,
+    pub definition: config::EwwWindowDefinition,
+    pub gtk_window: gtk::Window,
+}
+
 #[derive(DebugStub)]
 pub struct App {
     pub eww_state: eww_state::EwwState,
     pub eww_config: config::EwwConfig,
-    pub windows: HashMap<config::WindowName, gtk::Window>,
+    pub windows: HashMap<config::WindowName, EwwWindow>,
     pub css_provider: gtk::CssProvider,
     pub app_evt_send: glib::Sender<EwwCommand>,
     #[debug_stub = "ScriptVarHandler(...)"]
@@ -80,7 +87,7 @@ impl App {
             .windows
             .remove(window_name)
             .context(format!("No window with name '{}' is running.", window_name))?;
-        window.close();
+        window.gtk_window.close();
         self.eww_state.clear_window_state(window_name);
 
         Ok(())
@@ -146,7 +153,13 @@ impl App {
             window.set_keep_below(true);
         }
 
-        self.windows.insert(window_name.clone(), window);
+        let eww_window = EwwWindow {
+            definition: window_def,
+            gtk_window: window,
+            name: window_name.clone(),
+        };
+
+        self.windows.insert(window_name.clone(), eww_window);
 
         Ok(())
     }
@@ -163,9 +176,9 @@ impl App {
 
         let windows = self.windows.clone();
         for (window_name, window) in windows {
-            let old_pos = window.get_position();
-            let old_size = window.get_size();
-            window.close();
+            let old_pos = window.definition.position;
+            let old_size = window.definition.size;
+            window.gtk_window.close();
             self.open_window(&window_name, Some(old_pos.into()), Some(old_size.into()))?;
         }
         Ok(())
