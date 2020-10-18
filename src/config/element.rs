@@ -75,19 +75,14 @@ impl WidgetUse {
         };
         let text_pos = xml.text_pos();
         let widget_use = match xml {
-            XmlNode::Text(text) => WidgetUse::simple_text(AttrValue::parse_string(text.text())),
+            XmlNode::Text(text) => WidgetUse::simple_text(AttrValue::parse_string(&text.text())),
             XmlNode::Element(elem) => WidgetUse {
                 name: elem.tag_name().to_owned(),
                 children: with_text_pos_context! { elem => elem.children().map(WidgetUse::from_xml_node).collect::<Result<_>>()?}?,
                 attrs: elem
                     .attributes()
                     .iter()
-                    .map(|attr| {
-                        (
-                            AttrName(attr.name().to_owned()),
-                            AttrValue::parse_string(attr.value().to_owned()),
-                        )
-                    })
+                    .map(|attr| (AttrName(attr.name().to_owned()), AttrValue::parse_string(attr.value())))
                     .collect::<HashMap<_, _>>(),
                 ..WidgetUse::default()
             },
@@ -125,7 +120,7 @@ mod test {
 
     #[test]
     fn test_simple_text() {
-        let expected_attr_value = AttrValue::Concrete(PrimitiveValue::from_string("my text".to_owned()));
+        let expected_attr_value = AttrValue::from_primitive("my text");
         let widget = WidgetUse::simple_text(expected_attr_value.clone());
         assert_eq!(
             widget,
@@ -135,7 +130,7 @@ mod test {
                 attrs: hashmap! { AttrName("text".to_owned()) => expected_attr_value},
                 ..WidgetUse::default()
             },
-        )
+        );
     }
 
     #[test]
@@ -152,12 +147,12 @@ mod test {
         let expected = WidgetUse {
             name: "widget_name".to_owned(),
             attrs: hashmap! {
-                AttrName("attr1".to_owned()) => AttrValue::Concrete(PrimitiveValue::from_string("hi".to_owned())),
-                AttrName("attr2".to_owned()) => AttrValue::Concrete(PrimitiveValue::from_string("12".to_owned())),
+                 AttrName("attr1".to_owned()) => AttrValue::from_primitive("hi"),
+                 AttrName("attr2".to_owned()) => AttrValue::from_primitive("12"),
             },
             children: vec![
                 WidgetUse::new("child_widget".to_owned(), Vec::new()),
-                WidgetUse::simple_text(AttrValue::Concrete(PrimitiveValue::from_string("foo".to_owned()))),
+                WidgetUse::simple_text(AttrValue::from_primitive("foo".to_owned())),
             ],
             ..WidgetUse::default()
         };
@@ -179,9 +174,7 @@ mod test {
             size: Some((12, 20)),
             structure: WidgetUse {
                 name: "layout".to_owned(),
-                children: vec![WidgetUse::simple_text(AttrValue::Concrete(PrimitiveValue::from_string(
-                    "test".to_owned(),
-                )))],
+                children: vec![WidgetUse::simple_text(AttrValue::from_primitive("test"))],
                 attrs: HashMap::new(),
                 ..WidgetUse::default()
             },

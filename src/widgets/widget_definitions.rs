@@ -1,8 +1,5 @@
 use super::{run_command, BuilderArgs};
-use crate::{
-    config, eww_state, resolve_block,
-    value::{AttrValue, PrimitiveValue},
-};
+use crate::{config, eww_state, resolve_block, value::AttrValue};
 use anyhow::*;
 use gtk::{prelude::*, ImageExt};
 use std::{cell::RefCell, rc::Rc};

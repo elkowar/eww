@@ -71,20 +71,7 @@ pub fn widget_use_to_gtk_widget(
             .attrs
             .clone()
             .into_iter()
-            .map(|(attr_name, attr_value)| {
-                (
-                    VarName(attr_name.0),
-                    match attr_value {
-                        AttrValue::VarRef(var_ref) => {
-                            local_env.get(&var_ref).cloned().unwrap_or_else(|| AttrValue::VarRef(var_ref))
-                        }
-                        AttrValue::StringWithVarRefs(content) => {
-                            AttrValue::StringWithVarRefs(content.resolve_one_level(local_env))
-                        }
-                        AttrValue::Concrete(value) => AttrValue::Concrete(value),
-                    },
-                )
-            })
+            .map(|(attr_name, attr_value)| (VarName(attr_name.0), attr_value.resolve_one_level(local_env)))
             .collect();
 
         let custom_widget = widget_use_to_gtk_widget(
@@ -215,7 +202,7 @@ macro_rules! resolve_block {
     };
 
     (@get_value $args:ident, $name:expr, = $default:expr) => {
-        $args.widget.get_attr($name).cloned().unwrap_or(AttrValue::Concrete(PrimitiveValue::from($default)))
+        $args.widget.get_attr($name).cloned().unwrap_or(AttrValue::from_primitive($default))
     };
 
     (@get_value $args:ident, $name:expr,) => {
