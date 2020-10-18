@@ -3,6 +3,11 @@ name = "eww"
 version = "0.1.0"
 authors = ["elkowar <5300871+elkowar@users.noreply.github.com>"]
 edition = "2018"
+description= "Widget system for everyone!"
+license = "MIT"
+repository = "https://github.com/elkowar/eww"
+homepage = "https://github.com/elkowar/eww"
+
 
 [dependencies]
 gtk = { version = "0.9", features = [ "v3_16" ] }
