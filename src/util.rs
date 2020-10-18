@@ -6,20 +6,20 @@ use serde::{Deserialize, Serialize};
 use std::{fmt, path::Path};
 
 #[macro_export]
-macro_rules! impl_many {
-    ($trait:ident<$typ:ty> $fn_name:ident{
+macro_rules! impl_try_from {
+    ($typ:ty {
         $(
-            for $for:ty => |$var:ident| $code:expr
+            for $for:ty => |$arg:ident| $code:expr
         );*;
     }) => {
-        $(impl $trait<$typ> for $for {
+        $(impl TryFrom<$typ> for $for {
             type Error = anyhow::Error;
 
-            fn $fn_name($var: $typ) -> Result<Self> {
+            fn try_from($arg: $typ) -> Result<Self> {
                 $code
             }
         })*
-    }
+    };
 }
 
 /// read an scss file, replace all environment variable references within it and
