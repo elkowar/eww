@@ -6,7 +6,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::{convert::TryFrom, fmt};
 
-use crate::impl_many;
+use crate::impl_try_from;
 
 #[derive(Clone, PartialEq, Deserialize, Serialize, derive_more::From)]
 pub struct PrimitiveValue(String);
@@ -32,21 +32,21 @@ impl std::str::FromStr for PrimitiveValue {
     }
 }
 
-impl_many!(TryFrom<PrimitiveValue> try_from {
+impl_try_from!(PrimitiveValue {
     for String => |x| x.as_string();
     for f64 => |x| x.as_f64();
     for bool => |x| x.as_bool();
 });
 
-impl From<i32> for PrimitiveValue {
-    fn from(x: i32) -> Self {
+impl From<bool> for PrimitiveValue {
+    fn from(x: bool) -> Self {
         PrimitiveValue(format!("{}", x))
     }
 }
 
-impl From<bool> for PrimitiveValue {
-    fn from(x: bool) -> Self {
-        PrimitiveValue(format!("{}", x))
+impl From<i32> for PrimitiveValue {
+    fn from(s: i32) -> Self {
+        PrimitiveValue(s.to_string())
     }
 }
 
