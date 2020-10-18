@@ -16,7 +16,7 @@ impl fmt::Display for PrimitiveValue {
 }
 impl fmt::Debug for PrimitiveValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "\"{}\"", self)
+        write!(f, "\"{}\"", self.0)
     }
 }
 

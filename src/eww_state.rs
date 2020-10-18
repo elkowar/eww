@@ -1,7 +1,7 @@
 use crate::{
     config::WindowName,
     util,
-    value::{AttrName, StringOrVarRef, VarName},
+    value::{AttrName, AttrValueElement, VarName},
 };
 use anyhow::*;
 use std::{collections::HashMap, process::Command, sync::Arc};
@@ -51,7 +51,7 @@ pub struct EwwWindowState {
 }
 
 impl EwwWindowState {
-    /// register a new [StateChangeHandler]
+    /// register a new [`StateChangeHandler`]
     fn put_handler(&mut self, handler: StateChangeHandler) {
         let handler = Arc::new(handler);
         for var_name in handler.used_variables() {
@@ -128,8 +128,8 @@ impl EwwState {
         value
             .iter()
             .map(|element| match element {
-                StringOrVarRef::Primitive(primitive) => Ok(primitive.clone()),
-                StringOrVarRef::VarRef(var_name) => self
+                AttrValueElement::Primitive(primitive) => Ok(primitive.clone()),
+                AttrValueElement::VarRef(var_name) => self
                     .variables_state
                     .get(var_name)
                     .cloned()
@@ -148,26 +148,27 @@ impl EwwState {
         &mut self,
         window_name: &WindowName,
         local_env: &HashMap<VarName, AttrValue>,
-        mut attributes: HashMap<AttrName, AttrValue>,
+        attributes: HashMap<AttrName, AttrValue>,
         set_value: F,
     ) {
-        let window_state = self
-            .windows
-            .entry(window_name.clone())
-            .or_insert_with(EwwWindowState::default);
-
-        let resolved_attributes: Vec<(AttrName, AttrValue)> = attributes
-            .drain()
-            .map(|(attr_name, attr_value)| (attr_name, attr_value.resolve_one_level(local_env)))
-            .collect();
-
         let handler = StateChangeHandler {
             func: Box::new(set_value),
-            unresolved_values: resolved_attributes,
+            unresolved_values: attributes
+                .into_iter()
+                .map(|(attr_name, attr_value)| (attr_name, attr_value.resolve_one_level(local_env)))
+                .collect(),
         };
 
         handler.run_with_state(&self.variables_state);
-        window_state.put_handler(handler);
+
+        // only store the handler if at least one variable is being used
+        if handler.used_variables().next().is_some() {
+            let window_state = self
+                .windows
+                .entry(window_name.clone())
+                .or_insert_with(EwwWindowState::default);
+            window_state.put_handler(handler);
+        }
     }
 }
 
