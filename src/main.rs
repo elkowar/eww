@@ -9,16 +9,13 @@ extern crate gtk;
 
 use anyhow::*;
 use eww_state::*;
-use gdk::*;
-use gtk::prelude::*;
-use hotwatch;
 use log;
 use pretty_env_logger;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     io::{Read, Write},
-    os::unix::net,
+    os::unix::{io::AsRawFd, net},
     path::{Path, PathBuf},
 };
 use structopt::StructOpt;
@@ -60,6 +57,11 @@ lazy_static::lazy_static! {
         .map(|v| PathBuf::from(v))
         .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap()).join(".config"))
         .join("eww");
+
+    static ref LOG_FILE: std::path::PathBuf = std::env::var("XDG_CACHE_HOME")
+        .map(|v| PathBuf::from(v))
+        .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap()).join(".cache"))
+        .join("eww.log");
 }
 
 fn main() {
@@ -79,10 +81,10 @@ pub struct Opt {
 }
 #[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
 pub enum OptAction {
-    #[structopt(name = "update")]
+    #[structopt(name = "update", help = "update the value of a variable")]
     Update { fieldname: VarName, value: PrimitiveValue },
 
-    #[structopt(name = "open")]
+    #[structopt(name = "open", help = "open a window")]
     OpenWindow {
         window_name: config::WindowName,
 
@@ -93,24 +95,27 @@ pub enum OptAction {
         size: Option<util::Coords>,
     },
 
-    #[structopt(name = "close")]
+    #[structopt(name = "close", help = "close the window with the given name")]
     CloseWindow { window_name: config::WindowName },
 
-    #[structopt(name = "kill")]
+    #[structopt(name = "kill", help = "kill the eww daemon")]
     KillServer,
 
-    #[structopt(name = "state")]
+    #[structopt(name = "state", help = "Print the current eww-state")]
     ShowState,
 }
 
-impl Into<app::EwwCommand> for OptAction {
-    fn into(self) -> app::EwwCommand {
+impl OptAction {
+    fn into_eww_command(self) -> (app::EwwCommand, Option<crossbeam_channel::Receiver<String>>) {
         match self {
-            OptAction::Update { fieldname, value } => app::EwwCommand::UpdateVar(fieldname, value),
-            OptAction::OpenWindow { window_name, pos, size } => app::EwwCommand::OpenWindow { window_name, pos, size },
-            OptAction::CloseWindow { window_name } => app::EwwCommand::CloseWindow { window_name },
-            OptAction::KillServer => app::EwwCommand::KillServer,
-            OptAction::ShowState => unimplemented!(),
+            OptAction::Update { fieldname, value } => (app::EwwCommand::UpdateVar(fieldname, value), None),
+            OptAction::OpenWindow { window_name, pos, size } => (app::EwwCommand::OpenWindow { window_name, pos, size }, None),
+            OptAction::CloseWindow { window_name } => (app::EwwCommand::CloseWindow { window_name }, None),
+            OptAction::KillServer => (app::EwwCommand::KillServer, None),
+            OptAction::ShowState => {
+                let (send, recv) = crossbeam_channel::unbounded();
+                (app::EwwCommand::PrintState(send), Some(recv))
+            }
         }
     }
 }
@@ -121,6 +126,10 @@ fn try_main() -> Result<()> {
     if let Ok(mut stream) = net::UnixStream::connect(&*IPC_SOCKET_PATH) {
         log::info!("Forwarding options to server");
         stream.write_all(&bincode::serialize(&opts)?)?;
+
+        let mut buf = String::new();
+        stream.read_to_string(&mut buf)?;
+        println!("{}", buf);
     } else {
         log::info!("No instance found... Initializing server.");
 
@@ -175,13 +184,19 @@ fn initialize_server(opts: Opt) -> Result<()> {
     }
 
     // run the command that eww was started with
-    app.handle_command(opts.action.into(), None);
+    let (command, maybe_response_recv) = opts.action.into_eww_command();
+    app.handle_command(command);
+    if let Some(response_recv) = maybe_response_recv {
+        if let Ok(response) = response_recv.recv_timeout(std::time::Duration::from_millis(100)) {
+            println!("{}", response);
+        }
+    }
 
     run_server_thread(evt_send.clone())?;
     let _hotwatch = run_filewatch_thread(&config_file_path, &scss_file_path, evt_send.clone())?;
 
     evt_recv.attach(None, move |msg| {
-        app.handle_command(msg, None);
+        app.handle_command(msg);
         glib::Continue(true)
     });
 
@@ -196,9 +211,19 @@ fn run_server_thread(evt_send: glib::Sender<app::EwwCommand>) -> Result<()> {
             log::info!("Starting up eww server");
             let listener = net::UnixListener::bind(&*IPC_SOCKET_PATH)?;
             for stream in listener.incoming() {
-                let command: Opt = bincode::deserialize_from(stream?)?;
-                log::info!("received command from IPC: {:?}", &command);
-                evt_send.send(command.action.into())?;
+                try_logging_errors!("handling message from IPC client" => {
+                    let mut stream = stream?;
+                    let opts: Opt = bincode::deserialize_from(&stream)?;
+                    log::info!("received command from IPC: {:?}", &opts);
+                    let (command, maybe_response_recv) = opts.action.into_eww_command();
+                    evt_send.send(command)?;
+                    if let Some(response_recv) = maybe_response_recv {
+                        if let Ok(response) = response_recv.recv_timeout(std::time::Duration::from_millis(100)) {
+                            let result = &stream.write_all(response.as_bytes());
+                            util::print_result_err("Sending text response to ipc client", &result);
+                        }
+                    }
+                });
             }
         };
         if let Err(err) = result {
@@ -233,46 +258,44 @@ fn run_filewatch_thread<P: AsRef<Path>>(
             evt_send.send(app::EwwCommand::ReloadCss(eww_css))?;
         })
     });
-    if let Err(e) = result {
-        eprintln!("WARN: error while loading CSS file for hot-reloading: \n{}", e)
-    };
+    util::print_result_err("while loading CSS file for hot-reloading", &result);
     Ok(hotwatch)
 }
 
-/// detach the process from the terminal, also closing stdout and redirecting
-/// stderr into /dev/null
+/// detach the process from the terminal, also redirecting stdout and stderr to
+/// LOG_FILE
 fn do_detach() {
     // detach from terminal
     let pid = unsafe { libc::fork() };
-    if dbg!(pid) < 0 {
+    if pid < 0 {
         panic!("Phailed to Phork: {}", std::io::Error::last_os_error());
     }
     if pid != 0 {
         std::process::exit(0);
     }
 
-    // close stdout to not spam output
-    if unsafe { libc::isatty(1) } != 0 {
-        unsafe {
-            libc::close(1);
-        }
-    }
-    // close stderr to not spam output
-    if unsafe { libc::isatty(2) } != 0 {
-        unsafe {
-            let fd = libc::open(std::ffi::CString::new("/dev/null").unwrap().as_ptr(), libc::O_RDWR);
-            if fd < 0 {
-                panic!("Phailed to open /dev/null?!: {}", std::io::Error::last_os_error());
-            } else {
-                if libc::dup2(fd, libc::STDERR_FILENO) < 0 {
-                    panic!(
-                        "Phailed to dup stderr phd to /dev/null: {:?}",
-                        std::io::Error::last_os_error()
-                    );
-                }
-                libc::close(fd);
+    let file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&*LOG_FILE)
+        .expect(&format!(
+            "Error opening log file ({}), for writing",
+            &*LOG_FILE.to_string_lossy()
+        ));
+    let fd = file.as_raw_fd();
+
+    unsafe {
+        if libc::isatty(1) != 0 {
+            if libc::dup2(fd, libc::STDOUT_FILENO) < 0 {
+                panic!("Phailed to dup stdout to log file: {:?}", std::io::Error::last_os_error());
             }
         }
+        if libc::isatty(2) != 0 {
+            if libc::dup2(fd, libc::STDERR_FILENO) < 0 {
+                panic!("Phailed to dup stderr to log file: {:?}", std::io::Error::last_os_error());
+            }
+        }
+        libc::close(fd);
     }
 }
 
