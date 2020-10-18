@@ -4,7 +4,7 @@ use regex::Regex;
 use std::ops::Range;
 
 use crate::{
-    value::{AttrValue, VarName},
+    value::{AttrName, AttrValue},
     with_text_pos_context,
 };
 use maplit::hashmap;
@@ -44,7 +44,7 @@ impl WidgetDefinition {
 pub struct WidgetUse {
     pub name: String,
     pub children: Vec<WidgetUse>,
-    pub attrs: HashMap<String, AttrValue>,
+    pub attrs: HashMap<AttrName, AttrValue>,
     pub text_pos: Option<roxmltree::TextPos>,
 }
 
@@ -75,9 +75,6 @@ impl WidgetUse {
         };
         let text_pos = xml.text_pos();
         let widget_use = match xml {
-            // TODO the matching here is stupid. This currently uses the inefficient function to parse simple single varrefs,
-            // TODO and does the regex match twice in the from_text_with_var_refs part
-            XmlNode::Text(text) if PATTERN.is_match(&text.text()) => WidgetUse::from_text_with_var_refs(&text.text()),
             XmlNode::Text(text) => WidgetUse::simple_text(AttrValue::parse_string(text.text())),
             XmlNode::Element(elem) => WidgetUse {
                 name: elem.tag_name().to_owned(),
@@ -85,7 +82,12 @@ impl WidgetUse {
                 attrs: elem
                     .attributes()
                     .iter()
-                    .map(|attr| (attr.name().to_owned(), AttrValue::parse_string(attr.value().to_owned())))
+                    .map(|attr| {
+                        (
+                            AttrName(attr.name().to_owned()),
+                            AttrValue::parse_string(attr.value().to_owned()),
+                        )
+                    })
                     .collect::<HashMap<_, _>>(),
                 ..WidgetUse::default()
             },
@@ -98,19 +100,7 @@ impl WidgetUse {
         WidgetUse {
             name: "label".to_owned(),
             children: vec![],
-            attrs: hashmap! { "text".to_owned() => text }, // TODO this hardcoded "text" is dumdum
-            ..WidgetUse::default()
-        }
-    }
-
-    pub fn from_text_with_var_refs(text: &str) -> Self {
-        WidgetUse {
-            name: "text".to_owned(),
-            children: parse_string_with_var_refs(text)
-                .into_iter()
-                .map(StringOrVarRef::to_attr_value)
-                .map(WidgetUse::simple_text)
-                .collect(),
+            attrs: hashmap! { AttrName("text".to_owned()) => text }, // TODO this hardcoded "text" is dumdum
             ..WidgetUse::default()
         }
     }
@@ -127,71 +117,11 @@ impl WidgetUse {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-enum StringOrVarRef {
-    String(String),
-    VarRef(String),
-}
-
-impl StringOrVarRef {
-    fn to_attr_value(self) -> AttrValue {
-        match self {
-            StringOrVarRef::String(x) => AttrValue::Concrete(PrimitiveValue::from_string(x)),
-            StringOrVarRef::VarRef(x) => AttrValue::VarRef(VarName(x)),
-        }
-    }
-}
-
-// TODO this could be a fancy Iterator implementation, ig
-fn parse_string_with_var_refs(s: &str) -> Vec<StringOrVarRef> {
-    let mut elements = Vec::new();
-
-    let mut cur_word = "".to_owned();
-    let mut cur_varref: Option<String> = None;
-    let mut curly_count = 0;
-    for c in s.chars() {
-        if let Some(ref mut varref) = cur_varref {
-            if c == '}' {
-                curly_count -= 1;
-                if curly_count == 0 {
-                    elements.push(StringOrVarRef::VarRef(std::mem::take(varref)));
-                    cur_varref = None
-                }
-            } else {
-                curly_count = 2;
-                varref.push(c);
-            }
-        } else {
-            if c == '{' {
-                curly_count += 1;
-                if curly_count == 2 {
-                    if !cur_word.is_empty() {
-                        elements.push(StringOrVarRef::String(std::mem::take(&mut cur_word)));
-                    }
-                    cur_varref = Some(String::new())
-                }
-            } else {
-                cur_word.push(c);
-            }
-        }
-    }
-    if let Some(unfinished_varref) = cur_varref.take() {
-        elements.push(StringOrVarRef::String(unfinished_varref));
-    } else if !cur_word.is_empty() {
-        elements.push(StringOrVarRef::String(cur_word.to_owned()));
-    }
-    elements
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
     use maplit::hashmap;
     use pretty_assertions::assert_eq;
-
-    fn mk_attr_str(s: &str) -> AttrValue {
-        AttrValue::Concrete(PrimitiveValue::from_string(s.to_owned()))
-    }
 
     #[test]
     fn test_simple_text() {
@@ -202,28 +132,9 @@ mod test {
             WidgetUse {
                 name: "label".to_owned(),
                 children: Vec::new(),
-                attrs: hashmap! { "text".to_owned() => expected_attr_value},
+                attrs: hashmap! { AttrName("text".to_owned()) => expected_attr_value},
                 ..WidgetUse::default()
             },
-        )
-    }
-
-    #[test]
-    fn test_text_with_var_refs() {
-        let expected_attr_value1 = mk_attr_str("my text");
-        let expected_attr_value2 = AttrValue::VarRef(VarName("var".to_owned()));
-        let widget = WidgetUse::from_text_with_var_refs("my text{{var}}");
-        assert_eq!(
-            widget,
-            WidgetUse {
-                name: "layout".to_owned(),
-                attrs: hashmap! { "halign".to_owned() => mk_attr_str("center"), "space-evenly".to_owned() => mk_attr_str("false")},
-                children: vec![
-                    WidgetUse::simple_text(expected_attr_value1),
-                    WidgetUse::simple_text(expected_attr_value2),
-                ],
-                ..WidgetUse::default()
-            }
         )
     }
 
@@ -238,14 +149,11 @@ mod test {
         let document = roxmltree::Document::parse(input).unwrap();
         let xml = XmlNode::from(document.root_element().clone());
 
-        println!("{}", xml);
-        assert_eq!(true, false);
-
         let expected = WidgetUse {
             name: "widget_name".to_owned(),
             attrs: hashmap! {
-            "attr1".to_owned() => AttrValue::Concrete(PrimitiveValue::from_string("hi".to_owned())),
-            "attr2".to_owned() => AttrValue::Concrete(PrimitiveValue::from_string("12".to_owned())),
+                AttrName("attr1".to_owned()) => AttrValue::Concrete(PrimitiveValue::from_string("hi".to_owned())),
+                AttrName("attr2".to_owned()) => AttrValue::Concrete(PrimitiveValue::from_string("12".to_owned())),
             },
             children: vec![
                 WidgetUse::new("child_widget".to_owned(), Vec::new()),
@@ -283,22 +191,5 @@ mod test {
             expected,
             WidgetDefinition::from_xml_element(xml.as_element().unwrap().to_owned()).unwrap()
         );
-    }
-
-    #[test]
-    fn test_parse_string_or_var_ref_list() {
-        let input = "{{foo}}{{bar}}baz{{bat}}quok{{test}}";
-        let output = parse_string_with_var_refs(input);
-        assert_eq!(
-            output,
-            vec![
-                StringOrVarRef::VarRef("foo".to_owned()),
-                StringOrVarRef::VarRef("bar".to_owned()),
-                StringOrVarRef::String("baz".to_owned()),
-                StringOrVarRef::VarRef("bat".to_owned()),
-                StringOrVarRef::String("quok".to_owned()),
-                StringOrVarRef::VarRef("test".to_owned()),
-            ],
-        )
     }
 }

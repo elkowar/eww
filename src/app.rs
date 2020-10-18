@@ -31,6 +31,7 @@ pub enum EwwCommand {
     },
     KillServer,
     PrintState(crossbeam_channel::Sender<String>),
+    PrintDebug(crossbeam_channel::Sender<String>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -71,6 +72,10 @@ impl App {
                     .iter()
                     .map(|(key, value)| format!("{}: {}", key, value))
                     .join("\n");
+                sender.send(output).context("sending response from main thread")
+            }
+            EwwCommand::PrintDebug(sender) => {
+                let output = format!("state: {:#?}\n\nconfig: {:#?}", &self.eww_state, &self.eww_config);
                 sender.send(output).context("sending response from main thread")
             }
         };

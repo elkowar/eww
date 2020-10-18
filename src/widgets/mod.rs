@@ -1,10 +1,11 @@
 use crate::{
     config::{element, WindowName},
     eww_state::*,
-    value::{AttrValue, VarName},
+    value::{AttrName, AttrValue, VarName},
 };
 use anyhow::*;
 use gtk::prelude::*;
+use itertools::Itertools;
 
 use std::{collections::HashMap, process::Command};
 use widget_definitions::*;
@@ -26,7 +27,7 @@ struct BuilderArgs<'a, 'b, 'c, 'd, 'e> {
     eww_state: &'a mut EwwState,
     local_env: &'b HashMap<VarName, AttrValue>,
     widget: &'c element::WidgetUse,
-    unhandled_attrs: Vec<&'c str>,
+    unhandled_attrs: Vec<&'c AttrName>,
     window_name: &'d WindowName,
     widget_definitions: &'e HashMap<String, element::WidgetDefinition>,
 }
@@ -72,10 +73,13 @@ pub fn widget_use_to_gtk_widget(
             .into_iter()
             .map(|(attr_name, attr_value)| {
                 (
-                    VarName(attr_name),
+                    VarName(attr_name.0),
                     match attr_value {
                         AttrValue::VarRef(var_ref) => {
                             local_env.get(&var_ref).cloned().unwrap_or_else(|| AttrValue::VarRef(var_ref))
+                        }
+                        AttrValue::StringWithVarRefs(content) => {
+                            AttrValue::StringWithVarRefs(content.resolve_one_level(local_env))
                         }
                         AttrValue::Concrete(value) => AttrValue::Concrete(value),
                     },
@@ -120,7 +124,7 @@ fn build_builtin_gtk_widget(
         local_env,
         widget,
         window_name,
-        unhandled_attrs: widget.attrs.keys().map(|x| x.as_ref()).collect(),
+        unhandled_attrs: widget.attrs.keys().collect(),
         widget_definitions,
     };
     let gtk_widget = match widget_to_gtk_widget(&mut bargs) {
@@ -164,9 +168,9 @@ fn build_builtin_gtk_widget(
     if !bargs.unhandled_attrs.is_empty() {
         eprintln!(
             "{}WARN: Unknown attribute used in {}: {}",
-            widget.text_pos.map(|x| format!("{} |", x)).unwrap_or_default(),
+            widget.text_pos.map(|x| format!("{} | ", x)).unwrap_or_default(),
             widget.name,
-            bargs.unhandled_attrs.join(", ")
+            bargs.unhandled_attrs.iter().map(|x| x.to_string()).join(", ")
         )
     }
 
@@ -182,13 +186,14 @@ macro_rules! resolve_block {
     }) => {
         $({
             $(
-                $args.unhandled_attrs.retain(|a| a != &::std::stringify!($attr_name).replace('_', "-"));
+                $args.unhandled_attrs.retain(|a| &a.0 != &::std::stringify!($attr_name).replace('_', "-"));
             )*
 
             let attr_map: Result<_> = try {
                 ::maplit::hashmap! {
                     $(
-                        ::std::stringify!($attr_name).to_owned() => resolve_block!(@get_value $args, &::std::stringify!($attr_name).replace('_', "-"), $(= $default)?)
+                        crate::value::AttrName(::std::stringify!($attr_name).to_owned()) =>
+                            resolve_block!(@get_value $args, &::std::stringify!($attr_name).replace('_', "-"), $(= $default)?)
                     ),*
                 }
             };
