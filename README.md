@@ -35,7 +35,7 @@ Eww&rsquo;s configuration should be placed in `~/.config/eww/eww.xml` and any `s
           </button>
         <box>
           {{ree}}
-          <slider min="0" max="100" value="50" onchange="notify-send {}"/>
+          <scale min="0" max="100" value="50" onchange="notify-send {}"/>
         </box>
       </box>
     </def>
