@@ -5,11 +5,10 @@ use std::fmt;
 
 pub mod attr_value;
 pub mod primitive;
-pub mod string_with_varrefs;
 pub use attr_value::*;
 pub use primitive::*;
-pub use string_with_varrefs::*;
 
+/// The name of a variable
 #[repr(transparent)]
 #[derive(
     Clone, Hash, PartialEq, Eq, derive_more::AsRef, derive_more::From, derive_more::FromStr, Serialize, Deserialize, RefCast,
@@ -34,6 +33,7 @@ impl fmt::Debug for VarName {
     }
 }
 
+/// The name of an attribute
 #[repr(transparent)]
 #[derive(
     Clone, Hash, PartialEq, Eq, derive_more::AsRef, derive_more::From, derive_more::FromStr, Serialize, Deserialize, RefCast,
@@ -54,6 +54,6 @@ impl fmt::Display for AttrName {
 
 impl fmt::Debug for AttrName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "AttrName({})", self.0)
+        write!(f, "AttrName(\"{}\")", self.0)
     }
 }

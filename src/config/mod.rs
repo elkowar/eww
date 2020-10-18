@@ -178,9 +178,7 @@ impl EwwConfig {
 }
 
 #[repr(transparent)]
-#[derive(
-    Debug, Clone, Hash, PartialEq, Eq, derive_more::AsRef, derive_more::From, derive_more::FromStr, Serialize, Deserialize,
-)]
+#[derive(Clone, Hash, PartialEq, Eq, derive_more::AsRef, derive_more::From, derive_more::FromStr, Serialize, Deserialize)]
 pub struct WindowName(String);
 
 impl std::borrow::Borrow<str> for WindowName {
@@ -192,6 +190,12 @@ impl std::borrow::Borrow<str> for WindowName {
 impl fmt::Display for WindowName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+impl fmt::Debug for WindowName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "WindowName(\"{}\")", self.0)
     }
 }
 
