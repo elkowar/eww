@@ -80,7 +80,7 @@ impl WidgetUse {
             XmlNode::Text(text) if PATTERN.is_match(&text.text()) => WidgetUse::from_text_with_var_refs(&text.text()),
             XmlNode::Text(text) => WidgetUse::simple_text(AttrValue::parse_string(text.text())),
             XmlNode::Element(elem) => WidgetUse {
-                name: elem.tag_name().to_string(),
+                name: elem.tag_name().to_owned(),
                 children: with_text_pos_context! { elem => elem.children().map(WidgetUse::from_xml_node).collect::<Result<_>>()?}?,
                 attrs: elem
                     .attributes()
@@ -98,7 +98,7 @@ impl WidgetUse {
         WidgetUse {
             name: "label".to_owned(),
             children: vec![],
-            attrs: hashmap! { "text".to_string() => text }, // TODO this hardcoded "text" is dumdum
+            attrs: hashmap! { "text".to_owned() => text }, // TODO this hardcoded "text" is dumdum
             ..WidgetUse::default()
         }
     }
@@ -136,7 +136,7 @@ enum StringOrVarRef {
 impl StringOrVarRef {
     fn to_attr_value(self) -> AttrValue {
         match self {
-            StringOrVarRef::String(x) => AttrValue::Concrete(PrimitiveValue::parse_string(&x)),
+            StringOrVarRef::String(x) => AttrValue::Concrete(PrimitiveValue::from_string(x)),
             StringOrVarRef::VarRef(x) => AttrValue::VarRef(VarName(x)),
         }
     }
@@ -190,12 +190,12 @@ mod test {
     use pretty_assertions::assert_eq;
 
     fn mk_attr_str(s: &str) -> AttrValue {
-        AttrValue::Concrete(PrimitiveValue::String(s.to_owned()))
+        AttrValue::Concrete(PrimitiveValue::from_string(s.to_owned()))
     }
 
     #[test]
     fn test_simple_text() {
-        let expected_attr_value = AttrValue::Concrete(PrimitiveValue::String("my text".to_owned()));
+        let expected_attr_value = AttrValue::Concrete(PrimitiveValue::from_string("my text".to_owned()));
         let widget = WidgetUse::simple_text(expected_attr_value.clone());
         assert_eq!(
             widget,
@@ -244,12 +244,12 @@ mod test {
         let expected = WidgetUse {
             name: "widget_name".to_owned(),
             attrs: hashmap! {
-            "attr1".to_owned() => AttrValue::Concrete(PrimitiveValue::String("hi".to_owned())),
-            "attr2".to_owned() => AttrValue::Concrete(PrimitiveValue::Number(12f64)),
+            "attr1".to_owned() => AttrValue::Concrete(PrimitiveValue::from_string("hi".to_owned())),
+            "attr2".to_owned() => AttrValue::Concrete(PrimitiveValue::from_string("12".to_owned())),
             },
             children: vec![
                 WidgetUse::new("child_widget".to_owned(), Vec::new()),
-                WidgetUse::simple_text(AttrValue::Concrete(PrimitiveValue::String("foo".to_owned()))),
+                WidgetUse::simple_text(AttrValue::Concrete(PrimitiveValue::from_string("foo".to_owned()))),
             ],
             ..WidgetUse::default()
         };
@@ -271,7 +271,7 @@ mod test {
             size: Some((12, 20)),
             structure: WidgetUse {
                 name: "layout".to_owned(),
-                children: vec![WidgetUse::simple_text(AttrValue::Concrete(PrimitiveValue::String(
+                children: vec![WidgetUse::simple_text(AttrValue::Concrete(PrimitiveValue::from_string(
                     "test".to_owned(),
                 )))],
                 attrs: HashMap::new(),

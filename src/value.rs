@@ -6,20 +6,14 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::{convert::TryFrom, fmt};
 
+use crate::impl_many;
+
 #[derive(Clone, PartialEq, Deserialize, Serialize, derive_more::From)]
-pub enum PrimitiveValue {
-    String(String),
-    Number(f64),
-    Boolean(bool),
-}
+pub struct PrimitiveValue(String);
 
 impl fmt::Display for PrimitiveValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            PrimitiveValue::String(s) => write!(f, "\"{}\"", s),
-            PrimitiveValue::Number(n) => write!(f, "{}", n),
-            PrimitiveValue::Boolean(b) => write!(f, "{}", b),
-        }
+        write!(f, "\"{}\"", self.0)
     }
 }
 impl fmt::Debug for PrimitiveValue {
@@ -34,80 +28,60 @@ impl std::str::FromStr for PrimitiveValue {
     /// parses the value, trying to turn it into a number and a boolean first,
     /// before deciding that it is a string.
     fn from_str(s: &str) -> Result<Self> {
-        Ok(PrimitiveValue::parse_string(s))
+        Ok(PrimitiveValue::from_string(s.to_string()))
     }
 }
 
-fn remove_surrounding(s: &str, surround: char) -> &str {
-    s.strip_prefix(surround).unwrap_or(s).strip_suffix(surround).unwrap_or(s)
-}
+impl_many!(TryFrom<PrimitiveValue> try_from {
+    for String => |x| x.as_string();
+    for f64 => |x| x.as_f64();
+    for bool => |x| x.as_bool();
+});
 
-impl TryFrom<PrimitiveValue> for String {
-    type Error = anyhow::Error;
-
-    fn try_from(x: PrimitiveValue) -> Result<Self> {
-        x.as_string()
+impl From<i32> for PrimitiveValue {
+    fn from(x: i32) -> Self {
+        PrimitiveValue(format!("{}", x))
     }
 }
 
-impl TryFrom<PrimitiveValue> for f64 {
-    type Error = anyhow::Error;
-
-    fn try_from(x: PrimitiveValue) -> Result<Self> {
-        x.as_f64()
-    }
-}
-
-impl TryFrom<PrimitiveValue> for bool {
-    type Error = anyhow::Error;
-
-    fn try_from(x: PrimitiveValue) -> Result<Self> {
-        x.as_bool()
+impl From<bool> for PrimitiveValue {
+    fn from(x: bool) -> Self {
+        PrimitiveValue(format!("{}", x))
     }
 }
 
 impl From<&str> for PrimitiveValue {
     fn from(s: &str) -> Self {
-        PrimitiveValue::String(s.to_string())
+        PrimitiveValue(s.to_string())
     }
 }
 
 impl PrimitiveValue {
-    /// parses the value, trying to turn it into a number and a boolean first,
-    /// before deciding that it is a string.
-    pub fn parse_string(s: &str) -> Self {
-        s.parse()
-            .map(PrimitiveValue::Number)
-            .or_else(|_| s.parse().map(PrimitiveValue::Boolean))
-            .unwrap_or_else(|_| PrimitiveValue::String(remove_surrounding(s, '\'').to_string()))
+    pub fn from_string(s: String) -> Self {
+        PrimitiveValue(s.to_string())
     }
 
+    /// This will never fail
     pub fn as_string(&self) -> Result<String> {
-        match self {
-            PrimitiveValue::String(x) => Ok(x.clone()),
-            PrimitiveValue::Number(x) => Ok(format!("{}", x)),
-            PrimitiveValue::Boolean(x) => Ok(format!("{}", x)),
-        }
+        Ok(self.0.to_owned())
     }
 
     pub fn as_f64(&self) -> Result<f64> {
-        match self {
-            PrimitiveValue::Number(x) => Ok(*x),
-            PrimitiveValue::String(x) => x
-                .parse()
-                .map_err(|e| anyhow!("couldn't convert string {:?} to f64: {}", &self, e)),
-            _ => Err(anyhow!("{:?} is not an f64", &self)),
-        }
+        self.0
+            .parse()
+            .map_err(|e| anyhow!("couldn't convert {:?} to f64: {}", &self, e))
+    }
+
+    pub fn as_i32(&self) -> Result<i32> {
+        self.0
+            .parse()
+            .map_err(|e| anyhow!("couldn't convert {:?} to i32: {}", &self, e))
     }
 
     pub fn as_bool(&self) -> Result<bool> {
-        match self {
-            PrimitiveValue::Boolean(x) => Ok(*x),
-            PrimitiveValue::String(x) => x
-                .parse()
-                .map_err(|e| anyhow!("couldn't convert string {:?} to bool: {}", &self, e)),
-            _ => Err(anyhow!("{:?} is not a string", &self)),
-        }
+        self.0
+            .parse()
+            .map_err(|e| anyhow!("couldn't convert {:?} to bool: {}", &self, e))
     }
 }
 
@@ -148,21 +122,28 @@ pub enum AttrValue {
 impl AttrValue {
     pub fn as_string(&self) -> Result<String> {
         match self {
-            AttrValue::Concrete(x) => Ok(x.as_string()?),
+            AttrValue::Concrete(x) => x.as_string(),
             _ => Err(anyhow!("{:?} is not a string", self)),
         }
     }
 
     pub fn as_f64(&self) -> Result<f64> {
         match self {
-            AttrValue::Concrete(x) => Ok(x.as_f64()?),
+            AttrValue::Concrete(x) => x.as_f64(),
             _ => Err(anyhow!("{:?} is not an f64", self)),
+        }
+    }
+
+    pub fn as_i32(&self) -> Result<i32> {
+        match self {
+            AttrValue::Concrete(x) => x.as_i32(),
+            _ => Err(anyhow!("{:?} is not an i32", self)),
         }
     }
 
     pub fn as_bool(&self) -> Result<bool> {
         match self {
-            AttrValue::Concrete(x) => Ok(x.as_bool()?),
+            AttrValue::Concrete(x) => x.as_bool(),
             _ => Err(anyhow!("{:?} is not a bool", self)),
         }
     }
@@ -184,7 +165,7 @@ impl AttrValue {
         if let Some(ref_name) = PATTERN.captures(&s).and_then(|cap| cap.get(1)).map(|x| x.as_str()) {
             AttrValue::VarRef(VarName(ref_name.to_owned()))
         } else {
-            AttrValue::Concrete(PrimitiveValue::String(s))
+            AttrValue::Concrete(PrimitiveValue::from_string(s))
         }
     }
 }

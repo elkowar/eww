@@ -5,6 +5,23 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::{fmt, path::Path};
 
+#[macro_export]
+macro_rules! impl_many {
+    ($trait:ident<$typ:ty> $fn_name:ident{
+        $(
+            for $for:ty => |$var:ident| $code:expr
+        );*;
+    }) => {
+        $(impl $trait<$typ> for $for {
+            type Error = anyhow::Error;
+
+            fn $fn_name($var: $typ) -> Result<Self> {
+                $code
+            }
+        })*
+    }
+}
+
 /// read an scss file, replace all environment variable references within it and
 /// then parse it into css.
 pub fn parse_scss_from_file<P: AsRef<Path>>(path: P) -> Result<String> {
