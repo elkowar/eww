@@ -1,108 +1,163 @@
 use anyhow::*;
-use lazy_static::lazy_static;
-use regex::Regex;
+use std::{collections::HashMap, iter::FromIterator};
 
 use super::*;
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum AttrValue {
-    Concrete(PrimitiveValue),
-    StringWithVarRefs(StringWithVarRefs),
-    VarRef(VarName),
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, derive_more::Into, derive_more::From)]
+pub struct AttrValue(Vec<StringOrVarRef>);
+
+impl IntoIterator for AttrValue {
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+    type Item = StringOrVarRef;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl FromIterator<StringOrVarRef> for AttrValue {
+    fn from_iter<T: IntoIterator<Item = StringOrVarRef>>(iter: T) -> Self {
+        let mut result = AttrValue(Vec::new());
+        result.0.extend(iter);
+        result
+    }
 }
 
 impl AttrValue {
-    pub fn as_string(&self) -> Result<String> {
-        match self {
-            AttrValue::Concrete(x) => x.as_string(),
-            _ => Err(anyhow!("{:?} is not a string", self)),
-        }
+    pub fn from_primitive<T: Into<PrimitiveValue>>(v: T) -> Self {
+        AttrValue(vec![StringOrVarRef::Primitive(v.into())])
     }
 
-    pub fn as_f64(&self) -> Result<f64> {
-        match self {
-            AttrValue::Concrete(x) => x.as_f64(),
-            _ => Err(anyhow!("{:?} is not an f64", self)),
-        }
+    pub fn iter(&self) -> std::slice::Iter<StringOrVarRef> {
+        self.0.iter()
     }
 
-    pub fn as_i32(&self) -> Result<i32> {
-        match self {
-            AttrValue::Concrete(x) => x.as_i32(),
-            _ => Err(anyhow!("{:?} is not an i32", self)),
-        }
+    pub fn var_refs(&self) -> impl Iterator<Item = &VarName> {
+        self.0.iter().filter_map(|x| x.as_var_ref())
     }
 
-    pub fn as_bool(&self) -> Result<bool> {
-        match self {
-            AttrValue::Concrete(x) => x.as_bool(),
-            _ => Err(anyhow!("{:?} is not a bool", self)),
-        }
+    pub fn resolve_one_level(self, variables: &HashMap<VarName, AttrValue>) -> AttrValue {
+        self.into_iter()
+            .flat_map(|entry| match entry {
+                StringOrVarRef::VarRef(var_name) => match variables.get(&var_name) {
+                    Some(value) => value.0.clone(),
+                    _ => vec![StringOrVarRef::VarRef(var_name)],
+                },
+                _ => vec![entry],
+            })
+            .collect()
     }
 
-    pub fn as_var_ref(&self) -> Result<&VarName> {
-        match self {
-            AttrValue::VarRef(x) => Ok(x),
-            _ => Err(anyhow!("{:?} is not a variable reference", self)),
-        }
+    pub fn resolve_fully(self, variables: &HashMap<VarName, PrimitiveValue>) -> Result<PrimitiveValue> {
+        self.into_iter()
+            .map(|element| match element {
+                StringOrVarRef::Primitive(x) => Ok(x),
+                StringOrVarRef::VarRef(var_name) => variables
+                    .get(&var_name)
+                    .cloned()
+                    .with_context(|| format!("Unknown variable '{}' referenced", var_name)),
+            })
+            .collect()
     }
 
-    /// parses the value, trying to turn it into VarRef,
-    /// a number and a boolean first, before deciding that it is a string.
-    pub fn parse_string(s: String) -> Self {
-        lazy_static! {
-            static ref VAR_REF_PATTERN: Regex = Regex::new("\\{\\{(.*?)\\}\\}").unwrap();
-        };
+    // TODO this could be a fancy Iterator implementation, ig
+    pub fn parse_string(s: &str) -> AttrValue {
+        let mut elements = Vec::new();
 
-        let pattern: &Regex = &*VAR_REF_PATTERN;
-        if let Some(match_range) = pattern.find(&s) {
-            if match_range.start() == 0 && match_range.end() == s.len() {
-                // we can unwrap here, as we just verified that there is a valid match already
-                let ref_name = VAR_REF_PATTERN.captures(&s).and_then(|cap| cap.get(1)).unwrap().as_str();
-                AttrValue::VarRef(VarName(ref_name.to_owned()))
+        let mut cur_word = "".to_owned();
+        let mut cur_varref: Option<String> = None;
+        let mut curly_count = 0;
+        for c in s.chars() {
+            if let Some(ref mut varref) = cur_varref {
+                if c == '}' {
+                    curly_count -= 1;
+                    if curly_count == 0 {
+                        elements.push(StringOrVarRef::VarRef(VarName(std::mem::take(varref))));
+                        cur_varref = None
+                    }
+                } else {
+                    curly_count = 2;
+                    varref.push(c);
+                }
             } else {
-                AttrValue::StringWithVarRefs(StringWithVarRefs::parse_string(&s))
+                if c == '{' {
+                    curly_count += 1;
+                    if curly_count == 2 {
+                        if !cur_word.is_empty() {
+                            elements.push(StringOrVarRef::primitive(std::mem::take(&mut cur_word)));
+                        }
+                        cur_varref = Some(String::new())
+                    }
+                } else {
+                    cur_word.push(c);
+                }
             }
-        } else {
-            AttrValue::Concrete(PrimitiveValue::from_string(s))
         }
-    }
-}
-impl From<PrimitiveValue> for AttrValue {
-    fn from(value: PrimitiveValue) -> Self {
-        AttrValue::Concrete(value)
+        if let Some(unfinished_varref) = cur_varref.take() {
+            elements.push(StringOrVarRef::primitive(unfinished_varref));
+        } else if !cur_word.is_empty() {
+            elements.push(StringOrVarRef::primitive(cur_word.to_owned()));
+        }
+        AttrValue(elements)
     }
 }
 
-#[cfg(test)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum StringOrVarRef {
+    Primitive(PrimitiveValue),
+    VarRef(VarName),
+}
+
+impl StringOrVarRef {
+    pub fn primitive(s: String) -> Self {
+        StringOrVarRef::Primitive(PrimitiveValue::from_string(s))
+    }
+
+    pub fn as_var_ref(&self) -> Option<&VarName> {
+        match self {
+            StringOrVarRef::VarRef(x) => Some(&x),
+            _ => None,
+        }
+    }
+
+    pub fn as_primitive(&self) -> Option<&PrimitiveValue> {
+        match self {
+            StringOrVarRef::Primitive(x) => Some(&x),
+            _ => None,
+        }
+    }
+}
+
+#[cfg(Test)]
 mod test {
-    use super::*;
     use pretty_assertions::assert_eq;
     #[test]
-    fn test_parse_concrete_attr_value() {
+    fn test_parse_string_or_var_ref_list() {
+        let input = "{{foo}}{{bar}}baz{{bat}}quok{{test}}";
+        let output = parse_string_with_var_refs(input);
         assert_eq!(
-            AttrValue::Concrete(PrimitiveValue::from_string("foo".to_owned())),
-            AttrValue::parse_string("foo".to_owned())
-        );
-    }
-    #[test]
-    fn test_parse_var_ref_attr_value() {
-        assert_eq!(
-            AttrValue::VarRef(VarName("foo".to_owned())),
-            AttrValue::parse_string("{{foo}}".to_owned())
-        );
+            output,
+            vec![
+                StringOrVarRef::VarRef("foo".to_owned()),
+                StringOrVarRef::VarRef("bar".to_owned()),
+                StringOrVarRef::String("baz".to_owned()),
+                StringOrVarRef::VarRef("bat".to_owned()),
+                StringOrVarRef::String("quok".to_owned()),
+                StringOrVarRef::VarRef("test".to_owned()),
+            ],
+        )
     }
     #[test]
     fn test_parse_string_with_var_refs_attr_value() {
         assert_eq!(
-            AttrValue::StringWithVarRefs(
+            AttrValue(
                 vec![
                     StringOrVarRef::VarRef(VarName("var".to_owned())),
                     StringOrVarRef::primitive("something".to_owned())
                 ]
                 .into()
             ),
-            AttrValue::parse_string("{{var}}something".to_owned())
+            AttrValue::parse_string("{{var}}something")
         );
     }
 }

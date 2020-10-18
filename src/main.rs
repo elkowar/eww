@@ -1,4 +1,5 @@
 #![feature(trace_macros)]
+#![feature(slice_concat_trait)]
 #![feature(result_cloned)]
 #![feature(iterator_fold_self)]
 #![feature(try_blocks)]
@@ -88,10 +89,10 @@ pub enum OptAction {
     OpenWindow {
         window_name: config::WindowName,
 
-        #[structopt(short, long, help="The position of the window, where it should open.")]
+        #[structopt(short, long, help = "The position of the window, where it should open.")]
         pos: Option<util::Coords>,
 
-        #[structopt(short, long, help="The size of the window to open")]
+        #[structopt(short, long, help = "The size of the window to open")]
         size: Option<util::Coords>,
     },
 

@@ -1,11 +1,12 @@
 use anyhow::*;
 use derive_more;
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use std::{convert::TryFrom, fmt};
+use std::{convert::TryFrom, fmt, iter::FromIterator};
 
 use crate::impl_try_from;
 
-#[derive(Clone, PartialEq, Deserialize, Serialize, derive_more::From)]
+#[derive(Clone, PartialEq, Deserialize, Serialize, derive_more::From, Default)]
 pub struct PrimitiveValue(String);
 
 impl fmt::Display for PrimitiveValue {
@@ -16,6 +17,12 @@ impl fmt::Display for PrimitiveValue {
 impl fmt::Debug for PrimitiveValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "\"{}\"", self)
+    }
+}
+
+impl FromIterator<PrimitiveValue> for PrimitiveValue {
+    fn from_iter<T: IntoIterator<Item = PrimitiveValue>>(iter: T) -> Self {
+        PrimitiveValue(iter.into_iter().join(""))
     }
 }
 
