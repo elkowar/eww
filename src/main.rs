@@ -7,6 +7,7 @@
 extern crate gio;
 extern crate gtk;
 
+use crate::value::{PrimitiveValue, VarName};
 use anyhow::*;
 use eww_state::*;
 use log;
@@ -19,7 +20,6 @@ use std::{
     path::{Path, PathBuf},
 };
 use structopt::StructOpt;
-use value::{PrimitiveValue, VarName};
 
 pub mod app;
 pub mod config;
@@ -103,6 +103,9 @@ pub enum OptAction {
 
     #[structopt(name = "state", help = "Print the current eww-state")]
     ShowState,
+
+    #[structopt(name = "debug", help = "Print out the widget structure as seen by eww")]
+    ShowDebug,
 }
 
 impl OptAction {
@@ -115,6 +118,10 @@ impl OptAction {
             OptAction::ShowState => {
                 let (send, recv) = crossbeam_channel::unbounded();
                 (app::EwwCommand::PrintState(send), Some(recv))
+            }
+            OptAction::ShowDebug => {
+                let (send, recv) = crossbeam_channel::unbounded();
+                (app::EwwCommand::PrintDebug(send), Some(recv))
             }
         }
     }

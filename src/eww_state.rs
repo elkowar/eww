@@ -1,5 +1,9 @@
-use crate::{config::WindowName, value::VarName};
+use crate::{
+    config::WindowName,
+    value::{self, AttrName, VarName},
+};
 use anyhow::*;
+use itertools::Itertools;
 use std::{collections::HashMap, process::Command, sync::Arc};
 
 use crate::value::{AttrValue, PrimitiveValue};
@@ -7,9 +11,10 @@ use crate::value::{AttrValue, PrimitiveValue};
 /// Handler that get's executed to apply the necessary parts of the eww state to
 /// a gtk widget. These are created and initialized in EwwState::resolve.
 pub struct StateChangeHandler {
-    func: Box<dyn Fn(HashMap<String, PrimitiveValue>) -> Result<()> + 'static>,
-    constant_values: HashMap<String, PrimitiveValue>,
-    unresolved_attrs: HashMap<String, VarName>,
+    func: Box<dyn Fn(HashMap<AttrName, PrimitiveValue>) -> Result<()> + 'static>,
+    constant_values: HashMap<AttrName, PrimitiveValue>,
+    unresolved_attrs: HashMap<AttrName, VarName>,
+    string_with_varrefs_resolvers: HashMap<AttrName, Box<dyn Fn(&HashMap<VarName, PrimitiveValue>) -> PrimitiveValue>>,
 }
 
 impl StateChangeHandler {
@@ -23,6 +28,9 @@ impl StateChangeHandler {
                 // TODO provide context here, including line numbers
                 .with_context(|| format!("Unknown variable '{}' was referenced", var_ref))?;
             all_resolved_attrs.insert(attr_name.to_owned(), resolved.clone());
+        }
+        for (attr_name, resolver) in self.string_with_varrefs_resolvers.iter() {
+            all_resolved_attrs.insert(attr_name.to_owned(), resolver(state));
         }
 
         let result: Result<_> = (self.func)(all_resolved_attrs);
@@ -117,21 +125,35 @@ impl EwwState {
         &'a self,
         local_env: &'a HashMap<VarName, AttrValue>,
         value: &'a AttrValue,
-    ) -> Result<&'a PrimitiveValue> {
+    ) -> Result<PrimitiveValue> {
         match value {
-            AttrValue::Concrete(primitive) => Ok(&primitive),
+            AttrValue::Concrete(primitive) => Ok(primitive.clone()),
             AttrValue::VarRef(var_name) => match local_env.get(var_name) {
                 // look up if variables are found in the local env, and resolve as far as possible
-                Some(AttrValue::Concrete(primitive)) => Ok(primitive),
+                Some(AttrValue::Concrete(primitive)) => Ok(primitive.clone()),
                 Some(AttrValue::VarRef(var_name)) => self
                     .variables_state
                     .get(var_name)
+                    .cloned()
                     .ok_or_else(|| anyhow!("Unknown variable '{}' referenced", var_name)),
+                Some(AttrValue::StringWithVarRefs(content)) => content
+                    .iter()
+                    .map(|x| x.clone().to_attr_value())
+                    .map(|value| self.resolve_once(local_env, &value))
+                    .fold_results(String::new(), |acc, cur| format!("{}{}", acc, cur))
+                    .map(PrimitiveValue::from_string),
                 None => self
                     .variables_state
                     .get(var_name)
+                    .cloned()
                     .ok_or_else(|| anyhow!("Unknown variable '{}' referenced", var_name)),
             },
+            AttrValue::StringWithVarRefs(content) => content
+                .iter()
+                .map(|x| x.clone().to_attr_value())
+                .map(|value| self.resolve_once(local_env, &value))
+                .fold_results(String::new(), |acc, cur| format!("{}{}", acc, cur))
+                .map(PrimitiveValue::from_string),
         }
     }
 
@@ -140,11 +162,11 @@ impl EwwState {
     /// nesting var_refs from local-env. This means that no elements in the
     /// local_env may be var-refs into the local_env again, but only into the
     /// global state.
-    pub fn resolve<F: Fn(HashMap<String, PrimitiveValue>) -> Result<()> + 'static + Clone>(
+    pub fn resolve<F: Fn(HashMap<AttrName, PrimitiveValue>) -> Result<()> + 'static + Clone>(
         &mut self,
         window_name: &WindowName,
         local_env: &HashMap<VarName, AttrValue>,
-        mut needed_attributes: HashMap<String, AttrValue>,
+        mut needed_attributes: HashMap<AttrName, AttrValue>,
         set_value: F,
     ) {
         // Resolve first collects all variable references and creates a set of
@@ -159,8 +181,11 @@ impl EwwState {
                 .entry(window_name.clone())
                 .or_insert_with(EwwWindowState::default);
 
+            let mut string_with_varrefs_resolvers: HashMap<_, Box<dyn Fn(&HashMap<VarName, PrimitiveValue>) -> PrimitiveValue>> =
+                HashMap::new();
+
             let mut resolved_attrs = HashMap::new();
-            let mut unresolved_attrs: HashMap<String, VarName> = HashMap::new();
+            let mut unresolved_attrs: HashMap<AttrName, VarName> = HashMap::new();
             needed_attributes
                 .drain()
                 .for_each(|(attr_name, attr_value)| match attr_value {
@@ -168,8 +193,19 @@ impl EwwState {
                     AttrValue::Concrete(primitive) => {
                         resolved_attrs.insert(attr_name, primitive);
                     }
+                    AttrValue::StringWithVarRefs(content) => {
+                        let content = content.resolve_one_level(local_env);
+                        let resolver = generate_string_with_var_refs_resolver(content);
+                        string_with_varrefs_resolvers.insert(attr_name, Box::new(resolver));
+                    }
 
                     AttrValue::VarRef(var_name) => match local_env.get(&var_name) {
+                        Some(AttrValue::StringWithVarRefs(content)) => {
+                            let content = content.clone().resolve_one_level(local_env);
+                            let resolver = generate_string_with_var_refs_resolver(content);
+                            string_with_varrefs_resolvers.insert(attr_name, Box::new(resolver));
+                        }
+
                         // look up if variables are found in the local env, and resolve as far as possible
                         Some(AttrValue::Concrete(concrete_from_local)) => {
                             resolved_attrs.insert(attr_name, concrete_from_local.clone());
@@ -185,12 +221,13 @@ impl EwwState {
                     },
                 });
 
-            if unresolved_attrs.is_empty() {
+            if unresolved_attrs.is_empty() && string_with_varrefs_resolvers.is_empty() {
                 // if there are no unresolved variables, we can set the value directly
                 set_value(resolved_attrs)?;
             } else {
                 // otherwise register and execute the handler
                 let handler = StateChangeHandler {
+                    string_with_varrefs_resolvers,
                     func: Box::new(set_value.clone()),
                     constant_values: resolved_attrs,
                     unresolved_attrs,
@@ -202,6 +239,26 @@ impl EwwState {
         if let Err(e) = result {
             eprintln!("Error resolving values: {:?}", e);
         }
+    }
+}
+
+pub fn generate_string_with_var_refs_resolver(
+    string_with_varrefs: value::StringWithVarRefs,
+) -> impl Fn(&HashMap<VarName, PrimitiveValue>) -> PrimitiveValue {
+    move |variables: &HashMap<VarName, PrimitiveValue>| {
+        PrimitiveValue::from_string(
+            string_with_varrefs
+                .iter()
+                .map(|entry| match entry {
+                    value::StringOrVarRef::VarRef(var_name) => variables
+                        .get(var_name)
+                        .expect(&format!("Impossible state: unknown variable {}.\n{:?}", var_name, variables))
+                        .clone()
+                        .into_inner(),
+                    value::StringOrVarRef::Primitive(s) => s.to_string(),
+                })
+                .join(""),
+        )
     }
 }
 
