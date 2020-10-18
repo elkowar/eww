@@ -84,7 +84,7 @@ pub enum OptAction {
     #[structopt(name = "update", help = "update the value of a variable, in a running eww instance")]
     Update { fieldname: VarName, value: PrimitiveValue },
 
-    #[structopt(name = "open", help = "opens a window")]
+    #[structopt(name = "open", help = "open a window")]
     OpenWindow {
         window_name: config::WindowName,
 
