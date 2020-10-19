@@ -99,16 +99,6 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
         }
     });
 }
-/// @widget color button
-fn build_gtk_colorButton(bargs: &mut BuilderArgs) -> Result<gtk::ColorButton> {
-    let gtk_widget = gtk::ColorButtonBuilder::new().build();
-    resolve_block!(bargs, gtk_widget, {
-        // @prop use-alpha - bool to wether or not use alpha
-        prop(alpha: as_bool) {gtk_widget.set_use_alpha(alpha);}
-    });
-
-    Ok(gtk_widget)
-}
 
 /// @widget !container
 pub(super) fn resolve_container_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Container) {
@@ -155,6 +145,17 @@ pub(super) fn resolve_orientable_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk
 }
 
 // concrete widgets
+
+/// @widget color button
+fn build_gtk_color_button(bargs: &mut BuilderArgs) -> Result<gtk::ColorButton> {
+    let gtk_widget = gtk::ColorButtonBuilder::new().build();
+    resolve_block!(bargs, gtk_widget, {
+        // @prop use-alpha - bool to wether or not use alpha
+        prop(alpha: as_bool) {gtk_widget.set_use_alpha(alpha);}
+    });
+
+    Ok(gtk_widget)
+}
 
 /// @widget scale extends range
 /// @desc a slider.
