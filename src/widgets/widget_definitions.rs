@@ -237,7 +237,7 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
     let gtk_widget = gtk::Label::new(None);
     resolve_block!(bargs, gtk_widget, {
         // @prop - the text to display
-        prop(text: as_string) { gtk_widget.set_text(dbg!(&text)) },
+        prop(text: as_string) { gtk_widget.set_text(&text) },
     });
     Ok(gtk_widget)
 }
