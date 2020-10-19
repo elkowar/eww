@@ -104,7 +104,7 @@ impl App {
         pos: Option<util::Coords>,
         size: Option<util::Coords>,
     ) -> Result<()> {
-        // remove and close existing window of the same type
+        // remove and close existing window with the same name
         let _ = self.close_window(window_name);
 
         let mut window_def = self
@@ -131,18 +131,22 @@ impl App {
         // run on_screen_changed to set the visual correctly initially.
         on_screen_changed(&window, None);
         window.connect_screen_changed(on_screen_changed);
-
-        let empty_local_state = HashMap::new();
+        let mut almost_empty_local_state = HashMap::new();
+        almost_empty_local_state.insert(
+            VarName("window_name".to_string()),
+            crate::value::AttrValue::from_primitive(window_name.to_string()),
+        );
         let root_widget = &widgets::widget_use_to_gtk_widget(
             &self.eww_config.get_widgets(),
             &mut self.eww_state,
             window_name,
-            &empty_local_state,
+            &almost_empty_local_state,
             &window_def.widget,
         )?;
         root_widget.get_style_context().add_class(&window_name.to_string());
         window.add(root_widget);
 
+        // REAL SHIT 0_o :elkowar_with_a_looking_glass:
         window.show_all();
 
         let gdk_window = window.get_window().context("couldn't get gdk window from gtk window")?;
