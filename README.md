@@ -7,6 +7,7 @@
    -  [Prerequisites](#org727b3da)
    -  [Installation](#orgdd31739)
 -  [Usage](#org4a9b3c6)
+-  [Contributing](#org12345)
 
 <a id="org4ab08b6"></a>
 
@@ -89,3 +90,11 @@ then copy the built binary from `./target/release` to anywhere in `$PATH` (examp
 # Usage
 
 Create a Config and then just do `eww`!
+
+<a id="org12345"></a>
+
+# Contributing
+
+If you wan't to contribute, like adding new widgets, features or subcommands, you should definitly do so.
+
+Fork this repo install dependencies ([Prerequisites](#org727b3da)) smash your head on the keyboard from frustration and open a pull request, once you're finished.
