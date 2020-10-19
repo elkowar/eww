@@ -22,6 +22,7 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<Option<gtk
         "literal" => build_gtk_literal(bargs)?.upcast(),
         "input" => build_gtk_input(bargs)?.upcast(),
         "calendar" => build_gtk_calendar(bargs)?.upcast(),
+        "colorButton" => build_gtk_colorButton(bargs)?.upcast(),
         _ => return Ok(None),
     };
     Ok(Some(gtk_widget))
@@ -97,6 +98,16 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
             old_id.map(|id| gtk_widget.disconnect(id));
         }
     });
+}
+/// @widget color button
+fn build_gtk_colorButton(bargs: &mut BuilderArgs) -> Result<gtk::ColorButton> {
+    let gtk_widget = gtk::ColorButtonBuilder::new().build();
+    resolve_block!(bargs, gtk_widget, {
+        // @prop use-alpha - bool to wether or not use alpha
+        prop(alpha: as_bool) {gtk_widget.set_use_alpha(alpha);}
+    });
+
+    Ok(gtk_widget)
 }
 
 /// @widget !container
