@@ -149,8 +149,10 @@ pub(super) fn resolve_orientable_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk
 fn build_gtk_expander(bargs: &mut BuilderArgs) -> Result<gtk::Expander> {
     let gtk_widget = gtk::Expander::new(None);
     resolve_block!(bargs, gtk_widget, {
-        // @prop label - label of the expander
-        prop(label: as_string) { gtk_widget.set_label(Some(&label)); }
+    // @prop name - name of the expander
+    prop(name: as_string) {gtk_widget.set_label(Some(&name));},
+    // @prop expanded - sets if the tree is expanded
+    prop(expanded: as_bool) { gtk_widget.set_expanded(expanded); }
     });
     Ok(gtk_widget)
 }
