@@ -148,12 +148,12 @@ impl EwwState {
         &mut self,
         window_name: &WindowName,
         local_env: &HashMap<VarName, AttrValue>,
-        attributes: HashMap<AttrName, AttrValue>,
+        required_attributes: HashMap<AttrName, AttrValue>,
         set_value: F,
     ) {
         let handler = StateChangeHandler {
             func: Box::new(set_value),
-            unresolved_values: attributes
+            unresolved_values: required_attributes
                 .into_iter()
                 .map(|(attr_name, attr_value)| (attr_name, attr_value.resolve_one_level(local_env)))
                 .collect(),
