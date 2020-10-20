@@ -21,6 +21,7 @@ use std::{
     path::{Path, PathBuf},
 };
 use structopt::StructOpt;
+use value::Coords;
 
 pub mod app;
 pub mod config;
@@ -90,10 +91,10 @@ pub enum OptAction {
         window_name: config::WindowName,
 
         #[structopt(short, long, help = "The position of the window, where it should open.")]
-        pos: Option<util::Coords>,
+        pos: Option<Coords>,
 
         #[structopt(short, long, help = "The size of the window to open")]
-        size: Option<util::Coords>,
+        size: Option<Coords>,
     },
 
     #[structopt(name = "close", help = "close the window with the given name")]

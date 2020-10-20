@@ -1,13 +1,12 @@
 use crate::{
     util,
-    value::{PrimitiveValue, VarName},
+    value::{Coords, PrimitiveValue, VarName},
 };
 use anyhow::*;
 use derive_more;
 use element::*;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt};
-use util::Coords;
 use xml_ext::*;
 
 pub mod element;
@@ -204,6 +203,7 @@ pub struct EwwWindowDefinition {
     pub position: Coords,
     pub size: Coords,
     pub stacking: WindowStacking,
+    pub screen_number: Option<i32>,
     pub widget: WidgetUse,
 }
 
@@ -212,16 +212,12 @@ impl EwwWindowDefinition {
         ensure_xml_tag_is!(xml, "window");
 
         let size_node = xml.child("size")?;
-        let size = Coords(size_node.attr("x")?.parse()?, size_node.attr("y")?.parse()?);
+        let size = Coords::from_strs(size_node.attr("x")?, size_node.attr("y")?)?;
         let pos_node = xml.child("pos")?;
-        let position = Coords(pos_node.attr("x")?.parse()?, pos_node.attr("y")?.parse()?);
+        let position = Coords::from_strs(pos_node.attr("x")?, pos_node.attr("y")?)?;
 
-        let stacking = xml
-            .attr("stacking")
-            .ok()
-            .map(|stacking| stacking.parse::<WindowStacking>())
-            .transpose()?
-            .unwrap_or_else(WindowStacking::default);
+        let stacking = xml.attr("stacking").ok().map(|x| x.parse()).transpose()?.unwrap_or_default();
+        let screen_number = xml.attr("screen").ok().map(|x| x.parse()).transpose()?;
 
         let widget = WidgetUse::from_xml_node(xml.child("widget")?.only_child()?)?;
         Ok(EwwWindowDefinition {
@@ -229,6 +225,7 @@ impl EwwWindowDefinition {
             size,
             widget,
             stacking,
+            screen_number,
         })
     }
 }

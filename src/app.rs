@@ -4,8 +4,7 @@ use crate::{
     eww_state,
     script_var_handler::*,
     util,
-    util::Coords,
-    value::{PrimitiveValue, VarName},
+    value::{Coords, NumWithUnit, PrimitiveValue, VarName},
     widgets,
 };
 use anyhow::*;
@@ -14,6 +13,7 @@ use debug_stub_derive::*;
 use gdk::WindowExt;
 use gtk::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt};
 use itertools::Itertools;
+
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -98,12 +98,7 @@ impl App {
         Ok(())
     }
 
-    fn open_window(
-        &mut self,
-        window_name: &config::WindowName,
-        pos: Option<util::Coords>,
-        size: Option<util::Coords>,
-    ) -> Result<()> {
+    fn open_window(&mut self, window_name: &config::WindowName, pos: Option<Coords>, size: Option<Coords>) -> Result<()> {
         // remove and close existing window with the same name
         let _ = self.close_window(window_name);
 
@@ -114,8 +109,17 @@ impl App {
             .context(format!("No window named '{}' defined", window_name))?
             .clone();
 
+        let display = gdk::Display::get_default().expect("could not get default display");
+        let screen_number = &window_def
+            .screen_number
+            .unwrap_or(display.get_default_screen().get_primary_monitor());
+
+        let monitor_geometry = display.get_default_screen().get_monitor_geometry(*screen_number);
+
         window_def.position = pos.unwrap_or_else(|| window_def.position);
         window_def.size = size.unwrap_or_else(|| window_def.size);
+
+        let actual_window_rect = get_window_rectangle_in_screen(monitor_geometry, window_def.position, window_def.size);
 
         let window = gtk::Window::new(gtk::WindowType::Popup);
         window.set_title(&format!("Eww - {}", window_name));
@@ -123,8 +127,8 @@ impl App {
         window.set_wmclass(&wm_class_name, &wm_class_name);
         window.set_type_hint(gdk::WindowTypeHint::Dock);
         window.set_position(gtk::WindowPosition::Center);
-        window.set_default_size(window_def.size.0, window_def.size.1);
-        window.set_size_request(window_def.size.0, window_def.size.1);
+        window.set_default_size(actual_window_rect.width, actual_window_rect.height);
+        window.set_size_request(actual_window_rect.width, actual_window_rect.height);
         window.set_decorated(false);
         window.set_resizable(false);
 
@@ -151,7 +155,7 @@ impl App {
 
         let gdk_window = window.get_window().context("couldn't get gdk window from gtk window")?;
         gdk_window.set_override_redirect(true);
-        gdk_window.move_(window_def.position.0, window_def.position.1);
+        gdk_window.move_(actual_window_rect.x, actual_window_rect.y);
         gdk_window.show();
 
         if window_def.stacking == WindowStacking::Foreground {
@@ -207,4 +211,26 @@ fn on_screen_changed(window: &gtk::Window, _old_screen: Option<&gdk::Screen>) {
             .or_else(|| screen.get_system_visual())
     });
     window.set_visual(visual.as_ref());
+}
+
+/// Calculate the window rectangle given the configured window [`pos`] and [`size`], which might be relative to the screen size.
+fn get_window_rectangle_in_screen(screen_rect: gdk::Rectangle, pos: Coords, size: Coords) -> gdk::Rectangle {
+    gdk::Rectangle {
+        x: match pos.x {
+            NumWithUnit::Percent(n) => (screen_rect.width as f64 / 100.0).floor() as i32 * n,
+            NumWithUnit::Pixels(n) => screen_rect.x + n,
+        },
+        y: match pos.y {
+            NumWithUnit::Percent(n) => (screen_rect.height as f64 / 100.0).floor() as i32 * n,
+            NumWithUnit::Pixels(n) => screen_rect.y + n,
+        },
+        width: match size.x {
+            NumWithUnit::Percent(n) => (screen_rect.width as f64 / 100.0).floor() as i32 * n,
+            NumWithUnit::Pixels(n) => n,
+        },
+        height: match size.y {
+            NumWithUnit::Percent(n) => (screen_rect.height as f64 / 100.0).floor() as i32 * n,
+            NumWithUnit::Pixels(n) => n,
+        },
+    }
 }

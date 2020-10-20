@@ -4,8 +4,10 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 pub mod attr_value;
+pub mod coords;
 pub mod primitive;
 pub use attr_value::*;
+pub use coords::*;
 pub use primitive::*;
 
 /// The name of a variable
