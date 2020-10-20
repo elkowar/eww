@@ -260,7 +260,7 @@ fn build_gtk_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
         // @prop orientation - orientation of the box. possible values: $orientation
         prop(orientation: as_string) { gtk_widget.set_orientation(parse_orientation(&orientation)?) },
         // @prop space-evenly - space the widgets evenly.
-        prop(space_evenly: as_bool = false) { gtk_widget.set_homogeneous(space_evenly) },
+        prop(space_evenly: as_bool = true) { gtk_widget.set_homogeneous(space_evenly) },
     });
     Ok(gtk_widget)
 }
