@@ -22,7 +22,7 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<Option<gtk
         "literal" => build_gtk_literal(bargs)?.upcast(),
         "input" => build_gtk_input(bargs)?.upcast(),
         "calendar" => build_gtk_calendar(bargs)?.upcast(),
-        "colorButton" => build_gtk_color_button(bargs)?.upcast(),
+        "color-button" => build_gtk_color_button(bargs)?.upcast(),
         "expander" => build_gtk_expander(bargs)?.upcast(),
         _ => return Ok(None),
     };
