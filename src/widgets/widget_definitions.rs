@@ -149,7 +149,7 @@ pub(super) fn resolve_orientable_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk
 
 /// @widget expander widget
 fn build_gtk_expander(bargs: &mut BuilderArgs) -> Result<gtk::Expander> {
-    let gtk_widget = gtk::Expander::new(Some("Placeholder text, don't forget to set the property 'name'"));
+    let gtk_widget = gtk::Expander::new(None);
     resolve_block!(bargs, gtk_widget, {
     // @prop name - name of the expander
     prop(name: as_string) {gtk_widget.set_label(Some(&name));},
