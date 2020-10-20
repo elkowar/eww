@@ -1,10 +1,9 @@
 use super::{run_command, BuilderArgs};
 use crate::{config, eww_state, resolve_block, value::AttrValue};
 use anyhow::*;
+use gdk_pixbuf;
 use gtk::{prelude::*, ImageExt};
 use std::{cell::RefCell, rc::Rc};
-
-use gdk_pixbuf;
 
 // TODO figure out how to
 // TODO https://developer.gnome.org/gtk3/stable/GtkFixed.html
@@ -18,7 +17,6 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<Option<gtk
         "image" => build_gtk_image(bargs)?.upcast(),
         "button" => build_gtk_button(bargs)?.upcast(),
         "label" => build_gtk_label(bargs)?.upcast(),
-        "text" => build_gtk_text(bargs)?.upcast(),
         "literal" => build_gtk_literal(bargs)?.upcast(),
         "input" => build_gtk_input(bargs)?.upcast(),
         "calendar" => build_gtk_calendar(bargs)?.upcast(),
@@ -270,16 +268,10 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
     let gtk_widget = gtk::Label::new(None);
     resolve_block!(bargs, gtk_widget, {
         // @prop - the text to display
-        prop(text: as_string) { gtk_widget.set_text(&text) },
+        prop(text: as_string, limit_width: as_i32 = i32::MAX) {
+            gtk_widget.set_text(&text.chars().take(limit_width as usize).collect::<String>())
+        },
     });
-    Ok(gtk_widget)
-}
-
-/// @widget text
-fn build_gtk_text(_bargs: &mut BuilderArgs) -> Result<gtk::Box> {
-    let gtk_widget = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-    gtk_widget.set_halign(gtk::Align::Center);
-    gtk_widget.set_homogeneous(false);
     Ok(gtk_widget)
 }
 
