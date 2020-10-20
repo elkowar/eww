@@ -23,6 +23,7 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<Option<gtk
         "input" => build_gtk_input(bargs)?.upcast(),
         "calendar" => build_gtk_calendar(bargs)?.upcast(),
         "colorButton" => build_gtk_color_button(bargs)?.upcast(),
+        "expander" => build_gtk_expander(bargs)?.upcast(),
         _ => return Ok(None),
     };
     Ok(Some(gtk_widget))
@@ -146,12 +147,31 @@ pub(super) fn resolve_orientable_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk
 
 // concrete widgets
 
+/// @widget expander widget
+fn build_gtk_expander(bargs: &mut BuilderArgs) -> Result<gtk::Expander> {
+    let gtk_widget = gtk::Expander::new(Some("Placeholder text, don't forget to set the property 'name'"));
+    resolve_block!(bargs, gtk_widget, {
+    // @prop label - label of the expander
+    prop(label: as_string) {gtk_widget.set_label(Some(&label));}
+    });
+    Ok(gtk_widget)
+}
 /// @widget color button
 fn build_gtk_color_button(bargs: &mut BuilderArgs) -> Result<gtk::ColorButton> {
     let gtk_widget = gtk::ColorButtonBuilder::new().build();
+    let on_change_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
     resolve_block!(bargs, gtk_widget, {
         // @prop use-alpha - bool to wether or not use alpha
-        prop(use_alpha: as_bool) {gtk_widget.set_use_alpha(alpha);}
+        prop(use_alpha: as_bool) {gtk_widget.set_use_alpha(use_alpha);},
+        // @prop onchange - runs the code when the color was selected
+        prop(onchange: as_string) {
+            let old_id = on_change_handler_id.replace(Some(
+                gtk_widget.connect_color_set(move |gtk_widget| {
+                    run_command(&onchange, gtk_widget.get_rgba());
+                })
+            ));
+            old_id.map(|id| gtk_widget.disconnect(id));
+        }
     });
 
     Ok(gtk_widget)
