@@ -154,9 +154,7 @@ fn build_gtk_expander(bargs: &mut BuilderArgs) -> Result<gtk::Expander> {
     // @prop name - name of the expander
     prop(name: as_string) {gtk_widget.set_label(Some(&name));},
     // @prop expanded - sets if the tree is expanded
-    prop(expanded: as_bool) {
-        gtk_widget.set_expanded(expanded);
-    }
+    prop(expanded: as_bool) { gtk_widget.set_expanded(expanded); }
     });
     Ok(gtk_widget)
 }
