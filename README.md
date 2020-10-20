@@ -95,6 +95,6 @@ Create a Config and then just do `eww`!
 
 # Contributing
 
-If you wan't to contribute, like adding new widgets, features or subcommands, you should definitly do so.
+If you want to contribute, like adding new widgets, features or subcommands, you should definitly do so.
 
 Fork this repo install dependencies ([Prerequisites](#org727b3da)) smash your head on the keyboard from frustration and open a pull request, once you're finished.
