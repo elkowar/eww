@@ -97,4 +97,8 @@ Create a Config and then just do `eww`!
 
 If you want to contribute, like adding new widgets, features or subcommands, you should definitly do so.
 
-Fork this repo install dependencies ([Prerequisites](#org727b3da)) smash your head on the keyboard from frustration and open a pull request, once you're finished.
+## Steps
+1. Fork this repo
+2. install dependencies ([Prerequisites](#org727b3da))
+3. smash your head against the keyboard
+4. open a pull request once you're finished.
