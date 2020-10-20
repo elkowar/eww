@@ -151,7 +151,7 @@ fn build_gtk_color_button(bargs: &mut BuilderArgs) -> Result<gtk::ColorButton> {
     let gtk_widget = gtk::ColorButtonBuilder::new().build();
     resolve_block!(bargs, gtk_widget, {
         // @prop use-alpha - bool to wether or not use alpha
-        prop(use_alpha: as_bool) {gtk_widget.set_use_alpha(alpha);}
+        prop(use_alpha: as_bool) {gtk_widget.set_use_alpha(use_alpha);}
     });
 
     Ok(gtk_widget)
