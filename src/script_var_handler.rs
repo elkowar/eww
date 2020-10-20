@@ -1,15 +1,13 @@
 use std::{
     collections::HashMap,
     io::BufReader,
-    process::{ChildStdout, Stdio},
+    process::{Child, Stdio},
     time::Duration,
 };
 
-use crate::{
-    app, config, eww_state,
-    value::{PrimitiveValue, VarName},
-};
+use crate::{app, config, eww_state, util, value::PrimitiveValue};
 use anyhow::*;
+use app::EwwCommand;
 use glib;
 use itertools::Itertools;
 use scheduled_executor;
@@ -17,14 +15,14 @@ use std::io::BufRead;
 
 /// Handler that manages running and updating [ScriptVar]s
 pub struct ScriptVarHandler {
-    evt_send: glib::Sender<app::EwwCommand>,
+    evt_send: glib::Sender<EwwCommand>,
     pub poll_handles: Vec<scheduled_executor::executor::TaskHandle>,
     pub poll_executor: scheduled_executor::CoreExecutor,
     pub tail_handler_thread: Option<stoppable_thread::StoppableHandle<()>>,
 }
 
 impl ScriptVarHandler {
-    pub fn new(evt_send: glib::Sender<app::EwwCommand>) -> Result<Self> {
+    pub fn new(evt_send: glib::Sender<EwwCommand>) -> Result<Self> {
         log::info!("initializing handler for poll script vars");
         Ok(ScriptVarHandler {
             evt_send,
@@ -73,11 +71,11 @@ impl ScriptVarHandler {
                     Duration::from_secs(0),
                     var.interval,
                     glib::clone!(@strong var, @strong evt_send => move |_| {
-                        let result = eww_state::run_command(&var.command)
-                            .and_then(|output| Ok(evt_send.send(app::EwwCommand::UpdateVar(var.name.clone(), output))?));
-                        if let Err(e) = result {
-                            eprintln!("Error while running script-var command: {:?}", e);
-                        }
+                        let result: Result<_> = try {
+                            let output = eww_state::run_command(&var.command)?;
+                            evt_send.send(app::EwwCommand::UpdateVar(var.name.clone(), output))?;
+                        };
+                        util::print_result_err("while running script-var command", &result);
                     }),
                 )
             })
@@ -90,13 +88,18 @@ impl ScriptVarHandler {
         log::info!("initializing handler for tail script vars");
         let mut sources = popol::Sources::with_capacity(tail_script_vars.len());
 
-        let mut command_out_readers: HashMap<VarName, BufReader<_>> = tail_script_vars
-            .iter()
-            .filter_map(|var| Some((var.name.clone(), try_run_command(&var.command)?)))
-            .collect();
+        let mut command_children = Vec::new();
+        let mut command_out_handles = HashMap::new();
 
-        for (var_name, reader) in command_out_readers.iter() {
-            sources.register(var_name.clone(), reader.get_ref(), popol::interest::READ);
+        for var in tail_script_vars {
+            if let Some(mut child) = try_run_command(&var.command) {
+                command_out_handles.insert(var.name.clone(), BufReader::new(child.stdout.take().unwrap()));
+                command_children.push(child);
+            }
+        }
+
+        for (var_name, handle) in command_out_handles.iter() {
+            sources.register(var_name.clone(), handle.get_ref(), popol::interest::READ);
         }
 
         let mut events = popol::Events::with_capacity(tail_script_vars.len());
@@ -108,24 +111,26 @@ impl ScriptVarHandler {
                     sources.wait(&mut events)?;
                     for (var_name, event) in events.iter() {
                         if event.readable {
-                            let handle = command_out_readers
+                            let handle = command_out_handles
                                 .get_mut(var_name)
                                 .with_context(|| format!("No command output handle found for variable '{}'", var_name))?;
                             let mut buffer = String::new();
                             handle.read_line(&mut buffer)?;
-                            evt_send.send(app::EwwCommand::UpdateVar(
+                            evt_send.send(EwwCommand::UpdateVar(
                                 var_name.clone(),
-                                PrimitiveValue::from_string(buffer),
+                                PrimitiveValue::from_string(buffer.trim_matches('\n').to_owned()),
                             ))?;
                         } else if event.hangup {
-                            command_out_readers.remove(var_name);
+                            command_out_handles.remove(var_name);
                         }
                     }
                 };
-                if let Err(err) = result {
-                    eprintln!("Error in script-var tail handler thread: {:?}", err);
-                    continue;
-                }
+                util::print_result_err("in script-var tail handler thread", &result);
+            }
+
+            // stop child processes after exit
+            for mut child in command_children {
+                let _ = child.kill();
             }
         });
         self.tail_handler_thread = Some(thread_handle);
@@ -133,21 +138,26 @@ impl ScriptVarHandler {
     }
 }
 
+impl Drop for ScriptVarHandler {
+    fn drop(&mut self) {
+        self.stop();
+    }
+}
+
 /// Run a command in sh, returning its stdout-handle wrapped in a
 /// [`BufReader`]. If running the command fails, will print a warning
 /// and return `None`.
-fn try_run_command(command: &str) -> Option<BufReader<ChildStdout>> {
+fn try_run_command(command: &str) -> Option<Child> {
     let result = std::process::Command::new("sh")
         .arg("-c")
         .arg(command)
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
         .stdin(Stdio::null())
-        .spawn()
-        .map(|mut x| x.stdout.take().unwrap());
+        .spawn();
 
     match result {
-        Ok(stdout) => Some(BufReader::new(stdout)),
+        Ok(handle) => Some(handle),
         Err(err) => {
             eprintln!("WARN: Error running command from script-variable: {:?}", err);
             None
