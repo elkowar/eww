@@ -217,19 +217,19 @@ fn on_screen_changed(window: &gtk::Window, _old_screen: Option<&gdk::Screen>) {
 fn get_window_rectangle_in_screen(screen_rect: gdk::Rectangle, pos: Coords, size: Coords) -> gdk::Rectangle {
     gdk::Rectangle {
         x: match pos.x {
-            NumWithUnit::Percent(n) => (screen_rect.width as f64 / 100.0).floor() as i32 * n,
+            NumWithUnit::Percent(n) => ((screen_rect.width as f64 / 100.0) * n as f64) as i32,
             NumWithUnit::Pixels(n) => screen_rect.x + n,
         },
         y: match pos.y {
-            NumWithUnit::Percent(n) => (screen_rect.height as f64 / 100.0).floor() as i32 * n,
+            NumWithUnit::Percent(n) => ((screen_rect.height as f64 / 100.0) * n as f64) as i32,
             NumWithUnit::Pixels(n) => screen_rect.y + n,
         },
         width: match size.x {
-            NumWithUnit::Percent(n) => (screen_rect.width as f64 / 100.0).floor() as i32 * n,
+            NumWithUnit::Percent(n) => ((screen_rect.width as f64 / 100.0) * n as f64) as i32,
             NumWithUnit::Pixels(n) => n,
         },
         height: match size.y {
-            NumWithUnit::Percent(n) => (screen_rect.height as f64 / 100.0).floor() as i32 * n,
+            NumWithUnit::Percent(n) => ((screen_rect.height as f64 / 100.0) * n as f64) as i32,
             NumWithUnit::Pixels(n) => n,
         },
     }
