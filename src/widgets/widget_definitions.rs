@@ -149,10 +149,10 @@ pub(super) fn resolve_orientable_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk
 
 /// @widget expander widget
 fn build_gtk_expander(bargs: &mut BuilderArgs) -> Result<gtk::Expander> {
-    let gtk_widget = gtk::Expander::new(Some("Placeholder text, don't forget to set the property 'name'"));
+    let gtk_widget = gtk::Expander::new(None);
     resolve_block!(bargs, gtk_widget, {
-    // @prop label - label of the expander
-    prop(label: as_string) {gtk_widget.set_label(Some(&label));}
+        // @prop label - label of the expander
+        prop(label: as_string) { gtk_widget.set_label(Some(&label)); }
     });
     Ok(gtk_widget)
 }
@@ -163,6 +163,7 @@ fn build_gtk_color_button(bargs: &mut BuilderArgs) -> Result<gtk::ColorButton> {
     resolve_block!(bargs, gtk_widget, {
         // @prop use-alpha - bool to wether or not use alpha
         prop(use_alpha: as_bool) {gtk_widget.set_use_alpha(use_alpha);},
+
         // @prop onchange - runs the code when the color was selected
         prop(onchange: as_string) {
             let old_id = on_change_handler_id.replace(Some(
@@ -172,7 +173,6 @@ fn build_gtk_color_button(bargs: &mut BuilderArgs) -> Result<gtk::ColorButton> {
             ));
             old_id.map(|id| gtk_widget.disconnect(id));
         }
-        prop(use_alpha: as_bool) {gtk_widget.set_use_alpha(use_alpha);}
     });
 
     Ok(gtk_widget)
