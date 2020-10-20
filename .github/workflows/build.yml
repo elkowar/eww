@@ -12,8 +12,9 @@ env:
 jobs:
    build:
       runs-on: ubuntu-latest
-
       steps:
+         - name: Install dependencies
+           run: sudo apt-get install pango
          - name: Set up
            uses: actions-rs/toolchain@v1
            with:
