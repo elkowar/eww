@@ -72,10 +72,37 @@ impl fmt::Debug for Coords {
 }
 
 impl Coords {
+    /// parse a string for x and a string for y into a [`Coords`] object.
     pub fn from_strs(x: &str, y: &str) -> Result<Coords> {
         Ok(Coords {
-            x: x.parse()?,
-            y: y.parse()?,
+            x: x.parse().with_context(|| format!("Failed to parse '{}'", x))?,
+            y: y.parse().with_context(|| format!("Failed to parse '{}'", y))?,
         })
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn test_parse_num_with_unit() {
+        assert_eq!(NumWithUnit::Pixels(55), NumWithUnit::from_str("55").unwrap());
+        assert_eq!(NumWithUnit::Pixels(55), NumWithUnit::from_str("55px").unwrap());
+        assert_eq!(NumWithUnit::Percent(55), NumWithUnit::from_str("55%").unwrap());
+        assert!(NumWithUnit::from_str("55pp").is_err());
+    }
+
+    #[test]
+    fn test_parse_coords() {
+        assert_eq!(
+            Coords {
+                x: NumWithUnit::Pixels(50),
+                y: NumWithUnit::Pixels(60)
+            },
+            Coords::from_str("50x60").unwrap()
+        );
+        assert!(Coords::from_str("5060").is_err());
     }
 }

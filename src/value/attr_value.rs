@@ -96,6 +96,10 @@ impl AttrValue {
                         cur_varref = Some(String::new())
                     }
                 } else {
+                    if curly_count == 1 {
+                        cur_word.push('{');
+                    }
+                    curly_count = 0;
                     cur_word.push(c);
                 }
             }
@@ -144,23 +148,24 @@ impl AttrValueElement {
     }
 }
 
-#[cfg(Test)]
+#[cfg(test)]
 mod test {
+    use super::*;
     use pretty_assertions::assert_eq;
     #[test]
     fn test_parse_string_or_var_ref_list() {
-        let input = "{{foo}}{{bar}}baz{{bat}}quok{{test}}";
-        let output = parse_string_with_var_refs(input);
+        let input = "{{foo}}{{bar}}b{}az{{bat}}{}quok{{test}}";
+        let output = AttrValue::parse_string(input);
         assert_eq!(
             output,
-            vec![
-                StringOrVarRef::VarRef("foo".to_owned()),
-                StringOrVarRef::VarRef("bar".to_owned()),
-                StringOrVarRef::String("baz".to_owned()),
-                StringOrVarRef::VarRef("bat".to_owned()),
-                StringOrVarRef::String("quok".to_owned()),
-                StringOrVarRef::VarRef("test".to_owned()),
-            ],
+            AttrValue(vec![
+                AttrValueElement::VarRef(VarName("foo".to_owned())),
+                AttrValueElement::VarRef(VarName("bar".to_owned())),
+                AttrValueElement::primitive("b{}az".to_owned()),
+                AttrValueElement::VarRef(VarName("bat".to_owned())),
+                AttrValueElement::primitive("{}quok".to_owned()),
+                AttrValueElement::VarRef(VarName("test".to_owned())),
+            ]),
         )
     }
     #[test]
@@ -168,8 +173,8 @@ mod test {
         assert_eq!(
             AttrValue(
                 vec![
-                    StringOrVarRef::VarRef(VarName("var".to_owned())),
-                    StringOrVarRef::primitive("something".to_owned())
+                    AttrValueElement::VarRef(VarName("var".to_owned())),
+                    AttrValueElement::primitive("something".to_owned())
                 ]
                 .into()
             ),
