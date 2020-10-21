@@ -122,6 +122,7 @@ impl ScriptVarHandler {
                             ))?;
                         } else if event.hangup {
                             command_out_handles.remove(var_name);
+                            sources.unregister(var_name);
                         }
                     }
                 };
