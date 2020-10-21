@@ -36,7 +36,7 @@ impl StateChangeHandler {
                 util::print_result_err("while updating UI based after state change", &result);
             }
             Err(err) => {
-                eprintln!("Error whiel resolving attributes {:?}", err);
+                eprintln!("Error while resolving attributes: {:?}", err);
             }
         }
     }

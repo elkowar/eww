@@ -154,14 +154,14 @@ mod test {
     use pretty_assertions::assert_eq;
     #[test]
     fn test_parse_string_or_var_ref_list() {
-        let input = "{{foo}}{{bar}}b{}az{{bat}}{}quok{{test}}";
+        let input = "{{foo}}{{bar}}b{}azb{a}z{{bat}}{}quok{{test}}";
         let output = AttrValue::parse_string(input);
         assert_eq!(
             output,
             AttrValue(vec![
                 AttrValueElement::VarRef(VarName("foo".to_owned())),
                 AttrValueElement::VarRef(VarName("bar".to_owned())),
-                AttrValueElement::primitive("b{}az".to_owned()),
+                AttrValueElement::primitive("b{}azb{a}z".to_owned()),
                 AttrValueElement::VarRef(VarName("bat".to_owned())),
                 AttrValueElement::primitive("{}quok".to_owned()),
                 AttrValueElement::VarRef(VarName("test".to_owned())),
