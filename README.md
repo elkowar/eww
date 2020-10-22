@@ -105,7 +105,7 @@ If you experience any issues, the following things should be tried:
 - update to the latest eww version
 - sometimes hot reloading doesn't work. restart the widget in that case
 
-If you're experiencing issues, printing variables try to print them in quotes, so e.g.
+If you're experiencing issues printing variables, try to print them in quotes, so e.g.
 ```
 onchange="notify-send '{}'"
 ```
