@@ -153,7 +153,7 @@ fn try_main() -> Result<()> {
         let _ = std::fs::remove_file(&*IPC_SOCKET_PATH);
 
         if opts.should_detach {
-            do_detach();
+            do_detach()?;
         }
 
         initialize_server(opts)?;
@@ -282,14 +282,13 @@ fn run_filewatch_thread<P: AsRef<Path>>(
 
 /// detach the process from the terminal, also redirecting stdout and stderr to
 /// LOG_FILE
-fn do_detach() {
+fn do_detach() -> Result<()> {
     // detach from terminal
-    let pid = unsafe { libc::fork() };
-    if pid < 0 {
-        panic!("Phailed to Phork: {}", std::io::Error::last_os_error());
-    }
-    if pid != 0 {
-        std::process::exit(0);
+    match unsafe { nix::unistd::fork()? } {
+        nix::unistd::ForkResult::Parent { .. } => {
+            std::process::exit(0);
+        }
+        nix::unistd::ForkResult::Child => {}
     }
 
     let file = std::fs::OpenOptions::new()
@@ -302,19 +301,14 @@ fn do_detach() {
         ));
     let fd = file.as_raw_fd();
 
-    unsafe {
-        if libc::isatty(1) != 0 {
-            if libc::dup2(fd, libc::STDOUT_FILENO) < 0 {
-                panic!("Phailed to dup stdout to log file: {:?}", std::io::Error::last_os_error());
-            }
-        }
-        if libc::isatty(2) != 0 {
-            if libc::dup2(fd, libc::STDERR_FILENO) < 0 {
-                panic!("Phailed to dup stderr to log file: {:?}", std::io::Error::last_os_error());
-            }
-        }
-        libc::close(fd);
+    if nix::unistd::isatty(1)? {
+        nix::unistd::dup2(std::io::stdout().as_raw_fd(), fd)?;
     }
+    if nix::unistd::isatty(2)? {
+        nix::unistd::dup2(std::io::stderr().as_raw_fd(), fd)?;
+    }
+    nix::unistd::close(fd)?;
+    Ok(())
 }
 
 #[extend::ext(pub)]

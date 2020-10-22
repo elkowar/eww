@@ -41,6 +41,7 @@ lazy_static = "1.4.0"
 libc = "0.2"
 ref-cast = "1.0"
 popol = "0.3"
+nix = "0.19"
 
 [dev-dependencies]
 pretty_assertions = "0.6.1"
