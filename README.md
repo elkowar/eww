@@ -99,7 +99,7 @@ Create a Config and then just do `eww`!
 If you experience any issues, the following things should be tried:
 
 - Try killing the eww daemon with `eww kill` and run again
-- If you're running with `-d`, run without `-d` to see output 
+- If you're running with `-d`, run without `-d` to see output, or have a look at ~/.cache/eww.log 
 - use `eww state`, to see the state of all variables
 - use `eww debug`, to see the xml of your widget and other information
 - update to the latest eww version
