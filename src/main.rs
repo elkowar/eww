@@ -127,6 +127,13 @@ impl OptAction {
             }
         }
     }
+
+    fn is_server_command(&self) -> bool {
+        match self {
+            OptAction::OpenWindow { .. } => true,
+            _ => false,
+        }
+    }
 }
 
 fn try_main() -> Result<()> {
@@ -137,6 +144,7 @@ fn try_main() -> Result<()> {
         stream.write_all(&bincode::serialize(&opts)?)?;
 
         let mut buf = String::new();
+        stream.set_read_timeout(Some(std::time::Duration::from_millis(100)))?;
         stream.read_to_string(&mut buf)?;
         println!("{}", buf);
     } else {
@@ -154,7 +162,8 @@ fn try_main() -> Result<()> {
 }
 
 fn initialize_server(opts: Opt) -> Result<()> {
-    if opts.action == OptAction::KillServer {
+    if opts.action == OptAction::KillServer || !opts.action.is_server_command() {
+        println!("No eww server running");
         return Ok(());
     }
 
