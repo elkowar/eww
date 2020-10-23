@@ -20,6 +20,7 @@ use std::{
     io::{Read, Write},
     os::unix::{io::AsRawFd, net},
     path::{Path, PathBuf},
+    process::Stdio,
 };
 use structopt::StructOpt;
 use value::Coords;
@@ -82,8 +83,23 @@ pub struct Opt {
     #[structopt(short = "-d", long = "--detach")]
     should_detach: bool,
 }
+
 #[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
 pub enum OptAction {
+    #[structopt(flatten)]
+    ClientOnly(OptActionClientOnly),
+    #[structopt(flatten)]
+    WithServer(OptActionWithServer),
+}
+
+#[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
+pub enum OptActionClientOnly {
+    #[structopt(name = "logs", help = "Print and watch the eww logs")]
+    Logs,
+}
+
+#[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
+pub enum OptActionWithServer {
     #[structopt(name = "update", help = "update the value of a variable, in a running eww instance")]
     Update { fieldname: VarName, value: PrimitiveValue },
 
@@ -101,7 +117,7 @@ pub enum OptAction {
     #[structopt(name = "close", help = "close the window with the given name")]
     CloseWindow { window_name: WindowName },
 
-    #[structopt(name = "kill", help = "kill the eww daemon")]
+    #[structopt(name = "kill", help("kill the eww daemon"))]
     KillServer,
 
     #[structopt(name = "state", help = "Print the current eww-state")]
@@ -111,18 +127,18 @@ pub enum OptAction {
     ShowDebug,
 }
 
-impl OptAction {
+impl OptActionWithServer {
     fn into_eww_command(self) -> (app::EwwCommand, Option<crossbeam_channel::Receiver<String>>) {
         let command = match self {
-            OptAction::Update { fieldname, value } => app::EwwCommand::UpdateVar(fieldname, value),
-            OptAction::OpenWindow { window_name, pos, size } => app::EwwCommand::OpenWindow { window_name, pos, size },
-            OptAction::CloseWindow { window_name } => app::EwwCommand::CloseWindow { window_name },
-            OptAction::KillServer => app::EwwCommand::KillServer,
-            OptAction::ShowState => {
+            OptActionWithServer::Update { fieldname, value } => app::EwwCommand::UpdateVar(fieldname, value),
+            OptActionWithServer::OpenWindow { window_name, pos, size } => app::EwwCommand::OpenWindow { window_name, pos, size },
+            OptActionWithServer::CloseWindow { window_name } => app::EwwCommand::CloseWindow { window_name },
+            OptActionWithServer::KillServer => app::EwwCommand::KillServer,
+            OptActionWithServer::ShowState => {
                 let (send, recv) = crossbeam_channel::unbounded();
                 return (app::EwwCommand::PrintState(send), Some(recv));
             }
-            OptAction::ShowDebug => {
+            OptActionWithServer::ShowDebug => {
                 let (send, recv) = crossbeam_channel::unbounded();
                 return (app::EwwCommand::PrintDebug(send), Some(recv));
             }
@@ -130,41 +146,63 @@ impl OptAction {
         (command, None)
     }
 
-    fn is_server_command(&self) -> bool {
+    /// returns true if this command requires a server to already be running
+    fn needs_server_running(&self) -> bool {
         match self {
-            OptAction::OpenWindow { .. } => true,
-            _ => false,
+            OptActionWithServer::OpenWindow { .. } => false,
+            _ => true,
         }
     }
 }
 
 fn try_main() -> Result<()> {
     let opts: Opt = StructOpt::from_args();
-    log::info!("Trying to find server process");
-    if let Ok(mut stream) = net::UnixStream::connect(&*IPC_SOCKET_PATH) {
-        log::info!("Forwarding options to server");
-        stream.write_all(&bincode::serialize(&opts)?)?;
 
-        let mut buf = String::new();
-        stream.set_read_timeout(Some(std::time::Duration::from_millis(100)))?;
-        stream.read_to_string(&mut buf)?;
-        println!("{}", buf);
-    } else {
-        log::info!("No instance found... Initializing server.");
-
-        let _ = std::fs::remove_file(&*IPC_SOCKET_PATH);
-
-        if opts.should_detach {
-            do_detach()?;
+    match opts.action {
+        OptAction::ClientOnly(action) => {
+            handle_client_only_action(action)?;
         }
+        OptAction::WithServer(action) => {
+            log::info!("Trying to find server process");
+            if let Ok(mut stream) = net::UnixStream::connect(&*IPC_SOCKET_PATH) {
+                log::info!("Forwarding options to server");
+                stream.write_all(&bincode::serialize(&action)?)?;
 
-        initialize_server(opts)?;
+                let mut buf = String::new();
+                stream.set_read_timeout(Some(std::time::Duration::from_millis(100)))?;
+                stream.read_to_string(&mut buf)?;
+                println!("{}", buf);
+            } else {
+                log::info!("No instance found... Initializing server.");
+
+                let _ = std::fs::remove_file(&*IPC_SOCKET_PATH);
+
+                if opts.should_detach {
+                    do_detach()?;
+                }
+
+                initialize_server(action)?;
+            }
+        }
     }
     Ok(())
 }
 
-fn initialize_server(opts: Opt) -> Result<()> {
-    if !opts.action.is_server_command() {
+fn handle_client_only_action(action: OptActionClientOnly) -> Result<()> {
+    match action {
+        OptActionClientOnly::Logs => {
+            std::process::Command::new("tail")
+                .args(["-f", LOG_FILE.to_string_lossy().as_ref()].iter())
+                .stdin(Stdio::null())
+                .spawn()?
+                .wait()?;
+        }
+    }
+    Ok(())
+}
+
+fn initialize_server(action: OptActionWithServer) -> Result<()> {
+    if action.needs_server_running() {
         println!("No eww server running");
         return Ok(());
     }
@@ -205,8 +243,8 @@ fn initialize_server(opts: Opt) -> Result<()> {
     }
 
     // run the command that eww was started with
-    log::info!("running command: {:?}", &opts.action);
-    let (command, maybe_response_recv) = opts.action.into_eww_command();
+    log::info!("running command: {:?}", &action);
+    let (command, maybe_response_recv) = action.into_eww_command();
     app.handle_command(command);
     if let Some(response_recv) = maybe_response_recv {
         if let Ok(response) = response_recv.recv_timeout(std::time::Duration::from_millis(100)) {
@@ -235,9 +273,9 @@ fn run_server_thread(evt_send: glib::Sender<app::EwwCommand>) -> Result<()> {
             for stream in listener.incoming() {
                 try_logging_errors!("handling message from IPC client" => {
                     let mut stream = stream?;
-                    let opts: Opt = bincode::deserialize_from(&stream)?;
-                    log::info!("received command from IPC: {:?}", &opts);
-                    let (command, maybe_response_recv) = opts.action.into_eww_command();
+                    let action: OptActionWithServer = bincode::deserialize_from(&stream)?;
+                    log::info!("received command from IPC: {:?}", &action);
+                    let (command, maybe_response_recv) = action.into_eww_command();
                     evt_send.send(command)?;
                     if let Some(response_recv) = maybe_response_recv {
                         if let Ok(response) = response_recv.recv_timeout(std::time::Duration::from_millis(100)) {
@@ -295,8 +333,6 @@ fn do_detach() -> Result<()> {
         nix::unistd::ForkResult::Child => {}
     }
 
-    nix::unistd::setsid().context("Failed to run setsid")?;
-
     let file = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
@@ -313,6 +349,8 @@ fn do_detach() -> Result<()> {
     if nix::unistd::isatty(2)? {
         nix::unistd::dup2(std::io::stderr().as_raw_fd(), fd)?;
     }
+
+    nix::unistd::setsid().context("Failed to run setsid")?;
     Ok(())
 }
 
