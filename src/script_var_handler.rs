@@ -164,7 +164,7 @@ impl TailVarProcess {
                 setpgid(Pid::from_raw(0), Pid::from_raw(0))?;
                 execv(
                     CString::new("/bin/sh")?.as_ref(),
-                    &[CString::new("sh")?, CString::new("-c")?, CString::new(command)?],
+                    &[CString::new("/bin/sh")?, CString::new("-c")?, CString::new(command)?],
                 )?;
                 unreachable!("Child fork called exec, thus the process was replaced by the command the user provided");
             }
@@ -180,8 +180,7 @@ impl TailVarProcess {
     }
 
     pub fn kill(self) {
-        unsafe {
-            nix::libc::kill(self.pid.as_raw(), libc::SIGTERM);
-        }
+        let result = nix::sys::signal::kill(self.pid, Some(nix::sys::signal::SIGTERM));
+        util::print_result_err("Killing tail-var process", &result);
     }
 }

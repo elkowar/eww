@@ -313,7 +313,6 @@ fn do_detach() -> Result<()> {
     if nix::unistd::isatty(2)? {
         nix::unistd::dup2(std::io::stderr().as_raw_fd(), fd)?;
     }
-    nix::unistd::close(fd)?;
     Ok(())
 }
 
