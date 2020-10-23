@@ -292,11 +292,21 @@ fn build_gtk_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
 fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
     let gtk_widget = gtk::Label::new(None);
     resolve_block!(bargs, gtk_widget, {
-        // @prop - the text to display
-        // @prop limit-width - maximum count of characters to display
-        prop(text: as_string, limit_width: as_i32 = i32::MAX) {
-            gtk_widget.set_text(&text.chars().take(limit_width as usize).collect::<String>())
+        // @prop text - the text to display
+        prop(text: as_string) {
+            gtk_widget.set_text(&text);
         },
+        // @prop markup - Pango markup to display
+        prop(markup: as_string) {
+            gtk_widget.set_markup(&markup);
+        },
+        // @prop limit-width - maximum count of characters to display
+        prop(limit_width: as_i32) {
+            gtk_widget.set_max_width_chars(limit_width);
+        },
+        prop(wrap: as_bool) {
+            gtk_widget.set_line_wrap(wrap)
+        }
     });
     Ok(gtk_widget)
 }
