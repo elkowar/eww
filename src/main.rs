@@ -113,20 +113,21 @@ pub enum OptAction {
 
 impl OptAction {
     fn into_eww_command(self) -> (app::EwwCommand, Option<crossbeam_channel::Receiver<String>>) {
-        match self {
-            OptAction::Update { fieldname, value } => (app::EwwCommand::UpdateVar(fieldname, value), None),
-            OptAction::OpenWindow { window_name, pos, size } => (app::EwwCommand::OpenWindow { window_name, pos, size }, None),
-            OptAction::CloseWindow { window_name } => (app::EwwCommand::CloseWindow { window_name }, None),
-            OptAction::KillServer => (app::EwwCommand::KillServer, None),
+        let command = match self {
+            OptAction::Update { fieldname, value } => app::EwwCommand::UpdateVar(fieldname, value),
+            OptAction::OpenWindow { window_name, pos, size } => app::EwwCommand::OpenWindow { window_name, pos, size },
+            OptAction::CloseWindow { window_name } => app::EwwCommand::CloseWindow { window_name },
+            OptAction::KillServer => app::EwwCommand::KillServer,
             OptAction::ShowState => {
                 let (send, recv) = crossbeam_channel::unbounded();
-                (app::EwwCommand::PrintState(send), Some(recv))
+                return (app::EwwCommand::PrintState(send), Some(recv));
             }
             OptAction::ShowDebug => {
                 let (send, recv) = crossbeam_channel::unbounded();
-                (app::EwwCommand::PrintDebug(send), Some(recv))
+                return (app::EwwCommand::PrintDebug(send), Some(recv));
             }
-        }
+        };
+        (command, None)
     }
 
     fn is_server_command(&self) -> bool {
@@ -163,7 +164,7 @@ fn try_main() -> Result<()> {
 }
 
 fn initialize_server(opts: Opt) -> Result<()> {
-    if opts.action == OptAction::KillServer || !opts.action.is_server_command() {
+    if !opts.action.is_server_command() {
         println!("No eww server running");
         return Ok(());
     }
@@ -182,6 +183,7 @@ fn initialize_server(opts: Opt) -> Result<()> {
     gtk::init()?;
     let (evt_send, evt_recv) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
 
+    log::info!("Initializing script var handler");
     let mut script_var_handler = script_var_handler::ScriptVarHandler::new(evt_send.clone())?;
     script_var_handler.initialize_clean(eww_config.get_script_vars().clone())?;
 
@@ -203,6 +205,7 @@ fn initialize_server(opts: Opt) -> Result<()> {
     }
 
     // run the command that eww was started with
+    log::info!("running command: {:?}", &opts.action);
     let (command, maybe_response_recv) = opts.action.into_eww_command();
     app.handle_command(command);
     if let Some(response_recv) = maybe_response_recv {
@@ -292,6 +295,8 @@ fn do_detach() -> Result<()> {
         nix::unistd::ForkResult::Child => {}
     }
 
+    nix::unistd::setsid().context("Failed to run setsid")?;
+
     let file = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
@@ -308,7 +313,6 @@ fn do_detach() -> Result<()> {
     if nix::unistd::isatty(2)? {
         nix::unistd::dup2(std::io::stderr().as_raw_fd(), fd)?;
     }
-    nix::unistd::close(fd)?;
     Ok(())
 }
 

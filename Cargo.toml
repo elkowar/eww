@@ -44,6 +44,7 @@ ref-cast = "1.0"
 popol = "0.3"
 nix = "0.19"
 smart-default = "0.6"
+filedescriptor = "0.7"
 
 [dev-dependencies]
 pretty_assertions = "0.6.1"

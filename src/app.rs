@@ -103,6 +103,8 @@ impl App {
         // remove and close existing window with the same name
         let _ = self.close_window(window_name);
 
+        log::info!("Opening window {}", window_name);
+
         let mut window_def = self
             .eww_config
             .get_windows()
@@ -177,6 +179,7 @@ impl App {
     }
 
     pub fn reload_all_windows(&mut self, config: config::EwwConfig) -> Result<()> {
+        log::info!("Reloading windows");
         // refresh script-var poll stuff
         util::print_result_err(
             "while setting up script-var commands",
