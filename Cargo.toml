@@ -14,6 +14,7 @@ gtk = { version = "0.9", features = [ "v3_16" ] }
 gdk = { version = "", features = ["v3_16"] }
 gio = { version = "", features = ["v2_44"] }
 glib = { version = "", features = ["v2_44"] }
+gdkx11 = "0.9"
 gdk-pixbuf = "0.9"
 
 regex = "1"
@@ -42,6 +43,7 @@ libc = "0.2"
 ref-cast = "1.0"
 popol = "0.3"
 nix = "0.19"
+smart-default = "0.6"
 
 [dev-dependencies]
 pretty_assertions = "0.6.1"

@@ -10,6 +10,7 @@ extern crate gtk;
 
 use crate::value::{PrimitiveValue, VarName};
 use anyhow::*;
+use config::window_definition::WindowName;
 use eww_state::*;
 use log;
 use pretty_env_logger;
@@ -88,7 +89,7 @@ pub enum OptAction {
 
     #[structopt(name = "open", help = "open a window")]
     OpenWindow {
-        window_name: config::WindowName,
+        window_name: WindowName,
 
         #[structopt(short, long, help = "The position of the window, where it should open.")]
         pos: Option<Coords>,
@@ -98,7 +99,7 @@ pub enum OptAction {
     },
 
     #[structopt(name = "close", help = "close the window with the given name")]
-    CloseWindow { window_name: config::WindowName },
+    CloseWindow { window_name: WindowName },
 
     #[structopt(name = "kill", help = "kill the eww daemon")]
     KillServer,

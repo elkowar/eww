@@ -305,6 +305,7 @@ dependencies = [
  "extend",
  "gdk",
  "gdk-pixbuf",
+ "gdkx11",
  "gio",
  "glib",
  "grass",
@@ -315,6 +316,7 @@ dependencies = [
  "libc",
  "log 0.4.11",
  "maplit",
+ "nix",
  "notify",
  "num",
  "popol",
@@ -325,6 +327,7 @@ dependencies = [
  "roxmltree",
  "scheduled-executor",
  "serde",
+ "smart-default",
  "stoppable_thread",
  "structopt",
  "try_match",
@@ -569,6 +572,45 @@ dependencies = [
  "pango-sys",
  "pkg-config",
  "system-deps",
+]
+
+[[package]]
+name = "gdkx11"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b89606baa221f9b8d8aa81924fd448c6b107d20de949f0fbf9a4ec203bb54b63"
+dependencies = [
+ "bitflags",
+ "gdk",
+ "gdk-pixbuf",
+ "gdk-pixbuf-sys",
+ "gdk-sys",
+ "gdkx11-sys",
+ "gio",
+ "gio-sys",
+ "glib",
+ "glib-sys",
+ "gobject-sys",
+ "libc",
+ "pango",
+ "x11",
+]
+
+[[package]]
+name = "gdkx11-sys"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6710388d530f3178ccbeb65cbafdf497a5772c4409eaf574ee9fa461af0a3d09"
+dependencies = [
+ "gdk-pixbuf-sys",
+ "gdk-sys",
+ "gio-sys",
+ "glib-sys",
+ "gobject-sys",
+ "libc",
+ "pango-sys",
+ "system-deps",
+ "x11",
 ]
 
 [[package]]
@@ -993,6 +1035,18 @@ dependencies = [
  "cfg-if",
  "libc",
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "nix"
+version = "0.19.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85db2feff6bf70ebc3a4793191517d5f0331100a2f10f9bf93b5e5214f32b7b7"
+dependencies = [
+ "bitflags",
+ "cc",
+ "cfg-if",
+ "libc",
 ]
 
 [[package]]
@@ -1573,6 +1627,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fbee7696b84bbf3d89a1c2eccff0850e3047ed46bfcd2e92c29a2d074d57e252"
 
 [[package]]
+name = "smart-default"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "133659a15339456eeeb07572eb02a91c91e9815e9cbc89566944d2c8d3efdbf6"
+dependencies = [
+ "proc-macro2",
+ "quote 1.0.7",
+ "syn 1.0.44",
+]
+
+[[package]]
 name = "stoppable_thread"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2062,6 +2127,16 @@ checksum = "d59cefebd0c892fa2dd6de581e937301d8552cb44489cdff035c6187cb63fa5e"
 dependencies = [
  "winapi 0.2.8",
  "winapi-build",
+]
+
+[[package]]
+name = "x11"
+version = "2.18.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77ecd092546cb16f25783a5451538e73afc8d32e242648d54f4ae5459ba1e773"
+dependencies = [
+ "libc",
+ "pkg-config",
 ]
 
 [[package]]

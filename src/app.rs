@@ -1,6 +1,6 @@
 use crate::{
     config,
-    config::{WindowName, WindowStacking},
+    config::{window_definition::WindowName, WindowStacking},
     eww_state,
     script_var_handler::*,
     util,
@@ -11,6 +11,7 @@ use anyhow::*;
 use crossbeam_channel;
 use debug_stub_derive::*;
 use gdk::WindowExt;
+use glib::Cast;
 use gtk::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt};
 use itertools::Itertools;
 
@@ -36,7 +37,7 @@ pub enum EwwCommand {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct EwwWindow {
-    pub name: config::WindowName,
+    pub name: WindowName,
     pub definition: config::EwwWindowDefinition,
     pub gtk_window: gtk::Window,
 }
@@ -45,7 +46,7 @@ pub struct EwwWindow {
 pub struct App {
     pub eww_state: eww_state::EwwState,
     pub eww_config: config::EwwConfig,
-    pub windows: HashMap<config::WindowName, EwwWindow>,
+    pub windows: HashMap<WindowName, EwwWindow>,
     pub css_provider: gtk::CssProvider,
     pub app_evt_send: glib::Sender<EwwCommand>,
     #[debug_stub = "ScriptVarHandler(...)"]
@@ -87,7 +88,7 @@ impl App {
         self.eww_state.update_variable(fieldname, value)
     }
 
-    fn close_window(&mut self, window_name: &config::WindowName) -> Result<()> {
+    fn close_window(&mut self, window_name: &WindowName) -> Result<()> {
         let window = self
             .windows
             .remove(window_name)
@@ -98,7 +99,7 @@ impl App {
         Ok(())
     }
 
-    fn open_window(&mut self, window_name: &config::WindowName, pos: Option<Coords>, size: Option<Coords>) -> Result<()> {
+    fn open_window(&mut self, window_name: &WindowName, pos: Option<Coords>, size: Option<Coords>) -> Result<()> {
         // remove and close existing window with the same name
         let _ = self.close_window(window_name);
 
@@ -150,13 +151,11 @@ impl App {
         root_widget.get_style_context().add_class(&window_name.to_string());
         window.add(root_widget);
 
-        // REAL SHIT 0_o :elkowar_with_a_looking_glass:
         window.show_all();
 
         let gdk_window = window.get_window().context("couldn't get gdk window from gtk window")?;
         gdk_window.set_override_redirect(true);
         gdk_window.move_(actual_window_rect.x, actual_window_rect.y);
-        gdk_window.show();
 
         if window_def.stacking == WindowStacking::Foreground {
             gdk_window.raise();

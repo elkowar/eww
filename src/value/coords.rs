@@ -1,25 +1,19 @@
 use anyhow::*;
+use derive_more::*;
 use serde::{Deserialize, Serialize};
 use std::{fmt, str::FromStr};
 
-#[derive(Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Display)]
 pub enum NumWithUnit {
+    #[display(fmt = "{}%", .0)]
     Percent(i32),
+    #[display(fmt = "{}px", .0)]
     Pixels(i32),
 }
 
 impl fmt::Debug for NumWithUnit {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self)
-    }
-}
-
-impl fmt::Display for NumWithUnit {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            NumWithUnit::Percent(x) => write!(f, "{}%", x),
-            NumWithUnit::Pixels(x) => write!(f, "{}px", x),
-        }
     }
 }
 
@@ -42,7 +36,8 @@ impl FromStr for NumWithUnit {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Display)]
+#[display(fmt = "{}X{}", x, y)]
 pub struct Coords {
     pub x: NumWithUnit,
     pub y: NumWithUnit,
@@ -56,12 +51,6 @@ impl FromStr for Coords {
             .split_once(|x: char| x.to_ascii_lowercase() == 'x')
             .ok_or_else(|| anyhow!("must be formatted like 200x500"))?;
         Coords::from_strs(x, y)
-    }
-}
-
-impl fmt::Display for Coords {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}X{}", self.x, self.y)
     }
 }
 

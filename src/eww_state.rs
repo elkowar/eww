@@ -1,5 +1,5 @@
 use crate::{
-    config::WindowName,
+    config::window_definition::WindowName,
     util,
     value::{AttrName, AttrValueElement, VarName},
 };
