@@ -1,9 +1,4 @@
-use std::{
-    collections::HashMap,
-    io::BufReader,
-    process::{Child, Stdio},
-    time::Duration,
-};
+use std::{collections::HashMap, ffi::CString, io::BufReader, time::Duration};
 
 use crate::{app, config, eww_state, util, value::PrimitiveValue};
 use anyhow::*;
@@ -11,7 +6,7 @@ use app::EwwCommand;
 use glib;
 use itertools::Itertools;
 use scheduled_executor;
-use std::io::BufRead;
+use std::{io::BufRead, os::unix::io::AsRawFd};
 
 /// Handler that manages running and updating [ScriptVar]s
 pub struct ScriptVarHandler {
@@ -54,6 +49,7 @@ impl ScriptVarHandler {
         }
         self.setup_poll_tasks(&poll_script_vars)?;
         self.setup_tail_tasks(&tail_script_vars)?;
+        log::info!("Finished initializing script-var-handler");
         Ok(())
     }
 
@@ -80,6 +76,7 @@ impl ScriptVarHandler {
                 )
             })
             .collect_vec();
+        log::info!("finished setting up poll tasks");
         Ok(())
     }
 
@@ -88,13 +85,18 @@ impl ScriptVarHandler {
         log::info!("initializing handler for tail script vars");
         let mut sources = popol::Sources::with_capacity(tail_script_vars.len());
 
+        // TODO clean up this unnecessary vec, it really should not be needed.
+        // should be possibel to just keep a BufReader in TailVarProcess directly
         let mut command_children = Vec::new();
-        let mut command_out_handles = HashMap::new();
+        let mut command_out_handles: HashMap<_, BufReader<filedescriptor::FileDescriptor>> = HashMap::new();
 
         for var in tail_script_vars {
-            if let Some(mut child) = try_run_command(&var.command) {
-                command_out_handles.insert(var.name.clone(), BufReader::new(child.stdout.take().unwrap()));
-                command_children.push(child);
+            match TailVarProcess::run(&var.command) {
+                Ok(process) => {
+                    command_out_handles.insert(var.name.clone(), BufReader::new(process.out_fd.try_clone()?));
+                    command_children.push(process);
+                }
+                Err(err) => eprintln!("Failed to launch script-var command for tail: {:?}", err),
             }
         }
 
@@ -130,9 +132,7 @@ impl ScriptVarHandler {
             }
 
             // stop child processes after exit
-            for mut child in command_children {
-                let _ = child.kill();
-            }
+            command_children.drain(..).for_each(|process| process.kill());
         });
         self.tail_handler_thread = Some(thread_handle);
         Ok(())
@@ -145,23 +145,43 @@ impl Drop for ScriptVarHandler {
     }
 }
 
-/// Run a command in sh, returning its stdout-handle wrapped in a
-/// [`BufReader`]. If running the command fails, will print a warning
-/// and return `None`.
-fn try_run_command(command: &str) -> Option<Child> {
-    let result = std::process::Command::new("sh")
-        .arg("-c")
-        .arg(command)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::inherit())
-        .stdin(Stdio::null())
-        .spawn();
+#[derive(Debug)]
+struct TailVarProcess {
+    pid: nix::unistd::Pid,
+    out_fd: filedescriptor::FileDescriptor,
+}
 
-    match result {
-        Ok(handle) => Some(handle),
-        Err(err) => {
-            eprintln!("WARN: Error running command from script-variable: {:?}", err);
-            None
+impl TailVarProcess {
+    pub fn run(command: &str) -> Result<Self> {
+        use nix::unistd::*;
+
+        let pipe = filedescriptor::Pipe::new()?;
+
+        match unsafe { fork()? } {
+            ForkResult::Child => {
+                std::mem::drop(pipe.read);
+                dup2(pipe.write.as_raw_fd(), std::io::stdout().as_raw_fd())?;
+                setpgid(Pid::from_raw(0), Pid::from_raw(0))?;
+                execv(
+                    CString::new("/bin/sh")?.as_ref(),
+                    &[CString::new("sh")?, CString::new("-c")?, CString::new(command)?],
+                )?;
+                unreachable!("Child fork called exec, thus the process was replaced by the command the user provided");
+            }
+            ForkResult::Parent { child, .. } => {
+                std::mem::drop(pipe.write);
+                setpgid(child, child)?;
+                Ok(TailVarProcess {
+                    pid: child,
+                    out_fd: pipe.read,
+                })
+            }
+        }
+    }
+
+    pub fn kill(self) {
+        unsafe {
+            nix::libc::kill(self.pid.as_raw(), libc::SIGTERM);
         }
     }
 }

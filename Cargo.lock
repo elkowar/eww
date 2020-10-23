@@ -303,6 +303,7 @@ dependencies = [
  "debug_stub_derive",
  "derive_more",
  "extend",
+ "filedescriptor",
  "gdk",
  "gdk-pixbuf",
  "gdkx11",
@@ -343,6 +344,17 @@ dependencies = [
  "proc-macro2",
  "quote 1.0.7",
  "syn 1.0.44",
+]
+
+[[package]]
+name = "filedescriptor"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e70cb4dda2f343f3b7a98a6536559d04a700136cada190822e5d6a99e4184c06"
+dependencies = [
+ "anyhow",
+ "libc",
+ "winapi 0.3.9",
 ]
 
 [[package]]
