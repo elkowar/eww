@@ -61,6 +61,8 @@ impl App {
             EwwCommand::ReloadCss(css) => self.load_css(&css),
             EwwCommand::KillServer => {
                 log::info!("Received kill command, stopping server!");
+                self.script_var_handler.stop();
+                self.windows.values().for_each(|w| w.gtk_window.close());
                 std::process::exit(0);
             }
             EwwCommand::OpenWindow { window_name, pos, size } => self.open_window(&window_name, pos, size),
