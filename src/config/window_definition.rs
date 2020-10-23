@@ -15,6 +15,7 @@ pub struct EwwWindowDefinition {
     pub screen_number: Option<i32>,
     pub widget: WidgetUse,
     pub struts: Struts,
+    pub focusable: bool,
 }
 
 impl EwwWindowDefinition {
@@ -28,6 +29,7 @@ impl EwwWindowDefinition {
 
         let stacking = xml.attr("stacking").ok().map(|x| x.parse()).transpose()?.unwrap_or_default();
         let screen_number = xml.attr("screen").ok().map(|x| x.parse()).transpose()?;
+        let focusable = xml.attr("focusable").ok().map(|x| x.parse()).transpose()?;
         let struts = xml.child("struts").ok().map(Struts::from_xml_element).transpose()?;
 
         let widget = WidgetUse::from_xml_node(xml.child("widget")?.only_child()?)?;
@@ -37,6 +39,7 @@ impl EwwWindowDefinition {
             widget,
             stacking,
             screen_number,
+            focusable: focusable.unwrap_or(false),
             struts: struts.unwrap_or_default(),
         })
     }

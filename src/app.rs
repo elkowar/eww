@@ -4,14 +4,13 @@ use crate::{
     eww_state,
     script_var_handler::*,
     util,
-    value::{Coords, NumWithUnit, PrimitiveValue, VarName},
+    value::{AttrValue, Coords, NumWithUnit, PrimitiveValue, VarName},
     widgets,
 };
 use anyhow::*;
 use crossbeam_channel;
 use debug_stub_derive::*;
 use gdk::WindowExt;
-use glib::Cast;
 use gtk::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt};
 use itertools::Itertools;
 
@@ -109,7 +108,7 @@ impl App {
             .eww_config
             .get_windows()
             .get(window_name)
-            .context(format!("No window named '{}' defined", window_name))?
+            .with_context(|| format!("No window named '{}' defined", window_name))?
             .clone();
 
         let display = gdk::Display::get_default().expect("could not get default display");
@@ -119,16 +118,23 @@ impl App {
 
         let monitor_geometry = display.get_default_screen().get_monitor_geometry(*screen_number);
 
-        window_def.position = pos.unwrap_or_else(|| window_def.position);
-        window_def.size = size.unwrap_or_else(|| window_def.size);
+        window_def.position = pos.unwrap_or(window_def.position);
+        window_def.size = size.unwrap_or(window_def.size);
 
         let actual_window_rect = get_window_rectangle_in_screen(monitor_geometry, window_def.position, window_def.size);
 
-        let window = gtk::Window::new(gtk::WindowType::Popup);
+        let window = if window_def.focusable {
+            gtk::Window::new(gtk::WindowType::Toplevel)
+        } else {
+            gtk::Window::new(gtk::WindowType::Popup)
+        };
+
         window.set_title(&format!("Eww - {}", window_name));
         let wm_class_name = format!("eww-{}", window_name);
         window.set_wmclass(&wm_class_name, &wm_class_name);
-        window.set_type_hint(gdk::WindowTypeHint::Dock);
+        if !window_def.focusable {
+            window.set_type_hint(gdk::WindowTypeHint::Dock);
+        }
         window.set_position(gtk::WindowPosition::Center);
         window.set_default_size(actual_window_rect.width, actual_window_rect.height);
         window.set_size_request(actual_window_rect.width, actual_window_rect.height);
@@ -138,16 +144,12 @@ impl App {
         // run on_screen_changed to set the visual correctly initially.
         on_screen_changed(&window, None);
         window.connect_screen_changed(on_screen_changed);
-        let mut almost_empty_local_state = HashMap::new();
-        almost_empty_local_state.insert(
-            VarName("window_name".to_string()),
-            crate::value::AttrValue::from_primitive(window_name.to_string()),
-        );
+
         let root_widget = &widgets::widget_use_to_gtk_widget(
             &self.eww_config.get_widgets(),
             &mut self.eww_state,
             window_name,
-            &almost_empty_local_state,
+            &maplit::hashmap! { "window_name".into() => AttrValue::from_primitive(window_name.to_string()) },
             &window_def.widget,
         )?;
         root_widget.get_style_context().add_class(&window_name.to_string());
@@ -156,7 +158,7 @@ impl App {
         window.show_all();
 
         let gdk_window = window.get_window().context("couldn't get gdk window from gtk window")?;
-        gdk_window.set_override_redirect(true);
+        gdk_window.set_override_redirect(!window_def.focusable);
         gdk_window.move_(actual_window_rect.x, actual_window_rect.y);
 
         if window_def.stacking == WindowStacking::Foreground {

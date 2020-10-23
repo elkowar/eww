@@ -21,6 +21,12 @@ impl std::borrow::Borrow<str> for VarName {
     }
 }
 
+impl From<&str> for VarName {
+    fn from(s: &str) -> Self {
+        VarName(s.to_owned())
+    }
+}
+
 impl fmt::Debug for VarName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "VarName(\"{}\")", self.0)
@@ -35,6 +41,12 @@ pub struct AttrName(pub String);
 impl std::borrow::Borrow<str> for AttrName {
     fn borrow(&self) -> &str {
         &self.0
+    }
+}
+
+impl From<&str> for AttrName {
+    fn from(s: &str) -> Self {
+        AttrName(s.to_owned())
     }
 }
 

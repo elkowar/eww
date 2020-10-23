@@ -223,15 +223,17 @@ fn build_gtk_scale(bargs: &mut BuilderArgs) -> Result<gtk::Scale> {
 fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
     let gtk_widget = gtk::Entry::new();
     let on_change_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
-    gtk_widget.set_editable(true);
-    gtk_widget.set_visible(true);
-    gtk_widget.set_text("fuck");
-    gtk_widget.set_can_focus(true);
     resolve_block!(bargs, gtk_widget, {
+        // @prop value - the content of the text field
+        prop(value: as_string) {
+            gtk_widget.set_text(&value);
+        },
+
+        // @prop onchange - Command to run when the text changes. The placeholder `{}` will be replaced by the value
         prop(onchange: as_string) {
             let old_id = on_change_handler_id.replace(Some(
-                gtk_widget.connect_insert_text(move |_, text, _| {
-                    run_command(&onchange, text);
+                gtk_widget.connect_changed(move |gtk_widget| {
+                    run_command(&onchange, gtk_widget.get_text().to_string());
                 })
             ));
             old_id.map(|id| gtk_widget.disconnect(id));
