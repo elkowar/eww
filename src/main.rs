@@ -70,6 +70,7 @@ lazy_static::lazy_static! {
 
 fn main() {
     pretty_env_logger::init();
+
     if let Err(e) = try_main() {
         eprintln!("{:?}", e);
     }
@@ -180,6 +181,13 @@ fn try_main() -> Result<()> {
                 if opts.should_detach {
                     do_detach()?;
                 }
+
+                ctrlc::set_handler(|| {
+                    println!("Shutting down eww daemon...");
+                    script_var_handler::script_var_process::on_application_death();
+                    std::process::exit(0);
+                })
+                .context("Error setting signal hook")?;
 
                 initialize_server(action)?;
             }
@@ -344,13 +352,12 @@ fn do_detach() -> Result<()> {
     let fd = file.as_raw_fd();
 
     if nix::unistd::isatty(1)? {
-        nix::unistd::dup2(std::io::stdout().as_raw_fd(), fd)?;
+        nix::unistd::dup2(fd, std::io::stdout().as_raw_fd())?;
     }
     if nix::unistd::isatty(2)? {
-        nix::unistd::dup2(std::io::stderr().as_raw_fd(), fd)?;
+        nix::unistd::dup2(fd, std::io::stderr().as_raw_fd())?;
     }
 
-    nix::unistd::setsid().context("Failed to run setsid")?;
     Ok(())
 }
 
