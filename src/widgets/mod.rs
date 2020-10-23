@@ -1,5 +1,5 @@
 use crate::{
-    config::{element, WindowName},
+    config::{element, window_definition::WindowName},
     eww_state::*,
     value::{AttrName, AttrValue, VarName},
 };

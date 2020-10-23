@@ -157,7 +157,7 @@ fn build_gtk_expander(bargs: &mut BuilderArgs) -> Result<gtk::Expander> {
     });
     Ok(gtk_widget)
 }
-/// @widget color button
+/// @widget color-button
 fn build_gtk_color_button(bargs: &mut BuilderArgs) -> Result<gtk::ColorButton> {
     let gtk_widget = gtk::ColorButtonBuilder::new().build();
     let on_change_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
@@ -219,19 +219,21 @@ fn build_gtk_scale(bargs: &mut BuilderArgs) -> Result<gtk::Scale> {
 }
 
 /// @widget input
-/// @desc an input field that doesn't yet really work
+/// @desc an input field. For this to be useful, set `focusable="true"` on the window.
 fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
     let gtk_widget = gtk::Entry::new();
     let on_change_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
-    gtk_widget.set_editable(true);
-    gtk_widget.set_visible(true);
-    gtk_widget.set_text("fuck");
-    gtk_widget.set_can_focus(true);
     resolve_block!(bargs, gtk_widget, {
+        // @prop value - the content of the text field
+        prop(value: as_string) {
+            gtk_widget.set_text(&value);
+        },
+
+        // @prop onchange - Command to run when the text changes. The placeholder `{}` will be replaced by the value
         prop(onchange: as_string) {
             let old_id = on_change_handler_id.replace(Some(
-                gtk_widget.connect_insert_text(move |_, text, _| {
-                    run_command(&onchange, text);
+                gtk_widget.connect_changed(move |gtk_widget| {
+                    run_command(&onchange, gtk_widget.get_text().to_string());
                 })
             ));
             old_id.map(|id| gtk_widget.disconnect(id));
@@ -292,11 +294,21 @@ fn build_gtk_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
 fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
     let gtk_widget = gtk::Label::new(None);
     resolve_block!(bargs, gtk_widget, {
-        // @prop - the text to display
-        // @prop limit-width - maximum count of characters to display
-        prop(text: as_string, limit_width: as_i32 = i32::MAX) {
-            gtk_widget.set_text(&text.chars().take(limit_width as usize).collect::<String>())
+        // @prop text - the text to display
+        prop(text: as_string) {
+            gtk_widget.set_text(&text);
         },
+        // @prop markup - Pango markup to display
+        prop(markup: as_string) {
+            gtk_widget.set_markup(&markup);
+        },
+        // @prop limit-width - maximum count of characters to display
+        prop(limit_width: as_i32) {
+            gtk_widget.set_max_width_chars(limit_width);
+        },
+        prop(wrap: as_bool) {
+            gtk_widget.set_line_wrap(wrap)
+        }
     });
     Ok(gtk_widget)
 }
