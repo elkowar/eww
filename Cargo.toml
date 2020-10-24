@@ -45,6 +45,8 @@ popol = "0.3"
 nix = "0.19"
 smart-default = "0.6"
 filedescriptor = "0.7"
+ctrlc = { version =  "3.1", features = [ "termination" ] }
+simple-signal = "1.1"
 
 [dev-dependencies]
 pretty_assertions = "0.6.1"

@@ -1,3 +1,5 @@
+use std::process::Command;
+
 use anyhow::*;
 
 use crate::ensure_xml_tag_is;
@@ -9,6 +11,12 @@ pub struct PollScriptVar {
     pub name: VarName,
     pub command: String,
     pub interval: std::time::Duration,
+}
+
+impl PollScriptVar {
+    pub fn run_once(&self) -> Result<PrimitiveValue> {
+        run_command(&self.command)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -33,7 +41,7 @@ impl ScriptVar {
 
     pub fn initial_value(&self) -> Result<PrimitiveValue> {
         match self {
-            ScriptVar::Poll(x) => Ok(crate::run_command(&x.command)?),
+            ScriptVar::Poll(x) => Ok(run_command(&x.command)?),
             ScriptVar::Tail(_) => Ok(PrimitiveValue::from_string(String::new())),
         }
     }
@@ -50,4 +58,11 @@ impl ScriptVar {
             Ok(ScriptVar::Tail(TailScriptVar { name, command }))
         }
     }
+}
+
+/// Run a command and get the output
+fn run_command(cmd: &str) -> Result<PrimitiveValue> {
+    let output = String::from_utf8(Command::new("/bin/sh").arg("-c").arg(cmd).output()?.stdout)?;
+    let output = output.trim_matches('\n');
+    Ok(PrimitiveValue::from(output))
 }
