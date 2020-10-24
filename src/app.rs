@@ -63,6 +63,7 @@ impl App {
                 log::info!("Received kill command, stopping server!");
                 self.script_var_handler.stop();
                 self.windows.values().for_each(|w| w.gtk_window.close());
+                script_var_process::on_application_death();
                 std::process::exit(0);
             }
             EwwCommand::OpenWindow { window_name, pos, size } => self.open_window(&window_name, pos, size),

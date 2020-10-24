@@ -4,7 +4,7 @@ use crate::{
     value::{AttrName, AttrValueElement, VarName},
 };
 use anyhow::*;
-use std::{collections::HashMap, process::Command, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use crate::value::{AttrValue, PrimitiveValue};
 
@@ -170,11 +170,4 @@ impl EwwState {
             window_state.put_handler(handler);
         }
     }
-}
-
-/// Run a command and get the output
-pub fn run_command(cmd: &str) -> Result<PrimitiveValue> {
-    let output = String::from_utf8(Command::new("/bin/sh").arg("-c").arg(cmd).output()?.stdout)?;
-    let output = output.trim_matches('\n');
-    Ok(PrimitiveValue::from(output))
 }

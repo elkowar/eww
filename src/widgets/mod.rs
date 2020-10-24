@@ -16,9 +16,9 @@ const CMD_STRING_PLACEHODLER: &str = "{}";
 
 /// Run a command that was provided as an attribute. This command may use a
 /// placeholder ('{}') which will be replaced by the value provided as [`arg`]
-pub fn run_command<T: std::fmt::Display>(cmd: &str, arg: T) {
+pub(self) fn run_command<T: std::fmt::Display>(cmd: &str, arg: T) {
     let cmd = cmd.replace(CMD_STRING_PLACEHODLER, &format!("{}", arg));
-    if let Err(e) = Command::new("/bin/sh").arg("-c").arg(cmd).output() {
+    if let Err(e) = Command::new("/bin/sh").arg("-c").arg(cmd).spawn() {
         eprintln!("{}", e);
     }
 }
