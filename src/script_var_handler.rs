@@ -124,7 +124,9 @@ impl ScriptVarHandler {
                 };
                 util::print_result_err("in script-var tail handler thread", &result);
             }
-            script_var_processes.values().for_each(|process| process.kill());
+            for process in script_var_processes.values() {
+                util::print_result_err("While killing tail-var process at the end of tail task", &process.kill());
+            }
         });
         self.tail_handler_thread = Some(thread_handle);
         Ok(())
@@ -143,7 +145,7 @@ pub mod script_var_process {
         sys::{signal, wait},
         unistd::Pid,
     };
-    use std::{io::BufReader, process::Stdio, sync::Mutex};
+    use std::{ffi::CString, io::BufReader, sync::Mutex};
 
     use crate::util;
 
@@ -151,54 +153,79 @@ pub mod script_var_process {
         static ref SCRIPT_VAR_CHILDREN: Mutex<Vec<u32>> = Mutex::new(Vec::new());
     }
 
-    fn terminate_pid(pid: u32) {
-        println!("Killing pid: {}", pid);
-        let result = signal::kill(Pid::from_raw(pid as i32), signal::SIGTERM);
-        util::print_result_err("While killing tail-var child processes", &result);
-        let wait_result = wait::waitpid(Pid::from_raw(pid as i32), None);
-        util::print_result_err("While killing tail-var child processes", &wait_result);
+    fn terminate_pid(pid: u32) -> Result<()> {
+        signal::kill(Pid::from_raw(pid as i32), signal::SIGTERM)?;
+        wait::waitpid(Pid::from_raw(pid as i32), None)?;
+        Ok(())
     }
 
     /// This function should be called in the signal handler, killing all child processes.
     pub fn on_application_death() {
-        SCRIPT_VAR_CHILDREN
-            .lock()
-            .unwrap()
-            .drain(..)
-            .for_each(|pid| terminate_pid(pid));
+        SCRIPT_VAR_CHILDREN.lock().unwrap().drain(..).for_each(|pid| {
+            let result = terminate_pid(pid);
+            util::print_result_err("While killing process '{}' during cleanup", &result);
+        });
     }
 
     pub struct ScriptVarProcess {
-        child: std::process::Child,
-        pub stdout_reader: BufReader<std::process::ChildStdout>,
+        pid: i32,
+        pub stdout_reader: BufReader<filedescriptor::FileDescriptor>,
     }
 
     impl ScriptVarProcess {
         pub(super) fn run(command: &str) -> Result<Self> {
-            println!("Running {}", command);
-            let mut child = std::process::Command::new("/bin/sh")
-                .arg("-c")
-                .arg(command)
-                .stdout(Stdio::piped())
-                .stderr(Stdio::inherit())
-                .stdin(Stdio::null())
-                .spawn()?;
-            SCRIPT_VAR_CHILDREN.lock().unwrap().push(child.id());
-            Ok(ScriptVarProcess {
-                stdout_reader: BufReader::new(child.stdout.take().unwrap()),
-                child,
-            })
+            use nix::unistd::*;
+
+            let pipe = filedescriptor::Pipe::new()?;
+
+            match unsafe { fork()? } {
+                ForkResult::Parent { child, .. } => {
+                    SCRIPT_VAR_CHILDREN.lock().unwrap().push(child.as_raw() as u32);
+
+                    Ok(ScriptVarProcess {
+                        stdout_reader: BufReader::new(pipe.read),
+                        pid: child.as_raw(),
+                    })
+                }
+                ForkResult::Child => {
+                    let _ = setpgid(Pid::from_raw(0), Pid::from_raw(0));
+                    match unsafe { fork()? } {
+                        ForkResult::Parent { .. } => {
+                            simple_signal::set_handler(&[simple_signal::Signal::Int, simple_signal::Signal::Term], |_| {
+                                let pgid = getpgid(Some(getpid())).unwrap();
+                                let _ = signal::killpg(pgid, nix::sys::signal::SIGKILL);
+                                while nix::sys::wait::wait().unwrap().pid().is_some() {}
+                            });
+                            loop {}
+                        }
+                        ForkResult::Child => {
+                            execv(
+                                CString::new("/bin/sh").unwrap().as_ref(),
+                                &[
+                                    CString::new("/bin/sh").unwrap(),
+                                    CString::new("-c").unwrap(),
+                                    CString::new(command).unwrap(),
+                                ],
+                            )
+                            .unwrap();
+                            unreachable!(
+                                "Child fork called exec, thus the process was replaced by the command the user provided"
+                            );
+                        }
+                    }
+                }
+            }
         }
 
-        pub(super) fn kill(&self) {
-            SCRIPT_VAR_CHILDREN.lock().unwrap().retain(|item| *item != self.child.id());
-            terminate_pid(self.child.id());
+        pub(super) fn kill(&self) -> Result<()> {
+            SCRIPT_VAR_CHILDREN.lock().unwrap().retain(|item| *item != self.pid as u32);
+            terminate_pid(self.pid as u32).context("Error manually killing tail-var script")
         }
     }
 
     impl Drop for ScriptVarProcess {
         fn drop(&mut self) {
-            self.kill();
+            let _ = self.kill();
         }
     }
 }

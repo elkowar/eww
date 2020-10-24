@@ -339,6 +339,7 @@ dependencies = [
  "roxmltree",
  "scheduled-executor",
  "serde",
+ "simple-signal",
  "smart-default",
  "stoppable_thread",
  "structopt",
@@ -1632,6 +1633,16 @@ dependencies = [
  "proc-macro2",
  "quote 1.0.7",
  "syn 1.0.44",
+]
+
+[[package]]
+name = "simple-signal"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "53f7da44adcc42667d57483bd93f81295f27d66897804b757573b61b6f13288b"
+dependencies = [
+ "lazy_static",
+ "libc",
 ]
 
 [[package]]
