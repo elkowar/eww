@@ -60,11 +60,6 @@ impl From<&str> for PrimitiveValue {
         PrimitiveValue(s.to_string())
     }
 }
-// impl From<Vec<String>> for PrimitiveValue {
-//     fn from(s: Vec<String>) -> Self {
-//         PrimitiveValue(s.to_string())
-//     }
-// }
 
 impl PrimitiveValue {
     pub fn from_string(s: String) -> Self {
