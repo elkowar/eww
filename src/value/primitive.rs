@@ -107,7 +107,6 @@ fn parse_vec(a: String) -> Result<Vec<String>> {
                 if items[times_ran - removed].ends_with("\\") {
                     items[times_ran - removed].pop();
                     let it = items.remove((times_ran + 1) - removed);
-                    println!("{}", it);
                     items[times_ran - removed] += ",";
                     items[times_ran - removed] += &it;
                     removed += 1;
