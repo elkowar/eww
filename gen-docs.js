@@ -77,7 +77,17 @@ function printDocs(vars, docs) {
         .map((x) => printWidget(x))
         .map((x) => x.replace(/\$\w+/, (x) => vars[x.replace("$", "")]))
         .join("\n\n");
-    let md = `# Widgets\n\n${output}`;
+    let md = `
++++
+title = "Widgets"
+slug = "Documentation of all available widgets and all their attributes"
+weight = 4
++++
+
+# Widgets
+
+${output}
+    `;
     console.log(md);
 }
 

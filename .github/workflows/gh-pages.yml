@@ -1,7 +1,8 @@
 name: Build and deploy GH Pages
 on:
     push:
-        branches: [master]
+        branches:
+            - master
 jobs:
     build:
         name: shalzz/zola-deploy-action
@@ -9,6 +10,12 @@ jobs:
         steps:
             # Checkout
             - uses: actions/checkout@master
+
+            # Build widget documentation
+            - name: Use nodejs to build widget documentation
+              uses: actions/setup-node@v1
+            - run: node gen-docs.js ./src/widgets/widget_definitions.rs >> ./docs/content/main/widgets.md
+
             # Build & deploy
             - name: shalzz/zola-deploy-action
               uses: shalzz/zola-deploy-action@v0.12.0
