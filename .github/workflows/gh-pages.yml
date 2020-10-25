@@ -3,6 +3,11 @@ on:
     push:
         branches:
             - master
+        paths:
+            - "docs/**"
+            - "gen-docs.js"
+            - "src/widgets/widget_definitions.rs"
+            - ".github/workflows/**"
 jobs:
     build:
         name: shalzz/zola-deploy-action
@@ -15,7 +20,7 @@ jobs:
             - name: Use nodejs to build widget documentation
               uses: actions/setup-node@v1
               with:
-                  node-version: '12.x'
+                  node-version: "12.x"
             - run: node gen-docs.js ./src/widgets/widget_definitions.rs >> ./docs/content/main/widgets.md
 
             # Build & deploy
