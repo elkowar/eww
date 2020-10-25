@@ -1,0 +1,52 @@
+{% extends "index.html" %}
+
+{% block content %}
+    <h1>{{ section.title }}</h1>
+    {{ section.content | safe }}
+{% endblock content %}
+
+{% block prev_link %}
+    {# need to find the last page of the previous section or the previous section directly
+     if there isn't any pages in it #}
+    {% set index = get_section(path="_index.md") %}
+    {% set found_current = false %}
+    {% for s in index.subsections | reverse %}
+        {% set subsection = get_section(path=s) %}
+        {% if subsection.permalink == section.permalink %}
+            {% set_global found_current = true %}
+        {% else %}
+            {% if found_current %}
+                {% if subsection.pages %}
+                    {% set last_page = subsection.pages | last %}
+                    <a class="previous" href="{{ last_page.permalink }}"><</a>
+                {% else %}
+                    <a class="previous" href="{{ subsection.permalink }}"><</a>
+                {% endif %}
+                {# no break #}
+                {% set_global found_current = false %}
+            {% endif %}
+        {% endif %}
+    {% endfor %}
+{% endblock prev_link %}
+
+{% block next_link %}
+    {% if section.pages %}
+        {% set next_page = section.pages | first %}
+        <a class="next" href="{{ next_page.permalink }}">></a>
+    {% else %}
+        {# No page in the section, find the link for the following section #}
+        {% set index = get_section(path="_index.md") %}
+        {% set found_current = false %}
+        {% for s in index.subsections %}
+            {% set subsection = get_section(path=s) %}
+            {% if found_current %}
+                <a class="next" href="{{ subsection.permalink }}">></a>
+                {# no break #}
+                {% set_global found_current = false %}
+            {% endif %}
+            {% if subsection.permalink == section.permalink %}
+                {% set_global found_current = true %}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+{% endblock next_link %}

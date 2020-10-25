@@ -1,0 +1,50 @@
+.menu {
+  height: 100%;
+  position: absolute;
+  left: 0;
+  overflow-y: auto;
+  width: 300px;
+  color: #364149;
+  background: #fafafa;
+  border-right: 1px solid rgba(0, 0, 0, 0.07);
+  transition: 0.5s;
+
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+
+    a {
+      display: block;
+      color: #364149;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      white-space: nowrap;
+      text-decoration: none;
+      padding: 10px 15px;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+
+    li.active > a {
+      color: #008cff;
+      text-decoration: none;
+    }
+
+    ul {
+      padding-left: 20px;
+    }
+  }
+}
+
+.menu-hidden {
+  width: 0;
+}
+
+@include max-screen(600px) {
+  .menu {
+    width: 0;
+  }
+}

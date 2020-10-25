@@ -1,0 +1,160 @@
+@mixin menu-icon() {
+  @keyframes clickfirst {
+    0% {
+      transform: translateY(6px) rotate(0deg);
+
+    }
+
+    100% {
+      transform: translateY(0) rotate(45deg);
+    }
+  }
+
+  @keyframes clickmid {
+    0% {
+      opacity: 1;
+    }
+
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes clicklast {
+    0% {
+      transform: translateY(-6px) rotate(0deg);
+    }
+
+    100% {
+      transform: translateY(0) rotate(-45deg);
+    }
+  }
+
+  @keyframes outfirst {
+    0% {
+      transform: translateY(0) rotate(-45deg);
+    }
+
+    100% {
+      transform: translateY(-6px) rotate(0deg);
+    }
+  }
+
+  @keyframes outmid {
+    0% {
+      opacity: 0;
+    }
+
+    100% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes outlast {
+    0% {
+      transform: translateY(0) rotate(45deg);
+    }
+
+    100% {
+      transform: translateY(6px) rotate(0deg);
+    }
+  }
+
+  span {
+    position: absolute;
+    /* fallback for browsers which still doesn't support for `calc()` */
+    left: 15px;
+    top: 25px;
+    left: calc((100% - 20px) / 2);
+    top: calc((100% - 1px) / 2);
+    width: 20px;
+    height: 2px;
+    background-color: rgba(0, 0, 0, 0.5);
+
+    &:nth-child(1) {
+      transform: translateY(6px) rotate(0deg);
+    }
+
+    &:nth-child(3) {
+      transform: translateY(-6px) rotate(0deg);
+    }
+  }
+
+  &.icon-click {
+    span:nth-child(1) {
+      animation-duration: 0.5s;
+      animation-fill-mode: both;
+      animation-name: clickfirst;
+    }
+
+    span:nth-child(2) {
+      animation-duration: 0.2s;
+      animation-fill-mode: both;
+      animation-name: clickmid;
+    }
+
+    span:nth-child(3) {
+      animation-duration: 0.5s;
+      animation-fill-mode: both;
+      animation-name: clicklast;
+    }
+  }
+
+  &.icon-out {
+    span:nth-child(1) {
+      animation-duration: 0.5s;
+      animation-fill-mode: both;
+      animation-name: outfirst;
+    }
+
+    span:nth-child(2) {
+      animation-duration: 0.2s;
+      animation-fill-mode: both;
+      animation-name: outmid;
+    }
+
+    span:nth-child(3) {
+      animation-duration: 0.5s;
+      animation-fill-mode: both;
+      animation-name: outlast;
+    }
+  }
+}
+
+.page__header {
+  height: 50px;
+
+  .menu-icon {
+    height: 50px;
+    width: 50px;
+    font-size: 24px;
+    text-align: center;
+    float: left;
+    position: relative;
+    transition: background .5s;
+    cursor: pointer;
+
+    @include menu-icon();
+
+    &:hover {
+      span {
+        background-color: black;
+      }
+    }
+  }
+
+  .search-icon {
+    height: 50px;
+    width: 50px;
+    display: inline-block;
+    text-align: center;
+    line-height: 50px;
+    color: rgba(0, 0, 0, 0.5);
+    cursor: pointer;
+    font-size: 2rem;
+
+    &:hover {
+      color: black
+    }
+  }
+}

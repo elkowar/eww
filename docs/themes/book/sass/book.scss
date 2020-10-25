@@ -1,0 +1,41 @@
+@charset "utf-8";
+
+@import "normalize";
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 62.5%;
+}
+
+body, html {
+  height: 100%;
+}
+
+body {
+  text-rendering: optimizeLegibility;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  letter-spacing: 0.2px;
+}
+
+
+@mixin min-screen($min-width: $body-width) {
+   @media screen and (min-width: $min-width) {
+     @content;
+   }
+}
+
+@mixin max-screen($max-width: $body-width) {
+   @media screen and (max-width: $max-width) {
+     @content;
+   }
+}
+
+$sidebar-width: 300px;
+
+@import "navigation";
+@import "content";
+@import "header";

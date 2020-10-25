@@ -1,0 +1,27 @@
+name: Build and deploy Github pages
+on:
+    push:
+        branches:
+            - master
+jobs:
+    build:
+        name: shalzz/zola-deploy-action
+        runs-on: ubuntu-latest
+        steps:
+            # Checkout
+            - uses: actions/checkout@master
+
+            # Build widget documentation
+            - name: Use nodejs to build widget documentation
+              uses: actions/setup-node@v1
+              with:
+                  node-version: '12.x'
+            - run: node gen-docs.js ./src/widgets/widget_definitions.rs >> ./docs/content/main/widgets.md
+
+            # Build & deploy
+            - name: shalzz/zola-deploy-action
+              uses: shalzz/zola-deploy-action@v0.12.0
+              env:
+                  PAGES_BRANCH: gh-pages
+                  BUILD_DIR: docs
+                  TOKEN: ${{ secrets.TOKEN }}
