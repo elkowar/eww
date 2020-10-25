@@ -3,18 +3,14 @@ use derive_more::*;
 use serde::{Deserialize, Serialize};
 use std::{fmt, str::FromStr};
 
-#[derive(Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Display)]
+#[derive(Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Display, DebugCustom)]
 pub enum NumWithUnit {
     #[display(fmt = "{}%", .0)]
+    #[debug(fmt = "{}%", .0)]
     Percent(i32),
     #[display(fmt = "{}px", .0)]
+    #[debug(fmt = "{}px", .0)]
     Pixels(i32),
-}
-
-impl fmt::Debug for NumWithUnit {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self)
-    }
 }
 
 impl FromStr for NumWithUnit {
