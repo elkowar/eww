@@ -30,7 +30,8 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<Option<gtk
 }
 
 /// attributes that apply to all widgets
-/// @widget !widget
+/// @widget widget
+/// @desc these properties apply to _all_ widgets, and can be used anywhere!
 pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Widget) {
     let css_provider = gtk::CssProvider::new();
 
@@ -171,7 +172,8 @@ fn build_gtk_combo_box(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText> {
     });
     Ok(gtk_widget)
 }
-/// @widget expander widget
+/// @widget expander extends container
+/// @desc a widget that can expand and collapse, showing / hiding it's children.
 fn build_gtk_expander(bargs: &mut BuilderArgs) -> Result<gtk::Expander> {
     let gtk_widget = gtk::Expander::new(None);
     resolve_block!(bargs, gtk_widget, {
@@ -182,6 +184,7 @@ fn build_gtk_expander(bargs: &mut BuilderArgs) -> Result<gtk::Expander> {
     });
     Ok(gtk_widget)
 }
+
 /// @widget color-button
 fn build_gtk_color_button(bargs: &mut BuilderArgs) -> Result<gtk::ColorButton> {
     let gtk_widget = gtk::ColorButtonBuilder::new().build();
@@ -345,7 +348,7 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Frame> {
     let window_name = bargs.window_name.clone();
     let widget_definitions = bargs.widget_definitions.clone();
     resolve_block!(bargs, gtk_widget, {
-        // @prop - inline Eww XML that will be rendered as a widget.
+        // @prop content - inline Eww XML that will be rendered as a widget.
         prop(content: as_string) {
             gtk_widget.get_children().iter().for_each(|w| gtk_widget.remove(w));
             if !content.is_empty() {
