@@ -75,7 +75,7 @@ function printDocs(vars, docs) {
             return x;
         })
         .map((x) => printWidget(x))
-        .map((x) => x.replace(/\$\w+/, (x) => vars[x.replace("$", "")]))
+        .map((x) => x.replace(/\$\w+/g, (x) => vars[x.replace("$", "")]))
         .join("\n\n");
     console.log(output);
 }
