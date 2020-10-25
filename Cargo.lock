@@ -248,16 +248,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ctrlc"
-version = "3.1.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b57a92e9749e10f25a171adcebfafe72991d45e7ec2dcb853e8f83d9dafaeb08"
-dependencies = [
- "nix 0.18.0",
- "winapi 0.3.9",
-]
-
-[[package]]
 name = "debug_stub_derive"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -310,7 +300,6 @@ dependencies = [
  "anyhow",
  "bincode",
  "crossbeam-channel",
- "ctrlc",
  "debug_stub_derive",
  "derive_more",
  "extend",
@@ -328,13 +317,11 @@ dependencies = [
  "libc",
  "log 0.4.11",
  "maplit",
- "nix 0.19.0",
- "notify",
+ "nix",
  "num",
  "popol",
  "pretty_assertions",
  "pretty_env_logger",
- "ref-cast",
  "regex",
  "roxmltree",
  "scheduled-executor",
@@ -343,7 +330,6 @@ dependencies = [
  "smart-default",
  "stoppable_thread",
  "structopt",
- "try_match",
 ]
 
 [[package]]
@@ -1063,18 +1049,6 @@ dependencies = [
 
 [[package]]
 name = "nix"
-version = "0.18.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "83450fe6a6142ddd95fb064b746083fc4ef1705fe81f64a64e1d4b39f54a1055"
-dependencies = [
- "bitflags",
- "cc",
- "cfg-if",
- "libc",
-]
-
-[[package]]
-name = "nix"
 version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "85db2feff6bf70ebc3a4793191517d5f0331100a2f10f9bf93b5e5214f32b7b7"
@@ -1510,26 +1484,6 @@ name = "redox_syscall"
 version = "0.1.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "41cc0f7e4d5d4544e8861606a285bb08d3e70712ccc7d2b84d7c0ccfaf4b05ce"
-
-[[package]]
-name = "ref-cast"
-version = "1.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "745c1787167ddae5569661d5ffb8b25ae5fedbf46717eaa92d652221cec72623"
-dependencies = [
- "ref-cast-impl",
-]
-
-[[package]]
-name = "ref-cast-impl"
-version = "1.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d21b475ab879ef0e315ad99067fa25778c3b0377f57f1b00207448dac1a3144"
-dependencies = [
- "proc-macro2",
- "quote 1.0.7",
- "syn 1.0.44",
-]
 
 [[package]]
 name = "regex"
@@ -2038,29 +1992,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "75cf45bb0bef80604d001caaec0d09da99611b3c0fd39d3080468875cdb65645"
 dependencies = [
  "serde",
-]
-
-[[package]]
-name = "try_match"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "138279d5e35e72a1b3822588aaf928126f161491e3dd9c25758efe59ef6f0e1c"
-dependencies = [
- "proc-macro-hack",
- "try_match_inner",
-]
-
-[[package]]
-name = "try_match_inner"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc75c0dd3d842ee7316d2fb1d6ea2012291d279907ea8b9564f741358b5ef82e"
-dependencies = [
- "proc-macro-error",
- "proc-macro-hack",
- "proc-macro2",
- "quote 1.0.7",
- "syn 1.0.44",
 ]
 
 [[package]]

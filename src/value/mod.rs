@@ -1,5 +1,4 @@
 use derive_more::*;
-use ref_cast::RefCast;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -12,7 +11,7 @@ pub use primitive::*;
 
 /// The name of a variable
 #[repr(transparent)]
-#[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize, RefCast, AsRef, From, FromStr, Display, DebugCustom)]
+#[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize, AsRef, From, FromStr, Display, DebugCustom)]
 #[debug(fmt = "VarName({})", .0)]
 pub struct VarName(pub String);
 
@@ -30,7 +29,7 @@ impl From<&str> for VarName {
 
 /// The name of an attribute
 #[repr(transparent)]
-#[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize, RefCast, AsRef, From, FromStr, Display, DebugCustom)]
+#[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize, AsRef, From, FromStr, Display, DebugCustom)]
 #[debug(fmt="AttrName({})", .0)]
 pub struct AttrName(pub String);
 

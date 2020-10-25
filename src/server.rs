@@ -15,12 +15,11 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
         do_detach()?;
     }
 
-    ctrlc::set_handler(|| {
+    simple_signal::set_handler(&[simple_signal::Signal::Int, simple_signal::Signal::Term], |_| {
         println!("Shutting down eww daemon...");
         script_var_handler::script_var_process::on_application_death();
         std::process::exit(0);
-    })
-    .context("Error setting signal hook")?;
+    });
 
     let config_file_path = crate::CONFIG_DIR.join("eww.xml");
     let config_dir = config_file_path

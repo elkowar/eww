@@ -97,6 +97,7 @@ impl PrimitiveValue {
         parse_vec(self.0.to_owned()).map_err(|e| anyhow!("Couldn't convert {:#?} to a vec: {}", &self, e))
     }
 }
+
 fn parse_vec(a: String) -> Result<Vec<String>> {
     match a.strip_prefix('[').and_then(|x| x.strip_suffix(']')) {
         Some(content) => {
