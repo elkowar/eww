@@ -154,8 +154,9 @@ fn build_gtk_combo_box(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText> {
     resolve_block!(bargs, gtk_widget, {
         // @prop items
         prop(items: as_vec) {
+            gtk_widget.remove_all();
             for i in items {
-            gtk_widget.append_text(&i);
+                gtk_widget.append_text(&i);
             }
         },
         // @prop onchange - runs the code when a item was selected, replacing {} with the item as a string
