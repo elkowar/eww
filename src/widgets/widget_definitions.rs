@@ -415,7 +415,7 @@ fn parse_orientation(o: &str) -> Result<gtk::Orientation> {
     })
 }
 
-/// @var align - "fill", "baseline", "center", "start", "end"
+/// @var alignment - "fill", "baseline", "center", "start", "end"
 fn parse_align(o: &str) -> Result<gtk::Align> {
     Ok(match o {
         "fill" => gtk::Align::Fill,

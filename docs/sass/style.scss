@@ -1,17 +1,17 @@
 :root {
-    --bg: hsl(210, 25%, 8%);
-    --bg-code: #2b303b;
-    --fg: #c5c5c5;
-    --sidebar-bg: #14191f;
-    --sidebar-fg: #c8c9db;
+    --bg: #fff;
+    --bg-code: #f5f5f5;
+    --fg: #444;
+    --sidebar-bg: #242529;
+    --sidebar-fg: #8b8f92;
+    --sidebar-active: #fafafa;
     --sidebar-non-existant: #5c6773;
-    --sidebar-active: #ffb454;
     --sidebar-spacer: #2d334f;
     --scrollbar: var(--sidebar-fg);
     --icons: #737480;
     --icons-hover: #b7b9cc;
     --links: #0096cf;
-    --inline-code-color: #ffb454;
+    --inline-code-color: #1f1f1f;
     --theme-popup-bg: #14191f;
     --theme-popup-border: #5c6773;
     --theme-hover: #191f26;
@@ -47,9 +47,5 @@
     code {
         color: var(--inline-code-color);
         background-color: var(--bg-code);
-    }
-
-    .menu-icon > span {
-        background-color: rgba(255, 255, 255, 0.5);
     }
 }
