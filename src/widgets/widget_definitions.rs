@@ -23,6 +23,7 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<Option<gtk
         "color-button" => build_gtk_color_button(bargs)?.upcast(),
         "expander" => build_gtk_expander(bargs)?.upcast(),
         "color-chooser" => build_gtk_color_chooser(bargs)?.upcast(),
+        "combo-box" => build_gtk_combo_box(bargs)?.upcast(),
         _ => return Ok(None),
     };
     Ok(Some(gtk_widget))
@@ -146,6 +147,30 @@ pub(super) fn resolve_orientable_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk
 
 // concrete widgets
 
+/// @widget combo-box
+fn build_gtk_combo_box(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText> {
+    let gtk_widget = gtk::ComboBoxText::new();
+    let on_change_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
+    resolve_block!(bargs, gtk_widget, {
+        // @prop items
+        prop(items: as_vec) {
+            gtk_widget.remove_all();
+            for i in items {
+                gtk_widget.append_text(&i);
+            }
+        },
+        // @prop onchange - runs the code when a item was selected, replacing {} with the item as a string
+        prop(onchange: as_string) {
+            let old_id = on_change_handler_id.replace(Some(
+                gtk_widget.connect_changed(move |gtk_widget| {
+                    run_command(&onchange, gtk_widget.get_active_text().unwrap_or("".into()));
+                })
+            ));
+            old_id.map(|id| gtk_widget.disconnect(id));
+        },
+    });
+    Ok(gtk_widget)
+}
 /// @widget expander widget
 fn build_gtk_expander(bargs: &mut BuilderArgs) -> Result<gtk::Expander> {
     let gtk_widget = gtk::Expander::new(None);
