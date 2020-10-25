@@ -2,6 +2,8 @@ use crate::{
     util,
     value::{Coords, PrimitiveValue, VarName},
 };
+// !!!
+use crate::PathBuf;
 use anyhow::*;
 use derive_more;
 use element::*;
@@ -84,6 +86,20 @@ pub struct EwwConfig {
 }
 
 impl EwwConfig {
+
+    // TODO: !!! There is definitely a better way to do this with a fold
+   pub fn merge_includes(eww_config: EwwConfig, includes: Vec<EwwConfig>) -> Result<EwwConfig> {
+        let mut eww_config = eww_config.clone();
+        for config in includes {
+            eww_config.widgets.extend(config.widgets);
+            eww_config.windows.extend(config.windows);
+            eww_config.script_vars.extend(config.script_vars);
+            eww_config.initial_variables.extend(config.initial_variables);
+        }
+
+        Ok(eww_config)
+    }
+
     pub fn read_from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self> {
         let content = util::replace_env_var_references(std::fs::read_to_string(path)?);
         let document = roxmltree::Document::parse(&content)?;
@@ -93,6 +109,26 @@ impl EwwConfig {
     }
 
     pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
+
+        // TODO: This is not the way
+        let CONFIG_DIR: std::path::PathBuf = std::env::var("XDG_CONFIG_HOME")
+            .map(|v| PathBuf::from(v))
+            .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap()).join(".config"))
+            .join("eww");
+
+        // !!! This doesnt seem that bad
+        let includes =
+            match xml.child("includes") {
+                Ok(tag) => tag.child_elements()
+                    .map(|child| {
+                        let path = CONFIG_DIR.join(child.attr("path").unwrap());
+                        EwwConfig::read_from_file(path)
+                    })
+                    .collect::<Result<Vec<_>>>()
+                    .context("error parsing include definitions")?,
+                Err(_) => {Vec::new()}
+            };
+
         let definitions = xml
             .child("definitions")?
             .child_elements()
@@ -140,12 +176,14 @@ impl EwwConfig {
             }
         }
 
-        Ok(EwwConfig {
+        // TODO: !!! Names are wacky
+        let current_config = EwwConfig {
             widgets: definitions,
             windows,
             initial_variables,
             script_vars,
-        })
+        };
+        EwwConfig::merge_includes(current_config, includes)
     }
 
     // TODO this is kinda ugly
