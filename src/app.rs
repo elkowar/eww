@@ -1,10 +1,10 @@
 use crate::{
     config,
-    config::{WindowName, WindowStacking},
+    config::{window_definition::WindowName, WindowStacking},
     eww_state,
     script_var_handler::*,
     util,
-    value::{Coords, NumWithUnit, PrimitiveValue, VarName},
+    value::{AttrValue, Coords, NumWithUnit, PrimitiveValue, VarName},
     widgets,
 };
 use anyhow::*;
@@ -36,7 +36,7 @@ pub enum EwwCommand {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct EwwWindow {
-    pub name: config::WindowName,
+    pub name: WindowName,
     pub definition: config::EwwWindowDefinition,
     pub gtk_window: gtk::Window,
 }
@@ -45,7 +45,7 @@ pub struct EwwWindow {
 pub struct App {
     pub eww_state: eww_state::EwwState,
     pub eww_config: config::EwwConfig,
-    pub windows: HashMap<config::WindowName, EwwWindow>,
+    pub windows: HashMap<WindowName, EwwWindow>,
     pub css_provider: gtk::CssProvider,
     pub app_evt_send: glib::Sender<EwwCommand>,
     #[debug_stub = "ScriptVarHandler(...)"]
@@ -61,6 +61,9 @@ impl App {
             EwwCommand::ReloadCss(css) => self.load_css(&css),
             EwwCommand::KillServer => {
                 log::info!("Received kill command, stopping server!");
+                self.script_var_handler.stop();
+                self.windows.values().for_each(|w| w.gtk_window.close());
+                script_var_process::on_application_death();
                 std::process::exit(0);
             }
             EwwCommand::OpenWindow { window_name, pos, size } => self.open_window(&window_name, pos, size),
@@ -87,7 +90,7 @@ impl App {
         self.eww_state.update_variable(fieldname, value)
     }
 
-    fn close_window(&mut self, window_name: &config::WindowName) -> Result<()> {
+    fn close_window(&mut self, window_name: &WindowName) -> Result<()> {
         let window = self
             .windows
             .remove(window_name)
@@ -98,15 +101,17 @@ impl App {
         Ok(())
     }
 
-    fn open_window(&mut self, window_name: &config::WindowName, pos: Option<Coords>, size: Option<Coords>) -> Result<()> {
+    fn open_window(&mut self, window_name: &WindowName, pos: Option<Coords>, size: Option<Coords>) -> Result<()> {
         // remove and close existing window with the same name
         let _ = self.close_window(window_name);
+
+        log::info!("Opening window {}", window_name);
 
         let mut window_def = self
             .eww_config
             .get_windows()
             .get(window_name)
-            .context(format!("No window named '{}' defined", window_name))?
+            .with_context(|| format!("No window named '{}' defined", window_name))?
             .clone();
 
         let display = gdk::Display::get_default().expect("could not get default display");
@@ -116,16 +121,23 @@ impl App {
 
         let monitor_geometry = display.get_default_screen().get_monitor_geometry(*screen_number);
 
-        window_def.position = pos.unwrap_or_else(|| window_def.position);
-        window_def.size = size.unwrap_or_else(|| window_def.size);
+        window_def.position = pos.unwrap_or(window_def.position);
+        window_def.size = size.unwrap_or(window_def.size);
 
         let actual_window_rect = get_window_rectangle_in_screen(monitor_geometry, window_def.position, window_def.size);
 
-        let window = gtk::Window::new(gtk::WindowType::Popup);
+        let window = if window_def.focusable {
+            gtk::Window::new(gtk::WindowType::Toplevel)
+        } else {
+            gtk::Window::new(gtk::WindowType::Popup)
+        };
+
         window.set_title(&format!("Eww - {}", window_name));
         let wm_class_name = format!("eww-{}", window_name);
         window.set_wmclass(&wm_class_name, &wm_class_name);
-        window.set_type_hint(gdk::WindowTypeHint::Dock);
+        if !window_def.focusable {
+            window.set_type_hint(gdk::WindowTypeHint::Dock);
+        }
         window.set_position(gtk::WindowPosition::Center);
         window.set_default_size(actual_window_rect.width, actual_window_rect.height);
         window.set_size_request(actual_window_rect.width, actual_window_rect.height);
@@ -135,28 +147,22 @@ impl App {
         // run on_screen_changed to set the visual correctly initially.
         on_screen_changed(&window, None);
         window.connect_screen_changed(on_screen_changed);
-        let mut almost_empty_local_state = HashMap::new();
-        almost_empty_local_state.insert(
-            VarName("window_name".to_string()),
-            crate::value::AttrValue::from_primitive(window_name.to_string()),
-        );
+
         let root_widget = &widgets::widget_use_to_gtk_widget(
             &self.eww_config.get_widgets(),
             &mut self.eww_state,
             window_name,
-            &almost_empty_local_state,
+            &maplit::hashmap! { "window_name".into() => AttrValue::from_primitive(window_name.to_string()) },
             &window_def.widget,
         )?;
         root_widget.get_style_context().add_class(&window_name.to_string());
         window.add(root_widget);
 
-        // REAL SHIT 0_o :elkowar_with_a_looking_glass:
         window.show_all();
 
         let gdk_window = window.get_window().context("couldn't get gdk window from gtk window")?;
-        gdk_window.set_override_redirect(true);
+        gdk_window.set_override_redirect(!window_def.focusable);
         gdk_window.move_(actual_window_rect.x, actual_window_rect.y);
-        gdk_window.show();
 
         if window_def.stacking == WindowStacking::Foreground {
             gdk_window.raise();
@@ -178,6 +184,7 @@ impl App {
     }
 
     pub fn reload_all_windows(&mut self, config: config::EwwConfig) -> Result<()> {
+        log::info!("Reloading windows");
         // refresh script-var poll stuff
         util::print_result_err(
             "while setting up script-var commands",
@@ -217,19 +224,19 @@ fn on_screen_changed(window: &gtk::Window, _old_screen: Option<&gdk::Screen>) {
 fn get_window_rectangle_in_screen(screen_rect: gdk::Rectangle, pos: Coords, size: Coords) -> gdk::Rectangle {
     gdk::Rectangle {
         x: match pos.x {
-            NumWithUnit::Percent(n) => (screen_rect.width as f64 / 100.0).floor() as i32 * n,
+            NumWithUnit::Percent(n) => ((screen_rect.width as f64 / 100.0) * n as f64) as i32,
             NumWithUnit::Pixels(n) => screen_rect.x + n,
         },
         y: match pos.y {
-            NumWithUnit::Percent(n) => (screen_rect.height as f64 / 100.0).floor() as i32 * n,
+            NumWithUnit::Percent(n) => ((screen_rect.height as f64 / 100.0) * n as f64) as i32,
             NumWithUnit::Pixels(n) => screen_rect.y + n,
         },
         width: match size.x {
-            NumWithUnit::Percent(n) => (screen_rect.width as f64 / 100.0).floor() as i32 * n,
+            NumWithUnit::Percent(n) => ((screen_rect.width as f64 / 100.0) * n as f64) as i32,
             NumWithUnit::Pixels(n) => n,
         },
         height: match size.y {
-            NumWithUnit::Percent(n) => (screen_rect.height as f64 / 100.0).floor() as i32 * n,
+            NumWithUnit::Percent(n) => ((screen_rect.height as f64 / 100.0) * n as f64) as i32,
             NumWithUnit::Pixels(n) => n,
         },
     }

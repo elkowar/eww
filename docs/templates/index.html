@@ -1,0 +1,5 @@
+{% extends "book/templates/index.html" %}
+{% block css %}
+<link rel="stylesheet" href="{{ get_url(path="book.css") | safe }}">
+<link rel="stylesheet" href="{{ get_url(path="style.css") | safe }}">
+{% endblock css %}

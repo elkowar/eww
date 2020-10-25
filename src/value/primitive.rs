@@ -40,6 +40,7 @@ impl_try_from!(PrimitiveValue {
     for String => |x| x.as_string();
     for f64 => |x| x.as_f64();
     for bool => |x| x.as_bool();
+    for Vec<String> => |x| x.as_vec();
 });
 
 impl From<bool> for PrimitiveValue {
@@ -90,5 +91,70 @@ impl PrimitiveValue {
         self.0
             .parse()
             .map_err(|e| anyhow!("couldn't convert {:?} to bool: {}", &self, e))
+    }
+
+    pub fn as_vec(&self) -> Result<Vec<String>> {
+        parse_vec(self.0.to_owned()).map_err(|e| anyhow!("Couldn't convert {:#?} to a vec: {}", &self, e))
+    }
+}
+
+fn parse_vec(a: String) -> Result<Vec<String>> {
+    match a.strip_prefix('[').and_then(|x| x.strip_suffix(']')) {
+        Some(content) => {
+            let mut items: Vec<String> = content.split(',').map(|x: &str| x.to_string()).collect();
+            let mut removed = 0;
+            for times_ran in 0..items.len() {
+                // escapes `,` if there's a `\` before em
+                if items[times_ran - removed].ends_with("\\") {
+                    items[times_ran - removed].pop();
+                    let it = items.remove((times_ran + 1) - removed);
+                    items[times_ran - removed] += ",";
+                    items[times_ran - removed] += &it;
+                    removed += 1;
+                }
+            }
+            Ok(items)
+        }
+        None => Err(anyhow!("Is your array built like this: '[these,are,items]'?")),
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use pretty_assertions::assert_eq;
+    #[test]
+    fn test_parse_vec() {
+        assert_eq!(
+            vec![""],
+            parse_vec("[]".to_string()).unwrap(),
+            "should be able to parse empty lists"
+        );
+        assert_eq!(
+            vec!["hi"],
+            parse_vec("[hi]".to_string()).unwrap(),
+            "should be able to parse single element list"
+        );
+        assert_eq!(
+            vec!["hi", "ho", "hu"],
+            parse_vec("[hi,ho,hu]".to_string()).unwrap(),
+            "should be able to parse three element list"
+        );
+        assert_eq!(
+            vec!["hi,ho"],
+            parse_vec("[hi\\,ho]".to_string()).unwrap(),
+            "should be able to parse list with escaped comma"
+        );
+        assert_eq!(
+            vec!["hi,ho", "hu"],
+            parse_vec("[hi\\,ho,hu]".to_string()).unwrap(),
+            "should be able to parse two element list with escaped comma"
+        );
+        assert!(parse_vec("".to_string()).is_err(), "Should fail when parsing empty string");
+        assert!(
+            parse_vec("[a,b".to_string()).is_err(),
+            "Should fail when parsing unclosed list"
+        );
+        assert!(parse_vec("a]".to_string()).is_err(), "Should fail when parsing unopened list");
     }
 }

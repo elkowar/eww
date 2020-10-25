@@ -1,0 +1,13 @@
+name = "book"
+description = "A book theme inspired from GitBook/mdBook"
+license = "MIT"
+homepage = "https://github.com/getzola/book"
+min_version = "0.5.0"
+demo = "https://zola-book.netlify.com"
+
+[extra]
+book_number_chapters = true
+
+[author]
+name = "Vincent Prouillet"
+homepage = "https://www.vincentprouillet.com"

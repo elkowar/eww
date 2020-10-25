@@ -1,10 +1,10 @@
 use crate::{
-    config::WindowName,
+    config::window_definition::WindowName,
     util,
     value::{AttrName, AttrValueElement, VarName},
 };
 use anyhow::*;
-use std::{collections::HashMap, process::Command, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use crate::value::{AttrValue, PrimitiveValue};
 
@@ -36,7 +36,7 @@ impl StateChangeHandler {
                 util::print_result_err("while updating UI based after state change", &result);
             }
             Err(err) => {
-                eprintln!("Error whiel resolving attributes {:?}", err);
+                eprintln!("Error while resolving attributes: {:?}", err);
             }
         }
     }
@@ -148,12 +148,12 @@ impl EwwState {
         &mut self,
         window_name: &WindowName,
         local_env: &HashMap<VarName, AttrValue>,
-        attributes: HashMap<AttrName, AttrValue>,
+        required_attributes: HashMap<AttrName, AttrValue>,
         set_value: F,
     ) {
         let handler = StateChangeHandler {
             func: Box::new(set_value),
-            unresolved_values: attributes
+            unresolved_values: required_attributes
                 .into_iter()
                 .map(|(attr_name, attr_value)| (attr_name, attr_value.resolve_one_level(local_env)))
                 .collect(),
@@ -170,11 +170,4 @@ impl EwwState {
             window_state.put_handler(handler);
         }
     }
-}
-
-/// Run a command and get the output
-pub fn run_command(cmd: &str) -> Result<PrimitiveValue> {
-    let output = String::from_utf8(Command::new("/bin/sh").arg("-c").arg(cmd).output()?.stdout)?;
-    let output = output.trim_matches('\n');
-    Ok(PrimitiveValue::from(output))
 }

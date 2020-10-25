@@ -1,17 +1,14 @@
-use std::{
-    collections::HashMap,
-    io::BufReader,
-    process::{Child, Stdio},
-    time::Duration,
-};
+use std::{collections::HashMap, time::Duration};
 
-use crate::{app, config, eww_state, util, value::PrimitiveValue};
+use crate::{app, config, util, value::PrimitiveValue};
 use anyhow::*;
 use app::EwwCommand;
 use glib;
 use itertools::Itertools;
 use scheduled_executor;
 use std::io::BufRead;
+
+use self::script_var_process::ScriptVarProcess;
 
 /// Handler that manages running and updating [ScriptVar]s
 pub struct ScriptVarHandler {
@@ -54,6 +51,7 @@ impl ScriptVarHandler {
         }
         self.setup_poll_tasks(&poll_script_vars)?;
         self.setup_tail_tasks(&tail_script_vars)?;
+        log::info!("Finished initializing script-var-handler");
         Ok(())
     }
 
@@ -72,14 +70,14 @@ impl ScriptVarHandler {
                     var.interval,
                     glib::clone!(@strong var, @strong evt_send => move |_| {
                         let result: Result<_> = try {
-                            let output = eww_state::run_command(&var.command)?;
-                            evt_send.send(app::EwwCommand::UpdateVar(var.name.clone(), output))?;
+                            evt_send.send(app::EwwCommand::UpdateVar(var.name.clone(), var.run_once()?))?;
                         };
                         util::print_result_err("while running script-var command", &result);
                     }),
                 )
             })
             .collect_vec();
+        log::info!("finished setting up poll tasks");
         Ok(())
     }
 
@@ -88,18 +86,16 @@ impl ScriptVarHandler {
         log::info!("initializing handler for tail script vars");
         let mut sources = popol::Sources::with_capacity(tail_script_vars.len());
 
-        let mut command_children = Vec::new();
-        let mut command_out_handles = HashMap::new();
+        let mut script_var_processes: HashMap<_, ScriptVarProcess> = HashMap::new();
 
         for var in tail_script_vars {
-            if let Some(mut child) = try_run_command(&var.command) {
-                command_out_handles.insert(var.name.clone(), BufReader::new(child.stdout.take().unwrap()));
-                command_children.push(child);
+            match ScriptVarProcess::run(&var.command) {
+                Ok(process) => {
+                    sources.register(var.name.clone(), process.stdout_reader.get_ref(), popol::interest::READ);
+                    script_var_processes.insert(var.name.clone(), process);
+                }
+                Err(err) => eprintln!("Failed to launch script-var command for tail: {:?}", err),
             }
-        }
-
-        for (var_name, handle) in command_out_handles.iter() {
-            sources.register(var_name.clone(), handle.get_ref(), popol::interest::READ);
         }
 
         let mut events = popol::Events::with_capacity(tail_script_vars.len());
@@ -111,26 +107,25 @@ impl ScriptVarHandler {
                     sources.wait(&mut events)?;
                     for (var_name, event) in events.iter() {
                         if event.readable {
-                            let handle = command_out_handles
+                            let handle = script_var_processes
                                 .get_mut(var_name)
                                 .with_context(|| format!("No command output handle found for variable '{}'", var_name))?;
                             let mut buffer = String::new();
-                            handle.read_line(&mut buffer)?;
+                            handle.stdout_reader.read_line(&mut buffer)?;
                             evt_send.send(EwwCommand::UpdateVar(
-                                var_name.clone(),
+                                var_name.to_owned(),
                                 PrimitiveValue::from_string(buffer.trim_matches('\n').to_owned()),
                             ))?;
                         } else if event.hangup {
-                            command_out_handles.remove(var_name);
+                            script_var_processes.remove(var_name);
+                            sources.unregister(var_name);
                         }
                     }
                 };
                 util::print_result_err("in script-var tail handler thread", &result);
             }
-
-            // stop child processes after exit
-            for mut child in command_children {
-                let _ = child.kill();
+            for process in script_var_processes.values() {
+                util::print_result_err("While killing tail-var process at the end of tail task", &process.kill());
             }
         });
         self.tail_handler_thread = Some(thread_handle);
@@ -144,23 +139,93 @@ impl Drop for ScriptVarHandler {
     }
 }
 
-/// Run a command in sh, returning its stdout-handle wrapped in a
-/// [`BufReader`]. If running the command fails, will print a warning
-/// and return `None`.
-fn try_run_command(command: &str) -> Option<Child> {
-    let result = std::process::Command::new("sh")
-        .arg("-c")
-        .arg(command)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::inherit())
-        .stdin(Stdio::null())
-        .spawn();
+pub mod script_var_process {
+    use anyhow::*;
+    use nix::{
+        sys::{signal, wait},
+        unistd::Pid,
+    };
+    use std::{ffi::CString, io::BufReader, sync::Mutex};
 
-    match result {
-        Ok(handle) => Some(handle),
-        Err(err) => {
-            eprintln!("WARN: Error running command from script-variable: {:?}", err);
-            None
+    use crate::util;
+
+    lazy_static::lazy_static! {
+        static ref SCRIPT_VAR_CHILDREN: Mutex<Vec<u32>> = Mutex::new(Vec::new());
+    }
+
+    fn terminate_pid(pid: u32) -> Result<()> {
+        signal::kill(Pid::from_raw(pid as i32), signal::SIGTERM)?;
+        wait::waitpid(Pid::from_raw(pid as i32), None)?;
+        Ok(())
+    }
+
+    /// This function should be called in the signal handler, killing all child processes.
+    pub fn on_application_death() {
+        SCRIPT_VAR_CHILDREN.lock().unwrap().drain(..).for_each(|pid| {
+            let result = terminate_pid(pid);
+            util::print_result_err("While killing process '{}' during cleanup", &result);
+        });
+    }
+
+    pub struct ScriptVarProcess {
+        pid: i32,
+        pub stdout_reader: BufReader<filedescriptor::FileDescriptor>,
+    }
+
+    impl ScriptVarProcess {
+        pub(super) fn run(command: &str) -> Result<Self> {
+            use nix::unistd::*;
+
+            let pipe = filedescriptor::Pipe::new()?;
+
+            match unsafe { fork()? } {
+                ForkResult::Parent { child, .. } => {
+                    SCRIPT_VAR_CHILDREN.lock().unwrap().push(child.as_raw() as u32);
+
+                    Ok(ScriptVarProcess {
+                        stdout_reader: BufReader::new(pipe.read),
+                        pid: child.as_raw(),
+                    })
+                }
+                ForkResult::Child => {
+                    let _ = setpgid(Pid::from_raw(0), Pid::from_raw(0));
+                    match unsafe { fork()? } {
+                        ForkResult::Parent { .. } => {
+                            simple_signal::set_handler(&[simple_signal::Signal::Int, simple_signal::Signal::Term], |_| {
+                                let pgid = getpgid(Some(getpid())).unwrap();
+                                let _ = signal::killpg(pgid, nix::sys::signal::SIGKILL);
+                                while nix::sys::wait::wait().unwrap().pid().is_some() {}
+                            });
+                            loop {}
+                        }
+                        ForkResult::Child => {
+                            execv(
+                                CString::new("/bin/sh").unwrap().as_ref(),
+                                &[
+                                    CString::new("/bin/sh").unwrap(),
+                                    CString::new("-c").unwrap(),
+                                    CString::new(command).unwrap(),
+                                ],
+                            )
+                            .unwrap();
+                            unreachable!(
+                                "Child fork called exec, thus the process was replaced by the command the user provided"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        pub(super) fn kill(&self) -> Result<()> {
+            SCRIPT_VAR_CHILDREN.lock().unwrap().retain(|item| *item != self.pid as u32);
+            terminate_pid(self.pid as u32).context("Error manually killing tail-var script")
+        }
+    }
+
+    impl Drop for ScriptVarProcess {
+        fn drop(&mut self) {
+            let _ = self.kill();
         }
     }
 }

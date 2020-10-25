@@ -1,0 +1,9 @@
+base_url = "https://zola-book.netlify.com"
+compile_sass = true
+title = "book theme"
+description = "A book theme"
+highlight_code = true
+build_search_index = true
+
+[extra]
+book_number_chapters = true

@@ -1,10 +1,9 @@
 use super::{run_command, BuilderArgs};
 use crate::{config, eww_state, resolve_block, value::AttrValue};
 use anyhow::*;
+use gdk_pixbuf;
 use gtk::{prelude::*, ImageExt};
 use std::{cell::RefCell, rc::Rc};
-
-use gdk_pixbuf;
 
 // TODO figure out how to
 // TODO https://developer.gnome.org/gtk3/stable/GtkFixed.html
@@ -18,17 +17,21 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<Option<gtk
         "image" => build_gtk_image(bargs)?.upcast(),
         "button" => build_gtk_button(bargs)?.upcast(),
         "label" => build_gtk_label(bargs)?.upcast(),
-        "text" => build_gtk_text(bargs)?.upcast(),
         "literal" => build_gtk_literal(bargs)?.upcast(),
         "input" => build_gtk_input(bargs)?.upcast(),
         "calendar" => build_gtk_calendar(bargs)?.upcast(),
+        "color-button" => build_gtk_color_button(bargs)?.upcast(),
+        "expander" => build_gtk_expander(bargs)?.upcast(),
+        "color-chooser" => build_gtk_color_chooser(bargs)?.upcast(),
+        "combo-box" => build_gtk_combo_box(bargs)?.upcast(),
         _ => return Ok(None),
     };
     Ok(Some(gtk_widget))
 }
 
 /// attributes that apply to all widgets
-/// @widget !widget
+/// @widget widget
+/// @desc these properties apply to _all_ widgets, and can be used anywhere!
 pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Widget) {
     let css_provider = gtk::CssProvider::new();
 
@@ -145,6 +148,87 @@ pub(super) fn resolve_orientable_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk
 
 // concrete widgets
 
+/// @widget combo-box
+fn build_gtk_combo_box(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText> {
+    let gtk_widget = gtk::ComboBoxText::new();
+    let on_change_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
+    resolve_block!(bargs, gtk_widget, {
+        // @prop items
+        prop(items: as_vec) {
+            gtk_widget.remove_all();
+            for i in items {
+                gtk_widget.append_text(&i);
+            }
+        },
+        // @prop onchange - runs the code when a item was selected, replacing {} with the item as a string
+        prop(onchange: as_string) {
+            let old_id = on_change_handler_id.replace(Some(
+                gtk_widget.connect_changed(move |gtk_widget| {
+                    run_command(&onchange, gtk_widget.get_active_text().unwrap_or("".into()));
+                })
+            ));
+            old_id.map(|id| gtk_widget.disconnect(id));
+        },
+    });
+    Ok(gtk_widget)
+}
+/// @widget expander extends container
+/// @desc a widget that can expand and collapse, showing / hiding it's children.
+fn build_gtk_expander(bargs: &mut BuilderArgs) -> Result<gtk::Expander> {
+    let gtk_widget = gtk::Expander::new(None);
+    resolve_block!(bargs, gtk_widget, {
+    // @prop name - name of the expander
+    prop(name: as_string) {gtk_widget.set_label(Some(&name));},
+    // @prop expanded - sets if the tree is expanded
+    prop(expanded: as_bool) { gtk_widget.set_expanded(expanded); }
+    });
+    Ok(gtk_widget)
+}
+
+/// @widget color-button
+fn build_gtk_color_button(bargs: &mut BuilderArgs) -> Result<gtk::ColorButton> {
+    let gtk_widget = gtk::ColorButtonBuilder::new().build();
+    let on_change_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
+    resolve_block!(bargs, gtk_widget, {
+        // @prop use-alpha - bool to wether or not use alpha
+        prop(use_alpha: as_bool) {gtk_widget.set_use_alpha(use_alpha);},
+
+        // @prop onchange - runs the code when the color was selected
+        prop(onchange: as_string) {
+            let old_id = on_change_handler_id.replace(Some(
+                gtk_widget.connect_color_set(move |gtk_widget| {
+                    run_command(&onchange, gtk_widget.get_rgba());
+                })
+            ));
+            old_id.map(|id| gtk_widget.disconnect(id));
+        }
+    });
+
+    Ok(gtk_widget)
+}
+
+/// @widget color-chooser
+fn build_gtk_color_chooser(bargs: &mut BuilderArgs) -> Result<gtk::ColorChooserWidget> {
+    let gtk_widget = gtk::ColorChooserWidget::new();
+    let on_change_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
+    resolve_block!(bargs, gtk_widget, {
+        // @prop use-alpha - bool to wether or not use alpha
+        prop(use_alpha: as_bool) {gtk_widget.set_use_alpha(use_alpha);},
+
+        // @prop onchange - runs the code when the color was selected
+        prop(onchange: as_string) {
+            let old_id = on_change_handler_id.replace(Some(
+                gtk_widget.connect_color_activated(move |_a, gtk_widget| {
+                    run_command(&onchange, gtk_widget);
+                })
+            ));
+            old_id.map(|id| gtk_widget.disconnect(id));
+        }
+    });
+
+    Ok(gtk_widget)
+}
+
 /// @widget scale extends range
 /// @desc a slider.
 fn build_gtk_scale(bargs: &mut BuilderArgs) -> Result<gtk::Scale> {
@@ -163,19 +247,21 @@ fn build_gtk_scale(bargs: &mut BuilderArgs) -> Result<gtk::Scale> {
 }
 
 /// @widget input
-/// @desc an input field that doesn't yet really work
+/// @desc an input field. For this to be useful, set `focusable="true"` on the window.
 fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
     let gtk_widget = gtk::Entry::new();
     let on_change_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
-    gtk_widget.set_editable(true);
-    gtk_widget.set_visible(true);
-    gtk_widget.set_text("fuck");
-    gtk_widget.set_can_focus(true);
     resolve_block!(bargs, gtk_widget, {
+        // @prop value - the content of the text field
+        prop(value: as_string) {
+            gtk_widget.set_text(&value);
+        },
+
+        // @prop onchange - Command to run when the text changes. The placeholder `{}` will be replaced by the value
         prop(onchange: as_string) {
             let old_id = on_change_handler_id.replace(Some(
-                gtk_widget.connect_insert_text(move |_, text, _| {
-                    run_command(&onchange, text);
+                gtk_widget.connect_changed(move |gtk_widget| {
+                    run_command(&onchange, gtk_widget.get_text().to_string());
                 })
             ));
             old_id.map(|id| gtk_widget.disconnect(id));
@@ -227,7 +313,7 @@ fn build_gtk_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
         // @prop orientation - orientation of the box. possible values: $orientation
         prop(orientation: as_string) { gtk_widget.set_orientation(parse_orientation(&orientation)?) },
         // @prop space-evenly - space the widgets evenly.
-        prop(space_evenly: as_bool = false) { gtk_widget.set_homogeneous(space_evenly) },
+        prop(space_evenly: as_bool = true) { gtk_widget.set_homogeneous(space_evenly) },
     });
     Ok(gtk_widget)
 }
@@ -235,18 +321,22 @@ fn build_gtk_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
 /// @widget label
 fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
     let gtk_widget = gtk::Label::new(None);
-    resolve_block!(bargs, gtk_widget, {
-        // @prop - the text to display
-        prop(text: as_string) { gtk_widget.set_text(&text) },
-    });
-    Ok(gtk_widget)
-}
 
-/// @widget text
-fn build_gtk_text(_bargs: &mut BuilderArgs) -> Result<gtk::Box> {
-    let gtk_widget = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-    gtk_widget.set_halign(gtk::Align::Center);
-    gtk_widget.set_homogeneous(false);
+    resolve_block!(bargs, gtk_widget, {
+        // @prop text - the text to display
+        // @prop limit-width - maximum count of characters to display
+        prop(text: as_string, limit_width: as_i32 = i32::MAX) {
+            gtk_widget.set_text(&text.chars().take(limit_width as usize).collect::<String>());
+        },
+        // @prop markup - Pango markup to display
+        prop(markup: as_string) {
+            gtk_widget.set_markup(&markup);
+        },
+        // @prop wrap - Wrap the text. This mainly makes sense if you set the width of this widget.
+        prop(wrap: as_bool) {
+            gtk_widget.set_line_wrap(wrap)
+        }
+    });
     Ok(gtk_widget)
 }
 
@@ -258,7 +348,7 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Frame> {
     let window_name = bargs.window_name.clone();
     let widget_definitions = bargs.widget_definitions.clone();
     resolve_block!(bargs, gtk_widget, {
-        // @prop - inline Eww XML that will be rendered as a widget.
+        // @prop content - inline Eww XML that will be rendered as a widget.
         prop(content: as_string) {
             gtk_widget.get_children().iter().for_each(|w| gtk_widget.remove(w));
             if !content.is_empty() {
@@ -325,7 +415,7 @@ fn parse_orientation(o: &str) -> Result<gtk::Orientation> {
     })
 }
 
-/// @var align - "fill", "baseline", "center", "start", "end"
+/// @var alignment - "fill", "baseline", "center", "start", "end"
 fn parse_align(o: &str) -> Result<gtk::Align> {
     Ok(match o {
         "fill" => gtk::Align::Fill,
