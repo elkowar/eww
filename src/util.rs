@@ -21,6 +21,16 @@ macro_rules! impl_try_from {
     };
 }
 
+#[macro_export]
+macro_rules! try_logging_errors {
+    ($context:literal => $code:block) => {{
+        let result: Result<_> = try { $code };
+        if let Err(err) = result {
+            eprintln!("Error while {}: {:?}", $context, err);
+        }
+    }};
+}
+
 /// read an scss file, replace all environment variable references within it and
 /// then parse it into css.
 pub fn parse_scss_from_file<P: AsRef<Path>>(path: P) -> Result<String> {
