@@ -117,7 +117,7 @@ fn run_filewatch_thread<P: AsRef<Path>>(
     evt_send: glib::Sender<app::EwwCommand>,
 ) -> Result<hotwatch::Hotwatch> {
     log::info!("Initializing config file watcher");
-    let mut hotwatch = hotwatch::Hotwatch::new()?;
+    let mut hotwatch = hotwatch::Hotwatch::new_with_custom_delay(std::time::Duration::from_millis(500))?;
 
     let config_file_change_send = evt_send.clone();
     hotwatch.watch_file_changes(config_file_path, move |path| {
