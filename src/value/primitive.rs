@@ -116,3 +116,43 @@ fn parse_vec(a: String) -> Result<Vec<String>> {
         None => Err(anyhow!("Is your array built like this: '[these,are,items]'?")),
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use pretty_assertions::assert_eq;
+    #[test]
+    fn test_parse_vec() {
+        assert_eq!(
+            Vec::<String>::new(),
+            parse_vec("[]".to_string()).unwrap(),
+            "should be able to parse empty lists"
+        );
+        assert_eq!(
+            vec!["hi"],
+            parse_vec("[hi]".to_string()).unwrap(),
+            "should be able to parse single element list"
+        );
+        assert_eq!(
+            vec!["hi", "ho", "hu"],
+            parse_vec("[hi,ho,hu]".to_string()).unwrap(),
+            "should be able to parse three element list"
+        );
+        assert_eq!(
+            vec!["hi,ho"],
+            parse_vec("[hi\\,ho]".to_string()).unwrap(),
+            "should be able to parse list with escaped comma"
+        );
+        assert_eq!(
+            vec!["hi,ho", "hu"],
+            parse_vec("[hi\\,ho,hu]".to_string()).unwrap(),
+            "should be able to parse two element list with escaped comma"
+        );
+        assert!(parse_vec("".to_string()).is_err(), "Should fail when parsing empty string");
+        assert!(
+            parse_vec("[a,b".to_string()).is_err(),
+            "Should fail when parsing unclosed list"
+        );
+        assert!(parse_vec("a]".to_string()).is_err(), "Should fail when parsing unopened list");
+    }
+}
