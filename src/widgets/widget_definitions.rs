@@ -163,7 +163,7 @@ fn build_gtk_combo_box(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText> {
         prop(onchange: as_string) {
             let old_id = on_change_handler_id.replace(Some(
                 gtk_widget.connect_changed(move |gtk_widget| {
-                    run_command(&onchange, gtk_widget.get_active_text().unwrap_or(""));
+                    run_command(&onchange, gtk_widget.get_active_text().unwrap_or("".into()));
                 })
             ));
             old_id.map(|id| gtk_widget.disconnect(id));
