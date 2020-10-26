@@ -10,7 +10,7 @@ For specific built in widgets `<box>, <text>, <slider>, etc` see [Widget Documen
 
 ### Placing the configuration file
 
-The configuration file and the scss file should lay in your `$HOME/.config/eww` folder. The XML file should be named `eww.xml` and the scss should be named `eww.scss`
+The configuration file and the scss file should lay in `$XDG_CONFIG_HOME/eww` (or, if unset, `$HOME/.config/eww`). The XML file should be named `eww.xml` and the scss should be named `eww.scss`
 So the directory structure should look like this:
 ```
 $HOME
