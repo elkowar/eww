@@ -13,7 +13,6 @@ Here you will find help if something doesn't work, if the issue isn't listed her
 1. You have not created a scss file
 2. The scss file isn't called correctly. (it should be called `eww.scss` in the `$HOME/.config/eww` folder)
 3. The scss file isn't placed in the correct location (check above)
-4. You have used two (or more) semi-colons (;;) instead of one (;) at the end of a line.
 
 If none of these fixed your problem [open an issue on the GitHub repo.](https://github.com/elkowar/eww/issues) Or check the [GTK-Debugger](#gtk-debugger).
 
