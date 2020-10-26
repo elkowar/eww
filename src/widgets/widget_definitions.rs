@@ -293,7 +293,7 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
 }
 
 /// @widget image
-/// @desc A widget displaying images
+/// @desc A widget displaying an image
 fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
     let gtk_widget = gtk::Image::new();
     resolve_block!(bargs, gtk_widget, {
