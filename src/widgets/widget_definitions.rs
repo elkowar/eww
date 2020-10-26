@@ -233,7 +233,7 @@ fn build_gtk_color_chooser(bargs: &mut BuilderArgs) -> Result<gtk::ColorChooserW
 }
 
 /// @widget scale extends range
-/// @desc A widget with a slider.
+/// @desc A slider.
 fn build_gtk_scale(bargs: &mut BuilderArgs) -> Result<gtk::Scale> {
     let gtk_widget = gtk::Scale::new(
         gtk::Orientation::Horizontal,
