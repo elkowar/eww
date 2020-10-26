@@ -23,7 +23,7 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<Option<gtk
         "color-button" => build_gtk_color_button(bargs)?.upcast(),
         "expander" => build_gtk_expander(bargs)?.upcast(),
         "color-chooser" => build_gtk_color_chooser(bargs)?.upcast(),
-        "combo-box" => build_gtk_combo_box(bargs)?.upcast(),
+        "combo-box-text" => build_gtk_combo_box_text(bargs)?.upcast(),
         _ => return Ok(None),
     };
     Ok(Some(gtk_widget))
@@ -148,12 +148,13 @@ pub(super) fn resolve_orientable_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk
 
 // concrete widgets
 
-/// @widget combo-box
-fn build_gtk_combo_box(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText> {
+/// @widget combo-box-text
+/// @desc A combo box allowing the user to choose between several items.
+fn build_gtk_combo_box_text(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText> {
     let gtk_widget = gtk::ComboBoxText::new();
     let on_change_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
     resolve_block!(bargs, gtk_widget, {
-        // @prop items
+        // @prop items - Items that should be displayed in the combo box
         prop(items: as_vec) {
             gtk_widget.remove_all();
             for i in items {
@@ -173,7 +174,7 @@ fn build_gtk_combo_box(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText> {
     Ok(gtk_widget)
 }
 /// @widget expander extends container
-/// @desc a widget that can expand and collapse, showing / hiding it's children.
+/// @desc A widget that can expand and collapse, showing/hiding it's children.
 fn build_gtk_expander(bargs: &mut BuilderArgs) -> Result<gtk::Expander> {
     let gtk_widget = gtk::Expander::new(None);
     resolve_block!(bargs, gtk_widget, {
@@ -186,6 +187,7 @@ fn build_gtk_expander(bargs: &mut BuilderArgs) -> Result<gtk::Expander> {
 }
 
 /// @widget color-button
+/// @desc A button opening a color chooser window
 fn build_gtk_color_button(bargs: &mut BuilderArgs) -> Result<gtk::ColorButton> {
     let gtk_widget = gtk::ColorButtonBuilder::new().build();
     let on_change_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
@@ -208,6 +210,7 @@ fn build_gtk_color_button(bargs: &mut BuilderArgs) -> Result<gtk::ColorButton> {
 }
 
 /// @widget color-chooser
+/// @desc A color chooser widget
 fn build_gtk_color_chooser(bargs: &mut BuilderArgs) -> Result<gtk::ColorChooserWidget> {
     let gtk_widget = gtk::ColorChooserWidget::new();
     let on_change_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
@@ -230,7 +233,7 @@ fn build_gtk_color_chooser(bargs: &mut BuilderArgs) -> Result<gtk::ColorChooserW
 }
 
 /// @widget scale extends range
-/// @desc a slider.
+/// @desc A slider.
 fn build_gtk_scale(bargs: &mut BuilderArgs) -> Result<gtk::Scale> {
     let gtk_widget = gtk::Scale::new(
         gtk::Orientation::Horizontal,
@@ -247,7 +250,7 @@ fn build_gtk_scale(bargs: &mut BuilderArgs) -> Result<gtk::Scale> {
 }
 
 /// @widget input
-/// @desc an input field. For this to be useful, set `focusable="true"` on the window.
+/// @desc An input field. For this to be useful, set `focusable="true"` on the window.
 fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
     let gtk_widget = gtk::Entry::new();
     let on_change_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
@@ -271,6 +274,7 @@ fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
 }
 
 /// @widget button extends container
+/// @desc A button
 fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
     let gtk_widget = gtk::Button::new();
     let on_click_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
@@ -289,6 +293,7 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
 }
 
 /// @widget image
+/// @desc A widget displaying an image
 fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
     let gtk_widget = gtk::Image::new();
     resolve_block!(bargs, gtk_widget, {
@@ -319,6 +324,7 @@ fn build_gtk_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
 }
 
 /// @widget label
+/// @desc A text widget giving you more control over how the text is displayed
 fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
     let gtk_widget = gtk::Label::new(None);
 
@@ -341,7 +347,7 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
 }
 
 /// @widget literal
-/// @desc a tag that allows you to render arbitrary XML.
+/// @desc A widget that allows you to render arbitrary XML.
 fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Frame> {
     let gtk_widget = gtk::Frame::new(None);
     // TODO these clones here are dumdum
@@ -370,6 +376,7 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Frame> {
 }
 
 /// @widget calendar
+/// @widget A widget that displays a calendar
 fn build_gtk_calendar(bargs: &mut BuilderArgs) -> Result<gtk::Calendar> {
     let gtk_widget = gtk::Calendar::new();
     let on_click_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
