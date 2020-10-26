@@ -324,7 +324,7 @@ fn build_gtk_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
 }
 
 /// @widget label
-/// @desc A widget that displays a small to medium amount of text
+/// @desc A text widget giving you more control over how the text is displayed
 fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
     let gtk_widget = gtk::Label::new(None);
 
