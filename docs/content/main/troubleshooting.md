@@ -32,7 +32,7 @@ If none of these fixed your problem [open an issue on the GitHub repo.](https://
 You should try the following things, before opening a issue or doing more specialized troubleshooting: 
 
 - Try killing the eww daemon with `eww kill` and run again
-- If you're running with `-d`, run without `-d` to see output, or have a look at ~/.cache/eww.log
+- If you're running with `-d`, run without `-d` to see output, or run `eww logs` to see the logs written by eww. These logs are stored in `~/.cache/eww.log`.
 - use `eww state`, to see the state of all variables
 - use `eww debug`, to see the xml of your widget and other information
 - update to the latest eww version
