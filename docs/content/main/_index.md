@@ -5,7 +5,7 @@ sort_by = "weight"
 +++
 
 
-Eww (ElKowar's Wacky Widgets, pronounced with sufficient amounts of disgust) Is a widgeting system made in [rust](https://www.rust-lang.org/), which let's you create your own widgets simmilarly to how you can in AwesomeWM. The key difference: It is independent of your window manager!
+Eww (ElKowar's Wacky Widgets, pronounced with sufficient amounts of disgust) Is a widgeting system made in [rust](https://www.rust-lang.org/), which let's you create your own widgets similarly to how you can in AwesomeWM. The key difference: It is independent of your window manager!
 
 Configured in XML and themed using CSS, it is easy to customize and provides all the flexibility you need!
 

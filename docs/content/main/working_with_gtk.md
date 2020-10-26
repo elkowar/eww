@@ -6,7 +6,7 @@ weight = 2
 
 ## GTK
 
-### Gtk-Themeing
+### Gtk-theming
 
 Eww is styled in GTK CSS.
 To make theming even easier, it makes use of `scss` and then compiles that into CSS for you.
