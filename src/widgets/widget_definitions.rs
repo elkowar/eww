@@ -250,7 +250,7 @@ fn build_gtk_scale(bargs: &mut BuilderArgs) -> Result<gtk::Scale> {
 }
 
 /// @widget input
-/// @desc A input field. For this to be useful, set `focusable="true"` on the window.
+/// @desc An input field. For this to be useful, set `focusable="true"` on the window.
 fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
     let gtk_widget = gtk::Entry::new();
     let on_change_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
