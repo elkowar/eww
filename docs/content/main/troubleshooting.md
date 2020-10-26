@@ -28,7 +28,8 @@ If none of these fixed your problem [open an issue on the GitHub repo.](https://
 2. Check the [GTK-Debugger](#gtk-debugger)
 
 ### General issues
-You should always try the following things, as they solve a lot of issues: 
+
+You should try the following things, before opening a issue or doing more specialized troubleshooting: 
 
 - Try killing the eww daemon with `eww kill` and run again
 - If you're running with `-d`, run without `-d` to see output, or have a look at ~/.cache/eww.log
