@@ -149,7 +149,7 @@ pub(super) fn resolve_orientable_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk
 // concrete widgets
 
 /// @widget combo-box-text
-/// @desc A combo box, where one can choose between several items (must be text, combo-box without text is not yet implemented)
+/// @desc A combo box, where one can choose between several items (must be text, combo-box, with other widgets, is not yet implemented)
 fn build_gtk_combo_box_text(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText> {
     let gtk_widget = gtk::ComboBoxText::new();
     let on_change_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
