@@ -20,9 +20,32 @@ $HOME
       └──eww.scss
 ```
 
+### Config structure
+
+Your config structure should look like this:
+```xml
+<eww>
+	<definitions>
+		<!-- Put your <def>'s in here -->
+	</definitions>
+	
+	<variables>
+		<!-- Put your <script-var> and <var>'s in here -->
+	</variables>
+	
+	<windows>
+		<!-- Put your window blocks here -->
+	</windows>
+</eww>
+```
+See [The `<definitons>` block](#the-definitions-block),
+[Variables](#variables) and the
+[The `<windows>` block](#the-windows-block).
+
 ### Variables
 
 If you create a `<var>` or a `<script-var>`, you can reference them in your `<box>` by doing `{{var}}`. Where `var` is your variable name.
+
 
 #### The `<var>` tag
 Allows you to repeat the same text multiple times through  without retyping it multiple times.
