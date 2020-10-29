@@ -12,6 +12,7 @@ use super::{
     xml_ext::{XmlElement, XmlNode},
     EwwWindowDefinition, ScriptVar, WindowName,
 };
+use itertools::Itertools;
 
 #[derive(Debug, Clone)]
 pub struct EwwConfig {
@@ -38,35 +39,29 @@ impl EwwConfig {
     }
 
     pub fn read_from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self> {
-        let content = util::replace_env_var_references(std::fs::read_to_string(path)?);
+        let content = util::replace_env_var_references(std::fs::read_to_string(path.as_ref())?);
         let document = roxmltree::Document::parse(&content)?;
 
-        let result = EwwConfig::from_xml_element(XmlNode::from(document.root_element()).as_element()?.clone());
+        let result = EwwConfig::from_xml_element(XmlNode::from(document.root_element()).as_element()?.clone(), path.as_ref());
         result
     }
 
-    pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
-
-        // TODO: This is not the way
-        let CONFIG_DIR: std::path::PathBuf = std::env::var("XDG_CONFIG_HOME")
-            .map(|v| PathBuf::from(v))
-            .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap()).join(".config"))
-            .join("eww");
+    pub fn from_xml_element<P: AsRef<std::path::Path>>(xml: XmlElement, path: P) -> Result<Self> {
 
         // !!! This doesnt seem that bad
         let includes =
             match xml.child("includes") {
                 Ok(tag) => tag.child_elements()
                     .map(|child| {
-                        let path = CONFIG_DIR.join(child.attr("path").unwrap());
-                        EwwConfig::read_from_file(path)
+                        let childpath = child.attr("path").unwrap();
+                        let mut basepath = path.as_ref().parent().unwrap();
+                        EwwConfig::read_from_file(basepath.join(childpath))
                     })
                     .collect::<Result<Vec<_>>>()
                     .context("error parsing include definitions")?,
                 Err(_) => {Vec::new()}
             };
-
-
+        
         let definitions = xml
             .child("definitions")?
             .child_elements()
