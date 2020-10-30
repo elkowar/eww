@@ -5,14 +5,12 @@ use crate::{
     util,
     value::{PrimitiveValue, VarName},
 };
-use crate::PathBuf;
 
 use super::{
     element::WidgetDefinition,
     xml_ext::{XmlElement, XmlNode},
     EwwWindowDefinition, ScriptVar, WindowName,
 };
-use itertools::Itertools;
 
 #[derive(Debug, Clone)]
 pub struct EwwConfig {
@@ -47,18 +45,18 @@ impl EwwConfig {
     }
 
     pub fn from_xml_element<P: AsRef<std::path::Path>>(xml: XmlElement, path: P) -> Result<Self> {
-
+        let path= path.as_ref();
         // !!! This doesnt seem that bad
         let includes =
             match xml.child("includes") {
                 Ok(tag) => tag.child_elements()
                     .map(|child| {
-                        let childpath = child.attr("path").unwrap();
-                        let mut basepath = path.as_ref().parent().unwrap();
+                        let childpath = child.attr("path")?;
+                        let basepath = path.parent().unwrap();
                         EwwConfig::read_from_file(basepath.join(childpath))
                     })
                     .collect::<Result<Vec<_>>>()
-                    .context("error parsing include definitions")?,
+                    .context(format!("error parsing include definitions: {}", path.display()))?,
                 Err(_) => {Vec::new()}
             };
         
@@ -70,7 +68,7 @@ impl EwwConfig {
                 Ok((def.name.clone(), def))
             })
             .collect::<Result<HashMap<_, _>>>()
-            .context("error parsing widget definitions")?;
+            .context(format!("error parsing widget definitions: {}", path.display()))?;
 
         let windows = xml
             .child("windows")?
@@ -80,7 +78,7 @@ impl EwwConfig {
                 Ok((def.name.to_owned(), def))
             })
             .collect::<Result<HashMap<_, _>>>()
-            .context("error parsing window definitions")?;
+            .context(format!("error parsing window definitions: {}", path.display()))?;
 
         let variables_block = xml.child("variables").ok();
 
