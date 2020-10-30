@@ -1,3 +1,4 @@
+use anyhow::*;
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 
@@ -12,6 +13,8 @@ pub struct Opt {
     #[structopt(subcommand)]
     pub action: Action,
 
+    /// Run Eww in the background, daemonizing it.
+    /// When daemonized, to kill eww you can run `eww kill`. To see logs, use `eww logs`.
     #[structopt(short = "-d", long = "--detach")]
     pub should_detach: bool,
 }
@@ -26,43 +29,69 @@ pub enum Action {
 
 #[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ActionClientOnly {
-    #[structopt(name = "logs", help = "Print and watch the eww logs")]
+    /// Print and watch the eww logs
+    #[structopt(name = "logs")]
     Logs,
 }
 
 #[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ActionWithServer {
-    #[structopt(name = "update", help = "update the value of a variable, in a running eww instance")]
-    Update { fieldname: VarName, value: PrimitiveValue },
+    /// Update the value of a variable, in a running eww instance
+    #[structopt(name = "update")]
+    Update {
+        /// variable_name="new_value"-pairs that will be updated
+        #[structopt(parse(try_from_str = parse_var_update_arg))]
+        mappings: Vec<(VarName, PrimitiveValue)>,
+    },
 
-    #[structopt(name = "open", help = "open a window")]
+    /// open a window
+    #[structopt(name = "open")]
     OpenWindow {
+        /// Name of the window you want to open.
         window_name: WindowName,
 
-        #[structopt(short, long, help = "The position of the window, where it should open.")]
+        /// The position of the window, where it should open.
+        #[structopt(short, long)]
         pos: Option<Coords>,
 
-        #[structopt(short, long, help = "The size of the window to open")]
+        /// The size of the window to open
+        #[structopt(short, long)]
         size: Option<Coords>,
     },
 
-    #[structopt(name = "close", help = "close the window with the given name")]
+    /// Close the window with the given name
+    #[structopt(name = "close")]
     CloseWindow { window_name: WindowName },
 
-    #[structopt(name = "kill", help("kill the eww daemon"))]
+    /// kill the eww daemon
+    #[structopt(name = "kill")]
     KillServer,
 
-    #[structopt(name = "state", help = "Print the current eww-state")]
+    /// Print the current eww-state
+    #[structopt(name = "state")]
     ShowState,
 
-    #[structopt(name = "debug", help = "Print out the widget structure as seen by eww")]
+    /// Print out the widget structure as seen by eww.
+    ///
+    /// This may be useful if you are facing issues with how eww is interpreting your configuration,
+    /// and to provide additional context to the eww developers if you are filing a bug.
+    #[structopt(name = "debug")]
     ShowDebug,
+}
+
+fn parse_var_update_arg(s: &str) -> Result<(VarName, PrimitiveValue)> {
+    let (name, value) = s
+        .split_once('=')
+        .with_context(|| format!("arguments must be in the shape `variable_name=\"new_value\"`, but got: {}", s))?;
+    Ok((name.into(), PrimitiveValue::from_string(value.to_owned())))
 }
 
 impl ActionWithServer {
     pub fn into_eww_command(self) -> (app::EwwCommand, Option<crossbeam_channel::Receiver<String>>) {
         let command = match self {
-            ActionWithServer::Update { fieldname, value } => app::EwwCommand::UpdateVar(fieldname, value),
+            ActionWithServer::Update { mappings } => {
+                app::EwwCommand::UpdateVars(mappings.into_iter().map(|x| x.into()).collect())
+            }
             ActionWithServer::OpenWindow { window_name, pos, size } => app::EwwCommand::OpenWindow { window_name, pos, size },
             ActionWithServer::CloseWindow { window_name } => app::EwwCommand::CloseWindow { window_name },
             ActionWithServer::KillServer => app::EwwCommand::KillServer,

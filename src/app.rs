@@ -18,7 +18,7 @@ use std::collections::HashMap;
 
 #[derive(Debug)]
 pub enum EwwCommand {
-    UpdateVar(VarName, PrimitiveValue),
+    UpdateVars(Vec<(VarName, PrimitiveValue)>),
     ReloadConfig(config::EwwConfig),
     ReloadCss(String),
     OpenWindow {
@@ -55,31 +55,45 @@ pub struct App {
 impl App {
     pub fn handle_command(&mut self, event: EwwCommand) {
         log::debug!("Handling event: {:?}", &event);
-        let result: Result<_> = match event {
-            EwwCommand::UpdateVar(key, value) => self.update_state(key, value),
-            EwwCommand::ReloadConfig(config) => self.reload_all_windows(config),
-            EwwCommand::ReloadCss(css) => self.load_css(&css),
-            EwwCommand::KillServer => {
-                log::info!("Received kill command, stopping server!");
-                self.script_var_handler.stop();
-                self.windows.values().for_each(|w| w.gtk_window.close());
-                script_var_process::on_application_death();
-                std::process::exit(0);
-            }
-            EwwCommand::OpenWindow { window_name, pos, size } => self.open_window(&window_name, pos, size),
-            EwwCommand::CloseWindow { window_name } => self.close_window(&window_name),
-            EwwCommand::PrintState(sender) => {
-                let output = self
-                    .eww_state
-                    .get_variables()
-                    .iter()
-                    .map(|(key, value)| format!("{}: {}", key, value))
-                    .join("\n");
-                sender.send(output).context("sending response from main thread")
-            }
-            EwwCommand::PrintDebug(sender) => {
-                let output = format!("state: {:#?}\n\nconfig: {:#?}", &self.eww_state, &self.eww_config);
-                sender.send(output).context("sending response from main thread")
+        let result: Result<_> = try {
+            match event {
+                EwwCommand::UpdateVars(mappings) => {
+                    for (var_name, new_value) in mappings {
+                        self.update_state(var_name, new_value)?;
+                    }
+                }
+                EwwCommand::ReloadConfig(config) => {
+                    self.reload_all_windows(config)?;
+                }
+                EwwCommand::ReloadCss(css) => {
+                    self.load_css(&css)?;
+                }
+                EwwCommand::KillServer => {
+                    log::info!("Received kill command, stopping server!");
+                    self.script_var_handler.stop();
+                    self.windows.values().for_each(|w| w.gtk_window.close());
+                    script_var_process::on_application_death();
+                    std::process::exit(0);
+                }
+                EwwCommand::OpenWindow { window_name, pos, size } => {
+                    self.open_window(&window_name, pos, size)?;
+                }
+                EwwCommand::CloseWindow { window_name } => {
+                    self.close_window(&window_name)?;
+                }
+                EwwCommand::PrintState(sender) => {
+                    let output = self
+                        .eww_state
+                        .get_variables()
+                        .iter()
+                        .map(|(key, value)| format!("{}: {}", key, value))
+                        .join("\n");
+                    sender.send(output).context("sending response from main thread")?
+                }
+                EwwCommand::PrintDebug(sender) => {
+                    let output = format!("state: {:#?}\n\nconfig: {:#?}", &self.eww_state, &self.eww_config);
+                    sender.send(output).context("sending response from main thread")?
+                }
             }
         };
 

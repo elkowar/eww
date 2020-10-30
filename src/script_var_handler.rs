@@ -70,7 +70,7 @@ impl ScriptVarHandler {
                     var.interval,
                     glib::clone!(@strong var, @strong evt_send => move |_| {
                         let result: Result<_> = try {
-                            evt_send.send(app::EwwCommand::UpdateVar(var.name.clone(), var.run_once()?))?;
+                            evt_send.send(app::EwwCommand::UpdateVars(vec![(var.name.clone(), var.run_once()?)]))?;
                         };
                         util::print_result_err("while running script-var command", &result);
                     }),
@@ -112,10 +112,10 @@ impl ScriptVarHandler {
                                 .with_context(|| format!("No command output handle found for variable '{}'", var_name))?;
                             let mut buffer = String::new();
                             handle.stdout_reader.read_line(&mut buffer)?;
-                            evt_send.send(EwwCommand::UpdateVar(
+                            evt_send.send(EwwCommand::UpdateVars(vec![(
                                 var_name.to_owned(),
                                 PrimitiveValue::from_string(buffer.trim_matches('\n').to_owned()),
-                            ))?;
+                            )]))?;
                         } else if event.hangup {
                             script_var_processes.remove(var_name);
                             sources.unregister(var_name);
