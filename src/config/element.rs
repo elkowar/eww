@@ -28,12 +28,9 @@ impl WidgetDefinition {
                 );
             }
 
-            let size: Option<_> = Option::zip(xml.attr("width").ok(), xml.attr("height").ok());
-            let size: Option<Result<_>> = size.map(|(x, y)| Ok((x.parse()?, y.parse()?)));
-
             WidgetDefinition {
                 name: xml.attr("name")?.to_owned(),
-                size: size.transpose()?,
+                size: Option::zip(xml.parse_optional_attr("width")?, xml.parse_optional_attr("height")?),
                 structure: WidgetUse::from_xml_node(xml.only_child()?)?,
             }
         }

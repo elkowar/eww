@@ -1,16 +1,14 @@
-use crate::{ensure_xml_tag_is, value::Coords};
+use crate::ensure_xml_tag_is;
 use anyhow::*;
 use derive_more::*;
 use serde::{Deserialize, Serialize};
 use smart_default::SmartDefault;
 
 use super::*;
-use std::fmt;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct EwwWindowDefinition {
-    pub position: Coords,
-    pub size: Coords,
+    pub geometry: EwwWindowGeometry,
     pub stacking: WindowStacking,
     pub screen_number: Option<i32>,
     pub widget: WidgetUse,
@@ -21,22 +19,18 @@ pub struct EwwWindowDefinition {
 impl EwwWindowDefinition {
     pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
         ensure_xml_tag_is!(xml, "window");
+        let stacking: WindowStacking = xml.parse_optional_attr("stacking")?.unwrap_or_default();
+        let screen_number = xml.parse_optional_attr("screen")?;
+        let focusable = xml.parse_optional_attr("focusable")?;
 
-        let size_node = xml.child("size")?;
-        let size = Coords::from_strs(size_node.attr("x")?, size_node.attr("y")?)?;
-        let pos_node = xml.child("pos")?;
-        let position = Coords::from_strs(pos_node.attr("x")?, pos_node.attr("y")?)?;
-
-        let stacking = xml.attr("stacking").ok().map(|x| x.parse()).transpose()?.unwrap_or_default();
-        let screen_number = xml.attr("screen").ok().map(|x| x.parse()).transpose()?;
-        let focusable = xml.attr("focusable").ok().map(|x| x.parse()).transpose()?;
         let struts = xml.child("struts").ok().map(Struts::from_xml_element).transpose()?;
 
-        let widget = WidgetUse::from_xml_node(xml.child("widget")?.only_child()?)?;
         Ok(EwwWindowDefinition {
-            position,
-            size,
-            widget,
+            geometry: match xml.child("geometry") {
+                Ok(node) => EwwWindowGeometry::from_xml_element(node)?,
+                Err(_) => EwwWindowGeometry::default(),
+            },
+            widget: WidgetUse::from_xml_node(xml.child("widget")?.only_child()?)?,
             stacking,
             screen_number,
             focusable: focusable.unwrap_or(false),
@@ -89,17 +83,12 @@ impl std::str::FromStr for WindowStacking {
 }
 
 #[repr(transparent)]
-#[derive(Clone, Hash, PartialEq, Eq, AsRef, FromStr, Display, Serialize, Deserialize, Default, From)]
+#[derive(Clone, Hash, PartialEq, Eq, AsRef, FromStr, Display, Serialize, Deserialize, Default, From, DebugCustom)]
+#[debug(fmt = "WindowName(\".0\")")]
 pub struct WindowName(String);
 
 impl std::borrow::Borrow<str> for WindowName {
     fn borrow(&self) -> &str {
         &self.0
-    }
-}
-
-impl fmt::Debug for WindowName {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "WindowName(\"{}\")", self.0)
     }
 }

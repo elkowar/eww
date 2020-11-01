@@ -4,7 +4,7 @@ use structopt::StructOpt;
 
 use crate::{
     app,
-    config::WindowName,
+    config::{AnchorPoint, WindowName},
     value::{Coords, PrimitiveValue, VarName},
 };
 
@@ -57,6 +57,10 @@ pub enum ActionWithServer {
         /// The size of the window to open
         #[structopt(short, long)]
         size: Option<Coords>,
+
+        /// Anchorpoint of the window, formatted like "top right"
+        #[structopt(short, long)]
+        anchor: Option<AnchorPoint>,
     },
 
     /// Close the window with the given name
@@ -92,7 +96,17 @@ impl ActionWithServer {
             ActionWithServer::Update { mappings } => {
                 app::EwwCommand::UpdateVars(mappings.into_iter().map(|x| x.into()).collect())
             }
-            ActionWithServer::OpenWindow { window_name, pos, size } => app::EwwCommand::OpenWindow { window_name, pos, size },
+            ActionWithServer::OpenWindow {
+                window_name,
+                pos,
+                size,
+                anchor,
+            } => app::EwwCommand::OpenWindow {
+                window_name,
+                pos,
+                size,
+                anchor,
+            },
             ActionWithServer::CloseWindow { window_name } => app::EwwCommand::CloseWindow { window_name },
             ActionWithServer::KillServer => app::EwwCommand::KillServer,
             ActionWithServer::ShowState => {
