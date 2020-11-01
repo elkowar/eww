@@ -28,11 +28,11 @@ Your config structure should look like this:
 	<definitions>
 		<!-- Put your <def>'s in here -->
 	</definitions>
-	
+
 	<variables>
 		<!-- Put your <script-var> and <var>'s in here -->
 	</variables>
-	
+
 	<windows>
 		<!-- Put your window blocks here -->
 	</windows>
@@ -75,7 +75,7 @@ Example:
 ```xml
 <variables>
     <script-var name="date" interval="5s">
-    date +%H:%M
+        date +%H:%M
     </script-var>
 </variables>
 ```
@@ -141,7 +141,7 @@ This part:
 ```xml
 <def name="clock">
     <box>
-	The time is: {{my_time}} currently.
+        The time is: {{my_time}} currently.
     </box>
 </def>
 ```
@@ -156,7 +156,7 @@ So if we look at:
 ```xml
 <def name="main">
     <box>
-	<clock my_time="{{date}}"/>
+        <clock my_time="{{date}}"/>
     </box>
 </def>
 ```
@@ -172,7 +172,7 @@ It doesn't have to be `{{my_time}}` either, it can be anything.
 ```xml
 <def name="clock">
     <box>
-	The time is: {{very_long_list_of_animals}} currently.
+        The time is: {{very_long_list_of_animals}} currently.
     </box>
 </def>
 ```
@@ -182,83 +182,29 @@ To use that it would look like this:
 ```xml
 <def name="main">
     <box>
-	<clock very_long_list_of_animals="{{date}}"/>
+        <clock very_long_list_of_animals="{{date}}"/>
     </box>
 </def>
 ```
 ### The `<windows>` block {#windows-block}
 
-This is the part the Eww reads and loads. The `<windows>` config should look something like this:
+All different windows you might want to use are defined in the `<windows>` block.
+The `<windows>` config should look something like this:
 
 ```xml
 <windows>
     <window name="main_window" stacking="fg">
-      <size x="300" y="300" />
-      <pos x="0" y="500" />
-      <widget>
-	<main/>
-      </widget>
-    </window>
-</windows>
-```
-`<window name="main_window">` is the part that eww runs when you start it. In this example you would run eww by doing:
-```bash
-./eww open main_window
-```
-but if renamed the `<window>` to be `<window name="apple">` we would run eww by doing:
-```bash
-./eww open apple
-```
-
-The `stacking="fg"` says where the widget will be stacked. Possible values here are `foreground`, `fg`, `background` and `bg`.
-`foreground` or `fg` *always* stays above windows.
-`background` or `bg` *always* stays behind windows. So it will stay on your desktop.
-
-If you were to remove the `stacking="fg"` it would default it to `fg`.
-
-You can also have multiple windows in one document by  doing:
-
-```xml
-<windows>
-    <window name="main_window">
-        <size x="300" y="300" />
-        <pos x="0" y="500" />
+        <geometry anchor="top left" x="300px" y="50%" width="25%" height="20px">
         <widget>
             <main/>
         </widget>
     </window>
-    <window name="main_window2">
-        <size x="400" y="600"/>
-        <pos x="0" y="0"/>
-        <widget>
-            <main2/>
-        </widget>
-    </window>
 </windows>
 ```
----
 
-- `<size>` sets x-y size of the widget.
-- `<pos>` sets x-y position of the widget.
-- `<widget>` is the part which you say which `<def>` eww should run. So if we take the example config from before:
-```xml
-<definitions>
-    <def name="clock">
-        <box>
-            The time is: {{my_time}} currently.
-        </box>
-    </def>
-    <def name="main">
-        <box>
-            <clock my_time="{{date}}"/>
-        </box>
-    </def>
-</definitions>
-```
-and then look at
-```xml
-<widget>
-    <main/>
-</widget>
-```
-we will see that eww will run `<def name="main">` and not `<def name="clock">`.
+The window block contains multiple elements to configure the window.
+- `<geometry>` is used to specify the position and size of the window.
+- `<widget>` will contain the widget that is shown in the window.
+
+The `stacking="fg"` specifies if the window should appear on top of or behind other windows.
+Possible values here are `foreground`, `fg`, `background` and `bg`. It defaults to `fg`.
