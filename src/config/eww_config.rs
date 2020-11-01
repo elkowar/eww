@@ -54,7 +54,7 @@ impl EwwConfig {
                         EwwConfig::read_from_file(basepath.join(childpath))
                     })
                     .collect::<Result<Vec<_>>>()
-                    .context(format!("error parsing include definitions: {}", path.display()))?,
+                    .context(format!("error handling include definitions: {}", path.display()))?,
                 Err(_) => {Vec::new()}
             };
         
