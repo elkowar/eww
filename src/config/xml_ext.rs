@@ -177,6 +177,20 @@ impl<'a, 'b> XmlElement<'a, 'b> {
         }
     }
 
+    pub fn optional_attr<O, F: FnOnce(&str) -> Result<O>>(&self, key: &str, parse: F) -> Result<Option<O>> {
+        match self.0.attribute(key) {
+            Some(value) => parse(value).map(Some),
+            None => Ok(None),
+        }
+    }
+
+    pub fn parse_optional_attr<E, O: std::str::FromStr<Err = E>>(&self, key: &str) -> Result<Option<O>, E> {
+        match self.0.attribute(key) {
+            Some(value) => value.parse::<O>().map(Some),
+            None => Ok(None),
+        }
+    }
+
     pub fn only_child(&self) -> Result<XmlNode> {
         with_text_pos_context! { self =>
             let mut children_iter = self.children();

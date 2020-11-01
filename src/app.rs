@@ -1,6 +1,6 @@
 use crate::{
     config,
-    config::{window_definition::WindowName, WindowStacking},
+    config::{window_definition::WindowName, AnchorPoint, WindowStacking},
     eww_state,
     script_var_handler::*,
     util,
@@ -25,6 +25,7 @@ pub enum EwwCommand {
         window_name: WindowName,
         pos: Option<Coords>,
         size: Option<Coords>,
+        anchor: Option<AnchorPoint>,
     },
     CloseWindow {
         window_name: WindowName,
@@ -75,8 +76,13 @@ impl App {
                     script_var_process::on_application_death();
                     std::process::exit(0);
                 }
-                EwwCommand::OpenWindow { window_name, pos, size } => {
-                    self.open_window(&window_name, pos, size)?;
+                EwwCommand::OpenWindow {
+                    window_name,
+                    pos,
+                    size,
+                    anchor,
+                } => {
+                    self.open_window(&window_name, pos, size, anchor)?;
                 }
                 EwwCommand::CloseWindow { window_name } => {
                     self.close_window(&window_name)?;
@@ -115,7 +121,13 @@ impl App {
         Ok(())
     }
 
-    fn open_window(&mut self, window_name: &WindowName, pos: Option<Coords>, size: Option<Coords>) -> Result<()> {
+    fn open_window(
+        &mut self,
+        window_name: &WindowName,
+        pos: Option<Coords>,
+        size: Option<Coords>,
+        anchor: Option<config::AnchorPoint>,
+    ) -> Result<()> {
         // remove and close existing window with the same name
         let _ = self.close_window(window_name);
 
@@ -135,10 +147,11 @@ impl App {
 
         let monitor_geometry = display.get_default_screen().get_monitor_geometry(*screen_number);
 
-        window_def.position = pos.unwrap_or(window_def.position);
-        window_def.size = size.unwrap_or(window_def.size);
+        window_def.geometry.offset = pos.unwrap_or(window_def.geometry.offset);
+        window_def.geometry.size = size.unwrap_or(window_def.geometry.size);
+        window_def.geometry.anchor_point = anchor.unwrap_or(window_def.geometry.anchor_point);
 
-        let actual_window_rect = get_window_rectangle_in_screen(monitor_geometry, window_def.position, window_def.size);
+        let actual_window_rect = window_def.geometry.get_window_rectangle(monitor_geometry);
 
         let window = if window_def.focusable {
             gtk::Window::new(gtk::WindowType::Toplevel)
@@ -171,6 +184,16 @@ impl App {
         )?;
         root_widget.get_style_context().add_class(&window_name.to_string());
         window.add(root_widget);
+
+        // Handle the fact that the gtk window will have a different size than specified,
+        // as it is sized according to how much space it's contents require.
+        // This is necessary to handle different anchors correctly in case the size was wrong.
+        let (gtk_window_width, gtk_window_height) = window.get_size();
+        window_def.geometry.size = Coords {
+            x: NumWithUnit::Pixels(gtk_window_width),
+            y: NumWithUnit::Pixels(gtk_window_height),
+        };
+        let actual_window_rect = window_def.geometry.get_window_rectangle(monitor_geometry);
 
         window.show_all();
 
@@ -210,10 +233,8 @@ impl App {
 
         let windows = self.windows.clone();
         for (window_name, window) in windows {
-            let old_pos = window.definition.position;
-            let old_size = window.definition.size;
             window.gtk_window.close();
-            self.open_window(&window_name, Some(old_pos.into()), Some(old_size.into()))?;
+            self.open_window(&window_name, None, None, None)?;
         }
         Ok(())
     }
@@ -232,26 +253,4 @@ fn on_screen_changed(window: &gtk::Window, _old_screen: Option<&gdk::Screen>) {
             .or_else(|| screen.get_system_visual())
     });
     window.set_visual(visual.as_ref());
-}
-
-/// Calculate the window rectangle given the configured window [`pos`] and [`size`], which might be relative to the screen size.
-fn get_window_rectangle_in_screen(screen_rect: gdk::Rectangle, pos: Coords, size: Coords) -> gdk::Rectangle {
-    gdk::Rectangle {
-        x: match pos.x {
-            NumWithUnit::Percent(n) => ((screen_rect.width as f64 / 100.0) * n as f64) as i32,
-            NumWithUnit::Pixels(n) => screen_rect.x + n,
-        },
-        y: match pos.y {
-            NumWithUnit::Percent(n) => ((screen_rect.height as f64 / 100.0) * n as f64) as i32,
-            NumWithUnit::Pixels(n) => screen_rect.y + n,
-        },
-        width: match size.x {
-            NumWithUnit::Percent(n) => ((screen_rect.width as f64 / 100.0) * n as f64) as i32,
-            NumWithUnit::Pixels(n) => n,
-        },
-        height: match size.y {
-            NumWithUnit::Percent(n) => ((screen_rect.height as f64 / 100.0) * n as f64) as i32,
-            NumWithUnit::Pixels(n) => n,
-        },
-    }
 }

@@ -1,15 +1,17 @@
 use anyhow::*;
 use derive_more::*;
 use serde::{Deserialize, Serialize};
+use smart_default::SmartDefault;
 use std::{fmt, str::FromStr};
 
-#[derive(Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Display, DebugCustom)]
+#[derive(Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Display, DebugCustom, SmartDefault)]
 pub enum NumWithUnit {
     #[display(fmt = "{}%", .0)]
     #[debug(fmt = "{}%", .0)]
     Percent(i32),
     #[display(fmt = "{}px", .0)]
     #[debug(fmt = "{}px", .0)]
+    #[default]
     Pixels(i32),
 }
 
@@ -18,7 +20,7 @@ impl FromStr for NumWithUnit {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         lazy_static::lazy_static! {
-            static ref PATTERN: regex::Regex = regex::Regex::new("^(\\d+)(.*)$").unwrap();
+            static ref PATTERN: regex::Regex = regex::Regex::new("^(-?\\d+)(.*)$").unwrap();
         };
 
         let captures = PATTERN.captures(s).with_context(|| format!("could not parse '{}'", s))?;
@@ -32,7 +34,7 @@ impl FromStr for NumWithUnit {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Display)]
+#[derive(Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Display, Default)]
 #[display(fmt = "{}X{}", x, y)]
 pub struct Coords {
     pub x: NumWithUnit,
@@ -63,6 +65,20 @@ impl Coords {
             x: x.parse().with_context(|| format!("Failed to parse '{}'", x))?,
             y: y.parse().with_context(|| format!("Failed to parse '{}'", y))?,
         })
+    }
+
+    /// resolve the possibly relative coordinates relative to a given containers size
+    pub fn relative_to(&self, width: i32, height: i32) -> (i32, i32) {
+        (
+            match self.x {
+                NumWithUnit::Percent(n) => ((width as f64 / 100.0) * n as f64) as i32,
+                NumWithUnit::Pixels(n) => n,
+            },
+            match self.y {
+                NumWithUnit::Percent(n) => ((height as f64 / 100.0) * n as f64) as i32,
+                NumWithUnit::Pixels(n) => n,
+            },
+        )
     }
 }
 
