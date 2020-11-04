@@ -20,14 +20,10 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
         script_var_handler::script_var_process::on_application_death();
         std::process::exit(0);
     });
-
-    let config_file_path = crate::CONFIG_DIR.join("eww.xml");
-    let config_dir = config_file_path
-        .parent()
-        .context("config file did not have a parent?!")?
-        .to_owned()
-        .to_path_buf();
-    let scss_file_path = config_dir.join("eww.scss");
+    // this is so ugly because of this:  https://github.com/rust-lang/rfcs/issues/372
+    let a = util::config_path().unwrap();
+    let config_file_path = a.0;
+    let scss_file_path = a.1;
 
     log::info!("reading configuration from {:?}", &config_file_path);
     let eww_config = config::EwwConfig::read_from_file(&config_file_path)?;

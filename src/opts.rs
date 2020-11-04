@@ -32,6 +32,16 @@ pub enum ActionClientOnly {
     /// Print and watch the eww logs
     #[structopt(name = "logs")]
     Logs,
+    /// Edit the configuration files
+    #[structopt(name = "edit")]
+    Edit {
+        /// Editor to use
+        #[structopt(name = "editor", short, long)]
+        editor_arg: Option<String>,
+        /// What file to edit (the main xml file or the main scss file) accepted values are xml or scss
+        #[structopt(name = "file", short, long)]
+        file: Option<String>,
+    },
 }
 
 #[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]

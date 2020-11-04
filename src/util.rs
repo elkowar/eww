@@ -88,3 +88,14 @@ pub fn print_result_err<T, E: std::fmt::Debug>(context: &str, result: &std::resu
         eprintln!("Error {}: {:?}", context, err);
     }
 }
+
+pub fn config_path() -> Result<(std::path::PathBuf, std::path::PathBuf)> {
+    let config_file_path = crate::CONFIG_DIR.join("eww.xml");
+    let config_dir = config_file_path
+        .parent()
+        .context("config file did not have a parent?!")?
+        .to_owned()
+        .to_path_buf();
+    let scss_file_path = config_dir.join("eww.scss");
+    Ok((config_file_path, scss_file_path))
+}
