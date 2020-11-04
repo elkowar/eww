@@ -50,12 +50,10 @@ pub fn handle_client_only_action(action: ActionClientOnly) -> Result<()> {
             // gets parsed as one and not as several args,
             // so that e.g. your EDITOR env variable is equal to `vim -xx`
             // then that gets started as such and not as the binary `vim -xx`
-            // If we'd split the issue could be that the space was originally escaped but not here because it would be removed from the shell
-            // tho that wouldn't happen with env variables
             launch_editor(&editor, path.to_str().unwrap())?;
-            let config = config::EwwConfig::read_from_file(&path).err();
-            while config.is_some() {
-                eprintln!("{}", config.as_ref().unwrap());
+            // let config = config::EwwConfig::read_from_file(&path).err();
+            while let Some(config) = config::EwwConfig::read_from_file(&path).err() {
+                eprintln!("{}", config);
                 eprint!("The config file contains errors, edit again? (Y/n) ");
                 let input = input()?;
                 // \n is there because input is unsanitized and it still contains the newline
