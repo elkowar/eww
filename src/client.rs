@@ -58,6 +58,7 @@ pub fn handle_client_only_action(action: ActionClientOnly) -> Result<()> {
                 eprintln!("{}", config.as_ref().unwrap());
                 eprint!("The config file contains errors, edit again? (Y/n) ");
                 let input = input()?;
+                // \n is there because input is unsanitized and it still contains the newline
                 if input.to_lowercase() == "n\n" {
                     break;
                 } else {
