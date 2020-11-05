@@ -35,8 +35,7 @@ macro_rules! try_logging_errors {
 /// then parse it into css.
 pub fn parse_scss_from_file<P: AsRef<Path>>(path: P) -> Result<String> {
     let scss_content = replace_env_var_references(std::fs::read_to_string(path)?);
-    grass::from_string(scss_content, &grass::Options::default())
-        .map_err(|err| anyhow!("encountered SCSS parsing error: {:?}", err))
+    grass::from_string(scss_content, &grass::Options::default()).map_err(|err| anyhow!("encountered SCSS parsing error: {}", err))
 }
 
 #[ext(pub, name = StringExt)]
@@ -98,4 +97,21 @@ pub fn config_path() -> Result<(std::path::PathBuf, std::path::PathBuf)> {
         .to_path_buf();
     let scss_file_path = config_dir.join("eww.scss");
     Ok((config_file_path, scss_file_path))
+}
+
+pub fn input() -> Result<String> {
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input)?;
+    Ok(input)
+}
+pub fn launch_editor(editor: &String, path: &str) -> Result<std::process::ExitStatus> {
+    // have to do this so that the EDITOR environment variable,
+    // gets parsed as one and not as several args,
+    // so that e.g. your EDITOR env variable is equal to `vim -xx`
+    // then that gets started as such and not as the binary `vim -xx`
+    Ok(std::process::Command::new("sh")
+        .arg("-c")
+        .arg(format!("{} {}", editor, path))
+        .spawn()?
+        .wait()?)
 }

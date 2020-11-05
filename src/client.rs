@@ -1,15 +1,13 @@
-use std::process::Stdio;
-
 use crate::{
-    config,
     opts::{self, ActionClientOnly},
+    util::{config_path, input, launch_editor, parse_scss_from_file},
 };
 use anyhow::*;
 use std::{
     io::{Read, Write},
     os::unix::net::UnixStream,
+    process::Stdio,
 };
-
 pub fn handle_client_only_action(action: ActionClientOnly) -> Result<()> {
     match action {
         ActionClientOnly::Logs => {
@@ -32,7 +30,8 @@ pub fn handle_client_only_action(action: ActionClientOnly) -> Result<()> {
                 editor = editor_err?;
             }
             // what file to edit, the xml or the scss file
-            let paths = crate::util::config_path()?;
+            // This is so ugly because of this: https://github.com/rust-lang/rfcs/issues/372
+            let paths = config_path()?;
             let xml_file: std::path::PathBuf = paths.0;
             let scss_file: std::path::PathBuf = paths.1;
             let path: std::path::PathBuf;
@@ -42,42 +41,41 @@ pub fn handle_client_only_action(action: ActionClientOnly) -> Result<()> {
             } else if file == "scss" {
                 path = scss_file;
             } else {
-                eprint!("Edit the eww.xml file (if no it's the eww.scss) (Y/n) ");
+                eprint!("Edit the eww.xml file or the scss file? (X/s) ");
                 let input = input()?;
-                path = if input.to_lowercase() == "n\n" { scss_file } else { xml_file }
+                path = if input.to_lowercase() == "s\n" { scss_file } else { xml_file }
             }
-            // have to do this so that the EDITOR environment variable,
-            // gets parsed as one and not as several args,
-            // so that e.g. your EDITOR env variable is equal to `vim -xx`
-            // then that gets started as such and not as the binary `vim -xx`
+
             launch_editor(&editor, path.to_str().unwrap())?;
-            // let config = config::EwwConfig::read_from_file(&path).err();
-            while let Some(config) = config::EwwConfig::read_from_file(&path).err() {
-                eprintln!("{}", config);
-                eprint!("The config file contains errors, edit again? (Y/n) ");
-                let input = input()?;
-                // \n is there because input is unsanitized and it still contains the newline
-                if input.to_lowercase() == "n\n" {
-                    break;
-                } else {
-                    launch_editor(&editor, path.to_str().unwrap())?;
-                };
+            if path.extension().unwrap() == "xml" {
+                while let Some(config) = crate::config::EwwConfig::read_from_file(&path).err() {
+                    eprintln!("{}", config);
+                    eprint!("The config file contains errors, edit again? (Y/n) ");
+                    let input = input()?;
+                    // \n is there because input is unsanitized and it still contains the newline
+                    if input.to_lowercase() == "n\n" {
+                        break;
+                    } else {
+                        launch_editor(&editor, path.to_str().unwrap())?;
+                    };
+                }
+            } else {
+                // I know these two while loops are ugly.. but functions don't really work because i couldn't use `break` and macros are wacky
+                while let Some(config) = parse_scss_from_file(&path).err() {
+                    eprintln!("{}", config);
+                    eprint!("The config file contains errors, edit again? (Y/n) ");
+                    let input = input()?;
+                    // \n is there because input is unsanitized and it still contains the newline
+                    if input.to_lowercase() == "n\n" {
+                        break;
+                    } else {
+                        launch_editor(&editor, path.to_str().unwrap())?;
+                    };
+                }
             }
         }
     }
     Ok(())
-}
-fn input() -> Result<String> {
-    let mut input = String::new();
-    std::io::stdin().read_line(&mut input)?;
-    Ok(input)
-}
-fn launch_editor(editor: &String, path: &str) -> Result<std::process::ExitStatus> {
-    Ok(std::process::Command::new("sh")
-        .arg("-c")
-        .arg(format!("{} {}", editor, path))
-        .spawn()?
-        .wait()?)
 }
 
 pub fn forward_command_to_server(mut stream: UnixStream, action: opts::ActionWithServer) -> Result<()> {
