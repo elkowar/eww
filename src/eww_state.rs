@@ -170,4 +170,11 @@ impl EwwState {
             window_state.put_handler(handler);
         }
     }
+
+    pub fn vars_referenced_in(&self, window_name: &WindowName) -> std::collections::HashSet<&VarName> {
+        self.windows
+            .get(window_name)
+            .map(|window| window.state_change_handlers.keys().collect())
+            .unwrap_or_default()
+    }
 }

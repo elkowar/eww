@@ -26,7 +26,7 @@ macro_rules! try_logging_errors {
     ($context:literal => $code:block) => {{
         let result: Result<_> = try { $code };
         if let Err(err) = result {
-            eprintln!("Error while {}: {:?}", $context, err);
+            eprintln!("[{}:{}] Error while {}: {:?}", ::std::file!(), ::std::line!(), $context, err);
         }
     }};
 }

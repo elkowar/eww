@@ -35,6 +35,11 @@ impl WidgetDefinition {
             }
         }
     }
+
+    /// returns all the variables that are referenced in this widget
+    pub fn referenced_vars(&self) -> impl Iterator<Item = &VarName> {
+        self.structure.referenced_vars()
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -106,6 +111,11 @@ impl WidgetUse {
         self.attrs
             .get(key)
             .context(format!("attribute '{}' missing from widgetuse of '{}'", key, &self.name))
+    }
+
+    /// returns all the variables that are referenced in this widget
+    pub fn referenced_vars(&self) -> impl Iterator<Item = &VarName> {
+        self.attrs.iter().flat_map(|(_, value)| value.var_refs())
     }
 }
 

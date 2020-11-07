@@ -36,8 +36,7 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
     let (evt_send, evt_recv) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
 
     log::info!("Initializing script var handler");
-    let mut script_var_handler = script_var_handler::ScriptVarHandler::new(evt_send.clone())?;
-    script_var_handler.initialize_clean(eww_config.get_script_vars().clone())?;
+    let script_var_handler = script_var_handler::ScriptVarHandler::new(evt_send.clone())?;
 
     let mut app = app::App {
         eww_state: EwwState::from_default_vars(eww_config.generate_initial_state()?.clone()),
@@ -89,7 +88,8 @@ fn run_server_thread(evt_send: glib::Sender<app::EwwCommand>) -> Result<()> {
             for stream in listener.incoming() {
                 try_logging_errors!("handling message from IPC client" => {
                     let mut stream = stream?;
-                    let action: opts::ActionWithServer = bincode::deserialize_from(&stream)?;
+                    let action: opts::ActionWithServer = bincode::deserialize_from(&stream)
+                        .context("Failed to read or deserialize message from client")?;
                     log::info!("received command from IPC: {:?}", &action);
                     let (command, maybe_response_recv) = action.into_eww_command();
                     evt_send.send(command)?;

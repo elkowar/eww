@@ -1,10 +1,17 @@
-use std::{collections::HashMap, time::Duration};
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock},
+    time::Duration,
+};
 
-use crate::{app, config, util, value::PrimitiveValue};
+use crate::{
+    app, config, util,
+    value::{PrimitiveValue, VarName},
+};
 use anyhow::*;
 use app::EwwCommand;
+use dashmap::DashMap;
 use glib;
-use itertools::Itertools;
 use scheduled_executor;
 use std::io::BufRead;
 
@@ -13,101 +20,96 @@ use self::script_var_process::ScriptVarProcess;
 /// Handler that manages running and updating [ScriptVar]s
 pub struct ScriptVarHandler {
     evt_send: glib::Sender<EwwCommand>,
-    pub poll_handles: Vec<scheduled_executor::executor::TaskHandle>,
-    pub poll_executor: scheduled_executor::CoreExecutor,
-    pub tail_handler_thread: Option<stoppable_thread::StoppableHandle<()>>,
+    poll_handles: HashMap<VarName, scheduled_executor::executor::TaskHandle>,
+    poll_executor: scheduled_executor::CoreExecutor,
+    tail_handler_thread: Option<stoppable_thread::StoppableHandle<()>>,
+    tail_process_handles: Arc<DashMap<VarName, script_var_process::ScriptVarProcess>>,
+    tail_sources: Arc<RwLock<popol::Sources<VarName>>>,
 }
 
 impl ScriptVarHandler {
     pub fn new(evt_send: glib::Sender<EwwCommand>) -> Result<Self> {
         log::info!("initializing handler for poll script vars");
-        Ok(ScriptVarHandler {
+        let mut handler = ScriptVarHandler {
             evt_send,
-            poll_handles: Vec::new(),
+            poll_handles: HashMap::new(),
             poll_executor: scheduled_executor::CoreExecutor::new()?,
             tail_handler_thread: None,
-        })
+            tail_process_handles: Arc::new(DashMap::new()),
+            tail_sources: Arc::new(RwLock::new(popol::Sources::new())),
+        };
+        handler.setup_tail_tasks()?;
+        Ok(handler)
+    }
+
+    pub fn add(&mut self, script_var: config::ScriptVar) {
+        match script_var {
+            config::ScriptVar::Poll(var) => {
+                self.schedule_poll_task(&var);
+            }
+            config::ScriptVar::Tail(var) => {
+                self.start_tail_script(&var);
+            }
+        };
+    }
+
+    /// Stop the handler that is responsible for a given variable.
+    pub fn stop_for_variable(&mut self, name: &VarName) -> Result<()> {
+        log::debug!("Stopping script var process for variable {}", name);
+        if let Some(handle) = self.poll_handles.remove(name) {
+            log::debug!("stopped poll var {}", name);
+            handle.stop();
+        }
+        if let Some((_, process)) = self.tail_process_handles.remove(name) {
+            log::debug!("stopped tail var {}", name);
+            process.kill()?;
+        }
+        Ok(())
     }
 
     /// stop all running handlers
     pub fn stop(&mut self) {
-        self.poll_handles.iter().for_each(|handle| handle.stop());
-        self.poll_handles.clear();
+        self.poll_handles.drain().for_each(|(_, handle)| handle.stop());
         self.tail_handler_thread.take().map(|handle| handle.stop());
     }
 
-    /// initialize this handler, cleaning up any previously ran executors and
-    /// threads.
-    pub fn initialize_clean(&mut self, script_vars: Vec<config::ScriptVar>) -> Result<()> {
-        self.stop();
-
-        let mut poll_script_vars = Vec::new();
-        let mut tail_script_vars = Vec::new();
-        for var in script_vars {
-            match var {
-                config::ScriptVar::Poll(x) => poll_script_vars.push(x),
-                config::ScriptVar::Tail(x) => tail_script_vars.push(x),
-            }
-        }
-        self.setup_poll_tasks(&poll_script_vars)?;
-        self.setup_tail_tasks(&tail_script_vars)?;
-        log::info!("Finished initializing script-var-handler");
-        Ok(())
-    }
-
-    /// initialize the poll handler thread.
-    fn setup_poll_tasks(&mut self, poll_script_vars: &[config::PollScriptVar]) -> Result<()> {
-        log::info!("initializing handler for poll script vars");
-        self.poll_handles.iter().for_each(|handle| handle.stop());
-        self.poll_handles.clear();
-
+    fn schedule_poll_task(&mut self, var: &config::PollScriptVar) {
         let evt_send = self.evt_send.clone();
-        self.poll_handles = poll_script_vars
-            .iter()
-            .map(|var| {
-                self.poll_executor.schedule_fixed_interval(
-                    Duration::from_secs(0),
-                    var.interval,
-                    glib::clone!(@strong var, @strong evt_send => move |_| {
-                        let result: Result<_> = try {
-                            evt_send.send(app::EwwCommand::UpdateVars(vec![(var.name.clone(), var.run_once()?)]))?;
-                        };
-                        util::print_result_err("while running script-var command", &result);
-                    }),
-                )
-            })
-            .collect_vec();
-        log::info!("finished setting up poll tasks");
-        Ok(())
+        let handle = self.poll_executor.schedule_fixed_interval(
+            Duration::from_secs(0),
+            var.interval,
+            glib::clone!(@strong var => move |_| {
+                let result: Result<_> = try {
+                    evt_send.send(app::EwwCommand::UpdateVars(vec![(var.name.clone(), var.run_once()?)]))?;
+                };
+                util::print_result_err("while running script-var command", &result);
+            }),
+        );
+        self.poll_handles.insert(var.name.clone(), handle);
     }
 
     /// initialize the tail_var handler thread
-    pub fn setup_tail_tasks(&mut self, tail_script_vars: &[config::TailScriptVar]) -> Result<()> {
+    pub fn setup_tail_tasks(&mut self) -> Result<()> {
         log::info!("initializing handler for tail script vars");
-        let mut sources = popol::Sources::with_capacity(tail_script_vars.len());
 
-        let mut script_var_processes: HashMap<_, ScriptVarProcess> = HashMap::new();
-
-        for var in tail_script_vars {
-            match ScriptVarProcess::run(&var.command) {
-                Ok(process) => {
-                    sources.register(var.name.clone(), process.stdout_reader.get_ref(), popol::interest::READ);
-                    script_var_processes.insert(var.name.clone(), process);
-                }
-                Err(err) => eprintln!("Failed to launch script-var command for tail: {:?}", err),
-            }
-        }
-
-        let mut events = popol::Events::with_capacity(tail_script_vars.len());
+        let mut events = popol::Events::<VarName>::new();
         let evt_send = self.evt_send.clone();
-        // TODO this is rather ugly
+
+        // TODO all of this is rather ugly
+        let script_var_processes = self.tail_process_handles.clone();
+        let sources = self.tail_sources.clone();
         let thread_handle = stoppable_thread::spawn(move |stopped| {
             while !stopped.get() {
                 let result: Result<_> = try {
-                    sources.wait(&mut events)?;
+                    {
+                        let _ = sources
+                            .write()
+                            .unwrap()
+                            .wait_timeout(&mut events, std::time::Duration::from_millis(50));
+                    }
                     for (var_name, event) in events.iter() {
                         if event.readable {
-                            let handle = script_var_processes
+                            let mut handle = script_var_processes
                                 .get_mut(var_name)
                                 .with_context(|| format!("No command output handle found for variable '{}'", var_name))?;
                             let mut buffer = String::new();
@@ -118,18 +120,33 @@ impl ScriptVarHandler {
                             )]))?;
                         } else if event.hangup {
                             script_var_processes.remove(var_name);
-                            sources.unregister(var_name);
+                            sources.write().unwrap().unregister(var_name);
                         }
                     }
                 };
                 util::print_result_err("in script-var tail handler thread", &result);
             }
-            for process in script_var_processes.values() {
+            for process in script_var_processes.iter() {
                 util::print_result_err("While killing tail-var process at the end of tail task", &process.kill());
             }
+            script_var_processes.clear();
         });
         self.tail_handler_thread = Some(thread_handle);
         Ok(())
+    }
+
+    pub fn start_tail_script(&mut self, var: &config::TailScriptVar) {
+        match ScriptVarProcess::run(&var.command) {
+            Ok(process) => {
+                self.tail_sources.write().unwrap().register(
+                    var.name.clone(),
+                    process.stdout_reader.get_ref(),
+                    popol::interest::READ,
+                );
+                self.tail_process_handles.insert(var.name.clone(), process);
+            }
+            Err(err) => eprintln!("Failed to launch script-var command for tail: {:?}", err),
+        }
     }
 }
 
@@ -168,19 +185,22 @@ pub mod script_var_process {
     }
 
     pub struct ScriptVarProcess {
-        pid: i32,
+        pub pid: i32,
         pub stdout_reader: BufReader<filedescriptor::FileDescriptor>,
     }
 
     impl ScriptVarProcess {
         pub(super) fn run(command: &str) -> Result<Self> {
             use nix::unistd::*;
+            use std::os::unix::io::AsRawFd;
 
             let pipe = filedescriptor::Pipe::new()?;
 
             match unsafe { fork()? } {
                 ForkResult::Parent { child, .. } => {
                     SCRIPT_VAR_CHILDREN.lock().unwrap().push(child.as_raw() as u32);
+
+                    close(pipe.write.as_raw_fd())?;
 
                     Ok(ScriptVarProcess {
                         stdout_reader: BufReader::new(pipe.read),
@@ -199,6 +219,9 @@ pub mod script_var_process {
                             loop {}
                         }
                         ForkResult::Child => {
+                            close(pipe.read.as_raw_fd()).unwrap();
+                            dup2(pipe.write.as_raw_fd(), std::io::stdout().as_raw_fd()).unwrap();
+                            dup2(pipe.write.as_raw_fd(), std::io::stderr().as_raw_fd()).unwrap();
                             execv(
                                 CString::new("/bin/sh").unwrap().as_ref(),
                                 &[
