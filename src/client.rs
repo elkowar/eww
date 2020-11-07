@@ -81,6 +81,10 @@ pub fn handle_client_only_action(action: ActionClientOnly) -> Result<()> {
     Ok(())
 }
 
+fn editor(editor: &String, path: &std::path::Path) -> Result<()> {
+    launch_editor(&editor, path.to_str().unwrap())?;
+    Ok(())
+}
 pub fn forward_command_to_server(mut stream: UnixStream, action: opts::ActionWithServer) -> Result<()> {
     log::info!("Forwarding options to server");
     stream.write_all(&bincode::serialize(&action)?)?;
