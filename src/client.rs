@@ -42,8 +42,11 @@ pub fn handle_client_only_action(action: ActionClientOnly) -> Result<()> {
                 path = scss_file;
             } else {
                 eprint!("Edit the eww.xml file or the scss file? (X/s) ");
-                let input = input()?;
-                path = if input.to_lowercase() == "s\n" { scss_file } else { xml_file }
+                path = if input()?.to_lowercase() == "s\n" {
+                    scss_file
+                } else {
+                    xml_file
+                }
             }
 
             launch_editor(&editor, path.to_str().unwrap())?;
@@ -51,9 +54,8 @@ pub fn handle_client_only_action(action: ActionClientOnly) -> Result<()> {
                 while let Some(config) = crate::config::EwwConfig::read_from_file(&path).err() {
                     eprintln!("{}", config);
                     eprint!("The config file contains errors, edit again? (Y/n) ");
-                    let input = input()?;
                     // \n is there because input is unsanitized and it still contains the newline
-                    if input.to_lowercase() == "n\n" {
+                    if input()?.to_lowercase() == "n\n" {
                         break;
                     } else {
                         launch_editor(&editor, path.to_str().unwrap())?;
@@ -61,6 +63,7 @@ pub fn handle_client_only_action(action: ActionClientOnly) -> Result<()> {
                 }
             } else {
                 // I know these two while loops are ugly.. but functions don't really work because i couldn't use `break` and macros are wacky
+                // And those 9 lines don't make a difference
                 while let Some(config) = parse_scss_from_file(&path).err() {
                     eprintln!("{}", config);
                     eprint!("The config file contains errors, edit again? (Y/n) ");
