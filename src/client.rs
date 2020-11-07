@@ -31,22 +31,14 @@ pub fn handle_client_only_action(action: ActionClientOnly) -> Result<()> {
             }
             // what file to edit, the xml or the scss file
             // This is so ugly because of this: https://github.com/rust-lang/rfcs/issues/372
-            let paths = config_path()?;
-            let xml_file: std::path::PathBuf = paths.0;
-            let scss_file: std::path::PathBuf = paths.1;
-            let path: std::path::PathBuf;
-            let file = file.unwrap_or_default();
-            if file == "xml" {
-                path = xml_file;
-            } else if file == "scss" {
-                path = scss_file;
-            } else {
+            let (xml_file, scss_file) = config_path()?;
+            let path = match file {
+              Some("xml") => xml_file,
+              Some("scss") => scss_file,
+              None => {
                 eprint!("Edit the eww.xml file or the scss file? (X/s) ");
-                path = if input()?.to_lowercase() == "s\n" {
-                    scss_file
-                } else {
-                    xml_file
-                }
+                if input()?.to_lowercase() == "s\n" { scss_file }  else { xml_file }
+              }
             }
 
             launch_editor(&editor, path.to_str().unwrap())?;
