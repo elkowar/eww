@@ -1,6 +1,5 @@
 use crate::{
     config::window_definition::WindowName,
-    util,
     value::{AttrName, AttrValueElement, VarName},
 };
 use anyhow::*;
@@ -33,7 +32,7 @@ impl StateChangeHandler {
         match resolved_attrs {
             Ok(resolved_attrs) => {
                 let result: Result<_> = (self.func)(resolved_attrs);
-                util::print_result_err("while updating UI based after state change", &result);
+                crate::print_result_err!("while updating UI based after state change", &result);
             }
             Err(err) => {
                 eprintln!("Error while resolving attributes: {:?}", err);
@@ -169,6 +168,10 @@ impl EwwState {
                 .or_insert_with(EwwWindowState::default);
             window_state.put_handler(handler);
         }
+    }
+
+    pub fn referenced_vars(&self) -> impl Iterator<Item = &VarName> {
+        self.windows.values().flat_map(|w| w.state_change_handlers.keys())
     }
 
     pub fn vars_referenced_in(&self, window_name: &WindowName) -> std::collections::HashSet<&VarName> {

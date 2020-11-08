@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    app, config, util,
+    app, config,
     value::{PrimitiveValue, VarName},
 };
 use anyhow::*;
@@ -82,7 +82,7 @@ impl ScriptVarHandler {
                 let result: Result<_> = try {
                     evt_send.send(app::EwwCommand::UpdateVars(vec![(var.name.clone(), var.run_once()?)]))?;
                 };
-                util::print_result_err("while running script-var command", &result);
+                crate::print_result_err!("while running script-var command", &result);
             }),
         );
         self.poll_handles.insert(var.name.clone(), handle);
@@ -124,10 +124,10 @@ impl ScriptVarHandler {
                         }
                     }
                 };
-                util::print_result_err("in script-var tail handler thread", &result);
+                crate::print_result_err!("in script-var tail handler thread", &result);
             }
             for process in script_var_processes.iter() {
-                util::print_result_err("While killing tail-var process at the end of tail task", &process.kill());
+                crate::print_result_err!("While killing tail-var process at the end of tail task", &process.kill());
             }
             script_var_processes.clear();
         });
@@ -164,8 +164,6 @@ pub mod script_var_process {
     };
     use std::{ffi::CString, io::BufReader, sync::Mutex};
 
-    use crate::util;
-
     lazy_static::lazy_static! {
         static ref SCRIPT_VAR_CHILDREN: Mutex<Vec<u32>> = Mutex::new(Vec::new());
     }
@@ -180,7 +178,7 @@ pub mod script_var_process {
     pub fn on_application_death() {
         SCRIPT_VAR_CHILDREN.lock().unwrap().drain(..).for_each(|pid| {
             let result = terminate_pid(pid);
-            util::print_result_err("While killing process '{}' during cleanup", &result);
+            crate::print_result_err!("While killing process '{}' during cleanup", &result);
         });
     }
 

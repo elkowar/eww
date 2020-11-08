@@ -3,7 +3,6 @@ use crate::{
     config::{window_definition::WindowName, AnchorPoint, WindowStacking},
     eww_state,
     script_var_handler::*,
-    util,
     value::{AttrValue, Coords, NumWithUnit, PrimitiveValue, VarName},
     widgets,
 };
@@ -13,7 +12,6 @@ use debug_stub_derive::*;
 use gdk::WindowExt;
 use gtk::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt};
 use itertools::Itertools;
-
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug)]
@@ -109,7 +107,7 @@ impl App {
             }
         };
 
-        util::print_result_err("while handling event", &result);
+        crate::print_result_err!("while handling event", &result);
     }
 
     fn update_state(&mut self, fieldname: VarName, value: PrimitiveValue) -> Result<()> {
@@ -122,6 +120,8 @@ impl App {
             .remove(window_name)
             .context(format!("No window with name '{}' is running.", window_name))?;
 
+        // Stop script-var handlers for variables that where only referenced by this window
+        // TODO somehow make this whole process less shit.
         let currently_used_vars = self.get_currently_used_variables().cloned().collect::<HashSet<VarName>>();
 
         for unused_var in self
@@ -132,9 +132,9 @@ impl App {
         {
             println!("stopping for {}", &unused_var);
             let result = self.script_var_handler.stop_for_variable(unused_var);
-            util::print_result_err(
+            crate::print_result_err!(
                 "While stopping script-var processes while cleaning up after the last window referencing them closed",
-                &result,
+                &result
             );
         }
 
@@ -156,23 +156,11 @@ impl App {
 
         log::info!("Opening window {}", window_name);
 
-        let mut window_def = self
-            .eww_config
-            .get_windows()
-            .get(window_name)
-            .with_context(|| format!("No window named '{}' defined", window_name))?
-            .clone();
-
-        let display = gdk::Display::get_default().expect("could not get default display");
-        let screen_number = &window_def
-            .screen_number
-            .unwrap_or(display.get_default_screen().get_primary_monitor());
-
-        window_def.geometry.offset = pos.unwrap_or(window_def.geometry.offset);
-        window_def.geometry.size = size.unwrap_or(window_def.geometry.size);
-        window_def.geometry.anchor_point = anchor.unwrap_or(window_def.geometry.anchor_point);
-
-        let monitor_geometry = display.get_default_screen().get_monitor_geometry(*screen_number);
+        let window_def = {
+            let mut window_def = self.eww_config.get_window(window_name)?.clone();
+            window_def.geometry = window_def.geometry.override_if_given(anchor, pos, size);
+            window_def
+        };
 
         let root_widget = widgets::widget_use_to_gtk_widget(
             &self.eww_config.get_widgets(),
@@ -183,8 +171,11 @@ impl App {
         )?;
         root_widget.get_style_context().add_class(&window_name.to_string());
 
+        let monitor_geometry = get_monitor_geometry(window_def.screen_number.unwrap_or_else(get_default_monitor_index));
         let eww_window = initialize_window(monitor_geometry, root_widget, window_def)?;
 
+        // initialize script var handlers for variables that where not used before opening this window.
+        // TODO somehow make this less shit
         let currently_used_vars = self.get_currently_used_variables().collect::<HashSet<_>>();
         let newly_used_vars = self
             .eww_state
@@ -228,7 +219,7 @@ impl App {
     }
 
     pub fn get_currently_used_variables(&self) -> impl Iterator<Item = &VarName> {
-        self.windows.values().flat_map(|x| x.definition.referenced_vars())
+        self.eww_state.referenced_vars()
     }
 }
 
@@ -302,4 +293,20 @@ fn on_screen_changed(window: &gtk::Window, _old_screen: Option<&gdk::Screen>) {
             .or_else(|| screen.get_system_visual())
     });
     window.set_visual(visual.as_ref());
+}
+
+/// get the index of the default monitor
+fn get_default_monitor_index() -> i32 {
+    gdk::Display::get_default()
+        .expect("could not get default display")
+        .get_default_screen()
+        .get_primary_monitor()
+}
+
+/// Get the monitor geometry of a given monitor number
+fn get_monitor_geometry(n: i32) -> gdk::Rectangle {
+    gdk::Display::get_default()
+        .expect("could not get default display")
+        .get_default_screen()
+        .get_monitor_geometry(n)
 }

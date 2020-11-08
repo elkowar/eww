@@ -104,6 +104,12 @@ impl EwwConfig {
         &self.windows
     }
 
+    pub fn get_window(&self, name: &WindowName) -> Result<&EwwWindowDefinition> {
+        self.windows
+            .get(name)
+            .with_context(|| format!("No window named '{}' exists", name))
+    }
+
     pub fn get_default_vars(&self) -> &HashMap<VarName, PrimitiveValue> {
         &self.initial_variables
     }

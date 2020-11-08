@@ -96,7 +96,7 @@ fn run_server_thread(evt_send: glib::Sender<app::EwwCommand>) -> Result<()> {
                     if let Some(response_recv) = maybe_response_recv {
                         if let Ok(response) = response_recv.recv_timeout(std::time::Duration::from_millis(100)) {
                             let result = &stream.write_all(response.as_bytes());
-                            util::print_result_err("Sending text response to ipc client", &result);
+                            crate::print_result_err!("Sending text response to ipc client", &result);
                         }
                     }
                 });
@@ -134,7 +134,7 @@ fn run_filewatch_thread<P: AsRef<Path>>(
             evt_send.send(app::EwwCommand::ReloadCss(eww_css))?;
         })
     });
-    util::print_result_err("while loading CSS file for hot-reloading", &result);
+    crate::print_result_err!("while loading CSS file for hot-reloading", &result);
     Ok(hotwatch)
 }
 
