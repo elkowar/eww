@@ -194,7 +194,7 @@ The `<windows>` config should look something like this:
 ```xml
 <windows>
     <window name="main_window" stacking="fg">
-        <geometry anchor="top left" x="300px" y="50%" width="25%" height="20px">
+        <geometry anchor="top left" x="300px" y="50%" width="25%" height="20px"/>
         <widget>
             <main/>
         </widget>
