@@ -75,7 +75,7 @@ impl App {
                 }
                 EwwCommand::KillServer => {
                     log::info!("Received kill command, stopping server!");
-                    self.script_var_handler.stop();
+                    self.script_var_handler.stop_all();
                     self.windows.drain().for_each(|(_, w)| w.close());
                     script_var_process::on_application_death();
                     std::process::exit(0);
@@ -156,11 +156,12 @@ impl App {
 
         log::info!("Opening window {}", window_name);
 
-        let window_def = {
-            let mut window_def = self.eww_config.get_window(window_name)?.clone();
-            window_def.geometry = window_def.geometry.override_if_given(anchor, pos, size);
-            window_def
-        };
+        // remember which variables are used before opening the window, to then
+        // set up the necessary handlers for the newly used variables.
+        let currently_used_vars = self.get_currently_used_variables().cloned().collect::<HashSet<_>>();
+
+        let mut window_def = self.eww_config.get_window(window_name)?.clone();
+        window_def.geometry = window_def.geometry.override_if_given(anchor, pos, size);
 
         let root_widget = widgets::widget_use_to_gtk_widget(
             &self.eww_config.get_widgets(),
@@ -176,15 +177,15 @@ impl App {
 
         // initialize script var handlers for variables that where not used before opening this window.
         // TODO somehow make this less shit
-        let currently_used_vars = self.get_currently_used_variables().collect::<HashSet<_>>();
         let newly_used_vars = self
             .eww_state
             .vars_referenced_in(window_name)
             .into_iter()
-            .filter(|x| !currently_used_vars.contains(x))
+            .filter(|x| !currently_used_vars.contains(*x))
             .collect_vec()
             .clone();
 
+        // TODO all of the cloning above is highly ugly.... REEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
         for newly_used_var in newly_used_vars {
             let value = self.eww_config.get_script_var(&newly_used_var);
             if let Some(value) = value {
@@ -200,7 +201,7 @@ impl App {
     pub fn reload_all_windows(&mut self, config: config::EwwConfig) -> Result<()> {
         log::info!("Reloading windows");
         // refresh script-var poll stuff
-        self.script_var_handler.stop();
+        self.script_var_handler.stop_all();
 
         self.eww_config = config;
         self.eww_state.clear_all_window_states();

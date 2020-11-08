@@ -19,61 +19,63 @@ use self::script_var_process::ScriptVarProcess;
 
 /// Handler that manages running and updating [ScriptVar]s
 pub struct ScriptVarHandler {
-    evt_send: glib::Sender<EwwCommand>,
-    poll_handles: HashMap<VarName, scheduled_executor::executor::TaskHandle>,
-    poll_executor: scheduled_executor::CoreExecutor,
-    tail_handler_thread: Option<stoppable_thread::StoppableHandle<()>>,
-    tail_process_handles: Arc<DashMap<VarName, script_var_process::ScriptVarProcess>>,
-    tail_sources: Arc<RwLock<popol::Sources<VarName>>>,
+    tail_handler: TailVarHandler,
+    poll_handler: PollVarHandler,
 }
 
 impl ScriptVarHandler {
     pub fn new(evt_send: glib::Sender<EwwCommand>) -> Result<Self> {
-        log::info!("initializing handler for poll script vars");
-        let mut handler = ScriptVarHandler {
-            evt_send,
-            poll_handles: HashMap::new(),
-            poll_executor: scheduled_executor::CoreExecutor::new()?,
-            tail_handler_thread: None,
-            tail_process_handles: Arc::new(DashMap::new()),
-            tail_sources: Arc::new(RwLock::new(popol::Sources::new())),
-        };
-        handler.setup_tail_tasks()?;
-        Ok(handler)
+        Ok(ScriptVarHandler {
+            tail_handler: TailVarHandler::new(evt_send.clone())?,
+            poll_handler: PollVarHandler::new(evt_send)?,
+        })
     }
 
     pub fn add(&mut self, script_var: config::ScriptVar) {
         match script_var {
-            config::ScriptVar::Poll(var) => {
-                self.schedule_poll_task(&var);
-            }
-            config::ScriptVar::Tail(var) => {
-                self.start_tail_script(&var);
-            }
+            config::ScriptVar::Poll(var) => self.poll_handler.start(&var),
+            config::ScriptVar::Tail(var) => self.tail_handler.start(&var),
         };
     }
 
     /// Stop the handler that is responsible for a given variable.
     pub fn stop_for_variable(&mut self, name: &VarName) -> Result<()> {
         log::debug!("Stopping script var process for variable {}", name);
-        if let Some(handle) = self.poll_handles.remove(name) {
-            log::debug!("stopped poll var {}", name);
-            handle.stop();
-        }
-        if let Some((_, process)) = self.tail_process_handles.remove(name) {
-            log::debug!("stopped tail var {}", name);
-            process.kill()?;
-        }
+        self.tail_handler.stop_for_variable(name)?;
+        self.poll_handler.stop_for_variable(name)?;
         Ok(())
     }
 
-    /// stop all running handlers
-    pub fn stop(&mut self) {
-        self.poll_handles.drain().for_each(|(_, handle)| handle.stop());
-        self.tail_handler_thread.take().map(|handle| handle.stop());
+    /// stop all running scripts and schedules
+    pub fn stop_all(&mut self) {
+        log::debug!("Stopping script-var-handlers");
+        self.tail_handler.stop_all();
+        self.poll_handler.stop_all();
+    }
+}
+
+impl Drop for ScriptVarHandler {
+    fn drop(&mut self) {
+        self.stop_all();
+    }
+}
+
+struct PollVarHandler {
+    evt_send: glib::Sender<EwwCommand>,
+    poll_handles: HashMap<VarName, scheduled_executor::executor::TaskHandle>,
+    poll_executor: scheduled_executor::CoreExecutor,
+}
+
+impl PollVarHandler {
+    fn new(evt_send: glib::Sender<EwwCommand>) -> Result<Self> {
+        Ok(PollVarHandler {
+            evt_send,
+            poll_handles: HashMap::new(),
+            poll_executor: scheduled_executor::CoreExecutor::new()?,
+        })
     }
 
-    fn schedule_poll_task(&mut self, var: &config::PollScriptVar) {
+    fn start(&mut self, var: &config::PollScriptVar) {
         let evt_send = self.evt_send.clone();
         let handle = self.poll_executor.schedule_fixed_interval(
             Duration::from_secs(0),
@@ -88,8 +90,39 @@ impl ScriptVarHandler {
         self.poll_handles.insert(var.name.clone(), handle);
     }
 
-    /// initialize the tail_var handler thread
-    pub fn setup_tail_tasks(&mut self) -> Result<()> {
+    pub fn stop_for_variable(&mut self, name: &VarName) -> Result<()> {
+        if let Some(handle) = self.poll_handles.remove(name) {
+            log::debug!("stopped poll var {}", name);
+            handle.stop();
+        }
+        Ok(())
+    }
+
+    pub fn stop_all(&mut self) {
+        self.poll_handles.drain().for_each(|(_, handle)| handle.stop());
+    }
+}
+
+struct TailVarHandler {
+    evt_send: glib::Sender<EwwCommand>,
+    tail_handler_thread: Option<stoppable_thread::StoppableHandle<()>>,
+    tail_process_handles: Arc<DashMap<VarName, script_var_process::ScriptVarProcess>>,
+    tail_sources: Arc<RwLock<popol::Sources<VarName>>>,
+}
+
+impl TailVarHandler {
+    fn new(evt_send: glib::Sender<EwwCommand>) -> Result<Self> {
+        let mut handler = TailVarHandler {
+            evt_send,
+            tail_handler_thread: None,
+            tail_process_handles: Arc::new(DashMap::new()),
+            tail_sources: Arc::new(RwLock::new(popol::Sources::new())),
+        };
+        handler.setup_tail_tasks()?;
+        Ok(handler)
+    }
+
+    fn setup_tail_tasks(&mut self) -> Result<()> {
         log::info!("initializing handler for tail script vars");
 
         let mut events = popol::Events::<VarName>::new();
@@ -135,7 +168,7 @@ impl ScriptVarHandler {
         Ok(())
     }
 
-    pub fn start_tail_script(&mut self, var: &config::TailScriptVar) {
+    fn start(&mut self, var: &config::TailScriptVar) {
         match ScriptVarProcess::run(&var.command) {
             Ok(process) => {
                 self.tail_sources.write().unwrap().register(
@@ -148,11 +181,17 @@ impl ScriptVarHandler {
             Err(err) => eprintln!("Failed to launch script-var command for tail: {:?}", err),
         }
     }
-}
 
-impl Drop for ScriptVarHandler {
-    fn drop(&mut self) {
-        self.stop();
+    fn stop_for_variable(&mut self, name: &VarName) -> Result<()> {
+        if let Some((_, process)) = self.tail_process_handles.remove(name) {
+            log::debug!("stopped tail var {}", name);
+            process.kill()?;
+        }
+        Ok(())
+    }
+
+    fn stop_all(&mut self) {
+        self.tail_handler_thread.take().map(|handle| handle.stop());
     }
 }
 
