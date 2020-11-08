@@ -131,6 +131,14 @@ impl EwwWindowGeometry {
             },
         })
     }
+
+    pub fn override_if_given(&mut self, anchor_point: Option<AnchorPoint>, offset: Option<Coords>, size: Option<Coords>) -> Self {
+        EwwWindowGeometry {
+            anchor_point: anchor_point.unwrap_or(self.anchor_point),
+            offset: offset.unwrap_or(self.offset),
+            size: size.unwrap_or(self.size),
+        }
+    }
 }
 
 impl std::fmt::Display for EwwWindowGeometry {
