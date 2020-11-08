@@ -8,6 +8,7 @@ use super::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct EwwWindowDefinition {
+    pub name: WindowName,
     pub geometry: EwwWindowGeometry,
     pub stacking: WindowStacking,
     pub screen_number: Option<i32>,
@@ -26,6 +27,7 @@ impl EwwWindowDefinition {
         let struts = xml.child("struts").ok().map(Struts::from_xml_element).transpose()?;
 
         Ok(EwwWindowDefinition {
+            name: WindowName(xml.attr("name")?.to_owned()),
             geometry: match xml.child("geometry") {
                 Ok(node) => EwwWindowGeometry::from_xml_element(node)?,
                 Err(_) => EwwWindowGeometry::default(),
@@ -36,6 +38,11 @@ impl EwwWindowDefinition {
             focusable: focusable.unwrap_or(false),
             struts: struts.unwrap_or_default(),
         })
+    }
+
+    /// returns all the variables that are referenced in this window
+    pub fn referenced_vars(&self) -> impl Iterator<Item = &VarName> {
+        self.widget.referenced_vars()
     }
 }
 

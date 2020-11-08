@@ -26,7 +26,16 @@ macro_rules! try_logging_errors {
     ($context:literal => $code:block) => {{
         let result: Result<_> = try { $code };
         if let Err(err) = result {
-            eprintln!("Error while {}: {:?}", $context, err);
+            eprintln!("[{}:{}] Error while {}: {:?}", ::std::file!(), ::std::line!(), $context, err);
+        }
+    }};
+}
+
+#[macro_export]
+macro_rules! print_result_err {
+    ($context:expr, $result:expr $(,)?) => {{
+        if let Err(err) = $result {
+            eprintln!("[{}:{}] Error {}: {:?}", ::std::file!(), ::std::line!(), $context, err);
         }
     }};
 }
@@ -115,3 +124,4 @@ pub fn launch_editor(editor: &String, path: &str) -> Result<std::process::ExitSt
         .spawn()?
         .wait()?)
 }
+

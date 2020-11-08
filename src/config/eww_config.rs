@@ -17,6 +17,8 @@ pub struct EwwConfig {
     widgets: HashMap<String, WidgetDefinition>,
     windows: HashMap<WindowName, EwwWindowDefinition>,
     initial_variables: HashMap<VarName, PrimitiveValue>,
+
+    // TODO make this a hashmap
     script_vars: Vec<ScriptVar>,
 }
 
@@ -44,10 +46,8 @@ impl EwwConfig {
             .child("windows")?
             .child_elements()
             .map(|child| {
-                Ok((
-                    WindowName::from(child.attr("name")?.to_owned()),
-                    EwwWindowDefinition::from_xml_element(child)?,
-                ))
+                let def = EwwWindowDefinition::from_xml_element(child)?;
+                Ok((def.name.to_owned(), def))
             })
             .collect::<Result<HashMap<_, _>>>()
             .context("error parsing window definitions")?;
@@ -104,11 +104,21 @@ impl EwwConfig {
         &self.windows
     }
 
+    pub fn get_window(&self, name: &WindowName) -> Result<&EwwWindowDefinition> {
+        self.windows
+            .get(name)
+            .with_context(|| format!("No window named '{}' exists", name))
+    }
+
     pub fn get_default_vars(&self) -> &HashMap<VarName, PrimitiveValue> {
         &self.initial_variables
     }
 
     pub fn get_script_vars(&self) -> &Vec<ScriptVar> {
         &self.script_vars
+    }
+
+    pub fn get_script_var(&self, name: &VarName) -> Option<&ScriptVar> {
+        self.script_vars.iter().find(|x| x.name() == name)
     }
 }
