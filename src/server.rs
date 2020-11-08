@@ -21,9 +21,7 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
         std::process::exit(0);
     });
     // this is so ugly because of this:  https://github.com/rust-lang/rfcs/issues/372
-    let a = util::config_path().unwrap();
-    let config_file_path = a.0;
-    let scss_file_path = a.1;
+    let (config_file_path, scss_file_path) = util::config_path().unwrap();
 
     log::info!("reading configuration from {:?}", &config_file_path);
     let eww_config = config::EwwConfig::read_from_file(&config_file_path)?;
