@@ -32,7 +32,7 @@ pub fn handle_client_only_action(action: ActionClientOnly) -> Result<()> {
             // what file to edit, the xml or the scss file
             // This is so ugly because of this: https://github.com/rust-lang/rfcs/issues/372
             let (xml_file, scss_file) = config_path()?;
-            let file = file.map(|x| &x);
+            let file = file.as_ref().map(|x| x.as_str());
             let path = match file {
                 Some("xml") => xml_file,
                 Some("scss") => scss_file,
@@ -44,6 +44,7 @@ pub fn handle_client_only_action(action: ActionClientOnly) -> Result<()> {
                         xml_file
                     }
                 }
+                _ => std::path::PathBuf::new(),
             };
             fn_editor(&editor, &path)?;
         }
