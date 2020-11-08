@@ -32,51 +32,45 @@ pub fn handle_client_only_action(action: ActionClientOnly) -> Result<()> {
             // what file to edit, the xml or the scss file
             // This is so ugly because of this: https://github.com/rust-lang/rfcs/issues/372
             let (xml_file, scss_file) = config_path()?;
+            let file = file.map(|x| &x);
             let path = match file {
-              Some("xml") => xml_file,
-              Some("scss") => scss_file,
-              None => {
-                eprint!("Edit the eww.xml file or the scss file? (X/s) ");
-                if input()?.to_lowercase() == "s\n" { scss_file }  else { xml_file }
-              }
-            }
-
-            launch_editor(&editor, path.to_str().unwrap())?;
-            if path.extension().unwrap() == "xml" {
-                while let Some(config) = crate::config::EwwConfig::read_from_file(&path).err() {
-                    eprintln!("{}", config);
-                    eprint!("The config file contains errors, edit again? (Y/n) ");
-                    // \n is there because input is unsanitized and it still contains the newline
-                    if input()?.to_lowercase() == "n\n" {
-                        break;
+                Some("xml") => xml_file,
+                Some("scss") => scss_file,
+                None => {
+                    eprint!("Edit the eww.xml file or the scss file? (X/s) ");
+                    if input()?.to_lowercase() == "s\n" {
+                        scss_file
                     } else {
-                        launch_editor(&editor, path.to_str().unwrap())?;
-                    };
+                        xml_file
+                    }
                 }
-            } else {
-                // I know these two while loops are ugly.. but functions don't really work because i couldn't use `break` and macros are wacky
-                // And those 9 lines don't make a difference
-                while let Some(config) = parse_scss_from_file(&path).err() {
-                    eprintln!("{}", config);
-                    eprint!("The config file contains errors, edit again? (Y/n) ");
-                    let input = input()?;
-                    // \n is there because input is unsanitized and it still contains the newline
-                    if input.to_lowercase() == "n\n" {
-                        break;
-                    } else {
-                        launch_editor(&editor, path.to_str().unwrap())?;
-                    };
-                }
-            }
+            };
+            fn_editor(&editor, &path)?;
         }
     }
     Ok(())
 }
-
-fn editor(editor: &String, path: &std::path::Path) -> Result<()> {
+fn fn_editor(editor: &String, path: &std::path::Path) -> Result<()> {
     launch_editor(&editor, path.to_str().unwrap())?;
+    let err = if path.extension().unwrap() == "xml" {
+        crate::config::EwwConfig::read_from_file(&path).err()
+    } else {
+        parse_scss_from_file(&path).err()
+    };
+    match err {
+        Some(_) => {
+            eprintln!("{}", err.unwrap());
+            eprint!("The config file contains errors, edit again? (Y/n) ");
+            // \n is there because input is unsanitized and it still contains the newline
+            if input()?.to_lowercase() != "n\n" {
+                fn_editor(&editor, path)?;
+            }
+        }
+        _ => {}
+    };
     Ok(())
 }
+
 pub fn forward_command_to_server(mut stream: UnixStream, action: opts::ActionWithServer) -> Result<()> {
     log::info!("Forwarding options to server");
     stream.write_all(&bincode::serialize(&action)?)?;
