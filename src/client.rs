@@ -22,7 +22,10 @@ pub fn handle_client_only_action(action: ActionClientOnly) -> Result<()> {
 
 pub fn forward_command_to_server(mut stream: UnixStream, action: opts::ActionWithServer) -> Result<()> {
     log::info!("Forwarding options to server");
-    stream.write_all(&bincode::serialize(&action)?)?;
+    stream.set_nonblocking(false)?;
+    stream
+        .write_all(&bincode::serialize(&action)?)
+        .context("Failed to write command to IPC stream")?;
 
     let mut buf = String::new();
     stream.set_read_timeout(Some(std::time::Duration::from_millis(100)))?;

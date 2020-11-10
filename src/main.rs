@@ -54,9 +54,11 @@ fn main() {
             opts::Action::WithServer(action) => {
                 log::info!("Trying to find server process");
                 if let Ok(stream) = net::UnixStream::connect(&*IPC_SOCKET_PATH) {
-                    client::forward_command_to_server(stream, action)?;
+
+                    client::forward_command_to_server(stream, action).context("Error while forwarding command to server")?;
                 } else if action.needs_server_running() {
                     println!("No eww server running");
+
                 } else {
                     log::info!("No server running, initializing server...");
                     server::initialize_server(opts.should_detach, action)?;

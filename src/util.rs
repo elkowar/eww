@@ -25,7 +25,16 @@ macro_rules! try_logging_errors {
     ($context:literal => $code:block) => {{
         let result: Result<_> = try { $code };
         if let Err(err) = result {
-            eprintln!("Error while {}: {:?}", $context, err);
+            eprintln!("[{}:{}] Error while {}: {:?}", ::std::file!(), ::std::line!(), $context, err);
+        }
+    }};
+}
+
+#[macro_export]
+macro_rules! print_result_err {
+    ($context:expr, $result:expr $(,)?) => {{
+        if let Err(err) = $result {
+            eprintln!("[{}:{}] Error {}: {:?}", ::std::file!(), ::std::line!(), $context, err);
         }
     }};
 }
@@ -79,11 +88,4 @@ pub fn replace_env_var_references(input: String) -> String {
             std::env::var(var_name.get(1).unwrap().as_str()).unwrap_or_default()
         })
         .into_owned()
-}
-
-/// If the given result is `Err`, prints out the error value using `{:?}`
-pub fn print_result_err<T, E: std::fmt::Debug>(context: &str, result: &std::result::Result<T, E>) {
-    if let Err(err) = result {
-        eprintln!("Error {}: {:?}", context, err);
-    }
 }
