@@ -86,28 +86,26 @@ impl AttrValue {
                     curly_count = 2;
                     varref.push(c);
                 }
-            } else {
-                if c == '{' {
-                    curly_count += 1;
-                    if curly_count == 2 {
-                        if !cur_word.is_empty() {
-                            elements.push(AttrValueElement::primitive(std::mem::take(&mut cur_word)));
-                        }
-                        cur_varref = Some(String::new())
+            } else if c == '{' {
+                curly_count += 1;
+                if curly_count == 2 {
+                    if !cur_word.is_empty() {
+                        elements.push(AttrValueElement::primitive(std::mem::take(&mut cur_word)));
                     }
-                } else {
-                    if curly_count == 1 {
-                        cur_word.push('{');
-                    }
-                    curly_count = 0;
-                    cur_word.push(c);
+                    cur_varref = Some(String::new())
                 }
+            } else {
+                if curly_count == 1 {
+                    cur_word.push('{');
+                }
+                curly_count = 0;
+                cur_word.push(c);
             }
         }
         if let Some(unfinished_varref) = cur_varref.take() {
             elements.push(AttrValueElement::primitive(unfinished_varref));
         } else if !cur_word.is_empty() {
-            elements.push(AttrValueElement::primitive(cur_word.to_owned()));
+            elements.push(AttrValueElement::primitive(cur_word));
         }
         AttrValue(elements)
     }

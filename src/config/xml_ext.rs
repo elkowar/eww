@@ -86,7 +86,7 @@ impl<'a, 'b> XmlNode<'a, 'b> {
         match self {
             XmlNode::Text(x) => x.0,
             XmlNode::Element(x) => x.0,
-            XmlNode::Ignored(x) => x.clone(),
+            XmlNode::Ignored(x) => *x,
         }
     }
 }
@@ -123,7 +123,7 @@ impl<'a, 'b> fmt::Display for XmlElement<'a, 'b> {
             .map(|x| x.lines().map(|line| format!("  {}", line)).join("\n"))
             .join("\n");
 
-        if children.len() == 0 {
+        if children.is_empty() {
             write!(f, "{}</{}>", self.as_tag_string(), self.tag_name())
         } else {
             write!(f, "{}\n{}\n</{}>", self.as_tag_string(), children, self.tag_name())

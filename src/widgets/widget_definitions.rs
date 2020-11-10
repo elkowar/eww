@@ -1,7 +1,6 @@
 use super::{run_command, BuilderArgs};
 use crate::{config, eww_state, resolve_block, value::AttrValue};
 use anyhow::*;
-use gdk_pixbuf;
 use gtk::{prelude::*, ImageExt};
 use std::{cell::RefCell, rc::Rc};
 

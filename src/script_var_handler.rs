@@ -3,9 +3,7 @@ use std::{collections::HashMap, time::Duration};
 use crate::{app, config, util, value::PrimitiveValue};
 use anyhow::*;
 use app::EwwCommand;
-use glib;
 use itertools::Itertools;
-use scheduled_executor;
 use std::io::BufRead;
 
 use self::script_var_process::ScriptVarProcess;
