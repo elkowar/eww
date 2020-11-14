@@ -10,8 +10,6 @@ extern crate gtk;
 
 use anyhow::*;
 
-use log;
-use pretty_env_logger;
 use std::{os::unix::net, path::PathBuf};
 use structopt::StructOpt;
 
@@ -33,12 +31,12 @@ lazy_static::lazy_static! {
         .join("eww-server");
 
     pub static ref CONFIG_DIR: std::path::PathBuf = std::env::var("XDG_CONFIG_HOME")
-        .map(|v| PathBuf::from(v))
+        .map(PathBuf::from)
         .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap()).join(".config"))
         .join("eww");
 
     pub static ref LOG_FILE: std::path::PathBuf = std::env::var("XDG_CACHE_HOME")
-        .map(|v| PathBuf::from(v))
+        .map(PathBuf::from)
         .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap()).join(".cache"))
         .join("eww.log");
 }
@@ -56,14 +54,14 @@ fn main() {
             opts::Action::WithServer(action) => {
                 log::info!("Trying to find server process");
                 if let Ok(stream) = net::UnixStream::connect(&*IPC_SOCKET_PATH) {
+
                     client::forward_command_to_server(stream, action).context("Error while forwarding command to server")?;
+                } else if action.needs_server_running() {
+                    println!("No eww server running");
+
                 } else {
-                    if action.needs_server_running() {
-                        println!("No eww server running");
-                    } else {
-                        log::info!("No server running, initializing server...");
-                        server::initialize_server(opts.should_detach, action)?;
-                    }
+                    log::info!("No server running, initializing server...");
+                    server::initialize_server(opts.should_detach, action)?;
                 }
             }
         }

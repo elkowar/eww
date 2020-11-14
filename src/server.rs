@@ -1,6 +1,5 @@
 use crate::{app, config, eww_state::*, opts, script_var_handler, try_logging_errors, util};
 use anyhow::*;
-use log;
 use std::{
     collections::HashMap,
     io::Write,
@@ -20,6 +19,7 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
         script_var_handler::script_var_process::on_application_death();
         std::process::exit(0);
     });
+
     // this is so ugly because of this:  https://github.com/rust-lang/rfcs/issues/372
     let (config_file_path, scss_file_path) = util::config_path().unwrap();
 
@@ -33,7 +33,7 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
     let script_var_handler = script_var_handler::ScriptVarHandler::new(evt_send.clone())?;
 
     let mut app = app::App {
-        eww_state: EwwState::from_default_vars(eww_config.generate_initial_state()?.clone()),
+        eww_state: EwwState::from_default_vars(eww_config.generate_initial_state()?),
         eww_config,
         windows: HashMap::new(),
         css_provider: gtk::CssProvider::new(),
@@ -62,7 +62,7 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
     }
 
     run_server_thread(evt_send.clone())?;
-    let _hotwatch = run_filewatch_thread(&config_file_path, &scss_file_path, evt_send.clone())?;
+    let _hotwatch = run_filewatch_thread(&config_file_path, &scss_file_path, evt_send)?;
 
     evt_recv.attach(None, move |msg| {
         app.handle_command(msg);
