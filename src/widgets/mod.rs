@@ -146,10 +146,12 @@ fn build_builtin_gtk_widget(
         }
     }
 
-    gtk_widget.dynamic_cast_ref().map(|w| resolve_range_attrs(&mut bargs, &w));
-    gtk_widget
-        .dynamic_cast_ref()
-        .map(|w| resolve_orientable_attrs(&mut bargs, &w));
+    if let Some(w) = gtk_widget.dynamic_cast_ref() {
+        resolve_range_attrs(&mut bargs, &w)
+    }
+    if let Some(w) = gtk_widget.dynamic_cast_ref() {
+        resolve_orientable_attrs(&mut bargs, &w)
+    };
     resolve_widget_attrs(&mut bargs, &gtk_widget);
 
     if !bargs.unhandled_attrs.is_empty() {

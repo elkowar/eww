@@ -1,5 +1,4 @@
 use anyhow::*;
-use derive_more;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::{convert::TryFrom, fmt, iter::FromIterator};
@@ -63,7 +62,7 @@ impl From<&str> for PrimitiveValue {
 
 impl PrimitiveValue {
     pub fn from_string(s: String) -> Self {
-        PrimitiveValue(s.to_string())
+        PrimitiveValue(s)
     }
 
     pub fn into_inner(self) -> String {

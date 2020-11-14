@@ -7,7 +7,6 @@ use crate::{
     widgets,
 };
 use anyhow::*;
-use crossbeam_channel;
 use debug_stub_derive::*;
 use gdk::WindowExt;
 use gtk::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt};

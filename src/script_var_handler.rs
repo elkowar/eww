@@ -10,9 +10,9 @@ use crate::{
 };
 use anyhow::*;
 use app::EwwCommand;
+
+use itertools::Itertools;
 use dashmap::DashMap;
-use glib;
-use scheduled_executor;
 use std::io::BufRead;
 
 use self::script_var_process::ScriptVarProcess;

@@ -93,9 +93,7 @@ fn parse_var_update_arg(s: &str) -> Result<(VarName, PrimitiveValue)> {
 impl ActionWithServer {
     pub fn into_eww_command(self) -> (app::EwwCommand, Option<crossbeam_channel::Receiver<String>>) {
         let command = match self {
-            ActionWithServer::Update { mappings } => {
-                app::EwwCommand::UpdateVars(mappings.into_iter().map(|x| x.into()).collect())
-            }
+            ActionWithServer::Update { mappings } => app::EwwCommand::UpdateVars(mappings.into_iter().collect()),
             ActionWithServer::OpenWindow {
                 window_name,
                 pos,
