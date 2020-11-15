@@ -23,7 +23,7 @@ pub struct EwwConfig {
 }
 
 impl EwwConfig {
-    // TODO: !!! There is definitely a better way to do this with a fold
+    // TODO: There is definitely a better way to do this with a fold
     pub fn merge_includes(eww_config: EwwConfig, includes: Vec<EwwConfig>) -> Result<EwwConfig> {
         let mut eww_config = eww_config.clone();
         for config in includes {
@@ -45,7 +45,6 @@ impl EwwConfig {
 
     pub fn from_xml_element<P: AsRef<std::path::Path>>(xml: XmlElement, path: P) -> Result<Self> {
         let path = path.as_ref();
-        // !!! This doesnt seem that bad
         let includes = match xml.child("includes").context("Error") {
             Ok(tag) => tag
                 .child_elements()
@@ -104,7 +103,6 @@ impl EwwConfig {
             }
         }
 
-        // TODO: !!! Names are wacky
         let current_config = EwwConfig {
             widgets: definitions,
             windows,
