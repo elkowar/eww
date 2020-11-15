@@ -44,7 +44,7 @@ impl EwwConfig {
     pub fn from_xml_element<P: AsRef<std::path::Path>>(xml: XmlElement, path: P) -> Result<Self> {
         let path = path.as_ref();
         // !!! This doesnt seem that bad
-        let includes = match xml.child("includes") {
+        let includes = match xml.child("includes").context("Error") {
             Ok(tag) => tag
                 .child_elements()
                 .map(|child| {
@@ -144,9 +144,8 @@ impl EwwConfig {
 
 #[cfg(test)]
 mod test {
+    use crate::config::{EwwConfig, XmlNode};
     use std::collections::HashMap;
-    use crate::config::EwwConfig;
-    use crate::config::XmlNode;
 
     #[test]
     fn test_merge_includes() {
@@ -217,4 +216,3 @@ mod test {
         assert_eq!(merged_config.script_vars.len(), 0);
     }
 }
-
