@@ -23,7 +23,6 @@ pub struct EwwConfig {
 }
 
 impl EwwConfig {
-    // TODO: There is definitely a better way to do this with a fold
     pub fn merge_includes(eww_config: EwwConfig, includes: Vec<EwwConfig>) -> Result<EwwConfig> {
         let mut eww_config = eww_config.clone();
         for config in includes {
