@@ -65,7 +65,7 @@ impl EwwConfig {
                 Ok((def.name.clone(), def))
             })
             .collect::<Result<HashMap<_, _>>>()
-            .context(format!("error parsing widget definitions: {}", path.display()))?;
+            .with_context(|| format!("error parsing widget definitions: {}", path.display()))?;
 
         let windows = xml
             .child("windows")?
