@@ -75,7 +75,7 @@ impl EwwConfig {
                 Ok((def.name.to_owned(), def))
             })
             .collect::<Result<HashMap<_, _>>>()
-            .context(format!("error parsing window definitions: {}", path.display()))?;
+            .with_context(|| format!("error parsing window definitions: {}", path.display()))?;
 
         let variables_block = xml.child("variables").ok();
 
