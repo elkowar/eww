@@ -44,7 +44,7 @@ impl EwwConfig {
 
     pub fn from_xml_element<P: AsRef<std::path::Path>>(xml: XmlElement, path: P) -> Result<Self> {
         let path = path.as_ref();
-        let includes = match xml.child("includes").context("Error") {
+        let includes = match xml.child("includes") {
             Ok(tag) => tag
                 .child_elements()
                 .map(|child| {
