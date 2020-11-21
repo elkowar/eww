@@ -1,0 +1,12 @@
+{
+    "configurations": {
+        "launch": {
+            "adapter": "CodeLLDB",
+            "configuration": {
+                "request": "launch",
+                "program": "${workspaceRoot}/target/debug/eww",
+                "args": ["open", "main_window"]
+            }
+        }
+    }
+}

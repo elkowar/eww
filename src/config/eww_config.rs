@@ -25,8 +25,7 @@ pub struct EwwConfig {
 }
 
 impl EwwConfig {
-    pub fn merge_includes(eww_config: EwwConfig, includes: Vec<EwwConfig>) -> Result<EwwConfig> {
-        let mut eww_config = eww_config.clone();
+    pub fn merge_includes(mut eww_config: EwwConfig, includes: Vec<EwwConfig>) -> Result<EwwConfig> {
         for config in includes {
             eww_config.widgets.extend(config.widgets);
             eww_config.windows.extend(config.windows);
@@ -37,18 +36,21 @@ impl EwwConfig {
     }
 
     pub fn read_from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self> {
-        let content = util::replace_env_var_references(std::fs::read_to_string(path.as_ref())?);
-        let document = roxmltree::Document::parse(&content)
-            .with_context(|| format!("error parsing xml config at: {}", path.as_ref().display()))?;
-
-        let result = EwwConfig::from_xml_element(XmlNode::from(document.root_element()).as_element()?.clone(), path.as_ref());
-        result
+        let result: Result<_> = try {
+            let content = util::replace_env_var_references(std::fs::read_to_string(path.as_ref())?);
+            let document = roxmltree::Document::parse(&content)?;
+            let root_node = XmlNode::from(document.root_element());
+            let root_element = root_node.as_element()?;
+            EwwConfig::from_xml_element(root_element.clone(), path.as_ref())?
+        };
+        result.with_context(|| format!("Failed to parse xml config in {}", path.as_ref().display()))
     }
 
     pub fn from_xml_element<P: AsRef<std::path::Path>>(xml: XmlElement, path: P) -> Result<Self> {
         let path = path.as_ref();
-        let includes = match xml.child("includes") {
-            Ok(tag) => tag
+
+        let includes = match xml.child("includes").ok() {
+            Some(tag) => tag
                 .child_elements()
                 .map(|child| {
                     let childpath = child.attr("path")?;
@@ -57,53 +59,37 @@ impl EwwConfig {
                 })
                 .collect::<Result<Vec<_>>>()
                 .context(format!("error handling include definitions at: {}", path.display()))?,
-            Err(_) => Vec::new(),
+            None => Default::default(),
         };
 
-        let definitions = xml
-            .child("definitions")?
-            .child_elements()
-            .map(|child| {
-                let def = WidgetDefinition::from_xml_element(child)?;
-                Ok((def.name.clone(), def))
-            })
-            .collect::<Result<HashMap<_, _>>>()
-            .with_context(|| format!("error parsing widget definitions at: {}", path.display()))?;
+        let definitions = match xml.child("definitions").ok() {
+            Some(tag) => tag
+                .child_elements()
+                .map(|child| {
+                    let def = WidgetDefinition::from_xml_element(child)?;
+                    Ok((def.name.clone(), def))
+                })
+                .collect::<Result<HashMap<_, _>>>()
+                .with_context(|| format!("error parsing widget definitions at: {}", path.display()))?,
+            None => Default::default(),
+        };
 
-        let windows = xml
-            .child("windows")?
-            .child_elements()
-            .map(|child| {
-                let def = EwwWindowDefinition::from_xml_element(child)?;
-                Ok((def.name.to_owned(), def))
-            })
-            .collect::<Result<HashMap<_, _>>>()
-            .with_context(|| format!("error parsing window definitions at: {}", path.display()))?;
+        let windows = match xml.child("windows").ok() {
+            Some(tag) => tag
+                .child_elements()
+                .map(|child| {
+                    let def = EwwWindowDefinition::from_xml_element(child)?;
+                    Ok((def.name.to_owned(), def))
+                })
+                .collect::<Result<HashMap<_, _>>>()
+                .with_context(|| format!("error parsing window definitions at: {}", path.display()))?,
+            None => Default::default(),
+        };
 
-        let variables_block = xml.child("variables").ok();
-
-        let mut initial_variables = HashMap::new();
-        let mut script_vars = Vec::new();
-        if let Some(variables_block) = variables_block {
-            for node in variables_block.child_elements() {
-                match node.tag_name() {
-                    "var" => {
-                        initial_variables.insert(
-                            VarName(node.attr("name")?.to_owned()),
-                            PrimitiveValue::from_string(
-                                node.only_child()
-                                    .map(|c| c.as_text_or_sourcecode())
-                                    .unwrap_or_else(|_| String::new()),
-                            ),
-                        );
-                    }
-                    "script-var" => {
-                        script_vars.push(ScriptVar::from_xml_element(node)?);
-                    }
-                    _ => bail!("Illegal element in variables block: {}", node.as_tag_string()),
-                }
-            }
-        }
+        let (initial_variables, script_vars) = match xml.child("variables").ok() {
+            Some(tag) => parse_variables_block(tag)?,
+            None => Default::default(),
+        };
 
         let current_config = EwwConfig {
             widgets: definitions,
@@ -151,6 +137,28 @@ impl EwwConfig {
     pub fn get_script_var(&self, name: &VarName) -> Option<&ScriptVar> {
         self.script_vars.iter().find(|x| x.name() == name)
     }
+}
+
+fn parse_variables_block(xml: XmlElement) -> Result<(HashMap<VarName, PrimitiveValue>, Vec<ScriptVar>)> {
+    let mut normal_vars = HashMap::new();
+    let mut script_vars = Vec::new();
+    for node in xml.child_elements() {
+        match node.tag_name() {
+            "var" => {
+                let var_name = VarName(node.attr("name")?.to_owned());
+                let value = node
+                    .only_child()
+                    .map(|c| c.as_text_or_sourcecode())
+                    .unwrap_or_else(|_| String::new());
+                normal_vars.insert(var_name, PrimitiveValue::from_string(value));
+            }
+            "script-var" => {
+                script_vars.push(ScriptVar::from_xml_element(node)?);
+            }
+            _ => bail!("Illegal element in variables block: {}", node.as_tag_string()),
+        }
+    }
+    Ok((normal_vars, script_vars))
 }
 
 #[cfg(test)]
@@ -217,6 +225,7 @@ mod test {
             windows: HashMap::new(),
             initial_variables: HashMap::new(),
             script_vars: Vec::new(),
+            filepath: "test_path".into(),
         };
 
         let merged_config = EwwConfig::merge_includes(base_config, vec![config1.unwrap(), config2.unwrap()]).unwrap();
