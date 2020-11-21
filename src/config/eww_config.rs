@@ -11,6 +11,7 @@ use super::{
     xml_ext::{XmlElement, XmlNode},
     EwwWindowDefinition, ScriptVar, WindowName,
 };
+use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
 pub struct EwwConfig {
@@ -20,6 +21,7 @@ pub struct EwwConfig {
 
     // TODO make this a hashmap
     script_vars: Vec<ScriptVar>,
+    pub filepath: PathBuf,
 }
 
 impl EwwConfig {
@@ -36,7 +38,8 @@ impl EwwConfig {
 
     pub fn read_from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self> {
         let content = util::replace_env_var_references(std::fs::read_to_string(path.as_ref())?);
-        let document = roxmltree::Document::parse(&content)?;
+        let document = roxmltree::Document::parse(&content)
+            .with_context(|| format!("error parsing xml config at: {}", path.as_ref().display()))?;
 
         let result = EwwConfig::from_xml_element(XmlNode::from(document.root_element()).as_element()?.clone(), path.as_ref());
         result
@@ -53,7 +56,7 @@ impl EwwConfig {
                     EwwConfig::read_from_file(basepath.join(childpath))
                 })
                 .collect::<Result<Vec<_>>>()
-                .context(format!("error handling include definitions: {}", path.display()))?,
+                .context(format!("error handling include definitions at: {}", path.display()))?,
             Err(_) => Vec::new(),
         };
 
@@ -65,7 +68,7 @@ impl EwwConfig {
                 Ok((def.name.clone(), def))
             })
             .collect::<Result<HashMap<_, _>>>()
-            .with_context(|| format!("error parsing widget definitions: {}", path.display()))?;
+            .with_context(|| format!("error parsing widget definitions at: {}", path.display()))?;
 
         let windows = xml
             .child("windows")?
@@ -75,7 +78,7 @@ impl EwwConfig {
                 Ok((def.name.to_owned(), def))
             })
             .collect::<Result<HashMap<_, _>>>()
-            .with_context(|| format!("error parsing window definitions: {}", path.display()))?;
+            .with_context(|| format!("error parsing window definitions at: {}", path.display()))?;
 
         let variables_block = xml.child("variables").ok();
 
@@ -107,6 +110,7 @@ impl EwwConfig {
             windows,
             initial_variables,
             script_vars,
+            filepath: path.to_path_buf(),
         };
         EwwConfig::merge_includes(current_config, includes)
     }
