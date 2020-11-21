@@ -21,7 +21,7 @@ pub struct EwwConfig {
 
     // TODO make this a hashmap
     script_vars: Vec<ScriptVar>,
-    pub filepath: PathBuf
+    pub filepath: PathBuf,
 }
 
 impl EwwConfig {
