@@ -191,7 +191,7 @@ fn build_gtk_color_button(bargs: &mut BuilderArgs) -> Result<gtk::ColorButton> {
     let gtk_widget = gtk::ColorButtonBuilder::new().build();
     let on_change_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
     resolve_block!(bargs, gtk_widget, {
-        // @prop use-alpha - bool to wether or not use alpha
+        // @prop use-alpha - bool to whether or not use alpha
         prop(use_alpha: as_bool) {gtk_widget.set_use_alpha(use_alpha);},
 
         // @prop onchange - runs the code when the color was selected
