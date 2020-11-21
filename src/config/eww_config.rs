@@ -11,6 +11,7 @@ use super::{
     xml_ext::{XmlElement, XmlNode},
     EwwWindowDefinition, ScriptVar, WindowName,
 };
+use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
 pub struct EwwConfig {
@@ -20,6 +21,7 @@ pub struct EwwConfig {
 
     // TODO make this a hashmap
     script_vars: Vec<ScriptVar>,
+    pub filepath: PathBuf
 }
 
 impl EwwConfig {
@@ -108,7 +110,7 @@ impl EwwConfig {
             windows,
             initial_variables,
             script_vars,
-
+            filepath: path.to_path_buf(),
         };
         EwwConfig::merge_includes(current_config, includes)
     }
