@@ -25,6 +25,10 @@ $HOME
 Your config structure should look like this:
 ```xml
 <eww>
+    <definitions>
+		<!-- Put your <file>'s in here -->
+	</definitions>
+    
 	<definitions>
 		<!-- Put your <def>'s in here -->
 	</definitions>
@@ -38,7 +42,9 @@ Your config structure should look like this:
 	</windows>
 </eww>
 ```
-See [The `<definitons>` block](#the-definitions-block),
+See 
+[The `<includes>` block](#the-includes-block),
+[The `<definitons>` block](#the-definitions-block),
 [Variables](#variables) and the
 [The `<windows>` block](#the-windows-block).
 
@@ -106,6 +112,15 @@ If you don't want a set interval and instead want it to tail (run the script whe
     date +%H:%M
     </script-var>
 </variables>
+```
+### The `<includes>` block
+Here you can include other config files so that they are merged together at startup. Currently namespaced variables are not supported so be careful when reusing code.
+
+```xml
+<includes>
+  <file path="./something.xml"/>
+  <file path="./somethingelse.xml"/>
+</includes>
 ```
 
 ### The `<definitions>` block
