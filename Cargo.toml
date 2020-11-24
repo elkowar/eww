@@ -14,7 +14,7 @@ gtk = { version = "0.9", features = [ "v3_16" ] }
 gdk = { version = "", features = ["v3_16"] }
 gio = { version = "", features = ["v2_44"] }
 glib = { version = "", features = ["v2_44"] }
-gdkx11 = "0.9"
+
 gdk-pixbuf = "0.9"
 
 regex = "1"

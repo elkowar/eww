@@ -341,7 +341,6 @@ dependencies = [
  "filedescriptor",
  "gdk",
  "gdk-pixbuf",
- "gdkx11",
  "gio",
  "glib",
  "grass",
@@ -617,45 +616,6 @@ dependencies = [
  "pango-sys",
  "pkg-config",
  "system-deps",
-]
-
-[[package]]
-name = "gdkx11"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b89606baa221f9b8d8aa81924fd448c6b107d20de949f0fbf9a4ec203bb54b63"
-dependencies = [
- "bitflags",
- "gdk",
- "gdk-pixbuf",
- "gdk-pixbuf-sys",
- "gdk-sys",
- "gdkx11-sys",
- "gio",
- "gio-sys",
- "glib",
- "glib-sys",
- "gobject-sys",
- "libc",
- "pango",
- "x11",
-]
-
-[[package]]
-name = "gdkx11-sys"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6710388d530f3178ccbeb65cbafdf497a5772c4409eaf574ee9fa461af0a3d09"
-dependencies = [
- "gdk-pixbuf-sys",
- "gdk-sys",
- "gio-sys",
- "glib-sys",
- "gobject-sys",
- "libc",
- "pango-sys",
- "system-deps",
- "x11",
 ]
 
 [[package]]
@@ -2150,16 +2110,6 @@ checksum = "d59cefebd0c892fa2dd6de581e937301d8552cb44489cdff035c6187cb63fa5e"
 dependencies = [
  "winapi 0.2.8",
  "winapi-build",
-]
-
-[[package]]
-name = "x11"
-version = "2.18.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77ecd092546cb16f25783a5451538e73afc8d32e242648d54f4ae5459ba1e773"
-dependencies = [
- "libc",
- "pkg-config",
 ]
 
 [[package]]
