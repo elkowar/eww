@@ -208,7 +208,7 @@ The `<windows>` config should look something like this:
 
 ```xml
 <windows>
-    <window name="main_window" stacking="fg">
+    <window name="main_window" stacking="fg" focusable="false" screen="1">
         <geometry anchor="top left" x="300px" y="50%" width="25%" height="20px"/>
         <widget>
             <main/>
@@ -221,5 +221,12 @@ The window block contains multiple elements to configure the window.
 - `<geometry>` is used to specify the position and size of the window.
 - `<widget>` will contain the widget that is shown in the window.
 
-The `stacking="fg"` specifies if the window should appear on top of or behind other windows.
-Possible values here are `foreground`, `fg`, `background` and `bg`. It defaults to `fg`.
+There are a couple things you can optionally configure on the window itself:
+- `stacking`: stacking describes if the window will be shown in the foreground (in front of other windows)
+  or in the background (behind other windows).  
+  Possible values: `"fg"`, `"bg"`. Default: `"fg"`
+- `focusable`: whether the window should be focusable by the windowmanager.
+  This is necessary for things like text-input-fields to work properly.  
+  Possible values: `"true"`, `"false"`. Default: `"false"`
+- `screen`: Specifies on which display to show the window in a multi-monitor setup.  
+  This can be any number, representing the index of your monitor.
