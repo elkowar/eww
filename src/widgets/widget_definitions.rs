@@ -347,8 +347,10 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
 
 /// @widget literal
 /// @desc A widget that allows you to render arbitrary XML.
-fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Frame> {
-    let gtk_widget = gtk::Frame::new(None);
+fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
+    let gtk_widget = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    gtk_widget.set_widget_name("literal");
+
     // TODO these clones here are dumdum
     let window_name = bargs.window_name.clone();
     let widget_definitions = bargs.widget_definitions.clone();
