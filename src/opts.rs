@@ -8,21 +8,30 @@ use crate::{
     value::{Coords, PrimitiveValue, VarName},
 };
 
-#[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Opt {
-    #[structopt(subcommand)]
     pub action: Action,
+    pub should_detach: bool,
+}
+
+/// Helper struct that will be normalized into instance of [Opt]
+#[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
+struct RawOpt {
+    #[structopt(subcommand)]
+    action: Option<Action>,
 
     /// Run Eww in the background, daemonizing it.
     /// When daemonized, to kill eww you can run `eww kill`. To see logs, use `eww logs`.
     #[structopt(short = "-d", long = "--detach")]
-    pub should_detach: bool,
+    should_detach: bool,
 }
 
-#[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq, smart_default::SmartDefault)]
 pub enum Action {
     #[structopt(flatten)]
     ClientOnly(ActionClientOnly),
+
+    #[default]
     #[structopt(flatten)]
     WithServer(ActionWithServer),
 }
@@ -34,8 +43,12 @@ pub enum ActionClientOnly {
     Logs,
 }
 
-#[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq, smart_default::SmartDefault)]
 pub enum ActionWithServer {
+    #[structopt(name = "daemon")]
+    #[default]
+    Daemon,
+
     /// Update the value of a variable, in a running eww instance
     #[structopt(name = "update")]
     Update {
@@ -83,6 +96,24 @@ pub enum ActionWithServer {
     ShowDebug,
 }
 
+impl Opt {
+    pub fn from_env() -> Self {
+        let raw: RawOpt = StructOpt::from_args();
+        raw.into()
+    }
+}
+
+impl From<RawOpt> for Opt {
+    fn from(other: RawOpt) -> Self {
+        let RawOpt { action, should_detach } = other;
+        let action = action.unwrap_or_default();
+        Opt {
+            should_detach: should_detach || action == Action::WithServer(ActionWithServer::Daemon),
+            action,
+        }
+    }
+}
+
 fn parse_var_update_arg(s: &str) -> Result<(VarName, PrimitiveValue)> {
     let (name, value) = s
         .split_once('=')
@@ -93,6 +124,7 @@ fn parse_var_update_arg(s: &str) -> Result<(VarName, PrimitiveValue)> {
 impl ActionWithServer {
     pub fn into_eww_command(self) -> (app::EwwCommand, Option<crossbeam_channel::Receiver<String>>) {
         let command = match self {
+            ActionWithServer::Daemon => app::EwwCommand::NoOp,
             ActionWithServer::Update { mappings } => app::EwwCommand::UpdateVars(mappings.into_iter().collect()),
             ActionWithServer::OpenWindow {
                 window_name,
@@ -122,7 +154,7 @@ impl ActionWithServer {
     /// returns true if this command requires a server to already be running
     pub fn needs_server_running(&self) -> bool {
         match self {
-            ActionWithServer::OpenWindow { .. } => false,
+            ActionWithServer::OpenWindow { .. } | ActionWithServer::Daemon => false,
             _ => true,
         }
     }

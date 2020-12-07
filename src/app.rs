@@ -15,6 +15,7 @@ use std::collections::{HashMap, HashSet};
 
 #[derive(Debug)]
 pub enum EwwCommand {
+    NoOp,
     UpdateVars(Vec<(VarName, PrimitiveValue)>),
     ReloadConfig(config::EwwConfig),
     ReloadCss(String),
@@ -61,6 +62,7 @@ impl App {
         log::debug!("Handling event: {:?}", &event);
         let result: Result<_> = try {
             match event {
+                EwwCommand::NoOp => {}
                 EwwCommand::UpdateVars(mappings) => {
                     for (var_name, new_value) in mappings {
                         self.update_state(var_name, new_value)?;

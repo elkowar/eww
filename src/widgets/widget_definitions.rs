@@ -375,7 +375,7 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Frame> {
 }
 
 /// @widget calendar
-/// @widget A widget that displays a calendar
+/// @desc A widget that displays a calendar
 fn build_gtk_calendar(bargs: &mut BuilderArgs) -> Result<gtk::Calendar> {
     let gtk_widget = gtk::Calendar::new();
     let on_click_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));

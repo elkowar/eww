@@ -11,7 +11,6 @@ extern crate gtk;
 use anyhow::*;
 
 use std::{os::unix::net, path::PathBuf};
-use structopt::StructOpt;
 
 pub mod app;
 pub mod client;
@@ -45,7 +44,7 @@ fn main() {
     pretty_env_logger::init();
 
     let result: Result<_> = try {
-        let opts: opts::Opt = StructOpt::from_args();
+        let opts: opts::Opt = opts::Opt::from_env();
 
         match opts.action {
             opts::Action::ClientOnly(action) => {

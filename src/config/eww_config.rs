@@ -26,6 +26,7 @@ pub struct EwwConfig {
 
 impl EwwConfig {
     pub fn merge_includes(mut eww_config: EwwConfig, includes: Vec<EwwConfig>) -> Result<EwwConfig> {
+        // TODO issue warnings on conflict
         for config in includes {
             eww_config.widgets.extend(config.widgets);
             eww_config.windows.extend(config.windows);
