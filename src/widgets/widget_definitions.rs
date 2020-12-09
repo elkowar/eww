@@ -53,7 +53,18 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
 
     resolve_block!(bargs, gtk_widget, {
         // @prop class - css class name
-        prop(class: as_string) { gtk_widget.get_style_context().add_class(&class) },
+        prop(class: as_string) {
+            let old_classes = gtk_widget.get_style_context().list_classes();
+            let old_classes = old_classes.iter().map(|x| x.as_str()).collect::<Vec<&str>>();
+            let new_classes = class.split(' ').collect::<Vec<_>>();
+            let (missing, new) = list_difference(&old_classes, &new_classes);
+            for class in missing {
+                gtk_widget.get_style_context().remove_class(class);
+            }
+            for class in new {
+                gtk_widget.get_style_context().add_class(class);
+            }
+        },
         // @prop valign - how to align this vertically. possible values: $alignment
         prop(valign: as_string) { gtk_widget.set_valign(parse_align(&valign)?) },
         // @prop halign - how to align this horizontally. possible values: $alignment
@@ -444,4 +455,26 @@ fn connect_first_map<W: IsA<gtk::Widget>, F: Fn(&W) + 'static>(widget: &W, func:
             func(&w);
         }
     });
+}
+
+/// Compute the difference of two lists, returning a tuple of
+/// (
+///   elements that where in a but not in b,
+///   elements that where in b but not in a
+/// ).
+fn list_difference<'a, 'b, T: PartialEq>(a: &'a [T], b: &'b [T]) -> (Vec<&'a T>, Vec<&'b T>) {
+    let mut missing = Vec::new();
+    for elem in a {
+        if !b.contains(elem) {
+            missing.push(elem);
+        }
+    }
+
+    let mut new = Vec::new();
+    for elem in b {
+        if !a.contains(elem) {
+            new.push(elem);
+        }
+    }
+    (missing, new)
 }
