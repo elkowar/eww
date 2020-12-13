@@ -25,10 +25,10 @@ $HOME
 Your config structure should look like this:
 ```xml
 <eww>
-    <definitions>
+    <includes>
 		<!-- Put your <file>'s in here -->
-	</definitions>
-    
+	</includes>
+
 	<definitions>
 		<!-- Put your <def>'s in here -->
 	</definitions>
@@ -42,7 +42,7 @@ Your config structure should look like this:
 	</windows>
 </eww>
 ```
-See 
+See
 [The `<includes>` block](#the-includes-block),
 [The `<definitons>` block](#the-definitions-block),
 [Variables](#variables) and the
@@ -223,10 +223,10 @@ The window block contains multiple elements to configure the window.
 
 There are a couple things you can optionally configure on the window itself:
 - `stacking`: stacking describes if the window will be shown in the foreground (in front of other windows)
-  or in the background (behind other windows).  
+  or in the background (behind other windows).
   Possible values: `"fg"`, `"bg"`. Default: `"fg"`
 - `focusable`: whether the window should be focusable by the windowmanager.
-  This is necessary for things like text-input-fields to work properly.  
+  This is necessary for things like text-input-fields to work properly.
   Possible values: `"true"`, `"false"`. Default: `"false"`
-- `screen`: Specifies on which display to show the window in a multi-monitor setup.  
+- `screen`: Specifies on which display to show the window in a multi-monitor setup.
   This can be any number, representing the index of your monitor.
