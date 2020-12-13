@@ -7,6 +7,7 @@ use crate::{
     config::{AnchorPoint, WindowName},
     value::{Coords, PrimitiveValue, VarName},
 };
+use std::path::PathBuf;
 
 #[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Opt {
@@ -17,6 +18,9 @@ pub struct Opt {
     /// When daemonized, to kill eww you can run `eww kill`. To see logs, use `eww logs`.
     #[structopt(short = "-d", long = "--detach")]
     pub should_detach: bool,
+
+    #[structopt(short = "-c", long = "--config", default_value = "")]
+    pub config_dir: PathBuf,
 }
 
 #[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]

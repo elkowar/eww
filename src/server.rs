@@ -1,5 +1,6 @@
 use crate::{app, config, eww_state::*, opts, script_var_handler, try_logging_errors, util};
 use anyhow::*;
+use nix::NixPath;
 use std::{
     collections::HashMap,
     io::Write,
@@ -7,7 +8,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) -> Result<()> {
+pub fn initialize_server(should_detach: bool, custom_config_dir: PathBuf, action: opts::ActionWithServer) -> Result<()> {
     let _ = std::fs::remove_file(&*crate::IPC_SOCKET_PATH);
 
     if should_detach {
@@ -20,7 +21,13 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
         std::process::exit(0);
     });
 
-    let config_file_path = crate::CONFIG_DIR.join("eww.xml");
+    let config_file_path = if custom_config_dir.is_empty() {
+        crate::CONFIG_DIR.join("eww.xml")
+    } else {
+        custom_config_dir.join("eww.xml")
+    };
+
+    // TODO Probably clean up the code bellow a bit?
     let config_dir = config_file_path
         .parent()
         .context("config file did not have a parent?!")?
