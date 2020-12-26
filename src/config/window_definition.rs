@@ -15,6 +15,7 @@ pub struct EwwWindowDefinition {
     pub widget: WidgetUse,
     pub struts: Struts,
     pub focusable: bool,
+    pub sticky: bool,
 }
 
 impl EwwWindowDefinition {
@@ -23,6 +24,7 @@ impl EwwWindowDefinition {
         let stacking: WindowStacking = xml.parse_optional_attr("stacking")?.unwrap_or_default();
         let screen_number = xml.parse_optional_attr("screen")?;
         let focusable = xml.parse_optional_attr("focusable")?;
+        let sticky = xml.parse_optional_attr("sticky")?;
 
         let struts = xml.child("struts").ok().map(Struts::from_xml_element).transpose()?;
 
@@ -36,6 +38,7 @@ impl EwwWindowDefinition {
             stacking,
             screen_number,
             focusable: focusable.unwrap_or(false),
+            sticky: sticky.unwrap_or(true),
             struts: struts.unwrap_or_default(),
         })
     }
@@ -48,20 +51,36 @@ impl EwwWindowDefinition {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Struts {
-    left: i32,
-    right: i32,
-    top: i32,
-    bottom: i32,
+    pub left: u32,
+    pub right: u32,
+    pub top: u32,
+    pub bottom: u32,
+    pub left_start_y: u32,
+    pub left_end_y: u32,
+    pub right_start_y: u32,
+    pub right_end_y: u32,
+    pub top_start_x: u32,
+    pub top_end_x: u32,
+    pub bottom_start_x: u32,
+    pub bottom_end_x: u32,
 }
 
 impl Struts {
     pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
         ensure_xml_tag_is!(xml, "struts");
         Ok(Struts {
-            left: xml.attr("left")?.parse()?,
-            right: xml.attr("right")?.parse()?,
-            top: xml.attr("top")?.parse()?,
-            bottom: xml.attr("bottom")?.parse()?,
+            left: xml.parse_optional_attr("left")?.unwrap_or(0),
+            right: xml.parse_optional_attr("right")?.unwrap_or(0),
+            top: xml.parse_optional_attr("top")?.unwrap_or(0),
+            bottom: xml.parse_optional_attr("bottom")?.unwrap_or(0),
+            left_start_y: xml.parse_optional_attr("left_start_y")?.unwrap_or(0),
+            left_end_y: xml.parse_optional_attr("left_end_y")?.unwrap_or(0),
+            right_start_y: xml.parse_optional_attr("right_start_y")?.unwrap_or(0),
+            right_end_y: xml.parse_optional_attr("right_end_y")?.unwrap_or(0),
+            top_start_x: xml.parse_optional_attr("top_start_x")?.unwrap_or(0),
+            top_end_x: xml.parse_optional_attr("top_end_x")?.unwrap_or(0),
+            bottom_start_x: xml.parse_optional_attr("bottom_start_x")?.unwrap_or(0),
+            bottom_end_x: xml.parse_optional_attr("bottom_end_x")?.unwrap_or(0),
         })
     }
 }

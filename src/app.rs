@@ -9,9 +9,15 @@ use crate::{
 use anyhow::*;
 use debug_stub_derive::*;
 use gdk::WindowExt;
+use gio::prelude::*;
 use gtk::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt};
 use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
+
+#[cfg(not(target_os = "macos"))]
+use gdkx11::X11Window;
+#[cfg(not(target_os = "macos"))]
+use x11rb::{protocol::xproto::*, rust_connection::RustConnection, wrapper::ConnectionExt};
 
 #[derive(Debug)]
 pub enum EwwCommand {
@@ -43,6 +49,53 @@ pub struct EwwWindow {
 impl EwwWindow {
     pub fn close(self) {
         self.gtk_window.close();
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    pub fn set_struts(&self) -> Result<()> {
+        let win: X11Window = self
+            .gtk_window
+            .get_window()
+            .expect("Could not get gdk window from gtk window")
+            .downcast()
+            .expect("Could not get X11 window from gdk window");
+        let xid = win.get_xid() as u32;
+
+        let def_struts = self.definition.struts;
+        let struts: [u32; 12] = [
+            def_struts.left,
+            def_struts.right,
+            def_struts.top,
+            def_struts.bottom,
+            def_struts.left_start_y,
+            def_struts.left_end_y,
+            def_struts.right_start_y,
+            def_struts.right_end_y,
+            def_struts.top_start_x,
+            def_struts.top_end_x,
+            def_struts.bottom_start_x,
+            def_struts.bottom_end_x,
+        ];
+
+        let (conn, _) = RustConnection::connect(None)?;
+        let get_atom = |name: &str| -> Result<_> { Ok(intern_atom(&conn, false, name.as_bytes())?.reply()?.atom) };
+
+        conn.change_property32(
+            PropMode::Append,
+            xid,
+            get_atom("_NET_WM_STRUT")?,
+            AtomEnum::CARDINAL,
+            &struts[0..4],
+        )?;
+        conn.change_property32(
+            PropMode::Replace,
+            xid,
+            get_atom("_NET_WM_STRUT_PARTIAL")?,
+            AtomEnum::CARDINAL,
+            &struts,
+        )?;
+        conn.sync()?; // without this, both properties might not be set.
+        Ok(())
     }
 }
 
@@ -194,6 +247,9 @@ impl App {
             }
         }
 
+        #[cfg(not(target_os = "macos"))]
+        eww_window.set_struts()?;
+
         self.windows.insert(window_name.clone(), eww_window);
 
         Ok(())
@@ -232,11 +288,7 @@ fn initialize_window(
 ) -> Result<EwwWindow> {
     let actual_window_rect = window_def.geometry.get_window_rectangle(monitor_geometry);
 
-    let window = if window_def.focusable {
-        gtk::Window::new(gtk::WindowType::Toplevel)
-    } else {
-        gtk::Window::new(gtk::WindowType::Popup)
-    };
+    let window = gtk::Window::new(gtk::WindowType::Toplevel);
 
     window.set_title(&format!("Eww - {}", window_def.name));
     let wm_class_name = format!("eww-{}", window_def.name);
@@ -244,6 +296,10 @@ fn initialize_window(
     if !window_def.focusable {
         window.set_type_hint(gdk::WindowTypeHint::Dock);
     }
+    if window_def.sticky {
+        window.stick();
+    }
+
     window.set_position(gtk::WindowPosition::Center);
     window.set_default_size(actual_window_rect.width, actual_window_rect.height);
     window.set_size_request(actual_window_rect.width, actual_window_rect.height);
@@ -269,7 +325,7 @@ fn initialize_window(
     window.show_all();
 
     let gdk_window = window.get_window().context("couldn't get gdk window from gtk window")?;
-    gdk_window.set_override_redirect(!window_def.focusable);
+    // gdk_window.set_override_redirect(!window_def.focusable);
     gdk_window.move_(actual_window_rect.x, actual_window_rect.y);
 
     if window_def.stacking == WindowStacking::Foreground {
