@@ -16,6 +16,7 @@ pub struct EwwWindowDefinition {
     pub struts: Struts,
     pub focusable: bool,
     pub sticky: bool,
+    pub popup: bool,
 }
 
 impl EwwWindowDefinition {
@@ -25,6 +26,7 @@ impl EwwWindowDefinition {
         let screen_number = xml.parse_optional_attr("screen")?;
         let focusable = xml.parse_optional_attr("focusable")?;
         let sticky = xml.parse_optional_attr("sticky")?;
+        let popup = xml.parse_optional_attr("popup")?;
 
         let struts = xml.child("struts").ok().map(Struts::from_xml_element).transpose()?;
 
@@ -40,6 +42,7 @@ impl EwwWindowDefinition {
             focusable: focusable.unwrap_or(false),
             sticky: sticky.unwrap_or(true),
             struts: struts.unwrap_or_default(),
+            popup: popup.unwrap_or(false),
         })
     }
 

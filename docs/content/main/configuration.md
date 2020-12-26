@@ -239,3 +239,6 @@ There are a couple things you can optionally configure on the window itself:
   This can be any number, representing the index of your monitor.
 - `sticky`: Controls whether the window is present on all workspaces.
   Possible values: `"true"`, `"false"`. Default: `"true"`
+- `popup`: Whether the window should be a popup. This basically makes the window manager ignore the window and not manage it.
+  Setting this to true will prevent struts from working, and it will be visible in all workspaces regardless of what 'sticky' is set to (because the WM is ignoring the window).
+  Possible values: `"true"`, `"false"`. Default: `"false"`

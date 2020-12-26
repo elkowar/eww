@@ -288,7 +288,11 @@ fn initialize_window(
 ) -> Result<EwwWindow> {
     let actual_window_rect = window_def.geometry.get_window_rectangle(monitor_geometry);
 
-    let window = gtk::Window::new(gtk::WindowType::Toplevel);
+    let window = if window_def.popup {
+        gtk::Window::new(gtk::WindowType::Popup)
+    } else {
+        gtk::Window::new(gtk::WindowType::Toplevel)
+    };
 
     window.set_title(&format!("Eww - {}", window_def.name));
     let wm_class_name = format!("eww-{}", window_def.name);
