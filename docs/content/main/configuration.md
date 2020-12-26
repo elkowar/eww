@@ -216,10 +216,15 @@ The `<windows>` config should look something like this:
     </window>
 </windows>
 ```
-
-The window block contains multiple elements to configure the window.
 - `<geometry>` is used to specify the position and size of the window.
 - `<widget>` will contain the widget that is shown in the window.
+- `<struts>` Tells the window manager to reserve space at the edge of the screen (for a status bar or panel sort of widget).
+  The `left`, `right`, `top` and `bottom` attributes tell the WM how far to set struts away from that edge of the screen
+  The `left_start_y`, `left_end_y`, `right_start_y`, `right_end_y`, `top_start_x`, `top_end_x`, `bottom_start_x` and `bottom_end_x`
+  attributes tell the WM the x or y limits of the strut. For example, `<struts top="30" top_start_x="0" top_end_x="960" />` would
+  reserve a strut 30px down from the top edge of the screen, up to the 960th pixel from the left side of the screen.
+  Not all window managers support partial struts and may ignore the 'end' or 'start' attributes. All of these values default to zero if unset.
+  Also note that struts do not automatically position the window within the strut, it just tells the window manager you want to reserve space there.
 
 There are a couple things you can optionally configure on the window itself:
 - `stacking`: stacking describes if the window will be shown in the foreground (in front of other windows)
@@ -230,3 +235,5 @@ There are a couple things you can optionally configure on the window itself:
   Possible values: `"true"`, `"false"`. Default: `"false"`
 - `screen`: Specifies on which display to show the window in a multi-monitor setup.
   This can be any number, representing the index of your monitor.
+- `sticky`: Controls whether the window is present on all workspaces.
+  Possible values: `"true"`, `"false"`. Default: `"true"`
