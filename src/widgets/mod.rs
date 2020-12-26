@@ -1,6 +1,7 @@
 use crate::{
     config::{element, window_definition::WindowName},
     eww_state::*,
+    print_result_err,
     value::{AttrName, AttrValue, VarName},
 };
 use anyhow::*;
@@ -18,9 +19,12 @@ const CMD_STRING_PLACEHODLER: &str = "{}";
 /// placeholder ('{}') which will be replaced by the value provided as [`arg`]
 pub(self) fn run_command<T: std::fmt::Display>(cmd: &str, arg: T) {
     let cmd = cmd.replace(CMD_STRING_PLACEHODLER, &format!("{}", arg));
-    if let Err(e) = Command::new("/bin/sh").arg("-c").arg(cmd).spawn() {
-        eprintln!("{}", e);
-    }
+    let command_result = Command::new("/bin/sh")
+        .arg("-c")
+        .arg(&cmd)
+        .spawn()
+        .and_then(|mut child| child.wait());
+    print_result_err!(format!("executing command {}", &cmd), command_result);
 }
 
 struct BuilderArgs<'a, 'b, 'c, 'd, 'e> {
