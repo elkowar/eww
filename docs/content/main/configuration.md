@@ -216,6 +216,8 @@ The `<windows>` config should look something like this:
     </window>
 </windows>
 ```
+
+The window block contains multiple elements to configure the window.
 - `<geometry>` is used to specify the position and size of the window.
 - `<widget>` will contain the widget that is shown in the window.
 - `<struts>` Tells the window manager to reserve space at the edge of the screen (for a status bar or panel sort of widget).
