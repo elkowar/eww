@@ -32,7 +32,6 @@ pub enum EwwCommand {
     CloseAll,
     PrintState(crossbeam_channel::Sender<String>),
     PrintDebug(crossbeam_channel::Sender<String>),
-
 }
 
 #[derive(Debug, Clone, PartialEq)]
