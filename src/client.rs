@@ -30,6 +30,8 @@ pub fn forward_command_to_server(mut stream: UnixStream, action: opts::ActionWit
     let mut buf = String::new();
     stream.set_read_timeout(Some(std::time::Duration::from_millis(100)))?;
     stream.read_to_string(&mut buf)?;
-    println!("{}", buf);
+    if !buf.is_empty() {
+        println!("{}", buf);
+    }
     Ok(())
 }
