@@ -225,8 +225,11 @@ The window block contains multiple elements to configure the window.
   The `left_start_y`, `left_end_y`, `right_start_y`, `right_end_y`, `top_start_x`, `top_end_x`, `bottom_start_x` and `bottom_end_x`
   attributes tell the WM the x or y limits of the strut. For example, `<struts top="30" top_start_x="0" top_end_x="960" />` would
   reserve a strut 30px down from the top edge of the screen, up to the 960th pixel from the left side of the screen.
-  Not all window managers support partial struts and may ignore the 'end' or 'start' attributes. All of these values default to zero if unset.
-  Also note that struts do not automatically position the window within the strut, it just tells the window manager you want to reserve space there.
+  Not all window managers support partial struts and may ignore the 'end' or 'start' attributes. All of these values default to zero if unset,
+  and it's not necessary to set all of them, only the ones that you need. You are also able to create multiple struts
+  if you'd like, like one at the top of the screen and another at the bottom. Also note that struts do not 
+  automatically position the window within the strut, it just tells the window manager you want to reserve space there.
+  [For more information check the X11 spec on window struts.](https://specifications.freedesktop.org/wm-spec/wm-spec-1.3.html#idm45760170756000)
 
 There are a couple things you can optionally configure on the window itself:
 - `stacking`: stacking describes if the window will be shown in the foreground (in front of other windows)
