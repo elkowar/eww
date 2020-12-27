@@ -336,7 +336,7 @@ fn set_struts(eww_window: &EwwWindow) -> Result<()> {
         .context("Could not get GDK window from GTK window")?
         .downcast()
         .ok()
-        .context("Could not get X11 widnow from GDK window")?;
+        .context("Could not get X11 window from GDK window")?;
     // This is ugly but I don't think there is a better way to do it
     let xid = x11win.get_xid() as u32;
 
