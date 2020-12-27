@@ -84,8 +84,9 @@ impl App {
                 }
                 EwwCommand::CloseAll => {
                     log::info!("Received close command, closing all windows");
-                    self.script_var_handler.stop_all();
-                    self.windows.drain().for_each(|(_, w)| w.close());
+                    for (window_name, _window) in self.windows.clone() {
+                        self.close_window(&window_name)?;
+                    }
                 }
                 EwwCommand::OpenWindow {
                     window_name,
