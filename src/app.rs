@@ -50,53 +50,6 @@ impl EwwWindow {
     pub fn close(self) {
         self.gtk_window.close();
     }
-
-    #[cfg(not(target_os = "macos"))]
-    pub fn set_struts(&self) -> Result<()> {
-        let win: X11Window = self
-            .gtk_window
-            .get_window()
-            .expect("Could not get gdk window from gtk window")
-            .downcast()
-            .expect("Could not get X11 window from gdk window");
-        let xid = win.get_xid() as u32;
-
-        let def_struts = self.definition.struts;
-        let struts: [u32; 12] = [
-            def_struts.left,
-            def_struts.right,
-            def_struts.top,
-            def_struts.bottom,
-            def_struts.left_start_y,
-            def_struts.left_end_y,
-            def_struts.right_start_y,
-            def_struts.right_end_y,
-            def_struts.top_start_x,
-            def_struts.top_end_x,
-            def_struts.bottom_start_x,
-            def_struts.bottom_end_x,
-        ];
-
-        let (conn, _) = RustConnection::connect(None)?;
-        let get_atom = |name: &str| -> Result<_> { Ok(intern_atom(&conn, false, name.as_bytes())?.reply()?.atom) };
-
-        conn.change_property32(
-            PropMode::Append,
-            xid,
-            get_atom("_NET_WM_STRUT")?,
-            AtomEnum::CARDINAL,
-            &struts[0..4],
-        )?;
-        conn.change_property32(
-            PropMode::Replace,
-            xid,
-            get_atom("_NET_WM_STRUT_PARTIAL")?,
-            AtomEnum::CARDINAL,
-            &struts,
-        )?;
-        conn.sync()?; // without this, both properties might not be set.
-        Ok(())
-    }
 }
 
 #[derive(DebugStub)]
@@ -247,9 +200,6 @@ impl App {
             }
         }
 
-        #[cfg(not(target_os = "macos"))]
-        eww_window.set_struts()?;
-
         self.windows.insert(window_name.clone(), eww_window);
 
         Ok(())
@@ -340,11 +290,16 @@ fn initialize_window(
         window.set_keep_below(true);
     }
 
-    Ok(EwwWindow {
+    let eww_window = EwwWindow {
         name: window_def.name.clone(),
         definition: window_def,
         gtk_window: window,
-    })
+    };
+
+    #[cfg(not(target_os = "macos"))]
+    set_struts(&eww_window)?;
+
+    Ok(eww_window)
 }
 
 fn on_screen_changed(window: &gtk::Window, _old_screen: Option<&gdk::Screen>) {
@@ -371,4 +326,57 @@ fn get_monitor_geometry(n: i32) -> gdk::Rectangle {
         .expect("could not get default display")
         .get_default_screen()
         .get_monitor_geometry(n)
+}
+
+#[cfg(not(target_os = "macos"))]
+fn set_struts(eww_window: &EwwWindow) -> Result<()> {
+    let x11win: X11Window = eww_window
+        .gtk_window
+        .get_window()
+        .context("Could not get GDK window from GTK window")?
+        .downcast()
+        .ok()
+        .context("Could not get X11 widnow from GDK window")?;
+    // This is ugly but I don't think there is a better way to do it
+    let xid = x11win.get_xid() as u32;
+
+    let def_struts = eww_window.definition.struts;
+    let struts: [u32; 12] = [
+        def_struts.left,
+        def_struts.right,
+        def_struts.top,
+        def_struts.bottom,
+        def_struts.left_start_y,
+        def_struts.left_end_y,
+        def_struts.right_start_y,
+        def_struts.right_end_y,
+        def_struts.top_start_x,
+        def_struts.top_end_x,
+        def_struts.bottom_start_x,
+        def_struts.bottom_end_x,
+    ];
+
+    let (conn, _) = RustConnection::connect(None)?;
+
+    conn.change_property32(
+        PropMode::Append,
+        xid,
+        get_atom("_NET_WM_STRUT", &conn)?,
+        AtomEnum::CARDINAL,
+        &struts[0..4],
+    )?;
+    conn.change_property32(
+        PropMode::Replace,
+        xid,
+        get_atom("_NET_WM_STRUT_PARTIAL", &conn)?,
+        AtomEnum::CARDINAL,
+        &struts,
+    )?;
+    conn.sync()?; // without this, both properties might not be set.
+    Ok(())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn get_atom(name: &str, conn: &RustConnection) -> Result<u32> {
+    Ok(intern_atom(conn, false, name.as_bytes())?.reply()?.atom)
 }
