@@ -240,3 +240,47 @@ impl<'a, 'b> From<roxmltree::Node<'a, 'b>> for XmlNode<'a, 'b> {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    pub fn test_parse_sourcecode_singleline() {
+        let input = "<something>whatever</something>";
+        let document = roxmltree::Document::parse(&input).unwrap();
+        let root_node = XmlNode::from(document.root_element());
+        assert_eq!(
+            root_node.as_element().unwrap().only_child().unwrap().as_text_or_sourcecode(),
+            "whatever".to_string()
+        );
+    }
+
+    #[test]
+    pub fn test_parse_sourcecode_multiline() {
+        let input = r#"<something>
+this is
+multiline
+        </something>"#;
+        let document = roxmltree::Document::parse(&input).unwrap();
+        let root_node = XmlNode::from(document.root_element());
+        assert_eq!(
+            root_node.as_element().unwrap().only_child().unwrap().as_text_or_sourcecode(),
+            "this is\nmultiline".to_string()
+        );
+    }
+
+    #[test]
+    pub fn test_parse_sourcecode_code() {
+        let input = r#"<something>
+if [ "this" == '$that' ]; then
+    echo `hi`
+fi
+        </something>"#;
+        let document = roxmltree::Document::parse(&input).unwrap();
+        let root_node = XmlNode::from(document.root_element());
+        assert_eq!(
+            root_node.as_element().unwrap().only_child().unwrap().as_text_or_sourcecode(),
+            "if [ \"this\" == '$that' ]; then\necho `hi`\nfi".to_string()
+        );
+    }
+}
