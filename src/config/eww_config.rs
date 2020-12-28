@@ -18,6 +18,7 @@ pub struct EwwConfig {
     widgets: HashMap<String, WidgetDefinition>,
     windows: HashMap<WindowName, EwwWindowDefinition>,
     initial_variables: HashMap<VarName, PrimitiveValue>,
+    pub included: Vec<PathBuf>,
 
     // TODO make this a hashmap
     script_vars: Vec<ScriptVar>,
@@ -31,6 +32,7 @@ impl EwwConfig {
             eww_config.windows.extend(config.windows);
             eww_config.script_vars.extend(config.script_vars);
             eww_config.initial_variables.extend(config.initial_variables);
+            eww_config.included.push(config.filepath)
         }
         Ok(eww_config)
     }
@@ -97,6 +99,7 @@ impl EwwConfig {
             initial_variables,
             script_vars,
             filepath: path.to_path_buf(),
+            included: Vec::new(),
         };
         EwwConfig::merge_includes(current_config, includes)
     }
@@ -136,6 +139,10 @@ impl EwwConfig {
 
     pub fn get_script_var(&self, name: &VarName) -> Option<&ScriptVar> {
         self.script_vars.iter().find(|x| x.name() == name)
+    }
+
+    pub fn get_included_(&self) -> &Vec<PathBuf> {
+        &self.included
     }
 }
 

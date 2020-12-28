@@ -30,16 +30,41 @@ pub fn handle_client_only_action(action: ActionClientOnly) -> Result<()> {
                 editor = editor_err?;
             }
             let (xml_file, scss_file) = config_path()?;
+            let xml = crate::config::EwwConfig::read_from_file(&xml_file);
+
             let file = file.as_ref().map(|x| x.as_str());
             let path = match file {
                 Some("xml") => xml_file,
                 Some("scss") => scss_file,
                 None => {
-                    eprint!("Edit the eww.xml file or the scss file? (X/s) ");
-                    if input()?.to_lowercase() == "s\n" {
+                    let mut string = String::from("Edit the eww.xml file or the scss file? (X/s) ");
+                    let mut xmls: Vec<std::path::PathBuf> = Vec::new();
+                    if xml.is_err() {
+                        eprintln!(
+                            "Main xml file contains errors, can't find out which other files there are.. \n{:?}\n",
+                            xml.err().unwrap()
+                        );
+                    } else {
+                        xmls.append(&mut xml.unwrap().included);
+                        string = "eww.xml (X)\neww.scss (s)\n".to_string();
+                        let mut a = 1;
+                        for i in &xmls {
+                            string.push_str(format!("{} (x{})\n", i.file_name().unwrap().to_str().unwrap(), a).as_str());
+                            a += 1;
+                        }
+                        string.push_str("Which one of those do you want to edit? ")
+                    }
+
+                    eprint!("{}", string);
+                    let input = input()?.to_lowercase().replace("\n", "");
+                    if input == "s" {
                         scss_file
                     } else {
-                        xml_file
+                        if input == "x" || input == "" {
+                            xml_file
+                        } else {
+                            (&xmls[(input.get(1..).unwrap().parse::<usize>().unwrap()) - 1]).to_path_buf()
+                        }
                     }
                 }
                 _ => std::path::PathBuf::new(),
@@ -58,7 +83,7 @@ fn fn_editor(editor: &String, path: &std::path::Path) -> Result<()> {
     };
     match err {
         Some(_) => {
-            eprintln!("{}", err.unwrap());
+            eprintln!("{:?}", err.unwrap());
             eprint!("The config file contains errors, edit again? (Y/n) ");
             // \n is there because input is unsanitized and it still contains the newline
             if input()?.to_lowercase() != "n\n" {
