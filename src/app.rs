@@ -29,6 +29,7 @@ pub enum EwwCommand {
         window_name: WindowName,
     },
     KillServer,
+    CloseAll,
     PrintState(crossbeam_channel::Sender<String>),
     PrintDebug(crossbeam_channel::Sender<String>),
 }
@@ -80,6 +81,12 @@ impl App {
                     self.windows.drain().for_each(|(_, w)| w.close());
                     script_var_process::on_application_death();
                     std::process::exit(0);
+                }
+                EwwCommand::CloseAll => {
+                    log::info!("Received close command, closing all windows");
+                    for (window_name, _window) in self.windows.clone() {
+                        self.close_window(&window_name)?;
+                    }
                 }
                 EwwCommand::OpenWindow {
                     window_name,

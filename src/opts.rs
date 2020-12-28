@@ -84,6 +84,10 @@ pub enum ActionWithServer {
     #[structopt(name = "kill")]
     KillServer,
 
+    /// Close all windows, without killing the daemon
+    #[structopt(name = "close-all")]
+    CloseAll,
+
     /// Print the current eww-state
     #[structopt(name = "state")]
     ShowState,
@@ -139,6 +143,7 @@ impl ActionWithServer {
             },
             ActionWithServer::CloseWindow { window_name } => app::EwwCommand::CloseWindow { window_name },
             ActionWithServer::KillServer => app::EwwCommand::KillServer,
+            ActionWithServer::CloseAll => app::EwwCommand::CloseAll,
             ActionWithServer::ShowState => {
                 let (send, recv) = crossbeam_channel::unbounded();
                 return (app::EwwCommand::PrintState(send), Some(recv));
