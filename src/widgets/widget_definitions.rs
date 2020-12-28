@@ -430,7 +430,10 @@ fn parse_orientation(o: &str) -> Result<gtk::Orientation> {
     Ok(match o {
         "vertical" | "v" => gtk::Orientation::Vertical,
         "horizontal" | "h" => gtk::Orientation::Horizontal,
-        _ => bail!("Couldn't parse orientation: '{}'", o),
+        _ => bail!(
+            r#"Couldn't parse orientation: '{}'. Possible values are "vertical", "v", "horizontal", "h""#,
+            o
+        ),
     })
 }
 
@@ -442,7 +445,10 @@ fn parse_align(o: &str) -> Result<gtk::Align> {
         "center" => gtk::Align::Center,
         "start" => gtk::Align::Start,
         "end" => gtk::Align::End,
-        _ => bail!("Couldn't parse alignment: '{}'", o),
+        _ => bail!(
+            r#"Couldn't parse alignment: '{}'. Possible values are "fill", "baseline", "center", "start", "end""#,
+            o
+        ),
     })
 }
 
