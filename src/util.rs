@@ -77,15 +77,16 @@ pub fn parse_duration(s: &str) -> Result<std::time::Duration> {
 }
 
 /// Replace all env-var references of the format `"something $foo"` in a string
-/// by the actual env-variables. If the env-var isn't found, will replace the
-/// reference with an empty string.
+/// by the actual env-variables. If the env-var isn't found, the variable
+/// will be left alone.
 pub fn replace_env_var_references(input: String) -> String {
     lazy_static::lazy_static! {
         static ref ENV_VAR_PATTERN: regex::Regex = regex::Regex::new(r"\$([^\s]*)").unwrap();
     }
     ENV_VAR_PATTERN
         .replace_all(&input, |var_name: &regex::Captures| {
-            std::env::var(var_name.get(1).unwrap().as_str()).unwrap_or_default()
+            let var_name_string = var_name.get(1).unwrap().as_str();
+            std::env::var(var_name_string).unwrap_or(format!("${}", var_name_string))
         })
         .into_owned()
 }
