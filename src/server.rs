@@ -49,8 +49,13 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
         gtk::StyleContext::add_provider_for_screen(&screen, &app.css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
     }
 
-    if let Ok(eww_css) = util::parse_scss_from_file(&scss_file_path) {
-        app.load_css(&eww_css)?;
+    match util::parse_scss_from_file(&scss_file_path) {
+        Err(err) => {
+            eprintln!("error parsing scss file: {}", err);
+        },
+        Ok(eww_css) => {
+            app.load_css(&eww_css)?;
+        }
     }
 
     // run the command that eww was started with
