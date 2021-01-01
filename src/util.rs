@@ -89,3 +89,19 @@ pub fn replace_env_var_references(input: String) -> String {
         })
         .into_owned()
 }
+
+#[cfg(test)]
+mod test {
+    use super::replace_env_var_references;
+    use std;
+
+    #[test]
+    fn test_replace_env_var_references() {
+        let scss = "$test: ${USER};";
+
+        assert_eq!(
+            replace_env_var_references(String::from(scss)),
+            format!("$test: {};", std::env::var("USER").unwrap_or_default())
+        )
+    }
+}
