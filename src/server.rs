@@ -52,7 +52,7 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
     match util::parse_scss_from_file(&scss_file_path) {
         Err(err) => {
             eprintln!("error parsing scss file: {}", err);
-        },
+        }
         Ok(eww_css) => {
             app.load_css(&eww_css)?;
         }
