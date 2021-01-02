@@ -14,10 +14,9 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
         do_detach()?;
     }
 
-    simple_signal::set_handler(&[simple_signal::Signal::Int, simple_signal::Signal::Term], |_| {
+    simple_signal::set_handler(&[simple_signal::Signal::Int, simple_signal::Signal::Term], move |_| {
         println!("Shutting down eww daemon...");
-        // script_var_handler::script_var_process::on_application_death();
-        std::process::exit(0);
+        crate::application_lifecycle::send_exit().unwrap();
     });
 
     let config_file_path = crate::CONFIG_DIR.join("eww.xml");
@@ -65,14 +64,8 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
             .build()
             .expect("Failed to initialize tokio runtime");
         rt.block_on(async {
-            let filewatch_join_handle = {
-                let ui_send = ui_send.clone();
-                tokio::spawn(async move { run_filewatch_thingy(config_file_path, scss_file_path, ui_send).await })
-            };
-            let ipc_server_join_handle = tokio::spawn(async move { async_server(ui_send.clone()).await });
-
+            // print out the response of this initial command, if there is any
             tokio::spawn(async {
-                // print out the response of this initial command, if there is any
                 if let Some(mut response_recv) = maybe_response_recv {
                     if let Ok(Some(response)) = tokio::time::timeout(Duration::from_millis(100), response_recv.recv()).await {
                         println!("{}", response);
@@ -80,7 +73,27 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
                 }
             });
 
-            let result = tokio::try_join!(filewatch_join_handle, ipc_server_join_handle);
+            let filewatch_join_handle = {
+                let ui_send = ui_send.clone();
+                tokio::spawn(async move { run_filewatch_thingy(config_file_path, scss_file_path, ui_send).await })
+            };
+
+            let ipc_server_join_handle = {
+                let ui_send = ui_send.clone();
+                tokio::spawn(async move { async_server(ui_send).await })
+            };
+
+            let forward_lifecycle_to_app_handle = {
+                let ui_send = ui_send.clone();
+                tokio::spawn(async move {
+                    while let Ok(()) = crate::application_lifecycle::recv_exit().await {
+                        let _ = ui_send.send(app::EwwCommand::KillServer);
+                    }
+                })
+            };
+
+            let result = tokio::try_join!(filewatch_join_handle, ipc_server_join_handle, forward_lifecycle_to_app_handle);
+
             if let Err(e) = result {
                 eprintln!("Eww exiting with error: {:?}", e);
             }
@@ -94,20 +107,20 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
     });
 
     gtk::main();
+    log::info!("main application thread finished");
 
     Ok(())
 }
 
 async fn async_server(evt_send: UnboundedSender<app::EwwCommand>) -> Result<()> {
     let listener = tokio::net::UnixListener::bind(&*crate::IPC_SOCKET_PATH)?;
-    loop {
-        tokio::select! {
-            connection = listener.accept() => match connection {
-                Ok((stream, _addr)) => handle_connection(stream, evt_send.clone()).await?,
-                Err(e) => eprintln!("Failed to connect to client: {:?}", e),
-            }
+    crate::loop_select_exiting! {
+        connection = listener.accept() => match connection {
+            Ok((stream, _addr)) => handle_connection(stream, evt_send.clone()).await?,
+            Err(e) => eprintln!("Failed to connect to client: {:?}", e),
         }
     }
+    Ok(())
 }
 
 async fn handle_connection(mut stream: tokio::net::UnixStream, evt_send: UnboundedSender<app::EwwCommand>) -> Result<()> {
@@ -121,7 +134,6 @@ async fn handle_connection(mut stream: tokio::net::UnixStream, evt_send: Unbound
 
     log::info!("received command from IPC: {:?}", &action);
 
-    // TODO clean up the maybe_response_recv
     let (command, maybe_response_recv) = action.into_eww_command();
 
     evt_send.send(command)?;
@@ -152,22 +164,26 @@ async fn run_filewatch_thingy<P: AsRef<Path>>(
 
     let mut buffer = [0; 1024];
     let mut event_stream = inotify.event_stream(&mut buffer)?;
-    while let Some(Ok(event)) = event_stream.next().await {
-        if event.wd == config_file_descriptor {
-            try_logging_errors!("handling change of config file" => {
-                log::info!("Reloading eww configuration");
-                let new_eww_config = config::EwwConfig::read_from_file(config_file_path.as_ref())?;
-                evt_send.send(app::EwwCommand::ReloadConfig(new_eww_config))?;
-            });
-        } else if event.wd == scss_file_descriptor {
-            try_logging_errors!("handling change of scss file" =>  {
-                log::info!("reloading eww css file");
-                let eww_css = util::parse_scss_from_file(scss_file_path.as_ref())?;
-                evt_send.send(app::EwwCommand::ReloadCss(eww_css))?;
-            });
-        } else {
-            eprintln!("Got inotify event for unknown thing: {:?}", event);
+
+    crate::loop_select_exiting! {
+        Some(Ok(event)) = event_stream.next() => {
+            if event.wd == config_file_descriptor {
+                try_logging_errors!("handling change of config file" => {
+                    log::info!("Reloading eww configuration");
+                    let new_eww_config = config::EwwConfig::read_from_file(config_file_path.as_ref())?;
+                    evt_send.send(app::EwwCommand::ReloadConfig(new_eww_config))?;
+                });
+            } else if event.wd == scss_file_descriptor {
+                try_logging_errors!("handling change of scss file" =>  {
+                    log::info!("reloading eww css file");
+                    let eww_css = crate::util::parse_scss_from_file(scss_file_path.as_ref())?;
+                    evt_send.send(app::EwwCommand::ReloadCss(eww_css))?;
+                });
+            } else {
+                eprintln!("Got inotify event for unknown thing: {:?}", event);
+            }
         }
+        else => break,
     }
     Ok(())
 }

@@ -13,6 +13,7 @@ use anyhow::*;
 use std::{os::unix::net, path::PathBuf};
 
 pub mod app;
+pub mod application_lifecycle;
 pub mod client;
 pub mod config;
 pub mod eww_state;
