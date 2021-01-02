@@ -6,6 +6,10 @@ use std::{
     os::unix::{io::AsRawFd, net},
     path::{Path, PathBuf},
 };
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    sync::mpsc::*,
+};
 
 pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) -> Result<()> {
     let _ = std::fs::remove_file(&*crate::IPC_SOCKET_PATH);
@@ -31,10 +35,12 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
     let eww_config = config::EwwConfig::read_from_file(&config_file_path)?;
 
     gtk::init()?;
-    let (evt_send, evt_recv) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
+    // let (evt_send, evt_recv) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
+    let (ui_send, ui_recv) = tokio::sync::mpsc::unbounded_channel();
+    let glib_context = glib::MainContext::default();
 
     log::info!("Initializing script var handler");
-    let script_var_handler = script_var_handler::ScriptVarHandler::new(evt_send.clone())?;
+    let script_var_handler = script_var_handler::ScriptVarHandler::new(ui_send.clone())?;
 
     let mut app = app::App {
         eww_state: EwwState::from_default_vars(eww_config.generate_initial_state()?),
@@ -42,7 +48,7 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
         windows: HashMap::new(),
         css_provider: gtk::CssProvider::new(),
         script_var_handler,
-        app_evt_send: evt_send.clone(),
+        app_evt_send: ui_send.clone(),
     };
 
     if let Some(screen) = gdk::Screen::get_default() {
@@ -65,47 +71,83 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
         }
     }
 
-    run_server_thread(evt_send.clone())?;
-    let _hotwatch = run_filewatch_thread(&config_file_path, &scss_file_path, evt_send)?;
+    // run_server_thread(ui_send.clone())?;
+    // let _hotwatch = run_filewatch_thread(&config_file_path, &scss_file_path, evt_send.clone())?;
 
-    evt_recv.attach(None, move |msg| {
-        app.handle_command(msg);
-        glib::Continue(true)
+    std::thread::spawn(move || {
+        let rt = tokio::runtime::Runtime::new().expect("REEEEEEEEE");
+        rt.block_on(async {
+            // let _ = tokio::try_join!(async_part(evt_send));
+            let _ = async_part(ui_send.clone()).await;
+        });
     });
+
+    glib_context.spawn_local(async move {
+        while let Some(event) = ui_recv.recv().await {
+            app.handle_command(event);
+        }
+    });
+
+    // evt_recv.attach(None, move |msg| {
+    // app.handle_command(msg);
+    // glib::Continue(true)
+    //});
 
     gtk::main();
 
     Ok(())
 }
 
-fn run_server_thread(evt_send: glib::Sender<app::EwwCommand>) -> Result<()> {
-    std::thread::spawn(move || {
-        let result: Result<_> = try {
-            log::info!("Starting up eww server");
-            let listener = net::UnixListener::bind(&*crate::IPC_SOCKET_PATH)?;
-            for stream in listener.incoming() {
+async fn async_part(evt_send: UnboundedSender<app::EwwCommand>) -> Result<()> {
+    Ok(())
+}
+
+// async fn async_server_accept() -> Result<impl futures_core::stream::Stream<Item = tokio::net::UnixStream>> {
+// let listener = tokio::net::UnixListener::bind(&*crate::IPC_SOCKET_PATH)?;
+// let stream = async_stream::stream! {
+// loop {
+// match listener.accept().await {
+// Ok((mut stream, _addr)) => yield stream,
+// Err(e) => {
+// eprintln!("Failed to connect to client: {:?}", e);
+//};
+// Ok(stream)
+//}
+
+async fn async_server(evt_send: UnboundedSender<app::EwwCommand>) -> Result<()> {
+    let listener = tokio::net::UnixListener::bind(&*crate::IPC_SOCKET_PATH)?;
+    loop {
+        match listener.accept().await {
+            Ok((mut stream, _addr)) => {
                 try_logging_errors!("handling message from IPC client" => {
-                    let mut stream = stream?;
-                    let action: opts::ActionWithServer = bincode::deserialize_from(&stream)
-                        .context("Failed to read or deserialize message from client")?;
+                    let (mut stream_read, mut stream_write) = stream.split();
+
+                    let action: opts::ActionWithServer = {
+                        let mut raw_message = Vec::<u8>::new();
+                        stream_read.read_to_end(&mut raw_message);
+                        bincode::deserialize(&raw_message).context("Failed to parse client message")?
+                    };
+
                     log::info!("received command from IPC: {:?}", &action);
+
+                    // TODO clean up the maybe_response_recv
                     let (command, maybe_response_recv) = action.into_eww_command();
+
                     evt_send.send(command)?;
+
                     if let Some(response_recv) = maybe_response_recv {
                         if let Ok(response) = response_recv.recv_timeout(std::time::Duration::from_millis(100)) {
-                            let result = &stream.write_all(response.as_bytes());
+                            let result = &stream_write.write_all(response.as_bytes()).await;
                             crate::print_result_err!("Sending text response to ipc client", &result);
                         }
                     }
                 });
             }
-        };
-        if let Err(err) = result {
-            eprintln!("error in server thread: {}", err);
-            std::process::exit(1);
+            Err(e) => {
+                eprintln!("Failed to connect to client: {:?}", e);
+            }
         }
-    });
-    Ok(())
+    }
 }
 
 fn run_filewatch_thread<P: AsRef<Path>>(
