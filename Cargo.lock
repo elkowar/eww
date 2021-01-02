@@ -412,6 +412,7 @@ dependencies = [
  "tokio 1.0.1",
  "tokio-stream",
  "tokio-util",
+ "unescape",
 ]
 
 [[package]]
@@ -2228,6 +2229,12 @@ checksum = "a31142970826733df8241ef35dc040ef98c679ab14d7c3e54d827099b3acecaa"
 dependencies = [
  "serde",
 ]
+
+[[package]]
+name = "unescape"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ccb97dac3243214f8d8507998906ca3e2e0b900bf9bf4870477f125b82e68f6e"
 
 [[package]]
 name = "unicode-segmentation"

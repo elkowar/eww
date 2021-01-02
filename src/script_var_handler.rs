@@ -15,11 +15,11 @@ use tokio_util::sync::CancellationToken;
 
 /// Initialize the script var handler, and return a handle to that handler, which can be used to control
 /// the script var execution.
-pub fn init(evt_send: UnboundedSender<EwwCommand>) -> Result<ScriptVarHandlerHandle> {
+pub fn init(evt_send: UnboundedSender<EwwCommand>) -> ScriptVarHandlerHandle {
     let (msg_send, mut msg_recv) = tokio::sync::mpsc::unbounded_channel();
     let handle = ScriptVarHandlerHandle { msg_send };
     std::thread::spawn(move || {
-        let rt = tokio::runtime::Runtime::new().unwrap();
+        let rt = tokio::runtime::Runtime::new().expect("Failed to initialize tokio runtime for script var handlers");
         rt.block_on(async {
             let _: Result<_> = try {
                 let mut handler = ScriptVarHandler {
@@ -43,7 +43,7 @@ pub fn init(evt_send: UnboundedSender<EwwCommand>) -> Result<ScriptVarHandlerHan
             };
         })
     });
-    Ok(handle)
+    handle
 }
 
 /// Handle to the script-var handling system.
@@ -54,17 +54,26 @@ pub struct ScriptVarHandlerHandle {
 impl ScriptVarHandlerHandle {
     /// Add a new script-var that should be executed.
     pub fn add(&self, script_var: config::ScriptVar) {
-        self.msg_send.send(ScriptVarHandlerMsg::AddVar(script_var)).unwrap();
+        crate::print_result_err!(
+            "while forwarding instruction to script-var handler",
+            self.msg_send.send(ScriptVarHandlerMsg::AddVar(script_var))
+        );
     }
 
     /// Stop the execution of a specific script-var.
     pub fn stop_for_variable(&self, name: VarName) {
-        self.msg_send.send(ScriptVarHandlerMsg::Stop(name)).unwrap();
+        crate::print_result_err!(
+            "while forwarding instruction to script-var handler",
+            self.msg_send.send(ScriptVarHandlerMsg::Stop(name)),
+        );
     }
 
     /// Stop the execution of all script-vars.
     pub fn stop_all(&self) {
-        self.msg_send.send(ScriptVarHandlerMsg::StopAll).unwrap();
+        crate::print_result_err!(
+            "while forwarding instruction to script-var handler",
+            self.msg_send.send(ScriptVarHandlerMsg::StopAll)
+        );
     }
 }
 
@@ -177,24 +186,25 @@ impl TailVarHandler {
 
         let evt_send = self.evt_send.clone();
         tokio::spawn(async move {
-            let mut handle = tokio::process::Command::new("sh")
-                .args(&["-c", &var.command])
-                .stdout(std::process::Stdio::piped())
-                .stderr(std::process::Stdio::inherit())
-                .stdin(std::process::Stdio::null())
-                .spawn()
-                .unwrap();
-            let mut stdout_lines = BufReader::new(handle.stdout.take().unwrap()).lines();
-            crate::loop_select_exiting! {
-                _ = handle.wait() => break,
-                _ = cancellation_token.cancelled() => break,
-                Ok(Some(line)) = stdout_lines.next_line() => {
-                    let new_value = PrimitiveValue::from_string(line.to_owned());
-                    evt_send.send(EwwCommand::UpdateVars(vec![(var.name.to_owned(), new_value)])).unwrap();
+            crate::try_logging_errors!(format!("Executing tail var command {}", &var.command) =>  {
+                let mut handle = tokio::process::Command::new("sh")
+                    .args(&["-c", &var.command])
+                    .stdout(std::process::Stdio::piped())
+                    .stderr(std::process::Stdio::inherit())
+                    .stdin(std::process::Stdio::null())
+                    .spawn()?;
+                let mut stdout_lines = BufReader::new(handle.stdout.take().unwrap()).lines();
+                crate::loop_select_exiting! {
+                    _ = handle.wait() => break,
+                    _ = cancellation_token.cancelled() => break,
+                    Ok(Some(line)) = stdout_lines.next_line() => {
+                        let new_value = PrimitiveValue::from_string(line.to_owned());
+                        evt_send.send(EwwCommand::UpdateVars(vec![(var.name.to_owned(), new_value)]))?;
+                    }
+                    else => break,
                 }
-                else => break,
-            }
-            handle.kill().await.unwrap();
+                let _ = handle.kill().await;
+            });
         });
     }
 
