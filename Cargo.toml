@@ -46,5 +46,9 @@ simple-signal = "1.1"
 dashmap = "3.11"
 unescape = "0.1"
 
+tokio = { version = "1.0", features = ["full"] }
+async-stream = "0.3"
+futures-core = "0.3"
+
 [dev-dependencies]
 pretty_assertions = "0.6.1"
