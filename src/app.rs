@@ -1,5 +1,5 @@
 use crate::{
-    application_lifecycle, config,
+    config,
     config::{window_definition::WindowName, AnchorPoint, WindowStacking},
     eww_state,
     script_var_handler::*,
@@ -80,7 +80,7 @@ impl App {
                 EwwCommand::KillServer => {
                     log::info!("Received kill command, stopping server!");
                     self.stop_application();
-                    crate::application_lifecycle::send_exit()?;
+                    let _ = crate::application_lifecycle::send_exit();
                 }
                 EwwCommand::CloseAll => {
                     log::info!("Received close command, closing all windows");

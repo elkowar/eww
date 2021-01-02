@@ -1,7 +1,12 @@
 use crate::{app, config, eww_state::*, opts, script_var_handler, try_logging_errors, util};
 use anyhow::*;
 use futures_util::StreamExt;
-use std::{collections::HashMap, os::unix::io::AsRawFd, path::Path, time::Duration};
+use std::{
+    collections::HashMap,
+    os::unix::io::AsRawFd,
+    path::{Path, PathBuf},
+    time::Duration,
+};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     sync::mpsc::*,
@@ -16,7 +21,10 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
 
     simple_signal::set_handler(&[simple_signal::Signal::Int, simple_signal::Signal::Term], move |_| {
         println!("Shutting down eww daemon...");
-        crate::application_lifecycle::send_exit().unwrap();
+        if let Err(e) = crate::application_lifecycle::send_exit() {
+            eprintln!("Failed to send application shutdown event to workers: {:?}", e);
+            std::process::exit(1);
+        }
     });
 
     let config_file_path = crate::CONFIG_DIR.join("eww.xml");
@@ -31,10 +39,9 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
 
     gtk::init()?;
     let (ui_send, mut ui_recv) = tokio::sync::mpsc::unbounded_channel();
-    let glib_context = glib::MainContext::default();
 
     log::info!("Initializing script var handler");
-    let script_var_handler = script_var_handler::init(ui_send.clone())?;
+    let script_var_handler = script_var_handler::init(ui_send.clone());
 
     let mut app = app::App {
         eww_state: EwwState::from_default_vars(eww_config.generate_initial_state()?),
@@ -58,49 +65,10 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
     let (command, maybe_response_recv) = action.into_eww_command();
     app.handle_command(command);
 
-    std::thread::spawn(move || {
-        let rt = tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .build()
-            .expect("Failed to initialize tokio runtime");
-        rt.block_on(async {
-            // print out the response of this initial command, if there is any
-            tokio::spawn(async {
-                if let Some(mut response_recv) = maybe_response_recv {
-                    if let Ok(Some(response)) = tokio::time::timeout(Duration::from_millis(100), response_recv.recv()).await {
-                        println!("{}", response);
-                    }
-                }
-            });
+    // initialize all the handlers and tasks running asyncronously
+    init_async_part(config_file_path, scss_file_path, maybe_response_recv, ui_send);
 
-            let filewatch_join_handle = {
-                let ui_send = ui_send.clone();
-                tokio::spawn(async move { run_filewatch_thingy(config_file_path, scss_file_path, ui_send).await })
-            };
-
-            let ipc_server_join_handle = {
-                let ui_send = ui_send.clone();
-                tokio::spawn(async move { async_server(ui_send).await })
-            };
-
-            let forward_lifecycle_to_app_handle = {
-                let ui_send = ui_send.clone();
-                tokio::spawn(async move {
-                    while let Ok(()) = crate::application_lifecycle::recv_exit().await {
-                        let _ = ui_send.send(app::EwwCommand::KillServer);
-                    }
-                })
-            };
-
-            let result = tokio::try_join!(filewatch_join_handle, ipc_server_join_handle, forward_lifecycle_to_app_handle);
-
-            if let Err(e) = result {
-                eprintln!("Eww exiting with error: {:?}", e);
-            }
-        })
-    });
-
-    glib_context.spawn_local(async move {
+    glib::MainContext::default().spawn_local(async move {
         while let Some(event) = ui_recv.recv().await {
             app.handle_command(event);
         }
@@ -112,7 +80,58 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
     Ok(())
 }
 
-async fn async_server(evt_send: UnboundedSender<app::EwwCommand>) -> Result<()> {
+fn init_async_part(
+    config_file_path: PathBuf,
+    scss_file_path: PathBuf,
+    maybe_response_recv: Option<UnboundedReceiver<String>>,
+    ui_send: UnboundedSender<app::EwwCommand>,
+) {
+    std::thread::spawn(move || {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .expect("Failed to initialize tokio runtime");
+        rt.block_on(async {
+            // TODO This really does not belong here at all :<
+            // print out the response of this initial command, if there is any
+            tokio::spawn(async {
+                if let Some(mut response_recv) = maybe_response_recv {
+                    if let Ok(Some(response)) = tokio::time::timeout(Duration::from_millis(100), response_recv.recv()).await {
+                        println!("{}", response);
+                    }
+                }
+            });
+
+            let filewatch_join_handle = {
+                let ui_send = ui_send.clone();
+                tokio::spawn(async move { run_filewatch(config_file_path, scss_file_path, ui_send).await })
+            };
+
+            let ipc_server_join_handle = {
+                let ui_send = ui_send.clone();
+                tokio::spawn(async move { run_ipc_server(ui_send).await })
+            };
+
+            let forward_exit_to_app_handle = {
+                let ui_send = ui_send.clone();
+                tokio::spawn(async move {
+                    // Wait for application exit event
+                    let _ = crate::application_lifecycle::recv_exit().await;
+                    // Then forward that to the application
+                    let _ = ui_send.send(app::EwwCommand::KillServer);
+                })
+            };
+
+            let result = tokio::try_join!(filewatch_join_handle, ipc_server_join_handle, forward_exit_to_app_handle);
+
+            if let Err(e) = result {
+                eprintln!("Eww exiting with error: {:?}", e);
+            }
+        })
+    });
+}
+
+async fn run_ipc_server(evt_send: UnboundedSender<app::EwwCommand>) -> Result<()> {
     let listener = tokio::net::UnixListener::bind(&*crate::IPC_SOCKET_PATH)?;
     crate::loop_select_exiting! {
         connection = listener.accept() => match connection {
@@ -123,6 +142,7 @@ async fn async_server(evt_send: UnboundedSender<app::EwwCommand>) -> Result<()> 
     Ok(())
 }
 
+/// Handle a single IPC connection from start to end.
 async fn handle_connection(mut stream: tokio::net::UnixStream, evt_send: UnboundedSender<app::EwwCommand>) -> Result<()> {
     let (mut stream_read, mut stream_write) = stream.split();
 
@@ -149,7 +169,8 @@ async fn handle_connection(mut stream: tokio::net::UnixStream, evt_send: Unbound
     Ok(())
 }
 
-async fn run_filewatch_thingy<P: AsRef<Path>>(
+/// Watch configuration files for changes, sending reload events to the eww app when the files change.
+async fn run_filewatch<P: AsRef<Path>>(
     config_file_path: P,
     scss_file_path: P,
     evt_send: UnboundedSender<app::EwwCommand>,
@@ -167,29 +188,26 @@ async fn run_filewatch_thingy<P: AsRef<Path>>(
 
     crate::loop_select_exiting! {
         Some(Ok(event)) = event_stream.next() => {
-            if event.wd == config_file_descriptor {
-                try_logging_errors!("handling change of config file" => {
-                    log::info!("Reloading eww configuration");
-                    let new_eww_config = config::EwwConfig::read_from_file(config_file_path.as_ref())?;
-                    evt_send.send(app::EwwCommand::ReloadConfig(new_eww_config))?;
-                });
-            } else if event.wd == scss_file_descriptor {
-                try_logging_errors!("handling change of scss file" =>  {
-                    log::info!("reloading eww css file");
-                    let eww_css = crate::util::parse_scss_from_file(scss_file_path.as_ref())?;
-                    evt_send.send(app::EwwCommand::ReloadCss(eww_css))?;
-                });
-            } else {
-                eprintln!("Got inotify event for unknown thing: {:?}", event);
-            }
+            try_logging_errors!("handling change of config file" => {
+                if event.wd == config_file_descriptor {
+                        log::info!("Reloading eww configuration");
+                        let new_eww_config = config::EwwConfig::read_from_file(config_file_path.as_ref())?;
+                        evt_send.send(app::EwwCommand::ReloadConfig(new_eww_config))?;
+                } else if event.wd == scss_file_descriptor {
+                        log::info!("reloading eww css file");
+                        let eww_css = crate::util::parse_scss_from_file(scss_file_path.as_ref())?;
+                        evt_send.send(app::EwwCommand::ReloadCss(eww_css))?;
+                } else {
+                    eprintln!("Got inotify event for unknown thing: {:?}", event);
+                }
+            });
         }
         else => break,
     }
     Ok(())
 }
 
-/// detach the process from the terminal, also redirecting stdout and stderr to
-/// LOG_FILE
+/// detach the process from the terminal, also redirecting stdout and stderr to LOG_FILE
 fn do_detach() -> Result<()> {
     // detach from terminal
     match unsafe { nix::unistd::fork()? } {
