@@ -342,7 +342,9 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
         // @prop text - the text to display
         // @prop limit-width - maximum count of characters to display
         prop(text: as_string, limit_width: as_i32 = i32::MAX) {
-            gtk_widget.set_text(&text.chars().take(limit_width as usize).collect::<String>());
+            let text = text.chars().take(limit_width as usize).collect::<String>();
+            let text = unescape::unescape(&text).context(format!("Failed to unescape label text {}", &text))?;
+            gtk_widget.set_text(&text);
         },
         // @prop markup - Pango markup to display
         prop(markup: as_string) {

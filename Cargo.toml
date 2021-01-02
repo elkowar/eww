@@ -44,6 +44,7 @@ smart-default = "0.6"
 filedescriptor = "0.7"
 simple-signal = "1.1"
 dashmap = "3.11"
+unescape = "0.1"
 
 [dev-dependencies]
 pretty_assertions = "0.6.1"

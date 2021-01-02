@@ -364,6 +364,7 @@ dependencies = [
  "smart-default",
  "stoppable_thread",
  "structopt",
+ "unescape",
 ]
 
 [[package]]
@@ -1999,6 +2000,12 @@ checksum = "75cf45bb0bef80604d001caaec0d09da99611b3c0fd39d3080468875cdb65645"
 dependencies = [
  "serde",
 ]
+
+[[package]]
+name = "unescape"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ccb97dac3243214f8d8507998906ca3e2e0b900bf9bf4870477f125b82e68f6e"
 
 [[package]]
 name = "unicode-segmentation"
