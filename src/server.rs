@@ -1,11 +1,7 @@
 use crate::{app, config, eww_state::*, opts, script_var_handler, try_logging_errors, util};
 use anyhow::*;
-use std::{
-    collections::HashMap,
-    io::Write,
-    os::unix::{io::AsRawFd, net},
-    path::{Path, PathBuf},
-};
+use futures_util::StreamExt;
+use std::{collections::HashMap, os::unix::io::AsRawFd, path::Path};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     sync::mpsc::*,
@@ -35,8 +31,7 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
     let eww_config = config::EwwConfig::read_from_file(&config_file_path)?;
 
     gtk::init()?;
-    // let (evt_send, evt_recv) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
-    let (ui_send, ui_recv) = tokio::sync::mpsc::unbounded_channel();
+    let (ui_send, mut ui_recv) = tokio::sync::mpsc::unbounded_channel();
     let glib_context = glib::MainContext::default();
 
     log::info!("Initializing script var handler");
@@ -70,15 +65,21 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
             println!("{}", response);
         }
     }
-
-    // run_server_thread(ui_send.clone())?;
-    // let _hotwatch = run_filewatch_thread(&config_file_path, &scss_file_path, evt_send.clone())?;
-
     std::thread::spawn(move || {
-        let rt = tokio::runtime::Runtime::new().expect("REEEEEEEEE");
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .build()
+            .expect("Failed to initialize tokio runtime");
         rt.block_on(async {
-            // let _ = tokio::try_join!(async_part(evt_send));
-            let _ = async_part(ui_send.clone()).await;
+            let filewatch_join_handle = {
+                let ui_send = ui_send.clone();
+                tokio::spawn(async move { run_filewatch_thingy(config_file_path, scss_file_path, ui_send).await })
+            };
+            let ipc_server_join_handle = tokio::spawn(async move { async_server(ui_send.clone()).await });
+
+            let result = tokio::try_join!(filewatch_join_handle, ipc_server_join_handle);
+            if let Err(e) = result {
+                eprintln!("Eww exiting with error: {:?}", e);
+            }
         });
     });
 
@@ -88,94 +89,81 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
         }
     });
 
-    // evt_recv.attach(None, move |msg| {
-    // app.handle_command(msg);
-    // glib::Continue(true)
-    //});
-
     gtk::main();
 
     Ok(())
 }
 
-async fn async_part(evt_send: UnboundedSender<app::EwwCommand>) -> Result<()> {
-    Ok(())
-}
-
-// async fn async_server_accept() -> Result<impl futures_core::stream::Stream<Item = tokio::net::UnixStream>> {
-// let listener = tokio::net::UnixListener::bind(&*crate::IPC_SOCKET_PATH)?;
-// let stream = async_stream::stream! {
-// loop {
-// match listener.accept().await {
-// Ok((mut stream, _addr)) => yield stream,
-// Err(e) => {
-// eprintln!("Failed to connect to client: {:?}", e);
-//};
-// Ok(stream)
-//}
-
 async fn async_server(evt_send: UnboundedSender<app::EwwCommand>) -> Result<()> {
     let listener = tokio::net::UnixListener::bind(&*crate::IPC_SOCKET_PATH)?;
     loop {
-        match listener.accept().await {
-            Ok((mut stream, _addr)) => {
-                try_logging_errors!("handling message from IPC client" => {
-                    let (mut stream_read, mut stream_write) = stream.split();
-
-                    let action: opts::ActionWithServer = {
-                        let mut raw_message = Vec::<u8>::new();
-                        stream_read.read_to_end(&mut raw_message);
-                        bincode::deserialize(&raw_message).context("Failed to parse client message")?
-                    };
-
-                    log::info!("received command from IPC: {:?}", &action);
-
-                    // TODO clean up the maybe_response_recv
-                    let (command, maybe_response_recv) = action.into_eww_command();
-
-                    evt_send.send(command)?;
-
-                    if let Some(response_recv) = maybe_response_recv {
-                        if let Ok(response) = response_recv.recv_timeout(std::time::Duration::from_millis(100)) {
-                            let result = &stream_write.write_all(response.as_bytes()).await;
-                            crate::print_result_err!("Sending text response to ipc client", &result);
-                        }
-                    }
-                });
-            }
-            Err(e) => {
-                eprintln!("Failed to connect to client: {:?}", e);
+        tokio::select! {
+            connection = listener.accept() => match connection {
+                Ok((stream, _addr)) => handle_connection(stream, evt_send.clone()).await?,
+                Err(e) => eprintln!("Failed to connect to client: {:?}", e),
             }
         }
     }
 }
 
-fn run_filewatch_thread<P: AsRef<Path>>(
+async fn handle_connection(mut stream: tokio::net::UnixStream, evt_send: UnboundedSender<app::EwwCommand>) -> Result<()> {
+    let (mut stream_read, mut stream_write) = stream.split();
+
+    let action: opts::ActionWithServer = {
+        let mut raw_message = Vec::<u8>::new();
+        stream_read.read_to_end(&mut raw_message).await?;
+        bincode::deserialize(&raw_message).context("Failed to parse client message")?
+    };
+
+    log::info!("received command from IPC: {:?}", &action);
+
+    // TODO clean up the maybe_response_recv
+    let (command, maybe_response_recv) = action.into_eww_command();
+
+    evt_send.send(command)?;
+
+    if let Some(response_recv) = maybe_response_recv {
+        if let Ok(response) = response_recv.recv_timeout(std::time::Duration::from_millis(100)) {
+            let result = &stream_write.write_all(response.as_bytes()).await;
+            crate::print_result_err!("Sending text response to ipc client", &result);
+        }
+    }
+    Ok(())
+}
+
+async fn run_filewatch_thingy<P: AsRef<Path>>(
     config_file_path: P,
     scss_file_path: P,
-    evt_send: glib::Sender<app::EwwCommand>,
-) -> Result<hotwatch::Hotwatch> {
-    log::info!("Initializing config file watcher");
-    let mut hotwatch = hotwatch::Hotwatch::new_with_custom_delay(std::time::Duration::from_millis(500))?;
+    evt_send: UnboundedSender<app::EwwCommand>,
+) -> Result<()> {
+    let mut inotify = inotify::Inotify::init().context("Failed to initialize inotify")?;
+    let config_file_descriptor = inotify
+        .add_watch(config_file_path.as_ref(), inotify::WatchMask::MODIFY)
+        .context("Failed to add inotify watch for config file")?;
+    let scss_file_descriptor = inotify
+        .add_watch(scss_file_path.as_ref(), inotify::WatchMask::MODIFY)
+        .context("Failed to add inotify watch for scss file")?;
 
-    let config_file_change_send = evt_send.clone();
-    hotwatch.watch_file_changes(config_file_path, move |path| {
-        try_logging_errors!("handling change of config file" => {
-            log::info!("Reloading eww configuration");
-            let new_eww_config = config::EwwConfig::read_from_file(path)?;
-            config_file_change_send.send(app::EwwCommand::ReloadConfig(new_eww_config))?;
-        });
-    })?;
-
-    let result = hotwatch.watch_file_changes(scss_file_path, move |path| {
-        try_logging_errors!("handling change of scss file" =>  {
-            log::info!("reloading eww css file");
-            let eww_css = util::parse_scss_from_file(path)?;
-            evt_send.send(app::EwwCommand::ReloadCss(eww_css))?;
-        })
-    });
-    crate::print_result_err!("while loading CSS file for hot-reloading", &result);
-    Ok(hotwatch)
+    let mut buffer = [0; 1024];
+    let mut event_stream = inotify.event_stream(&mut buffer)?;
+    while let Some(Ok(event)) = event_stream.next().await {
+        if event.wd == config_file_descriptor {
+            try_logging_errors!("handling change of config file" => {
+                log::info!("Reloading eww configuration");
+                let new_eww_config = config::EwwConfig::read_from_file(config_file_path.as_ref())?;
+                evt_send.send(app::EwwCommand::ReloadConfig(new_eww_config))?;
+            });
+        } else if event.wd == scss_file_descriptor {
+            try_logging_errors!("handling change of scss file" =>  {
+                log::info!("reloading eww css file");
+                let eww_css = util::parse_scss_from_file(scss_file_path.as_ref())?;
+                evt_send.send(app::EwwCommand::ReloadCss(eww_css))?;
+            });
+        } else {
+            eprintln!("Got inotify event for unknown thing: {:?}", event);
+        }
+    }
+    Ok(())
 }
 
 /// detach the process from the terminal, also redirecting stdout and stderr to
@@ -207,18 +195,4 @@ fn do_detach() -> Result<()> {
     }
 
     Ok(())
-}
-
-#[extend::ext(pub)]
-impl hotwatch::Hotwatch {
-    fn watch_file_changes<P, F>(&mut self, file_path: P, callback: F) -> Result<()>
-    where
-        P: AsRef<Path>,
-        F: 'static + Fn(PathBuf) + Send,
-    {
-        Ok(self.watch(file_path, move |evt| match evt {
-            hotwatch::Event::Write(path) | hotwatch::Event::NoticeWrite(path) => callback(path),
-            _ => {}
-        })?)
-    }
 }

@@ -15,6 +15,7 @@ use dashmap::DashMap;
 use std::io::BufRead;
 
 use self::script_var_process::ScriptVarProcess;
+use tokio::sync::mpsc::UnboundedSender;
 
 /// Handler that manages running and updating [ScriptVar]s
 pub struct ScriptVarHandler {
@@ -23,7 +24,7 @@ pub struct ScriptVarHandler {
 }
 
 impl ScriptVarHandler {
-    pub fn new(evt_send: glib::Sender<EwwCommand>) -> Result<Self> {
+    pub fn new(evt_send: UnboundedSender<EwwCommand>) -> Result<Self> {
         Ok(ScriptVarHandler {
             tail_handler: TailVarHandler::new(evt_send.clone())?,
             poll_handler: PollVarHandler::new(evt_send)?,
@@ -60,13 +61,13 @@ impl Drop for ScriptVarHandler {
 }
 
 struct PollVarHandler {
-    evt_send: glib::Sender<EwwCommand>,
+    evt_send: UnboundedSender<EwwCommand>,
     poll_handles: HashMap<VarName, scheduled_executor::executor::TaskHandle>,
     poll_executor: scheduled_executor::CoreExecutor,
 }
 
 impl PollVarHandler {
-    fn new(evt_send: glib::Sender<EwwCommand>) -> Result<Self> {
+    fn new(evt_send: UnboundedSender<EwwCommand>) -> Result<Self> {
         Ok(PollVarHandler {
             evt_send,
             poll_handles: HashMap::new(),
@@ -103,14 +104,14 @@ impl PollVarHandler {
 }
 
 struct TailVarHandler {
-    evt_send: glib::Sender<EwwCommand>,
+    evt_send: UnboundedSender<EwwCommand>,
     tail_handler_thread: Option<stoppable_thread::StoppableHandle<()>>,
     tail_process_handles: Arc<DashMap<VarName, script_var_process::ScriptVarProcess>>,
     tail_sources: Arc<RwLock<popol::Sources<VarName>>>,
 }
 
 impl TailVarHandler {
-    fn new(evt_send: glib::Sender<EwwCommand>) -> Result<Self> {
+    fn new(evt_send: UnboundedSender<EwwCommand>) -> Result<Self> {
         let mut handler = TailVarHandler {
             evt_send,
             tail_handler_thread: None,

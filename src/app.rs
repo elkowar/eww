@@ -12,6 +12,7 @@ use gdk::WindowExt;
 use gtk::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt};
 use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
+use tokio::sync::mpsc::UnboundedSender;
 
 #[derive(Debug)]
 pub enum EwwCommand {
@@ -53,7 +54,7 @@ pub struct App {
     pub eww_config: config::EwwConfig,
     pub windows: HashMap<WindowName, EwwWindow>,
     pub css_provider: gtk::CssProvider,
-    pub app_evt_send: glib::Sender<EwwCommand>,
+    pub app_evt_send: UnboundedSender<EwwCommand>,
     #[debug_stub = "ScriptVarHandler(...)"]
     pub script_var_handler: ScriptVarHandler,
 }
