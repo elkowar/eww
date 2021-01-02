@@ -31,8 +31,8 @@ pub enum EwwCommand {
     },
     KillServer,
     CloseAll,
-    PrintState(crossbeam_channel::Sender<String>),
-    PrintDebug(crossbeam_channel::Sender<String>),
+    PrintState(tokio::sync::mpsc::UnboundedSender<String>),
+    PrintDebug(tokio::sync::mpsc::UnboundedSender<String>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -56,7 +56,7 @@ pub struct App {
     pub css_provider: gtk::CssProvider,
     pub app_evt_send: UnboundedSender<EwwCommand>,
     #[debug_stub = "ScriptVarHandler(...)"]
-    pub script_var_handler: ScriptVarHandler,
+    pub script_var_handler: ScriptVarHandlerHandle,
 }
 
 impl App {
@@ -80,7 +80,7 @@ impl App {
                     log::info!("Received kill command, stopping server!");
                     self.script_var_handler.stop_all();
                     self.windows.drain().for_each(|(_, w)| w.close());
-                    script_var_process::on_application_death();
+                    // script_var_process::on_application_death();
                     std::process::exit(0);
                 }
                 EwwCommand::CloseAll => {
@@ -140,11 +140,7 @@ impl App {
             .filter(|var| !currently_used_vars.contains(*var))
         {
             println!("stopping for {}", &unused_var);
-            let result = self.script_var_handler.stop_for_variable(unused_var);
-            crate::print_result_err!(
-                "While stopping script-var processes while cleaning up after the last window referencing them closed",
-                &result
-            );
+            self.script_var_handler.stop_for_variable(unused_var.clone());
         }
 
         window.close();

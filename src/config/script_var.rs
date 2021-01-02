@@ -6,7 +6,7 @@ use crate::ensure_xml_tag_is;
 
 use super::*;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PollScriptVar {
     pub name: VarName,
     pub command: String,
@@ -19,13 +19,13 @@ impl PollScriptVar {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TailScriptVar {
     pub name: VarName,
     pub command: String,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ScriptVar {
     Poll(PollScriptVar),
     Tail(TailScriptVar),

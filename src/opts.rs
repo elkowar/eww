@@ -126,7 +126,7 @@ fn parse_var_update_arg(s: &str) -> Result<(VarName, PrimitiveValue)> {
 }
 
 impl ActionWithServer {
-    pub fn into_eww_command(self) -> (app::EwwCommand, Option<crossbeam_channel::Receiver<String>>) {
+    pub fn into_eww_command(self) -> (app::EwwCommand, Option<tokio::sync::mpsc::UnboundedReceiver<String>>) {
         let command = match self {
             ActionWithServer::Daemon => app::EwwCommand::NoOp,
             ActionWithServer::Update { mappings } => app::EwwCommand::UpdateVars(mappings.into_iter().collect()),
@@ -145,11 +145,11 @@ impl ActionWithServer {
             ActionWithServer::KillServer => app::EwwCommand::KillServer,
             ActionWithServer::CloseAll => app::EwwCommand::CloseAll,
             ActionWithServer::ShowState => {
-                let (send, recv) = crossbeam_channel::unbounded();
+                let (send, recv) = tokio::sync::mpsc::unbounded_channel();
                 return (app::EwwCommand::PrintState(send), Some(recv));
             }
             ActionWithServer::ShowDebug => {
-                let (send, recv) = crossbeam_channel::unbounded();
+                let (send, recv) = tokio::sync::mpsc::unbounded_channel();
                 return (app::EwwCommand::PrintDebug(send), Some(recv));
             }
         };
