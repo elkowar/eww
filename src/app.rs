@@ -1,5 +1,5 @@
 use crate::{
-    config,
+    application_lifecycle, config,
     config::{window_definition::WindowName, AnchorPoint, WindowStacking},
     eww_state,
     script_var_handler::*,
@@ -60,6 +60,7 @@ pub struct App {
 }
 
 impl App {
+    /// Handle an EwwCommand event.
     pub fn handle_command(&mut self, event: EwwCommand) {
         log::debug!("Handling event: {:?}", &event);
         let result: Result<_> = try {
@@ -78,10 +79,8 @@ impl App {
                 }
                 EwwCommand::KillServer => {
                     log::info!("Received kill command, stopping server!");
-                    self.script_var_handler.stop_all();
-                    self.windows.drain().for_each(|(_, w)| w.close());
-                    // script_var_process::on_application_death();
-                    std::process::exit(0);
+                    self.stop_application();
+                    crate::application_lifecycle::send_exit()?;
                 }
                 EwwCommand::CloseAll => {
                     log::info!("Received close command, closing all windows");
@@ -117,6 +116,12 @@ impl App {
         };
 
         crate::print_result_err!("while handling event", &result);
+    }
+
+    fn stop_application(&mut self) {
+        self.script_var_handler.stop_all();
+        self.windows.drain().for_each(|(_, w)| w.close());
+        gtk::main_quit();
     }
 
     fn update_state(&mut self, fieldname: VarName, value: PrimitiveValue) -> Result<()> {
