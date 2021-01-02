@@ -39,6 +39,17 @@ macro_rules! print_result_err {
     }};
 }
 
+#[macro_export]
+macro_rules! loop_select {
+    ($($body:tt)*) => {
+        loop {
+            ::tokio::select! {
+                $($body)*
+            };
+        }
+    }
+}
+
 /// read an scss file, replace all environment variable references within it and
 /// then parse it into css.
 pub fn parse_scss_from_file<P: AsRef<Path>>(path: P) -> Result<String> {

@@ -1,7 +1,7 @@
 use crate::{app, config, eww_state::*, opts, script_var_handler, try_logging_errors, util};
 use anyhow::*;
 use futures_util::StreamExt;
-use std::{collections::HashMap, os::unix::io::AsRawFd, path::Path};
+use std::{collections::HashMap, os::unix::io::AsRawFd, path::Path, time::Duration};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     sync::mpsc::*,
@@ -16,7 +16,7 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
 
     simple_signal::set_handler(&[simple_signal::Signal::Int, simple_signal::Signal::Term], |_| {
         println!("Shutting down eww daemon...");
-        script_var_handler::script_var_process::on_application_death();
+        // script_var_handler::script_var_process::on_application_death();
         std::process::exit(0);
     });
 
@@ -35,7 +35,7 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
     let glib_context = glib::MainContext::default();
 
     log::info!("Initializing script var handler");
-    let script_var_handler = script_var_handler::ScriptVarHandler::new(ui_send.clone())?;
+    let script_var_handler = script_var_handler::init(ui_send.clone())?;
 
     let mut app = app::App {
         eww_state: EwwState::from_default_vars(eww_config.generate_initial_state()?),
@@ -59,14 +59,9 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
     let (command, maybe_response_recv) = action.into_eww_command();
     app.handle_command(command);
 
-    // print out the response of this initial command, if there is any
-    if let Some(response_recv) = maybe_response_recv {
-        if let Ok(response) = response_recv.recv_timeout(std::time::Duration::from_millis(100)) {
-            println!("{}", response);
-        }
-    }
     std::thread::spawn(move || {
         let rt = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
             .build()
             .expect("Failed to initialize tokio runtime");
         rt.block_on(async {
@@ -76,11 +71,20 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
             };
             let ipc_server_join_handle = tokio::spawn(async move { async_server(ui_send.clone()).await });
 
+            tokio::spawn(async {
+                // print out the response of this initial command, if there is any
+                if let Some(mut response_recv) = maybe_response_recv {
+                    if let Ok(Some(response)) = tokio::time::timeout(Duration::from_millis(100), response_recv.recv()).await {
+                        println!("{}", response);
+                    }
+                }
+            });
+
             let result = tokio::try_join!(filewatch_join_handle, ipc_server_join_handle);
             if let Err(e) = result {
                 eprintln!("Eww exiting with error: {:?}", e);
             }
-        });
+        })
     });
 
     glib_context.spawn_local(async move {
@@ -122,12 +126,14 @@ async fn handle_connection(mut stream: tokio::net::UnixStream, evt_send: Unbound
 
     evt_send.send(command)?;
 
-    if let Some(response_recv) = maybe_response_recv {
-        if let Ok(response) = response_recv.recv_timeout(std::time::Duration::from_millis(100)) {
+    if let Some(mut response_recv) = maybe_response_recv {
+        log::info!("Waiting for response for IPC client");
+        if let Ok(Some(response)) = tokio::time::timeout(Duration::from_millis(100), response_recv.recv()).await {
             let result = &stream_write.write_all(response.as_bytes()).await;
             crate::print_result_err!("Sending text response to ipc client", &result);
         }
     }
+    stream_write.shutdown().await?;
     Ok(())
 }
 
