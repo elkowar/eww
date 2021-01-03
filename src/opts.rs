@@ -74,6 +74,11 @@ pub enum ActionWithServer {
         anchor: Option<AnchorPoint>,
     },
 
+    /// Open multiple windows at once.
+    /// NOTE: This will in the future be part of eww open, and will then be removed.
+    #[structopt(name = "open-many")]
+    OpenMany { windows: Vec<WindowName> },
+
     /// Close the window with the given name
     #[structopt(name = "close")]
     CloseWindow { window_name: WindowName },
@@ -127,6 +132,7 @@ impl ActionWithServer {
         let command = match self {
             ActionWithServer::Daemon | ActionWithServer::Ping => app::EwwCommand::NoOp,
             ActionWithServer::Update { mappings } => app::EwwCommand::UpdateVars(mappings.into_iter().collect()),
+            ActionWithServer::OpenMany { windows } => app::EwwCommand::OpenMany(windows),
             ActionWithServer::OpenWindow {
                 window_name,
                 pos,
