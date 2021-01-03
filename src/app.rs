@@ -20,6 +20,7 @@ pub enum EwwCommand {
     UpdateVars(Vec<(VarName, PrimitiveValue)>),
     ReloadConfig(config::EwwConfig),
     ReloadCss(String),
+    OpenMany(Vec<WindowName>),
     OpenWindow {
         window_name: WindowName,
         pos: Option<Coords>,
@@ -86,6 +87,11 @@ impl App {
                     log::info!("Received close command, closing all windows");
                     for (window_name, _window) in self.windows.clone() {
                         self.close_window(&window_name)?;
+                    }
+                }
+                EwwCommand::OpenMany(windows) => {
+                    for window in windows {
+                        self.open_window(&window, None, None, None)?;
                     }
                 }
                 EwwCommand::OpenWindow {
