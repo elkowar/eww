@@ -53,16 +53,31 @@ fn main() {
             }
             opts::Action::WithServer(action) => {
                 log::info!("Trying to find server process");
-                if let Some(stream) = try_connect(&*IPC_SOCKET_PATH) {
-                    log::info!("Connected to eww server.");
-                    client::forward_command_to_server(stream, action).context("Error while forwarding command to server")?;
-                } else if action.needs_server_running() {
-                    println!("No eww server running");
+                match net::UnixStream::connect(&*IPC_SOCKET_PATH) {
+                    Ok(stream) => {
+                        log::info!("Connected to Eww server.");
+                        let response =
+                            client::do_server_call(stream, action).context("Error while forwarding command to server")?;
+                        if let Some(response) = response {
+                            println!("{}", response);
+                        }
+                    }
+                    Err(_) => {
+                        println!("Failed to connect to the eww daemon.");
+                        println!("Make sure to start the eww daemon process by running `eww daemon` first.");
+                    }
+                }
+            }
+
+            opts::Action::Daemon => {
+                // make sure that there isn't already a Eww daemon running.
+                if check_server_running(&*IPC_SOCKET_PATH) {
+                    eprintln!("Eww server already running.");
                     std::process::exit(1);
                 } else {
-                    log::info!("No server running, initializing server...");
+                    log::info!("Initializing Eww server.");
                     let _ = std::fs::remove_file(&*crate::IPC_SOCKET_PATH);
-                    server::initialize_server(opts.should_detach, action)?;
+                    server::initialize_server()?;
                 }
             }
         }
@@ -70,16 +85,14 @@ fn main() {
 
     if let Err(e) = result {
         eprintln!("{:?}", e);
+        std::process::exit(1);
     }
 }
 
-fn try_connect(path: &std::path::PathBuf) -> Option<net::UnixStream> {
-    if path.exists() {
-        for _ in 0..5 {
-            if let Ok(stream) = net::UnixStream::connect(&*IPC_SOCKET_PATH) {
-                return Some(stream);
-            }
-        }
-    }
-    return None;
+/// Check if a eww server is currently running by trying to send a ping message to it.
+fn check_server_running(socket_path: &std::path::PathBuf) -> bool {
+    let response = net::UnixStream::connect(socket_path)
+        .ok()
+        .and_then(|stream| client::do_server_call(stream, opts::ActionWithServer::Ping).ok());
+    response.is_some()
 }

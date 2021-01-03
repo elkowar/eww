@@ -11,7 +11,6 @@ use crate::{
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Opt {
     pub action: Action,
-    pub should_detach: bool,
 }
 
 /// Helper struct that will be normalized into instance of [Opt]
@@ -23,6 +22,10 @@ struct RawOpt {
 
 #[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
 pub enum Action {
+    /// Start the Eww daemon.
+    #[structopt(name = "daemon")]
+    Daemon,
+
     #[structopt(flatten)]
     ClientOnly(ActionClientOnly),
 
@@ -39,10 +42,6 @@ pub enum ActionClientOnly {
 
 #[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ActionWithServer {
-    /// Start the eww daemon.
-    #[structopt(name = "daemon")]
-    Daemon,
-
     /// Ping the eww server, checking if it is reachable.
     #[structopt(name = "ping")]
     Ping,
@@ -113,10 +112,7 @@ impl Opt {
 impl From<RawOpt> for Opt {
     fn from(other: RawOpt) -> Self {
         let RawOpt { action } = other;
-        Opt {
-            should_detach: action == Action::WithServer(ActionWithServer::Daemon),
-            action,
-        }
+        Opt { action }
     }
 }
 
@@ -130,7 +126,11 @@ fn parse_var_update_arg(s: &str) -> Result<(VarName, PrimitiveValue)> {
 impl ActionWithServer {
     pub fn into_eww_command(self) -> (app::EwwCommand, Option<tokio::sync::mpsc::UnboundedReceiver<String>>) {
         let command = match self {
-            ActionWithServer::Daemon | ActionWithServer::Ping => app::EwwCommand::NoOp,
+            ActionWithServer::Ping => {
+                let (send, recv) = tokio::sync::mpsc::unbounded_channel();
+                let _ = send.send("pong".to_owned());
+                return (app::EwwCommand::NoOp, Some(recv));
+            }
             ActionWithServer::Update { mappings } => app::EwwCommand::UpdateVars(mappings.into_iter().collect()),
             ActionWithServer::OpenMany { windows } => app::EwwCommand::OpenMany(windows),
             ActionWithServer::OpenWindow {
@@ -157,13 +157,5 @@ impl ActionWithServer {
             }
         };
         (command, None)
-    }
-
-    /// returns true if this command requires a server to already be running
-    pub fn needs_server_running(&self) -> bool {
-        match self {
-            ActionWithServer::OpenWindow { .. } | ActionWithServer::Daemon => false,
-            _ => true,
-        }
     }
 }

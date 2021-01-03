@@ -20,7 +20,7 @@ pub fn handle_client_only_action(action: ActionClientOnly) -> Result<()> {
     Ok(())
 }
 
-pub fn forward_command_to_server(mut stream: UnixStream, action: opts::ActionWithServer) -> Result<()> {
+pub fn do_server_call(mut stream: UnixStream, action: opts::ActionWithServer) -> Result<Option<String>> {
     log::info!("Forwarding options to server");
     stream
         .set_nonblocking(false)
@@ -43,8 +43,6 @@ pub fn forward_command_to_server(mut stream: UnixStream, action: opts::ActionWit
     stream
         .read_to_string(&mut buf)
         .context("Error reading response from server")?;
-    if !buf.is_empty() {
-        println!("{}", buf);
-    }
-    Ok(())
+
+    Ok(if buf.is_empty() { None } else { Some(buf) })
 }

@@ -12,10 +12,8 @@ use tokio::{
     sync::mpsc::*,
 };
 
-pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) -> Result<()> {
-    if should_detach {
-        do_detach()?;
-    }
+pub fn initialize_server() -> Result<()> {
+    do_detach()?;
 
     simple_signal::set_handler(&[simple_signal::Signal::Int, simple_signal::Signal::Term], move |_| {
         println!("Shutting down eww daemon...");
@@ -24,6 +22,7 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
             std::process::exit(1);
         }
     });
+    let (ui_send, mut ui_recv) = tokio::sync::mpsc::unbounded_channel();
 
     let config_file_path = crate::CONFIG_DIR.join("eww.xml");
     let config_dir = config_file_path
@@ -36,7 +35,6 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
     let eww_config = config::EwwConfig::read_from_file(&config_file_path)?;
 
     gtk::init()?;
-    let (ui_send, mut ui_recv) = tokio::sync::mpsc::unbounded_channel();
 
     log::info!("Initializing script var handler");
     let script_var_handler = script_var_handler::init(ui_send.clone());
@@ -58,13 +56,8 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
         app.load_css(&eww_css)?;
     }
 
-    // run the command that eww was started with
-    log::info!("running command: {:?}", &action);
-    let (command, maybe_response_recv) = action.into_eww_command();
-    app.handle_command(command);
-
     // initialize all the handlers and tasks running asyncronously
-    init_async_part(config_file_path, scss_file_path, maybe_response_recv, ui_send);
+    init_async_part(config_file_path, scss_file_path, ui_send);
 
     glib::MainContext::default().spawn_local(async move {
         while let Some(event) = ui_recv.recv().await {
@@ -78,28 +71,13 @@ pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) ->
     Ok(())
 }
 
-fn init_async_part(
-    config_file_path: PathBuf,
-    scss_file_path: PathBuf,
-    maybe_response_recv: Option<UnboundedReceiver<String>>,
-    ui_send: UnboundedSender<app::EwwCommand>,
-) {
+fn init_async_part(config_file_path: PathBuf, scss_file_path: PathBuf, ui_send: UnboundedSender<app::EwwCommand>) {
     std::thread::spawn(move || {
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
             .expect("Failed to initialize tokio runtime");
         rt.block_on(async {
-            // TODO This really does not belong here at all :<
-            // print out the response of this initial command, if there is any
-            tokio::spawn(async {
-                if let Some(mut response_recv) = maybe_response_recv {
-                    if let Ok(Some(response)) = tokio::time::timeout(Duration::from_millis(100), response_recv.recv()).await {
-                        println!("{}", response);
-                    }
-                }
-            });
-
             let filewatch_join_handle = {
                 let ui_send = ui_send.clone();
                 tokio::spawn(async move { run_filewatch(config_file_path, scss_file_path, ui_send).await })
