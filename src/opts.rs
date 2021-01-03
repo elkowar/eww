@@ -18,20 +18,14 @@ pub struct Opt {
 #[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
 struct RawOpt {
     #[structopt(subcommand)]
-    action: Option<Action>,
-
-    /// Run Eww in the background, daemonizing it.
-    /// When daemonized, to kill eww you can run `eww kill`. To see logs, use `eww logs`.
-    #[structopt(short = "-d", long = "--detach")]
-    should_detach: bool,
+    action: Action,
 }
 
-#[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq, smart_default::SmartDefault)]
+#[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
 pub enum Action {
     #[structopt(flatten)]
     ClientOnly(ActionClientOnly),
 
-    #[default]
     #[structopt(flatten)]
     WithServer(ActionWithServer),
 }
@@ -43,11 +37,15 @@ pub enum ActionClientOnly {
     Logs,
 }
 
-#[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq, smart_default::SmartDefault)]
+#[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ActionWithServer {
+    /// Start the eww daemon.
     #[structopt(name = "daemon")]
-    #[default]
     Daemon,
+
+    /// Ping the eww server, checking if it is reachable.
+    #[structopt(name = "ping")]
+    Ping,
 
     /// Update the value of a variable, in a running eww instance
     #[structopt(name = "update")]
@@ -109,10 +107,9 @@ impl Opt {
 
 impl From<RawOpt> for Opt {
     fn from(other: RawOpt) -> Self {
-        let RawOpt { action, should_detach } = other;
-        let action = action.unwrap_or_default();
+        let RawOpt { action } = other;
         Opt {
-            should_detach: should_detach || action == Action::WithServer(ActionWithServer::Daemon),
+            should_detach: action == Action::WithServer(ActionWithServer::Daemon),
             action,
         }
     }
@@ -128,7 +125,7 @@ fn parse_var_update_arg(s: &str) -> Result<(VarName, PrimitiveValue)> {
 impl ActionWithServer {
     pub fn into_eww_command(self) -> (app::EwwCommand, Option<tokio::sync::mpsc::UnboundedReceiver<String>>) {
         let command = match self {
-            ActionWithServer::Daemon => app::EwwCommand::NoOp,
+            ActionWithServer::Daemon | ActionWithServer::Ping => app::EwwCommand::NoOp,
             ActionWithServer::Update { mappings } => app::EwwCommand::UpdateVars(mappings.into_iter().collect()),
             ActionWithServer::OpenWindow {
                 window_name,

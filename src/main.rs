@@ -53,11 +53,12 @@ fn main() {
             }
             opts::Action::WithServer(action) => {
                 log::info!("Trying to find server process");
-                if let Ok(stream) = net::UnixStream::connect(&*IPC_SOCKET_PATH) {
+                if let Some(stream) = try_connect(&*IPC_SOCKET_PATH) {
                     log::info!("Connected to eww server.");
                     client::forward_command_to_server(stream, action).context("Error while forwarding command to server")?;
                 } else if action.needs_server_running() {
                     println!("No eww server running");
+                    std::process::exit(1);
                 } else {
                     log::info!("No server running, initializing server...");
                     let _ = std::fs::remove_file(&*crate::IPC_SOCKET_PATH);
@@ -70,4 +71,15 @@ fn main() {
     if let Err(e) = result {
         eprintln!("{:?}", e);
     }
+}
+
+fn try_connect(path: &std::path::PathBuf) -> Option<net::UnixStream> {
+    if path.exists() {
+        for _ in 0..5 {
+            if let Ok(stream) = net::UnixStream::connect(&*IPC_SOCKET_PATH) {
+                return Some(stream);
+            }
+        }
+    }
+    return None;
 }
