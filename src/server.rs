@@ -13,8 +13,6 @@ use tokio::{
 };
 
 pub fn initialize_server(should_detach: bool, action: opts::ActionWithServer) -> Result<()> {
-    let _ = std::fs::remove_file(&*crate::IPC_SOCKET_PATH);
-
     if should_detach {
         do_detach()?;
     }
@@ -133,9 +131,16 @@ fn init_async_part(
 
 async fn run_ipc_server(evt_send: UnboundedSender<app::EwwCommand>) -> Result<()> {
     let listener = tokio::net::UnixListener::bind(&*crate::IPC_SOCKET_PATH)?;
+    log::info!("IPC server initialized");
     crate::loop_select_exiting! {
         connection = listener.accept() => match connection {
-            Ok((stream, _addr)) => handle_connection(stream, evt_send.clone()).await?,
+            Ok((stream, _addr)) => {
+                let evt_send = evt_send.clone();
+                tokio::spawn(async move {
+                    let result = handle_connection(stream, evt_send.clone()).await;
+                    crate::print_result_err!("while handling IPC connection with client", result);
+                });
+            },
             Err(e) => eprintln!("Failed to connect to client: {:?}", e),
         }
     }
@@ -147,8 +152,20 @@ async fn handle_connection(mut stream: tokio::net::UnixStream, evt_send: Unbound
     let (mut stream_read, mut stream_write) = stream.split();
 
     let action: opts::ActionWithServer = {
-        let mut raw_message = Vec::<u8>::new();
-        stream_read.read_to_end(&mut raw_message).await?;
+        let mut message_byte_length = [0u8; 4];
+        stream_read
+            .read_exact(&mut message_byte_length)
+            .await
+            .context("Failed to read message size header in IPC message")?;
+        let message_byte_length = u32::from_be_bytes(message_byte_length);
+        let mut raw_message = Vec::<u8>::with_capacity(message_byte_length as usize);
+        while raw_message.len() < message_byte_length as usize {
+            stream_read
+                .read_buf(&mut raw_message)
+                .await
+                .context("Failed to read actual IPC message")?;
+        }
+
         bincode::deserialize(&raw_message).context("Failed to parse client message")?
     };
 
@@ -162,7 +179,7 @@ async fn handle_connection(mut stream: tokio::net::UnixStream, evt_send: Unbound
         log::info!("Waiting for response for IPC client");
         if let Ok(Some(response)) = tokio::time::timeout(Duration::from_millis(100), response_recv.recv()).await {
             let result = &stream_write.write_all(response.as_bytes()).await;
-            crate::print_result_err!("Sending text response to ipc client", &result);
+            crate::print_result_err!("sending text response to ipc client", &result);
         }
     }
     stream_write.shutdown().await?;
