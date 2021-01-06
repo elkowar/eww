@@ -17,6 +17,7 @@ pub mod application_lifecycle;
 pub mod client;
 pub mod config;
 pub mod eww_state;
+pub mod ipc_server;
 pub mod opts;
 pub mod script_var_handler;
 pub mod server;
