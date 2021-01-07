@@ -1,3 +1,6 @@
+![Eww logo](./.github/EwwGithubPreview.png)
+
+
 # About
 
 Elkowar&rsquo;s Wacky Widgets is a standalone Widget System made in rust to add AwesomeWM like widgets to any WM
