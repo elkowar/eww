@@ -372,7 +372,7 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
         prop(content: as_string) {
             gtk_widget.get_children().iter().for_each(|w| gtk_widget.remove(w));
             if !content.is_empty() {
-                let document = roxmltree::Document::parse(&content)?;
+                let document = roxmltree::Document::parse(&content).map_err(|e| anyhow!("Failed to parse eww xml literal: {:?}", e))?;
                 let content_widget_use = config::element::WidgetUse::from_xml_node(document.root_element().into())?;
                 let child_widget = super::widget_use_to_gtk_widget(
                     &widget_definitions,
