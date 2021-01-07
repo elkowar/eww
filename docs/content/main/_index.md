@@ -52,6 +52,7 @@ chmod +x ./eww
 ```
 and then to run it do
 ```
+./eww daemon
 ./eww open <window_name>
 ```
 `<window_name>` is the name of the window, see [The windows block](@/main/configuration.md#windows-block).
