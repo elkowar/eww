@@ -1,6 +1,9 @@
 use std::process::Stdio;
 
-use crate::opts::{self, ActionClientOnly};
+use crate::{
+    app,
+    opts::{self, ActionClientOnly},
+};
 use anyhow::*;
 use std::{
     io::{Read, Write},
@@ -20,7 +23,7 @@ pub fn handle_client_only_action(action: ActionClientOnly) -> Result<()> {
     Ok(())
 }
 
-pub fn do_server_call(mut stream: UnixStream, action: opts::ActionWithServer) -> Result<Option<String>> {
+pub fn do_server_call(mut stream: UnixStream, action: opts::ActionWithServer) -> Result<Option<app::DaemonResponse>> {
     log::info!("Forwarding options to server");
     stream
         .set_nonblocking(false)
@@ -36,13 +39,16 @@ pub fn do_server_call(mut stream: UnixStream, action: opts::ActionWithServer) ->
         .write_all(&message_bytes)
         .context("Failed to write command to IPC stream")?;
 
-    let mut buf = String::new();
+    let mut buf = Vec::new();
     stream
         .set_read_timeout(Some(std::time::Duration::from_millis(100)))
         .context("Failed to set read timeout")?;
-    stream
-        .read_to_string(&mut buf)
-        .context("Error reading response from server")?;
+    stream.read_to_end(&mut buf).context("Error reading response from server")?;
 
-    Ok(if buf.is_empty() { None } else { Some(buf) })
+    Ok(if buf.is_empty() {
+        None
+    } else {
+        let buf = bincode::deserialize(&buf)?;
+        Some(buf)
+    })
 }

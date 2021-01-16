@@ -14,26 +14,56 @@ use itertools::Itertools;
 use std::collections::HashMap;
 use tokio::sync::mpsc::UnboundedSender;
 
+/// Response that the app may send as a response to a event.
+/// This is used in `DaemonCommand`s that contain a response sender.
+#[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, derive_more::Display)]
+pub enum DaemonResponse {
+    Success(String),
+    Failure(String),
+}
+
+impl DaemonResponse {
+    pub fn is_success(&self) -> bool {
+        match self {
+            DaemonResponse::Success(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_failure(&self) -> bool {
+        !self.is_success()
+    }
+}
+
+pub type DaemonResponseSender = tokio::sync::mpsc::UnboundedSender<DaemonResponse>;
+pub type DaemonResponseReceiver = tokio::sync::mpsc::UnboundedReceiver<DaemonResponse>;
+
 #[derive(Debug)]
-pub enum EwwCommand {
+pub enum DaemonCommand {
     NoOp,
     UpdateVars(Vec<(VarName, PrimitiveValue)>),
     ReloadConfig(config::EwwConfig),
     ReloadCss(String),
-    OpenMany(Vec<WindowName>),
+    OpenMany {
+        windows: Vec<WindowName>,
+        sender: DaemonResponseSender,
+    },
     OpenWindow {
         window_name: WindowName,
         pos: Option<Coords>,
         size: Option<Coords>,
         anchor: Option<AnchorPoint>,
+        sender: DaemonResponseSender,
     },
     CloseWindow {
         window_name: WindowName,
+        sender: DaemonResponseSender,
     },
     KillServer,
     CloseAll,
-    PrintState(tokio::sync::mpsc::UnboundedSender<String>),
-    PrintDebug(tokio::sync::mpsc::UnboundedSender<String>),
+    PrintState(DaemonResponseSender),
+    PrintDebug(DaemonResponseSender),
+    PrintWindows(DaemonResponseSender),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -55,68 +85,91 @@ pub struct App {
     pub eww_config: config::EwwConfig,
     pub windows: HashMap<WindowName, EwwWindow>,
     pub css_provider: gtk::CssProvider,
-    pub app_evt_send: UnboundedSender<EwwCommand>,
+    pub app_evt_send: UnboundedSender<DaemonCommand>,
     #[debug_stub = "ScriptVarHandler(...)"]
     pub script_var_handler: ScriptVarHandlerHandle,
 }
 
 impl App {
-    /// Handle an EwwCommand event.
-    pub fn handle_command(&mut self, event: EwwCommand) {
+    /// Handle a DaemonCommand event.
+    pub fn handle_command(&mut self, event: DaemonCommand) {
         log::debug!("Handling event: {:?}", &event);
         let result: Result<_> = try {
             match event {
-                EwwCommand::NoOp => {}
-                EwwCommand::UpdateVars(mappings) => {
+                DaemonCommand::NoOp => {}
+                DaemonCommand::UpdateVars(mappings) => {
                     for (var_name, new_value) in mappings {
                         self.update_state(var_name, new_value)?;
                     }
                 }
-                EwwCommand::ReloadConfig(config) => {
+                DaemonCommand::ReloadConfig(config) => {
                     self.reload_all_windows(config)?;
                 }
-                EwwCommand::ReloadCss(css) => {
+                DaemonCommand::ReloadCss(css) => {
                     self.load_css(&css)?;
                 }
-                EwwCommand::KillServer => {
+                DaemonCommand::KillServer => {
                     log::info!("Received kill command, stopping server!");
                     self.stop_application();
                     let _ = crate::application_lifecycle::send_exit();
                 }
-                EwwCommand::CloseAll => {
+                DaemonCommand::CloseAll => {
                     log::info!("Received close command, closing all windows");
                     for (window_name, _window) in self.windows.clone() {
                         self.close_window(&window_name)?;
                     }
                 }
-                EwwCommand::OpenMany(windows) => {
-                    for window in windows {
-                        self.open_window(&window, None, None, None)?;
-                    }
+                DaemonCommand::OpenMany { windows, sender } => {
+                    let result = windows
+                        .iter()
+                        .map(|w| self.open_window(w, None, None, None))
+                        .collect::<Result<()>>();
+                    respond_with_error(sender, result)?;
                 }
-                EwwCommand::OpenWindow {
+                DaemonCommand::OpenWindow {
                     window_name,
                     pos,
                     size,
                     anchor,
+                    sender,
                 } => {
-                    self.open_window(&window_name, pos, size, anchor)?;
+                    let result = self.open_window(&window_name, pos, size, anchor);
+                    respond_with_error(sender, result)?;
                 }
-                EwwCommand::CloseWindow { window_name } => {
-                    self.close_window(&window_name)?;
+                DaemonCommand::CloseWindow { window_name, sender } => {
+                    let result = self.close_window(&window_name);
+                    respond_with_error(sender, result)?;
                 }
-                EwwCommand::PrintState(sender) => {
+                DaemonCommand::PrintState(sender) => {
                     let output = self
                         .eww_state
                         .get_variables()
                         .iter()
                         .map(|(key, value)| format!("{}: {}", key, value))
                         .join("\n");
-                    sender.send(output).context("sending response from main thread")?
+                    sender
+                        .send(DaemonResponse::Success(output))
+                        .context("sending response from main thread")?
                 }
-                EwwCommand::PrintDebug(sender) => {
+                DaemonCommand::PrintWindows(sender) => {
+                    let output = self
+                        .eww_config
+                        .get_windows()
+                        .keys()
+                        .map(|window_name| {
+                            let is_open = self.windows.contains_key(window_name);
+                            format!("{}{}", if is_open { "*" } else { "" }, window_name)
+                        })
+                        .join("\n");
+                    sender
+                        .send(DaemonResponse::Success(output))
+                        .context("sending response from main thread")?
+                }
+                DaemonCommand::PrintDebug(sender) => {
                     let output = format!("state: {:#?}\n\nconfig: {:#?}", &self.eww_state, &self.eww_config);
-                    sender.send(output).context("sending response from main thread")?
+                    sender
+                        .send(DaemonResponse::Success(output))
+                        .context("sending response from main thread")?
                 }
             }
         };
@@ -328,4 +381,13 @@ fn get_monitor_geometry(n: i32) -> gdk::Rectangle {
         .expect("could not get default display")
         .get_default_screen()
         .get_monitor_geometry(n)
+}
+
+/// In case of an Err, send the error message to a sender.
+fn respond_with_error<T>(sender: DaemonResponseSender, result: Result<T>) -> Result<()> {
+    match result {
+        Ok(_) => sender.send(DaemonResponse::Success(String::new())),
+        Err(e) => sender.send(DaemonResponse::Failure(format!("{:?}", e))),
+    }
+    .context("sending response from main thread")
 }

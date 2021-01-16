@@ -69,6 +69,9 @@ fn main() {
                             client::do_server_call(stream, action).context("Error while forwarding command to server")?;
                         if let Some(response) = response {
                             println!("{}", response);
+                            if response.is_failure() {
+                                std::process::exit(1);
+                            }
                         }
                     }
                     Err(_) => {
