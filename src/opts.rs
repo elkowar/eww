@@ -8,14 +8,19 @@ use crate::{
     value::{Coords, PrimitiveValue, VarName},
 };
 
+/// Struct that gets generated from `RawOpt`.
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Opt {
+    pub log_debug: bool,
     pub action: Action,
 }
 
-/// Helper struct that will be normalized into instance of [Opt]
 #[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
 struct RawOpt {
+    /// Write out debug logs. (To read the logs, run `eww logs`).
+    #[structopt(long = "debug")]
+    log_debug: bool,
+
     #[structopt(subcommand)]
     action: Action,
 }
@@ -111,8 +116,8 @@ impl Opt {
 
 impl From<RawOpt> for Opt {
     fn from(other: RawOpt) -> Self {
-        let RawOpt { action } = other;
-        Opt { action }
+        let RawOpt { action, log_debug } = other;
+        Opt { action, log_debug }
     }
 }
 

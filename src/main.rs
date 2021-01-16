@@ -43,11 +43,19 @@ lazy_static::lazy_static! {
 }
 
 fn main() {
-    pretty_env_logger::init();
+    let opts: opts::Opt = opts::Opt::from_env();
+
+    let log_level_filter = if opts.log_debug {
+        log::LevelFilter::Debug
+    } else {
+        log::LevelFilter::Off
+    };
+
+    pretty_env_logger::formatted_builder()
+        .filter(Some("eww"), log_level_filter)
+        .init();
 
     let result: Result<_> = try {
-        let opts: opts::Opt = opts::Opt::from_env();
-
         match opts.action {
             opts::Action::ClientOnly(action) => {
                 client::handle_client_only_action(action)?;

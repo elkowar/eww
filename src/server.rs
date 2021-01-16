@@ -89,6 +89,7 @@ fn init_async_part(config_file_path: PathBuf, scss_file_path: PathBuf, ui_send: 
                 tokio::spawn(async move {
                     // Wait for application exit event
                     let _ = crate::application_lifecycle::recv_exit().await;
+                    log::info!("Forward task received exit event");
                     // Then forward that to the application
                     let _ = ui_send.send(app::EwwCommand::KillServer);
                 })

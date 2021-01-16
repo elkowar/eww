@@ -11,7 +11,7 @@ use debug_stub_derive::*;
 use gdk::WindowExt;
 use gtk::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt};
 use itertools::Itertools;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use tokio::sync::mpsc::UnboundedSender;
 
 #[derive(Debug)]
@@ -135,24 +135,15 @@ impl App {
     }
 
     fn close_window(&mut self, window_name: &WindowName) -> Result<()> {
+        for unused_var in self.variables_only_used_in(&window_name) {
+            log::info!("stopping for {}", &unused_var);
+            self.script_var_handler.stop_for_variable(unused_var.clone());
+        }
+
         let window = self
             .windows
             .remove(window_name)
             .context(format!("No window with name '{}' is running.", window_name))?;
-
-        // Stop script-var handlers for variables that where only referenced by this window
-        // TODO somehow make this whole process less shit.
-        let currently_used_vars = self.get_currently_used_variables().cloned().collect::<HashSet<VarName>>();
-
-        for unused_var in self
-            .eww_state
-            .vars_referenced_in(window_name)
-            .into_iter()
-            .filter(|var| !currently_used_vars.contains(*var))
-        {
-            println!("stopping for {}", &unused_var);
-            self.script_var_handler.stop_for_variable(unused_var.clone());
-        }
 
         window.close();
         self.eww_state.clear_window_state(window_name);
@@ -172,10 +163,6 @@ impl App {
 
         log::info!("Opening window {}", window_name);
 
-        // remember which variables are used before opening the window, to then
-        // set up the necessary handlers for the newly used variables.
-        let currently_used_vars = self.get_currently_used_variables().cloned().collect::<HashSet<_>>();
-
         let mut window_def = self.eww_config.get_window(window_name)?.clone();
         window_def.geometry = window_def.geometry.override_if_given(anchor, pos, size);
 
@@ -191,25 +178,16 @@ impl App {
         let monitor_geometry = get_monitor_geometry(window_def.screen_number.unwrap_or_else(get_default_monitor_index));
         let eww_window = initialize_window(monitor_geometry, root_widget, window_def)?;
 
+        self.windows.insert(window_name.clone(), eww_window);
+
         // initialize script var handlers for variables that where not used before opening this window.
         // TODO somehow make this less shit
-        let newly_used_vars = self
-            .eww_state
-            .vars_referenced_in(window_name)
-            .into_iter()
-            .filter(|x| !currently_used_vars.contains(*x))
-            .collect_vec()
-            .clone();
-
-        // TODO all of the cloning above is highly ugly.... REEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-        for newly_used_var in newly_used_vars {
-            let value = self.eww_config.get_script_var(&newly_used_var);
-            if let Some(value) = value {
-                self.script_var_handler.add(value.clone());
-            }
+        for newly_used_var in self
+            .variables_only_used_in(&window_name)
+            .filter_map(|var| self.eww_config.get_script_var(&var))
+        {
+            self.script_var_handler.add(newly_used_var.clone());
         }
-
-        self.windows.insert(window_name.clone(), eww_window);
 
         Ok(())
     }
@@ -235,8 +213,32 @@ impl App {
         Ok(())
     }
 
+    /// Get all variable names that are currently referenced in any of the open windows.
     pub fn get_currently_used_variables(&self) -> impl Iterator<Item = &VarName> {
-        self.eww_state.referenced_vars()
+        self.windows
+            .keys()
+            .flat_map(move |window_name| self.eww_state.vars_referenced_in(window_name))
+    }
+
+    /// Get all variables mapped to a list of windows they are being used in.
+    pub fn currently_used_variables<'a>(&'a self) -> HashMap<&'a VarName, Vec<&'a WindowName>> {
+        let mut vars: HashMap<&'a VarName, Vec<_>> = HashMap::new();
+        for window_name in self.windows.keys() {
+            for var in self.eww_state.vars_referenced_in(window_name) {
+                vars.entry(var)
+                    .and_modify(|l| l.push(window_name))
+                    .or_insert_with(|| vec![window_name]);
+            }
+        }
+        vars
+    }
+
+    /// Get all variables that are only used in the given window.
+    pub fn variables_only_used_in<'a>(&'a self, window: &'a WindowName) -> impl Iterator<Item = &'a VarName> {
+        self.currently_used_variables()
+            .into_iter()
+            .filter(move |(_, wins)| wins.len() == 1 && wins.contains(&window))
+            .map(|(var, _)| var)
     }
 }
 
