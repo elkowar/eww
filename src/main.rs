@@ -72,8 +72,9 @@ fn main() {
                         }
                     }
                     Err(_) => {
-                        println!("Failed to connect to the eww daemon.");
-                        println!("Make sure to start the eww daemon process by running `eww daemon` first.");
+                        eprintln!("Failed to connect to the eww daemon.");
+                        eprintln!("Make sure to start the eww daemon process by running `eww daemon` first.");
+                        std::process::exit(1);
                     }
                 }
             }
