@@ -6,7 +6,7 @@ use tokio::{
     sync::mpsc::*,
 };
 
-pub async fn run_server(evt_send: UnboundedSender<app::EwwCommand>) -> Result<()> {
+pub async fn run_server(evt_send: UnboundedSender<app::DaemonCommand>) -> Result<()> {
     let listener = tokio::net::UnixListener::bind(&*crate::IPC_SOCKET_PATH)?;
     log::info!("IPC server initialized");
     crate::loop_select_exiting! {
@@ -25,21 +25,22 @@ pub async fn run_server(evt_send: UnboundedSender<app::EwwCommand>) -> Result<()
 }
 
 /// Handle a single IPC connection from start to end.
-async fn handle_connection(mut stream: tokio::net::UnixStream, evt_send: UnboundedSender<app::EwwCommand>) -> Result<()> {
+async fn handle_connection(mut stream: tokio::net::UnixStream, evt_send: UnboundedSender<app::DaemonCommand>) -> Result<()> {
     let (mut stream_read, mut stream_write) = stream.split();
 
     let action: opts::ActionWithServer = read_action_from_stream(&mut stream_read).await?;
 
     log::info!("received command from IPC: {:?}", &action);
 
-    let (command, maybe_response_recv) = action.into_eww_command();
+    let (command, maybe_response_recv) = action.into_daemon_command();
 
     evt_send.send(command)?;
 
     if let Some(mut response_recv) = maybe_response_recv {
         log::info!("Waiting for response for IPC client");
         if let Ok(Some(response)) = tokio::time::timeout(Duration::from_millis(100), response_recv.recv()).await {
-            let result = &stream_write.write_all(response.as_bytes()).await;
+            let response = bincode::serialize(&response)?;
+            let result = &stream_write.write_all(&response).await;
             crate::print_result_err!("sending text response to ipc client", &result);
         }
     }

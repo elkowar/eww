@@ -11,29 +11,59 @@ use debug_stub_derive::*;
 use gdk::WindowExt;
 use gtk::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt};
 use itertools::Itertools;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use tokio::sync::mpsc::UnboundedSender;
 
+/// Response that the app may send as a response to a event.
+/// This is used in `DaemonCommand`s that contain a response sender.
+#[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, derive_more::Display)]
+pub enum DaemonResponse {
+    Success(String),
+    Failure(String),
+}
+
+impl DaemonResponse {
+    pub fn is_success(&self) -> bool {
+        match self {
+            DaemonResponse::Success(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_failure(&self) -> bool {
+        !self.is_success()
+    }
+}
+
+pub type DaemonResponseSender = tokio::sync::mpsc::UnboundedSender<DaemonResponse>;
+pub type DaemonResponseReceiver = tokio::sync::mpsc::UnboundedReceiver<DaemonResponse>;
+
 #[derive(Debug)]
-pub enum EwwCommand {
+pub enum DaemonCommand {
     NoOp,
     UpdateVars(Vec<(VarName, PrimitiveValue)>),
     ReloadConfig(config::EwwConfig),
     ReloadCss(String),
-    OpenMany(Vec<WindowName>),
+    OpenMany {
+        windows: Vec<WindowName>,
+        sender: DaemonResponseSender,
+    },
     OpenWindow {
         window_name: WindowName,
         pos: Option<Coords>,
         size: Option<Coords>,
         anchor: Option<AnchorPoint>,
+        sender: DaemonResponseSender,
     },
     CloseWindow {
         window_name: WindowName,
+        sender: DaemonResponseSender,
     },
     KillServer,
     CloseAll,
-    PrintState(tokio::sync::mpsc::UnboundedSender<String>),
-    PrintDebug(tokio::sync::mpsc::UnboundedSender<String>),
+    PrintState(DaemonResponseSender),
+    PrintDebug(DaemonResponseSender),
+    PrintWindows(DaemonResponseSender),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -55,68 +85,91 @@ pub struct App {
     pub eww_config: config::EwwConfig,
     pub windows: HashMap<WindowName, EwwWindow>,
     pub css_provider: gtk::CssProvider,
-    pub app_evt_send: UnboundedSender<EwwCommand>,
+    pub app_evt_send: UnboundedSender<DaemonCommand>,
     #[debug_stub = "ScriptVarHandler(...)"]
     pub script_var_handler: ScriptVarHandlerHandle,
 }
 
 impl App {
-    /// Handle an EwwCommand event.
-    pub fn handle_command(&mut self, event: EwwCommand) {
+    /// Handle a DaemonCommand event.
+    pub fn handle_command(&mut self, event: DaemonCommand) {
         log::debug!("Handling event: {:?}", &event);
         let result: Result<_> = try {
             match event {
-                EwwCommand::NoOp => {}
-                EwwCommand::UpdateVars(mappings) => {
+                DaemonCommand::NoOp => {}
+                DaemonCommand::UpdateVars(mappings) => {
                     for (var_name, new_value) in mappings {
                         self.update_state(var_name, new_value)?;
                     }
                 }
-                EwwCommand::ReloadConfig(config) => {
+                DaemonCommand::ReloadConfig(config) => {
                     self.reload_all_windows(config)?;
                 }
-                EwwCommand::ReloadCss(css) => {
+                DaemonCommand::ReloadCss(css) => {
                     self.load_css(&css)?;
                 }
-                EwwCommand::KillServer => {
+                DaemonCommand::KillServer => {
                     log::info!("Received kill command, stopping server!");
                     self.stop_application();
                     let _ = crate::application_lifecycle::send_exit();
                 }
-                EwwCommand::CloseAll => {
+                DaemonCommand::CloseAll => {
                     log::info!("Received close command, closing all windows");
                     for (window_name, _window) in self.windows.clone() {
                         self.close_window(&window_name)?;
                     }
                 }
-                EwwCommand::OpenMany(windows) => {
-                    for window in windows {
-                        self.open_window(&window, None, None, None)?;
-                    }
+                DaemonCommand::OpenMany { windows, sender } => {
+                    let result = windows
+                        .iter()
+                        .map(|w| self.open_window(w, None, None, None))
+                        .collect::<Result<()>>();
+                    respond_with_error(sender, result)?;
                 }
-                EwwCommand::OpenWindow {
+                DaemonCommand::OpenWindow {
                     window_name,
                     pos,
                     size,
                     anchor,
+                    sender,
                 } => {
-                    self.open_window(&window_name, pos, size, anchor)?;
+                    let result = self.open_window(&window_name, pos, size, anchor);
+                    respond_with_error(sender, result)?;
                 }
-                EwwCommand::CloseWindow { window_name } => {
-                    self.close_window(&window_name)?;
+                DaemonCommand::CloseWindow { window_name, sender } => {
+                    let result = self.close_window(&window_name);
+                    respond_with_error(sender, result)?;
                 }
-                EwwCommand::PrintState(sender) => {
+                DaemonCommand::PrintState(sender) => {
                     let output = self
                         .eww_state
                         .get_variables()
                         .iter()
                         .map(|(key, value)| format!("{}: {}", key, value))
                         .join("\n");
-                    sender.send(output).context("sending response from main thread")?
+                    sender
+                        .send(DaemonResponse::Success(output))
+                        .context("sending response from main thread")?
                 }
-                EwwCommand::PrintDebug(sender) => {
+                DaemonCommand::PrintWindows(sender) => {
+                    let output = self
+                        .eww_config
+                        .get_windows()
+                        .keys()
+                        .map(|window_name| {
+                            let is_open = self.windows.contains_key(window_name);
+                            format!("{}{}", if is_open { "*" } else { "" }, window_name)
+                        })
+                        .join("\n");
+                    sender
+                        .send(DaemonResponse::Success(output))
+                        .context("sending response from main thread")?
+                }
+                DaemonCommand::PrintDebug(sender) => {
                     let output = format!("state: {:#?}\n\nconfig: {:#?}", &self.eww_state, &self.eww_config);
-                    sender.send(output).context("sending response from main thread")?
+                    sender
+                        .send(DaemonResponse::Success(output))
+                        .context("sending response from main thread")?
                 }
             }
         };
@@ -135,24 +188,15 @@ impl App {
     }
 
     fn close_window(&mut self, window_name: &WindowName) -> Result<()> {
+        for unused_var in self.variables_only_used_in(&window_name) {
+            log::info!("stopping for {}", &unused_var);
+            self.script_var_handler.stop_for_variable(unused_var.clone());
+        }
+
         let window = self
             .windows
             .remove(window_name)
             .context(format!("No window with name '{}' is running.", window_name))?;
-
-        // Stop script-var handlers for variables that where only referenced by this window
-        // TODO somehow make this whole process less shit.
-        let currently_used_vars = self.get_currently_used_variables().cloned().collect::<HashSet<VarName>>();
-
-        for unused_var in self
-            .eww_state
-            .vars_referenced_in(window_name)
-            .into_iter()
-            .filter(|var| !currently_used_vars.contains(*var))
-        {
-            println!("stopping for {}", &unused_var);
-            self.script_var_handler.stop_for_variable(unused_var.clone());
-        }
 
         window.close();
         self.eww_state.clear_window_state(window_name);
@@ -172,10 +216,6 @@ impl App {
 
         log::info!("Opening window {}", window_name);
 
-        // remember which variables are used before opening the window, to then
-        // set up the necessary handlers for the newly used variables.
-        let currently_used_vars = self.get_currently_used_variables().cloned().collect::<HashSet<_>>();
-
         let mut window_def = self.eww_config.get_window(window_name)?.clone();
         window_def.geometry = window_def.geometry.override_if_given(anchor, pos, size);
 
@@ -191,25 +231,16 @@ impl App {
         let monitor_geometry = get_monitor_geometry(window_def.screen_number.unwrap_or_else(get_default_monitor_index));
         let eww_window = initialize_window(monitor_geometry, root_widget, window_def)?;
 
+        self.windows.insert(window_name.clone(), eww_window);
+
         // initialize script var handlers for variables that where not used before opening this window.
         // TODO somehow make this less shit
-        let newly_used_vars = self
-            .eww_state
-            .vars_referenced_in(window_name)
-            .into_iter()
-            .filter(|x| !currently_used_vars.contains(*x))
-            .collect_vec()
-            .clone();
-
-        // TODO all of the cloning above is highly ugly.... REEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-        for newly_used_var in newly_used_vars {
-            let value = self.eww_config.get_script_var(&newly_used_var);
-            if let Some(value) = value {
-                self.script_var_handler.add(value.clone());
-            }
+        for newly_used_var in self
+            .variables_only_used_in(&window_name)
+            .filter_map(|var| self.eww_config.get_script_var(&var))
+        {
+            self.script_var_handler.add(newly_used_var.clone());
         }
-
-        self.windows.insert(window_name.clone(), eww_window);
 
         Ok(())
     }
@@ -235,8 +266,32 @@ impl App {
         Ok(())
     }
 
+    /// Get all variable names that are currently referenced in any of the open windows.
     pub fn get_currently_used_variables(&self) -> impl Iterator<Item = &VarName> {
-        self.eww_state.referenced_vars()
+        self.windows
+            .keys()
+            .flat_map(move |window_name| self.eww_state.vars_referenced_in(window_name))
+    }
+
+    /// Get all variables mapped to a list of windows they are being used in.
+    pub fn currently_used_variables<'a>(&'a self) -> HashMap<&'a VarName, Vec<&'a WindowName>> {
+        let mut vars: HashMap<&'a VarName, Vec<_>> = HashMap::new();
+        for window_name in self.windows.keys() {
+            for var in self.eww_state.vars_referenced_in(window_name) {
+                vars.entry(var)
+                    .and_modify(|l| l.push(window_name))
+                    .or_insert_with(|| vec![window_name]);
+            }
+        }
+        vars
+    }
+
+    /// Get all variables that are only used in the given window.
+    pub fn variables_only_used_in<'a>(&'a self, window: &'a WindowName) -> impl Iterator<Item = &'a VarName> {
+        self.currently_used_variables()
+            .into_iter()
+            .filter(move |(_, wins)| wins.len() == 1 && wins.contains(&window))
+            .map(|(var, _)| var)
     }
 }
 
@@ -326,4 +381,13 @@ fn get_monitor_geometry(n: i32) -> gdk::Rectangle {
         .expect("could not get default display")
         .get_default_screen()
         .get_monitor_geometry(n)
+}
+
+/// In case of an Err, send the error message to a sender.
+fn respond_with_error<T>(sender: DaemonResponseSender, result: Result<T>) -> Result<()> {
+    match result {
+        Ok(_) => sender.send(DaemonResponse::Success(String::new())),
+        Err(e) => sender.send(DaemonResponse::Failure(format!("{:?}", e))),
+    }
+    .context("sending response from main thread")
 }

@@ -43,11 +43,19 @@ lazy_static::lazy_static! {
 }
 
 fn main() {
-    pretty_env_logger::init();
+    let opts: opts::Opt = opts::Opt::from_env();
+
+    let log_level_filter = if opts.log_debug {
+        log::LevelFilter::Debug
+    } else {
+        log::LevelFilter::Off
+    };
+
+    pretty_env_logger::formatted_builder()
+        .filter(Some("eww"), log_level_filter)
+        .init();
 
     let result: Result<_> = try {
-        let opts: opts::Opt = opts::Opt::from_env();
-
         match opts.action {
             opts::Action::ClientOnly(action) => {
                 client::handle_client_only_action(action)?;
@@ -61,11 +69,15 @@ fn main() {
                             client::do_server_call(stream, action).context("Error while forwarding command to server")?;
                         if let Some(response) = response {
                             println!("{}", response);
+                            if response.is_failure() {
+                                std::process::exit(1);
+                            }
                         }
                     }
                     Err(_) => {
-                        println!("Failed to connect to the eww daemon.");
-                        println!("Make sure to start the eww daemon process by running `eww daemon` first.");
+                        eprintln!("Failed to connect to the eww daemon.");
+                        eprintln!("Make sure to start the eww daemon process by running `eww daemon` first.");
+                        std::process::exit(1);
                     }
                 }
             }

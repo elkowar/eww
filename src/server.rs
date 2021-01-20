@@ -67,7 +67,7 @@ pub fn initialize_server() -> Result<()> {
     Ok(())
 }
 
-fn init_async_part(config_file_path: PathBuf, scss_file_path: PathBuf, ui_send: UnboundedSender<app::EwwCommand>) {
+fn init_async_part(config_file_path: PathBuf, scss_file_path: PathBuf, ui_send: UnboundedSender<app::DaemonCommand>) {
     std::thread::spawn(move || {
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
@@ -89,8 +89,9 @@ fn init_async_part(config_file_path: PathBuf, scss_file_path: PathBuf, ui_send: 
                 tokio::spawn(async move {
                     // Wait for application exit event
                     let _ = crate::application_lifecycle::recv_exit().await;
+                    log::info!("Forward task received exit event");
                     // Then forward that to the application
-                    let _ = ui_send.send(app::EwwCommand::KillServer);
+                    let _ = ui_send.send(app::DaemonCommand::KillServer);
                 })
             };
 
@@ -107,7 +108,7 @@ fn init_async_part(config_file_path: PathBuf, scss_file_path: PathBuf, ui_send: 
 async fn run_filewatch<P: AsRef<Path>>(
     config_file_path: P,
     scss_file_path: P,
-    evt_send: UnboundedSender<app::EwwCommand>,
+    evt_send: UnboundedSender<app::DaemonCommand>,
 ) -> Result<()> {
     let mut inotify = inotify::Inotify::init().context("Failed to initialize inotify")?;
     let config_file_descriptor = inotify
@@ -126,11 +127,11 @@ async fn run_filewatch<P: AsRef<Path>>(
                 if event.wd == config_file_descriptor {
                         log::info!("Reloading eww configuration");
                         let new_eww_config = config::EwwConfig::read_from_file(config_file_path.as_ref())?;
-                        evt_send.send(app::EwwCommand::ReloadConfig(new_eww_config))?;
+                        evt_send.send(app::DaemonCommand::ReloadConfig(new_eww_config))?;
                 } else if event.wd == scss_file_descriptor {
                         log::info!("reloading eww css file");
                         let eww_css = crate::util::parse_scss_from_file(scss_file_path.as_ref())?;
-                        evt_send.send(app::EwwCommand::ReloadCss(eww_css))?;
+                        evt_send.send(app::DaemonCommand::ReloadCss(eww_css))?;
                 } else {
                     eprintln!("Got inotify event for unknown thing: {:?}", event);
                 }

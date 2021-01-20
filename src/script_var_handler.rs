@@ -5,7 +5,7 @@ use crate::{
     value::{PrimitiveValue, VarName},
 };
 use anyhow::*;
-use app::EwwCommand;
+use app::DaemonCommand;
 
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
@@ -15,7 +15,7 @@ use tokio_util::sync::CancellationToken;
 
 /// Initialize the script var handler, and return a handle to that handler, which can be used to control
 /// the script var execution.
-pub fn init(evt_send: UnboundedSender<EwwCommand>) -> ScriptVarHandlerHandle {
+pub fn init(evt_send: UnboundedSender<DaemonCommand>) -> ScriptVarHandlerHandle {
     let (msg_send, mut msg_recv) = tokio::sync::mpsc::unbounded_channel();
     let handle = ScriptVarHandlerHandle { msg_send };
     std::thread::spawn(move || {
@@ -116,12 +116,12 @@ impl ScriptVarHandler {
 }
 
 struct PollVarHandler {
-    evt_send: UnboundedSender<EwwCommand>,
+    evt_send: UnboundedSender<DaemonCommand>,
     poll_handles: HashMap<VarName, CancellationToken>,
 }
 
 impl PollVarHandler {
-    fn new(evt_send: UnboundedSender<EwwCommand>) -> Result<Self> {
+    fn new(evt_send: UnboundedSender<DaemonCommand>) -> Result<Self> {
         let handler = PollVarHandler {
             evt_send,
             poll_handles: HashMap::new(),
@@ -139,7 +139,7 @@ impl PollVarHandler {
                 _ = cancellation_token.cancelled() => break,
                 _ = tokio::time::sleep(var.interval) => {
                     let result: Result<_> = try {
-                        evt_send.send(app::EwwCommand::UpdateVars(vec![(var.name.clone(), var.run_once()?)]))?;
+                        evt_send.send(app::DaemonCommand::UpdateVars(vec![(var.name.clone(), var.run_once()?)]))?;
                     };
                     crate::print_result_err!("while running script-var command", &result);
                 }
@@ -166,12 +166,12 @@ impl Drop for PollVarHandler {
 }
 
 struct TailVarHandler {
-    evt_send: UnboundedSender<EwwCommand>,
+    evt_send: UnboundedSender<DaemonCommand>,
     tail_process_handles: HashMap<VarName, CancellationToken>,
 }
 
 impl TailVarHandler {
-    fn new(evt_send: UnboundedSender<EwwCommand>) -> Result<Self> {
+    fn new(evt_send: UnboundedSender<DaemonCommand>) -> Result<Self> {
         let handler = TailVarHandler {
             evt_send,
             tail_process_handles: HashMap::new(),
@@ -199,7 +199,7 @@ impl TailVarHandler {
                     _ = cancellation_token.cancelled() => break,
                     Ok(Some(line)) = stdout_lines.next_line() => {
                         let new_value = PrimitiveValue::from_string(line.to_owned());
-                        evt_send.send(EwwCommand::UpdateVars(vec![(var.name.to_owned(), new_value)]))?;
+                        evt_send.send(DaemonCommand::UpdateVars(vec![(var.name.to_owned(), new_value)]))?;
                     }
                     else => break,
                 }

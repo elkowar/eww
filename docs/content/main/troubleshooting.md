@@ -28,10 +28,10 @@ If none of these fixed your problem [open an issue on the GitHub repo.](https://
 
 ### General issues
 
-You should try the following things, before opening a issue or doing more specialized troubleshooting: 
+You should try the following things, before opening a issue or doing more specialized troubleshooting:
 
-- Try killing the eww daemon with `eww kill` and run again
-- If you're running with `-d`, run without `-d` to see output, or run `eww logs` to see the logs written by eww. These logs are stored in `~/.cache/eww.log`.
+- Kill the eww daemon by running `eww kill` and restart it with `eww --debug daemon` to get additional log output.
+- Now you can take a look at the logs by running `eww logs`.
 - use `eww state`, to see the state of all variables
 - use `eww debug`, to see the xml of your widget and other information
 - update to the latest eww version
@@ -42,4 +42,4 @@ If you're experiencing issues printing variables, try to print them in quotes, s
 onchange="notify-send '{}'"
 ```
 
-Remember if your issue isn't listed here,  [open an issue on the GitHub repo](https://github.com/elkowar/eww/issues).
+Remember, if your issue isn't listed here,  [open an issue on the GitHub repo](https://github.com/elkowar/eww/issues).

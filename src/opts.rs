@@ -8,14 +8,19 @@ use crate::{
     value::{Coords, PrimitiveValue, VarName},
 };
 
+/// Struct that gets generated from `RawOpt`.
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Opt {
+    pub log_debug: bool,
     pub action: Action,
 }
 
-/// Helper struct that will be normalized into instance of [Opt]
 #[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
 struct RawOpt {
+    /// Write out debug logs. (To read the logs, run `eww logs`).
+    #[structopt(long = "debug")]
+    log_debug: bool,
+
     #[structopt(subcommand)]
     action: Action,
 }
@@ -94,6 +99,10 @@ pub enum ActionWithServer {
     #[structopt(name = "state")]
     ShowState,
 
+    /// Print the names of all configured windows. Windows with a * in front of them are currently opened.
+    #[structopt(name = "windows")]
+    ShowWindows,
+
     /// Print out the widget structure as seen by eww.
     ///
     /// This may be useful if you are facing issues with how eww is interpreting your configuration,
@@ -111,8 +120,8 @@ impl Opt {
 
 impl From<RawOpt> for Opt {
     fn from(other: RawOpt) -> Self {
-        let RawOpt { action } = other;
-        Opt { action }
+        let RawOpt { action, log_debug } = other;
+        Opt { action, log_debug }
     }
 }
 
@@ -124,38 +133,49 @@ fn parse_var_update_arg(s: &str) -> Result<(VarName, PrimitiveValue)> {
 }
 
 impl ActionWithServer {
-    pub fn into_eww_command(self) -> (app::EwwCommand, Option<tokio::sync::mpsc::UnboundedReceiver<String>>) {
+    pub fn into_daemon_command(self) -> (app::DaemonCommand, Option<app::DaemonResponseReceiver>) {
         let command = match self {
+            ActionWithServer::Update { mappings } => app::DaemonCommand::UpdateVars(mappings.into_iter().collect()),
+
+            ActionWithServer::KillServer => app::DaemonCommand::KillServer,
+            ActionWithServer::CloseAll => app::DaemonCommand::CloseAll,
             ActionWithServer::Ping => {
                 let (send, recv) = tokio::sync::mpsc::unbounded_channel();
-                let _ = send.send("pong".to_owned());
-                return (app::EwwCommand::NoOp, Some(recv));
+                let _ = send.send(app::DaemonResponse::Success("pong".to_owned()));
+                return (app::DaemonCommand::NoOp, Some(recv));
             }
-            ActionWithServer::Update { mappings } => app::EwwCommand::UpdateVars(mappings.into_iter().collect()),
-            ActionWithServer::OpenMany { windows } => app::EwwCommand::OpenMany(windows),
+            ActionWithServer::OpenMany { windows } => {
+                return with_response_channel(|sender| app::DaemonCommand::OpenMany { windows, sender });
+            }
             ActionWithServer::OpenWindow {
                 window_name,
                 pos,
                 size,
                 anchor,
-            } => app::EwwCommand::OpenWindow {
-                window_name,
-                pos,
-                size,
-                anchor,
-            },
-            ActionWithServer::CloseWindow { window_name } => app::EwwCommand::CloseWindow { window_name },
-            ActionWithServer::KillServer => app::EwwCommand::KillServer,
-            ActionWithServer::CloseAll => app::EwwCommand::CloseAll,
-            ActionWithServer::ShowState => {
-                let (send, recv) = tokio::sync::mpsc::unbounded_channel();
-                return (app::EwwCommand::PrintState(send), Some(recv));
+            } => {
+                return with_response_channel(|sender| app::DaemonCommand::OpenWindow {
+                    window_name,
+                    pos,
+                    size,
+                    anchor,
+                    sender,
+                })
             }
-            ActionWithServer::ShowDebug => {
-                let (send, recv) = tokio::sync::mpsc::unbounded_channel();
-                return (app::EwwCommand::PrintDebug(send), Some(recv));
+            ActionWithServer::CloseWindow { window_name } => {
+                return with_response_channel(|sender| app::DaemonCommand::CloseWindow { window_name, sender });
             }
+            ActionWithServer::ShowWindows => return with_response_channel(app::DaemonCommand::PrintWindows),
+            ActionWithServer::ShowState => return with_response_channel(app::DaemonCommand::PrintState),
+            ActionWithServer::ShowDebug => return with_response_channel(app::DaemonCommand::PrintDebug),
         };
         (command, None)
     }
+}
+
+fn with_response_channel<T, O, F>(f: F) -> (O, Option<tokio::sync::mpsc::UnboundedReceiver<T>>)
+where
+    F: FnOnce(tokio::sync::mpsc::UnboundedSender<T>) -> O,
+{
+    let (sender, recv) = tokio::sync::mpsc::unbounded_channel();
+    (f(sender), Some(recv))
 }
