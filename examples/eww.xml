@@ -1,0 +1,89 @@
+<!-- The main eww configuration file. This is where your widgets and how they appear on the screen and what they
+contain are defined. -->
+
+<eww>
+  <definitions>
+    <!-- This is the place where you structure your widgets, align them and stuff. -->
+
+    <def name="bar"> <!-- Starts the definition of a widget named main -->
+      <box orientation="h" hexpand="true">
+        <box orientation="h" class="workspaces" space-evenly="true" halign="start"> <!-- Your workspaces.-->
+          <button onclick="wmctrl -s 0">1</button>  
+          <button onclick="wmctrl -s 1">2</button>  
+          <button onclick="wmctrl -s 2">3</button>  
+          <button onclick="wmctrl -s 3">4</button>  
+          <button onclick="wmctrl -s 4">5</button>  
+          <button onclick="wmctrl -s 5">6</button>  
+          <button onclick="wmctrl -s 6">7</button>  
+          <button onclick="wmctrl -s 7">8</button>  
+          <button onclick="wmctrl -s 8">9</button>  
+        </box>
+
+        <box orientation="h" class="music" halign="center" space-evenly="false">
+          <!-- An image. We won't be using it, but it might be handy if you ever need it. -->
+          <!-- <image path="/home/user/.config/eww/icons/music.svg"/> -->
+
+             {{music}} <!--This is how you use variables.-->
+        </box>
+
+        <box class="sidestuff" orientation="h" space-evenly="false" halign="end">
+          <!--A basic volume slider-->
+
+          <box orientation="h" class="slider-vol" space-evenly="false">
+            <box class="label-vol"></box>
+            <scale min="0" max="101" value="{{volume}}" onchange="amixer -D pulse sset Master {}%"/> 
+          </box>
+
+          <!--A basic RAM slider-->
+          <box orientation="h" class="slider-ram" space-evenly="false">
+            <box class="label-ram"></box>
+            <scale min="0" active="false" max="101" value="{{ram-used}}"/>
+          </box>
+
+          <!--Time-->
+          <box class="time">{{hour}}:{{min}} {{month}} {{number_day}}, {{year_full}}</box>
+        </box>
+      </box>
+    </def>
+  </definitions>
+
+  <variables>
+
+	  <!-- Music vars -->
+    <!-- These are your variables. Like they say, they run a script, and then output that to the variable. In
+    the following var, we get music info from playerctl. -->
+	 
+    <script-var name="music" interval="5s">playerctl metadata --format '{{ artist }} - {{ title }}'</script-var>
+
+
+    <!--Volume var-->    
+    <!-- If your vars get too complex to write down here, you can use an external script and paste it's path here as well, as shown below.
+     -->
+
+    <script-var name="volume" interval="16ms">~/.config/eww/scripts/getvol</script-var>
+
+    <!--Date vars-->
+    <script-var name="number_day" interval="5h">date "+%d"</script-var>
+    <script-var name="month" interval="10h">date "+%b"</script-var>
+    <script-var name="min" interval="10s">date "+%M"</script-var>
+    <script-var name="hour" interval="1m">date "+%H"</script-var>
+    <script-var name="year_full" interval="15h">date "+%Y"</script-var>
+
+    <!--RAM var-->
+    <script-var name="ram-used" interval="1s">~/.config/eww/scripts/getram</script-var>
+
+    <!--Battery charge var-->
+    <script-var name="battery-remaining" interval="2m">cat /sys/class/power_supply/BAT0/capacity</script-var>
+
+  </variables>
+
+  <windows>
+    <!-- These are the windows -->
+    <window name="bar">
+      <geometry x="0%" y="0%" width="100%" height="4%"/> <!--Specifies geometry-->
+      <widget>
+        <bar/> <!--This is the def we created earlier-->
+      </widget>
+    </window>
+  </windows>
+</eww>
