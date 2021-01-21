@@ -14,6 +14,7 @@ homepage = "https://github.com/elkowar/eww"
 #gdk = { version = "", features = ["v3_16"] }
 
 gtk4 = { git = "https://github.com/gtk-rs/gtk4-rs.git" }
+gdk4-x11 = { git = "https://github.com/gtk-rs/gtk4-rs.git" }
 
 #gdk-pixbuf = "0.9"
 
@@ -46,6 +47,9 @@ futures-core = "0.3"
 futures-util = "0.3"
 inotify = "0.9"
 tokio-util = "0.6"
+
+x11rb = { version = "0.7", features = ["randr"] }
+
 
 [dev-dependencies]
 pretty_assertions = "0.6.1"

@@ -1,4 +1,4 @@
-use crate::{app, config, eww_state::*, ipc_server, script_var_handler, try_logging_errors, util};
+use crate::{app, config, display_backend, eww_state::*, ipc_server, script_var_handler, try_logging_errors, util};
 use anyhow::*;
 use futures_util::StreamExt;
 use gtk4 as gtk;
@@ -20,6 +20,9 @@ pub fn initialize_server(config_dir_override: Option<std::path::PathBuf>) -> Res
             std::process::exit(1);
         }
     });
+
+    let display_backend = display_backend::get_backend()?;
+
     let (ui_send, mut ui_recv) = tokio::sync::mpsc::unbounded_channel();
 
     let config_file_path = config_dir_override.unwrap_or(crate::CONFIG_DIR.join("eww.xml"));
@@ -61,6 +64,7 @@ pub fn initialize_server(config_dir_override: Option<std::path::PathBuf>) -> Res
         app_evt_send: ui_send.clone(),
         config_file_path,
         scss_file_path,
+        display_backend,
     };
 
     if let Ok(eww_css) = util::parse_scss_from_file(&app.scss_file_path) {

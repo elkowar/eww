@@ -5,15 +5,16 @@
 #![feature(try_blocks)]
 #![feature(str_split_once)]
 
-
 use anyhow::*;
 
+use display_backend::DisplayBackend;
 use std::{os::unix::net, path::PathBuf};
 
 pub mod app;
 pub mod application_lifecycle;
 pub mod client;
 pub mod config;
+pub mod display_backend;
 pub mod eww_state;
 pub mod ipc_server;
 pub mod opts;

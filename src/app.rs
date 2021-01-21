@@ -1,6 +1,7 @@
 use crate::{
     config,
     config::{window_definition::WindowName, AnchorPoint},
+    display_backend::{DisplayBackend, StackingStrategy},
     eww_state,
     script_var_handler::*,
     value::{AttrValue, Coords, NumWithUnit, PrimitiveValue, VarName},
@@ -80,7 +81,7 @@ impl EwwWindow {
 }
 
 #[derive(DebugStub)]
-pub struct App {
+pub struct App<B: DisplayBackend> {
     pub eww_state: eww_state::EwwState,
     pub eww_config: config::EwwConfig,
     pub open_windows: HashMap<WindowName, EwwWindow>,
@@ -93,9 +94,12 @@ pub struct App {
 
     pub config_file_path: PathBuf,
     pub scss_file_path: PathBuf,
+
+    #[debug_stub = "DisplayBackend"]
+    pub display_backend: B,
 }
 
-impl App {
+impl<B: DisplayBackend> App<B> {
     /// Handle a DaemonCommand event.
     pub fn handle_command(&mut self, event: DaemonCommand) {
         log::debug!("Handling event: {:?}", &event);
@@ -256,7 +260,7 @@ impl App {
         root_widget.get_style_context().add_class(&window_name.to_string());
 
         let monitor_geometry = get_monitor_geometry(window_def.screen_number.unwrap_or_else(get_default_monitor_index));
-        let eww_window = initialize_window(monitor_geometry, root_widget, window_def)?;
+        let eww_window = initialize_window(&self.display_backend, monitor_geometry, root_widget, window_def)?;
 
         self.open_windows.insert(window_name.clone(), eww_window);
 
@@ -322,29 +326,31 @@ impl App {
     }
 }
 
-fn initialize_window(
+fn initialize_window<B: DisplayBackend>(
+    backend: &B,
     monitor_geometry: gdk::Rectangle,
     root_widget: gtk4::Widget,
     mut window_def: config::EwwWindowDefinition,
 ) -> Result<EwwWindow> {
-    let actual_window_rect = window_def.geometry.get_window_rectangle(monitor_geometry);
+    // let actual_window_rect = window_def.geometry.get_window_rectangle(monitor_geometry);
 
     let window = gtk4::Window::new();
-    window.set_focusable(window_def.focusable);
+    window.set_child(Some(&root_widget));
+    window.show();
 
+    window.set_focusable(window_def.focusable);
     window.set_title(Some(&format!("Eww - {}", window_def.name)));
-    let wm_class_name = format!("eww-{}", window_def.name);
-    // window.set_wmclass(&wm_class_name, &wm_class_name);
-    if !window_def.focusable {
-        // window.set_type_hint(gdk::WindowTypeHint::Dock);
-    }
+
+    let win_id = backend.get_window_id_of(&window);
+    backend.set_window_title(win_id, format!("eww {}", window_def.name))?;
+    backend.set_application_id(win_id, "eww")?;
+
     // window.set_position(gtk4::WindowPosition::Center);
-    window.set_default_size(actual_window_rect.width, actual_window_rect.height);
-    window.set_size_request(actual_window_rect.width, actual_window_rect.height);
+    backend.resize_window(win_id, 700, 700)?;
+    window.set_default_size(700, 700);
+    window.set_size_request(700, 700);
     window.set_decorated(false);
     window.set_resizable(false);
-
-    window.set_child(Some(&root_widget));
 
     // Handle the fact that the gtk window will have a different size than specified,
     // as it is sized according to how much space it's contents require.
@@ -355,23 +361,22 @@ fn initialize_window(
         x: NumWithUnit::Pixels(gtk_window_width),
         y: NumWithUnit::Pixels(gtk_window_height),
     };
+
     let actual_window_rect = window_def.geometry.get_window_rectangle(monitor_geometry);
+    dbg!(&actual_window_rect);
     root_widget.show();
     window.set_visible(true);
 
-    window.show();
+    backend.set_as_dock(win_id)?;
+    backend.place_window_at(win_id, 500, 500)?;
+    backend.resize_window(win_id, 700, 700)?;
 
-    // let gdk_window = window.get_window().context("couldn't get gdk window from gtk window")?;
-    // gdk_window.set_override_redirect(!window_def.focusable);
-    // gdk_window.move_(actual_window_rect.x, actual_window_rect.y);
+    let stacking = match window_def.stacking {
+        config::WindowStacking::Foreground => StackingStrategy::AlwaysOnTop,
+        config::WindowStacking::Background => StackingStrategy::AlwaysOnBottom,
+    };
 
-    // if window_def.stacking == WindowStacking::Foreground {
-    // gdk_window.raise();
-    // window.set_keep_above(true);
-    //} else {
-    // gdk_window.lower();
-    // window.set_keep_below(true);
-    //}
+    backend.set_stacking_strategy(win_id, stacking)?;
 
     Ok(EwwWindow {
         name: window_def.name.clone(),
