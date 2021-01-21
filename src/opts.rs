@@ -87,6 +87,10 @@ pub enum ActionWithServer {
     #[structopt(name = "close")]
     CloseWindow { window_name: WindowName },
 
+    /// Reload the configuration
+    #[structopt(name = "reload")]
+    Reload,
+
     /// kill the eww daemon
     #[structopt(name = "kill")]
     KillServer,
@@ -164,6 +168,7 @@ impl ActionWithServer {
             ActionWithServer::CloseWindow { window_name } => {
                 return with_response_channel(|sender| app::DaemonCommand::CloseWindow { window_name, sender });
             }
+            ActionWithServer::Reload => return with_response_channel(app::DaemonCommand::ReloadConfigAndCss),
             ActionWithServer::ShowWindows => return with_response_channel(app::DaemonCommand::PrintWindows),
             ActionWithServer::ShowState => return with_response_channel(app::DaemonCommand::PrintState),
             ActionWithServer::ShowDebug => return with_response_channel(app::DaemonCommand::PrintDebug),
