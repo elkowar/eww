@@ -39,11 +39,24 @@ pub fn initialize_server(config_dir_override: Option<std::path::PathBuf>) -> Res
     log::info!("Initializing script var handler");
     let script_var_handler = script_var_handler::init(ui_send.clone());
 
+    let css_provider = gtk::CssProvider::new();
+    let _handler_id = css_provider.connect_parsing_error(|_, section, err| {
+        eprintln!(
+            "CSS error in {}:\n{:?}",
+            section.get_file().map(|x| x.to_string()).unwrap_or("<css code>".to_string()),
+            err
+        );
+    });
+
+    if let Some(display) = gdk::Display::get_default() {
+        gtk::StyleContext::add_provider_for_display(&display, &css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
+    }
+
     let mut app = app::App {
         eww_state: EwwState::from_default_vars(eww_config.generate_initial_state()?),
         eww_config,
         open_windows: HashMap::new(),
-        css_provider: gtk::CssProvider::new(),
+        css_provider,
         script_var_handler,
         app_evt_send: ui_send.clone(),
         config_file_path,

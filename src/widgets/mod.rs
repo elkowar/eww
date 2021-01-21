@@ -135,8 +135,6 @@ fn build_builtin_gtk_widget(
     // run resolve functions for superclasses such as range, orientable, and widget
 
     if !widget.children.is_empty() {
-        // XXX containers
-        // resolve_container_attrs(&mut bargs, &gtk_widget);
         for child in &widget.children {
             let child_widget = widget_use_to_gtk_widget(widget_definitions, bargs.eww_state, window_name, local_env, child);
             let child_widget = child_widget.with_context(|| {
@@ -197,6 +195,7 @@ macro_rules! resolve_block {
                     $args.local_env,
                     attr_map,
                     {
+                        #[allow(unused)]
                         let $gtk_widget = $gtk_widget.clone();
                         move |attrs| {
                             $(

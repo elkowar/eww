@@ -50,23 +50,23 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
         })
     }
 
-    let on_scroll_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
-    let on_hover_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
+    let scroll_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
+    let scroll_controller = gtk::EventControllerScroll::new(gtk::EventControllerScrollFlags::VERTICAL);
+    gtk_widget.add_controller(&scroll_controller);
+
+    let motion_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
+    let motion_controller = gtk::EventControllerMotion::new();
+    gtk_widget.add_controller(&motion_controller);
 
     resolve_block!(bargs, gtk_widget, {
         // @prop class - css class name
         prop(class: as_string) {
-            let old_classes = gtk_widget.get_css_classes();
-            let old_classes = old_classes.iter().map(|x| x.as_str()).collect::<Vec<&str>>();
-            let new_classes = class.split(' ').collect::<Vec<_>>();
-            let (missing, new) = list_difference(&old_classes, &new_classes);
-            for class in missing {
-                gtk_widget.get_style_context().remove_class(class);
-            }
-            for class in new {
-                gtk_widget.get_style_context().add_class(class);
-            }
+            gtk_widget.set_css_classes(&class.split(' ').collect::<Vec<_>>())
         },
+        // @prop hexpand - Wether to expand horizontally
+        prop(hexpand: as_bool) { gtk_widget.set_hexpand(hexpand) },
+        // @prop vexpand - Wether to expand vertically
+        prop(vexpand: as_bool) { gtk_widget.set_vexpand(vexpand) },
         // @prop valign - how to align this vertically. possible values: $alignment
         prop(valign: as_string) { gtk_widget.set_valign(parse_align(&valign)?) },
         // @prop halign - how to align this horizontally. possible values: $alignment
@@ -83,54 +83,32 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
             if visible { gtk_widget.show(); } else { gtk_widget.hide(); }
         },
         // @prop style - inline css style applied to the widget
-        // XXX REEEEEEEEEEEEEEEEEEEEE
-        //prop(style: as_string) {
-            //// XXX WTF
-            ////gtk_widget.reset_style();
-            ////css_provider.load_from_data(format!("* {{ {} }}", style).as_bytes())?;
-            //gtk_widget.get_style_context().add_provider(&css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION)
-        //},
+        prop(style: as_string) {
+            css_provider.load_from_data(format!("* {{ {} }}", style).as_bytes());
+            gtk_widget.get_style_context().add_provider(&css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION)
+        },
         // @prop onscroll - event to execute when the user scrolls with the mouse over the widget
         prop(onscroll: as_string) {
-            // XXX
-            //gtk_widget.add_events(gdk::EventMask::SCROLL_MASK);
-            //gtk_widget.add_events(gdk::EventMask::SMOOTH_SCROLL_MASK);
-            let old_id = on_scroll_handler_id.replace(Some({
-                let controller = gtk::EventControllerScroll::new(gtk::EventControllerScrollFlags::all());
-                gtk_widget.add_controller(&controller);
-                controller.connect_scroll(move |_, _, y| {
-                    // XXX Account for left and right
-                    run_command(&onscroll, if y < 0f64 { "up" } else if y > 0f64 { "down" } else { "" });
-                    false
-                })
-            }));
-            old_id.map(|id| gtk_widget.disconnect(id));
+            let new_id = scroll_controller.connect_scroll(move |_, _, y| {
+                run_command(&onscroll, if y < 0f64 { "up" } else { "down" });
+                false
+            });
+            scroll_handler_id
+                .replace(Some(new_id))
+                .map(|id| scroll_controller.disconnect(id));
+
         },
         // @prop onhover - event to execute when the user hovers over the widget
         prop(onhover: as_string) {
-            //gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
-            let old_id = on_hover_handler_id.replace(Some({
-                let controller = gtk::EventControllerMotion::new();
-                gtk_widget.add_controller(&controller);
-                controller.connect_enter(move |_, x, y| {
-                    run_command(&onhover, format!("{} {}", x, y));
-                })
-            }));
-            old_id.map(|id| gtk_widget.disconnect(id));
+            let new_id = motion_controller.connect_enter(move |_, x, y| {
+                run_command(&onhover, format!("{} {}", x, y));
+            });
+            motion_handler_id
+                .replace(Some(new_id))
+                .map(|id| motion_controller.disconnect(id));
         }
     });
 }
-
-// XXX
-/// @widget !container
-// pub(super) fn resolve_container_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Container) {
-// resolve_block!(bargs, gtk_widget, {
-//// @prop vexpand - should this container expand vertically
-// prop(vexpand: as_bool = false) { gtk_widget.set_vexpand(vexpand) },
-//// @prop hexpand - should this container expand horizontally
-// prop(hexpand: as_bool = false) { gtk_widget.set_hexpand(hexpand) },
-//});
-//}
 
 /// @widget !range
 pub(super) fn resolve_range_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Range) {
@@ -146,14 +124,12 @@ pub(super) fn resolve_range_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Ran
         // @prop onchange - command executed once the value is changes. The placeholder `{}`, used in the command will be replaced by the new value.
         prop(onchange: as_string) {
             gtk_widget.set_sensitive(true);
-            // XXX
-            //gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
-            let old_id = on_change_handler_id.replace(Some(
-                gtk_widget.connect_value_changed(move |gtk_widget| {
-                    run_command(&onchange, gtk_widget.get_value());
-                })
-            ));
-            old_id.map(|id| gtk_widget.disconnect(id));
+            let new_id = gtk_widget.connect_value_changed(move |gtk_widget| {
+                run_command(&onchange, gtk_widget.get_value());
+            });
+            on_change_handler_id
+                .replace(Some(new_id))
+                .map(|id| gtk_widget.disconnect(id));
 
         }
     });
@@ -184,12 +160,10 @@ fn build_gtk_combo_box_text(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText
         },
         // @prop onchange - runs the code when a item was selected, replacing {} with the item as a string
         prop(onchange: as_string) {
-            let old_id = on_change_handler_id.replace(Some(
-                gtk_widget.connect_changed(move |gtk_widget| {
-                    run_command(&onchange, gtk_widget.get_active_text().unwrap_or("".into()));
-                })
-            ));
-            old_id.map(|id| gtk_widget.disconnect(id));
+            let new_id = gtk_widget.connect_changed(move |gtk_widget| {
+                run_command(&onchange, gtk_widget.get_active_text().unwrap_or("".into()));
+            });
+            on_change_handler_id.replace(Some(new_id)).map(|id| gtk_widget.disconnect(id));
         },
     });
     Ok(gtk_widget)
@@ -218,12 +192,10 @@ fn build_gtk_color_button(bargs: &mut BuilderArgs) -> Result<gtk::ColorButton> {
 
         // @prop onchange - runs the code when the color was selected
         prop(onchange: as_string) {
-            let old_id = on_change_handler_id.replace(Some(
-                gtk_widget.connect_color_set(move |gtk_widget| {
-                    run_command(&onchange, gtk_widget.get_rgba());
-                })
-            ));
-            old_id.map(|id| gtk_widget.disconnect(id));
+            let new_id = gtk_widget.connect_color_set(move |gtk_widget| {
+                run_command(&onchange, gtk_widget.get_rgba())
+            });
+            on_change_handler_id.replace(Some(new_id)).map(|id| gtk_widget.disconnect(id));
         }
     });
 
@@ -241,12 +213,10 @@ fn build_gtk_color_chooser(bargs: &mut BuilderArgs) -> Result<gtk::ColorChooserW
 
         // @prop onchange - runs the code when the color was selected
         prop(onchange: as_string) {
-            let old_id = on_change_handler_id.replace(Some(
-                gtk_widget.connect_color_activated(move |_a, gtk_widget| {
-                    run_command(&onchange, gtk_widget);
-                })
-            ));
-            old_id.map(|id| gtk_widget.disconnect(id));
+            let new_id = gtk_widget.connect_color_activated(move |_a, gtk_widget| {
+                run_command(&onchange, gtk_widget);
+            });
+            on_change_handler_id.replace(Some(new_id)).map(|id| gtk_widget.disconnect(id));
         }
     });
 
@@ -300,12 +270,10 @@ fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
 
         // @prop onchange - Command to run when the text changes. The placeholder `{}` will be replaced by the value
         prop(onchange: as_string) {
-            let old_id = on_change_handler_id.replace(Some(
-                gtk_widget.connect_changed(move |gtk_widget| {
-                    run_command(&onchange, gtk_widget.get_text().map(|x| x.to_string()).unwrap_or_default());
-                })
-            ));
-            old_id.map(|id| gtk_widget.disconnect(id));
+            let new_id = gtk_widget.connect_changed(move |gtk_widget| {
+                run_command(&onchange, gtk_widget.get_text().map(|x| x.to_string()).unwrap_or_default());
+            });
+            on_change_handler_id.replace(Some(new_id)).map(|id| gtk_widget.disconnect(id));
         }
     });
     Ok(gtk_widget)
@@ -319,12 +287,8 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
     resolve_block!(bargs, gtk_widget, {
         // @prop onclick - a command that get's run when the button is clicked
         prop(onclick: as_string) {
-            //XXX
-            //gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
-            let old_id = on_click_handler_id.replace(Some(
-                gtk_widget.connect_clicked(move |_| run_command(&onclick, ""))
-            ));
-            old_id.map(|id| gtk_widget.disconnect(id));
+            let new_id = gtk_widget.connect_clicked(move |_| run_command(&onclick, ""));
+            on_click_handler_id.replace(Some(new_id)).map(|id| gtk_widget.disconnect(id));
 
         }
     });
@@ -391,8 +355,7 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
 /// @desc A widget that allows you to render arbitrary XML.
 fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
     let gtk_widget = gtk::Box::new(gtk::Orientation::Vertical, 0);
-    // XXX
-    // gtk_widget.set_widget_name("literal");
+    gtk::WidgetExt::set_name(&gtk_widget, "literal");
 
     // TODO these clones here are dumdum
     let window_name = bargs.window_name.clone();
@@ -430,11 +393,6 @@ fn build_gtk_calendar(bargs: &mut BuilderArgs) -> Result<gtk::Calendar> {
         prop(month: as_f64) { gtk_widget.set_property_day(month as i32) },
         // @prop year - the selected year
         prop(year: as_f64) { gtk_widget.set_property_day(year as i32) },
-
-        // @prop show-details - show details
-        // XXX
-        //prop(show_details: as_bool) { gtk_widget.set_show_details(show_details) },
-
         // @prop show-heading - show heading line
         prop(show_heading: as_bool) { gtk_widget.set_show_heading(show_heading) },
         // @prop show-day-names - show names of days
@@ -443,15 +401,13 @@ fn build_gtk_calendar(bargs: &mut BuilderArgs) -> Result<gtk::Calendar> {
         prop(show_week_numbers: as_bool) { gtk_widget.set_show_week_numbers(show_week_numbers) },
         // @prop onclick - command to run when the user selects a date. The `{}` placeholder will be replaced by the selected date.
         prop(onclick: as_string) {
-            let old_id = on_click_handler_id.replace(Some(
-                gtk_widget.connect_day_selected(move |w| {
-                    run_command(
-                        &onclick,
-                        format!("{}.{}.{}", w.get_property_day(), w.get_property_month(), w.get_property_year())
-                    )
-                })
-            ));
-            old_id.map(|id| gtk_widget.disconnect(id));
+            let new_id = gtk_widget.connect_day_selected(move |w| {
+                run_command(
+                    &onclick,
+                    format!("{}.{}.{}", w.get_property_day(), w.get_property_month(), w.get_property_year())
+                )
+            });
+            on_click_handler_id.replace(Some(new_id)).map(|id| gtk_widget.disconnect(id));
         }
 
     });
@@ -502,6 +458,7 @@ fn connect_first_map<W: IsA<gtk::Widget>, F: Fn(&W) + 'static>(widget: &W, func:
 ///   elements that where in a but not in b,
 ///   elements that where in b but not in a
 /// ).
+#[allow(unused)]
 fn list_difference<'a, 'b, T: PartialEq>(a: &'a [T], b: &'b [T]) -> (Vec<&'a T>, Vec<&'b T>) {
     let mut missing = Vec::new();
     for elem in a {
@@ -538,3 +495,22 @@ fn widget_children<W: IsA<gtk::Widget>>(widget: &W) -> WidgetChildrenIter {
         current_child: widget.get_first_child(),
     }
 }
+
+//#[derive(Clone)]
+// struct UniqueSignalHandler<C: IsA<gtk::EventController>> {
+// handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>>,
+// controller: C,
+//}
+
+// impl<C: IsA<gtk::EventController>> UniqueSignalHandler<C> {
+// pub fn new(controller: C) -> Self {
+// UniqueSignalHandler {
+// controller,
+// handler_id: Rc::new(RefCell::new(None)),
+//}
+
+// pub fn set_handler<F: FnOnce(&C) -> glib::SignalHandlerId>(&self, set: F) {
+// let new_id = set(&self.controller);
+// if let Some(old_id) = self.handler_id.replace(Some(new_id)) {
+// self.controller.disconnect(old_id)
+//}
