@@ -1,6 +1,6 @@
 use crate::{
     config,
-    config::{window_definition::WindowName, AnchorPoint, WindowStacking},
+    config::{window_definition::WindowName, AnchorPoint},
     eww_state,
     script_var_handler::*,
     value::{AttrValue, Coords, NumWithUnit, PrimitiveValue, VarName},
@@ -8,8 +8,7 @@ use crate::{
 };
 use anyhow::*;
 use debug_stub_derive::*;
-use gdk::WindowExt;
-use gtk::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt};
+use gtk4::{gdk, GtkWindowExt, StyleContextExt, WidgetExt};
 use itertools::Itertools;
 use std::{collections::HashMap, path::PathBuf};
 use tokio::sync::mpsc::UnboundedSender;
@@ -71,7 +70,7 @@ pub enum DaemonCommand {
 pub struct EwwWindow {
     pub name: WindowName,
     pub definition: config::EwwWindowDefinition,
-    pub gtk_window: gtk::Window,
+    pub gtk_window: gtk4::Window,
 }
 
 impl EwwWindow {
@@ -85,9 +84,9 @@ pub struct App {
     pub eww_state: eww_state::EwwState,
     pub eww_config: config::EwwConfig,
     pub open_windows: HashMap<WindowName, EwwWindow>,
-    pub css_provider: gtk::CssProvider,
-
-    #[debug_stub = "ScriptVarHandler(...)"]
+    #[debug_stub = "Css Provider"]
+    pub css_provider: gtk4::CssProvider,
+    #[debug_stub = "AppEventSender"]
     pub app_evt_send: UnboundedSender<DaemonCommand>,
     #[debug_stub = "ScriptVarHandler(...)"]
     pub script_var_handler: ScriptVarHandlerHandle,
@@ -134,7 +133,7 @@ impl App {
                     self.load_config(config)?;
                 }
                 DaemonCommand::UpdateCss(css) => {
-                    self.load_css(&css)?;
+                    self.load_css(&css);
                 }
                 DaemonCommand::KillServer => {
                     log::info!("Received kill command, stopping server!");
@@ -177,7 +176,7 @@ impl App {
                         .join("\n");
                     sender
                         .send(DaemonResponse::Success(output))
-                        .context("sending response from main thread")?
+                        .context("Failed to send response from main thread")?
                 }
                 DaemonCommand::PrintWindows(sender) => {
                     let output = self
@@ -191,13 +190,13 @@ impl App {
                         .join("\n");
                     sender
                         .send(DaemonResponse::Success(output))
-                        .context("sending response from main thread")?
+                        .context("Failed to send response from main thread")?
                 }
                 DaemonCommand::PrintDebug(sender) => {
                     let output = format!("state: {:#?}\n\nconfig: {:#?}", &self.eww_state, &self.eww_config);
                     sender
                         .send(DaemonResponse::Success(output))
-                        .context("sending response from main thread")?
+                        .context("Failed to send response from main thread")?
                 }
             }
         };
@@ -208,7 +207,7 @@ impl App {
     fn stop_application(&mut self) {
         self.script_var_handler.stop_all();
         self.open_windows.drain().for_each(|(_, w)| w.close());
-        gtk::main_quit();
+        crate::server::glib_stop_main();
     }
 
     fn update_state(&mut self, fieldname: VarName, value: PrimitiveValue) -> Result<()> {
@@ -290,9 +289,9 @@ impl App {
         Ok(())
     }
 
-    pub fn load_css(&mut self, css: &str) -> Result<()> {
-        self.css_provider.load_from_data(css.as_bytes())?;
-        Ok(())
+    pub fn load_css(&mut self, css: &str) {
+        // XXX This may error but gtk doesn't tell us,...
+        self.css_provider.load_from_data(css.as_bytes());
     }
 
     /// Get all variable names that are currently referenced in any of the open windows.
@@ -326,58 +325,54 @@ impl App {
 
 fn initialize_window(
     monitor_geometry: gdk::Rectangle,
-    root_widget: gtk::Widget,
+    root_widget: gtk4::Widget,
     mut window_def: config::EwwWindowDefinition,
 ) -> Result<EwwWindow> {
     let actual_window_rect = window_def.geometry.get_window_rectangle(monitor_geometry);
 
-    let window = if window_def.focusable {
-        gtk::Window::new(gtk::WindowType::Toplevel)
-    } else {
-        gtk::Window::new(gtk::WindowType::Popup)
-    };
+    let window = gtk4::Window::new();
+    window.set_focusable(window_def.focusable);
 
-    window.set_title(&format!("Eww - {}", window_def.name));
+    window.set_title(Some(&format!("Eww - {}", window_def.name)));
     let wm_class_name = format!("eww-{}", window_def.name);
-    window.set_wmclass(&wm_class_name, &wm_class_name);
+    // window.set_wmclass(&wm_class_name, &wm_class_name);
     if !window_def.focusable {
-        window.set_type_hint(gdk::WindowTypeHint::Dock);
+        // window.set_type_hint(gdk::WindowTypeHint::Dock);
     }
-    window.set_position(gtk::WindowPosition::Center);
+    // window.set_position(gtk4::WindowPosition::Center);
     window.set_default_size(actual_window_rect.width, actual_window_rect.height);
     window.set_size_request(actual_window_rect.width, actual_window_rect.height);
     window.set_decorated(false);
     window.set_resizable(false);
 
-    // run on_screen_changed to set the visual correctly initially.
-    on_screen_changed(&window, None);
-    window.connect_screen_changed(on_screen_changed);
-
-    window.add(&root_widget);
+    window.set_child(Some(&root_widget));
 
     // Handle the fact that the gtk window will have a different size than specified,
     // as it is sized according to how much space it's contents require.
     // This is necessary to handle different anchors correctly in case the size was wrong.
-    let (gtk_window_width, gtk_window_height) = window.get_size();
+    // XXX this won't work
+    let (gtk_window_width, gtk_window_height) = window.get_default_size();
     window_def.geometry.size = Coords {
         x: NumWithUnit::Pixels(gtk_window_width),
         y: NumWithUnit::Pixels(gtk_window_height),
     };
     let actual_window_rect = window_def.geometry.get_window_rectangle(monitor_geometry);
+    root_widget.show();
+    window.set_visible(true);
 
-    window.show_all();
+    window.show();
 
-    let gdk_window = window.get_window().context("couldn't get gdk window from gtk window")?;
-    gdk_window.set_override_redirect(!window_def.focusable);
-    gdk_window.move_(actual_window_rect.x, actual_window_rect.y);
+    // let gdk_window = window.get_window().context("couldn't get gdk window from gtk window")?;
+    // gdk_window.set_override_redirect(!window_def.focusable);
+    // gdk_window.move_(actual_window_rect.x, actual_window_rect.y);
 
-    if window_def.stacking == WindowStacking::Foreground {
-        gdk_window.raise();
-        window.set_keep_above(true);
-    } else {
-        gdk_window.lower();
-        window.set_keep_below(true);
-    }
+    // if window_def.stacking == WindowStacking::Foreground {
+    // gdk_window.raise();
+    // window.set_keep_above(true);
+    //} else {
+    // gdk_window.lower();
+    // window.set_keep_below(true);
+    //}
 
     Ok(EwwWindow {
         name: window_def.name.clone(),
@@ -386,30 +381,26 @@ fn initialize_window(
     })
 }
 
-fn on_screen_changed(window: &gtk::Window, _old_screen: Option<&gdk::Screen>) {
-    let visual = window.get_screen().and_then(|screen| {
-        screen
-            .get_rgba_visual()
-            .filter(|_| screen.is_composited())
-            .or_else(|| screen.get_system_visual())
-    });
-    window.set_visual(visual.as_ref());
-}
-
 /// get the index of the default monitor
 fn get_default_monitor_index() -> i32 {
-    gdk::Display::get_default()
-        .expect("could not get default display")
-        .get_default_screen()
-        .get_primary_monitor()
+    // XXX This won't work
+    0
 }
 
 /// Get the monitor geometry of a given monitor number
 fn get_monitor_geometry(n: i32) -> gdk::Rectangle {
-    gdk::Display::get_default()
-        .expect("could not get default display")
-        .get_default_screen()
-        .get_monitor_geometry(n)
+    // gdk::Display::get_default()
+    //.expect("could not get default display")
+    //.get_monitors().unwrap().cast
+    //.get_monitor_geometry(n)
+
+    // XXX
+    gdk::Rectangle {
+        x: 0,
+        y: 0,
+        width: 500,
+        height: 500,
+    }
 }
 
 /// In case of an Err, send the error message to a sender.
@@ -418,5 +409,5 @@ fn respond_with_error<T>(sender: DaemonResponseSender, result: Result<T>) -> Res
         Ok(_) => sender.send(DaemonResponse::Success(String::new())),
         Err(e) => sender.send(DaemonResponse::Failure(format!("{:?}", e))),
     }
-    .context("sending response from main thread")
+    .context("Failed to send response from main thread")
 }

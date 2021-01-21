@@ -10,12 +10,12 @@ homepage = "https://github.com/elkowar/eww"
 
 
 [dependencies]
-gtk = { version = "0.9", features = [ "v3_16" ] }
-gdk = { version = "", features = ["v3_16"] }
-gio = { version = "", features = ["v2_44"] }
-glib = { version = "", features = ["v2_44"] }
+#gtk = { version = "0.9", features = [ "v3_16" ] }
+#gdk = { version = "", features = ["v3_16"] }
 
-gdk-pixbuf = "0.9"
+gtk4 = { git = "https://github.com/gtk-rs/gtk4-rs.git" }
+
+#gdk-pixbuf = "0.9"
 
 regex = "1"
 bincode = "1.3"

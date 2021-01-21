@@ -5,7 +5,8 @@ use crate::{
     value::{AttrName, AttrValue, VarName},
 };
 use anyhow::*;
-use gtk::prelude::*;
+use gtk4 as gtk;
+use gtk4::prelude::*;
 use itertools::Itertools;
 
 use std::{collections::HashMap, process::Command};
@@ -65,9 +66,9 @@ pub fn widget_use_to_gtk_widget(
         // widgets from the outer most to the most nested, we can resolve attributes at
         // every step. This way, any definition that is affected by changes in the
         // eww_state will be directly linked to the eww_state's value. Example:
-        // foo="{{in_eww_state}}"  => attr_in_child="{{foo}}"  =>
-        // attr_in_nested_child="{{attr_in_child}}" will be resolved step by step. This
-        // code will first resolve attr_in_child to directly be
+        // foo="{{in_eww_state}}"  => attr_in_child="{{foo}}"  => attr_in_nested_child="{{attr_in_child}}"
+        // will be resolved step by step.
+        // This code will first resolve attr_in_child to directly be
         // attr_in_child={{in_eww_state}}. then, in the widget_use_to_gtk_widget call of
         // that child element, attr_in_nested_child will again be resolved to point to
         // the value of attr_in_child, and thus: attr_in_nested_child="{{in_eww_state}}"
@@ -133,8 +134,9 @@ fn build_builtin_gtk_widget(
 
     // run resolve functions for superclasses such as range, orientable, and widget
 
-    if let Some(gtk_widget) = gtk_widget.dynamic_cast_ref::<gtk::Container>() {
-        resolve_container_attrs(&mut bargs, &gtk_widget);
+    if !widget.children.is_empty() {
+        // XXX containers
+        // resolve_container_attrs(&mut bargs, &gtk_widget);
         for child in &widget.children {
             let child_widget = widget_use_to_gtk_widget(widget_definitions, bargs.eww_state, window_name, local_env, child);
             let child_widget = child_widget.with_context(|| {
@@ -142,11 +144,10 @@ fn build_builtin_gtk_widget(
                     "{}error while building child '{:#?}' of '{}'",
                     widget.text_pos.map(|x| format!("{} |", x)).unwrap_or_default(),
                     &child,
-                    &gtk_widget.get_widget_name()
+                    &gtk_widget.get_name().unwrap_or("<unknown widget>".into()).to_string()
                 )
             })?;
-            gtk_widget.add(&child_widget);
-            child_widget.show();
+            child_widget.insert_after(&gtk_widget, gtk_widget.get_last_child().as_ref());
         }
     }
 
@@ -195,13 +196,18 @@ macro_rules! resolve_block {
                     $args.window_name,
                     $args.local_env,
                     attr_map,
-                    ::glib::clone!(@strong $gtk_widget => move |attrs| {
-                        $(
-                            let $attr_name = attrs.get( ::std::stringify!($attr_name) ).context("something went terribly wrong....")?.$typecast_func()?;
-                        )*
-                        $code
-                        Ok(())
-                    })
+                    {
+                        let $gtk_widget = $gtk_widget.clone();
+                        move |attrs| {
+                            $(
+                                let $attr_name = attrs.get(::std::stringify!($attr_name))
+                                    .context("something went terribly wrong....")?
+                                    .$typecast_func()?;
+                            )*
+                            $code
+                            Ok(())
+                        }
+                    }
                 );
             }
         })+

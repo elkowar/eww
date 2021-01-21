@@ -41,7 +41,7 @@ pub fn do_server_call(mut stream: UnixStream, action: opts::ActionWithServer) ->
 
     let mut buf = Vec::new();
     stream
-        .set_read_timeout(Some(std::time::Duration::from_millis(100)))
+        .set_read_timeout(Some(std::time::Duration::from_millis(1000)))
         .context("Failed to set read timeout")?;
     stream.read_to_end(&mut buf).context("Error reading response from server")?;
 
