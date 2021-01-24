@@ -133,7 +133,17 @@ fn init_async_part(config_file_path: PathBuf, scss_file_path: PathBuf, ui_send: 
     });
 }
 
+#[cfg(not(target_os = "linux"))]
+async fn run_filewatch<P: AsRef<Path>>(
+    config_file_path: P,
+    scss_file_path: P,
+    evt_send: UnboundedSender<app::DaemonCommand>,
+) -> Result<()> {
+    Ok(())
+}
+
 /// Watch configuration files for changes, sending reload events to the eww app when the files change.
+#[cfg(target_os = "linux")]
 async fn run_filewatch<P: AsRef<Path>>(
     config_file_path: P,
     scss_file_path: P,

@@ -8,13 +8,13 @@ license = "MIT"
 repository = "https://github.com/elkowar/eww"
 homepage = "https://github.com/elkowar/eww"
 
+[features]
+default = ["x11"]
+x11 = ["gdk4-x11", "x11rb"]
+wayland = []
 
 [dependencies]
-#gtk = { version = "0.9", features = [ "v3_16" ] }
-#gdk = { version = "", features = ["v3_16"] }
-
 gtk4 = { git = "https://github.com/gtk-rs/gtk4-rs.git", rev = "0f06879b6c4fb1870112d613e5837e8befea0d02"}
-gdk4-x11 = { git = "https://github.com/gtk-rs/gtk4-rs.git", rev = "0f06879b6c4fb1870112d613e5837e8befea0d02" }
 
 #gdk-pixbuf = "0.9"
 
@@ -45,11 +45,13 @@ tokio-stream = "0.1"
 async-stream = "0.3"
 futures-core = "0.3"
 futures-util = "0.3"
-inotify = "0.9"
 tokio-util = "0.6"
 
-x11rb = { version = "0.7", features = ["randr"] }
+gdk4-x11 = { git = "https://github.com/gtk-rs/gtk4-rs.git", rev = "0f06879b6c4fb1870112d613e5837e8befea0d02", optional = true }
+x11rb = { version = "0.7", features = ["randr"], optional = true }
 
+[target.'cfg(target_os="linux")'.dependencies]
+inotify = "0.9"
 
 [dev-dependencies]
 pretty_assertions = "0.6.1"

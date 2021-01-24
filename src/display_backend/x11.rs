@@ -150,34 +150,6 @@ impl DisplayBackend for X11Backend {
         Ok(())
     }
 
-    fn set_window_title<S: AsRef<str>>(&self, win: Self::WinId, id: S) -> Result<()> {
-        let bytes = id.as_ref().as_bytes();
-        self.conn
-            .change_property(
-                PropMode::Replace,
-                win,
-                self.atoms._NET_WM_NAME,
-                self.atoms.UTF8_STRING,
-                8,
-                bytes.len() as u32,
-                bytes,
-            )?
-            .check()?;
-        self.conn
-            .change_property(
-                PropMode::Replace,
-                win,
-                self.atoms.WM_NAME,
-                self.atoms.COMPOUND_TEXT,
-                8,
-                bytes.len() as u32,
-                bytes,
-            )?
-            .check()?;
-        self.conn.flush()?;
-        Ok(())
-    }
-
     fn set_application_id<S: AsRef<str>>(&self, win: Self::WinId, id: S) -> Result<()> {
         let bytes = {
             let mut bytes = id.as_ref().as_bytes().to_vec();

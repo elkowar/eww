@@ -1,8 +1,11 @@
 use crate::geometry::*;
 use anyhow::*;
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(feature = "x11")]
 pub mod x11;
+
+#[cfg(feature = "wayland")]
+pub mod wayland;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum StackingStrategy {
@@ -37,7 +40,6 @@ pub trait DisplayBackend {
     fn set_as_dock(&self, win: Self::WinId) -> Result<()>;
     fn set_unmanaged(&self, win: Self::WinId) -> Result<()>;
     fn set_application_id<S: AsRef<str>>(&self, win: Self::WinId, id: S) -> Result<()>;
-    fn set_window_title<S: AsRef<str>>(&self, win: Self::WinId, title: S) -> Result<()>;
     fn get_window_id_of(&self, window: &gtk4::Window) -> Self::WinId;
 
     fn get_monitor(&self, name: &str) -> Result<MonitorData> {
@@ -52,7 +54,11 @@ pub trait DisplayBackend {
 pub fn get_backend() -> Result<impl DisplayBackend> {
     unimplemented!()
 }
-#[cfg(not(target_os = "macos"))]
+#[cfg(feature = "x11")]
 pub fn get_backend() -> Result<impl DisplayBackend> {
     x11::X11Backend::new()
+}
+#[cfg(feature = "wayland")]
+pub fn get_backend() -> Result<impl DisplayBackend> {
+    wayland::WaylandBackend::new()
 }
