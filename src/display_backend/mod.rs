@@ -50,10 +50,6 @@ pub trait DisplayBackend {
     }
 }
 
-#[cfg(target_os = "macos")]
-pub fn get_backend() -> Result<impl DisplayBackend> {
-    unimplemented!()
-}
 #[cfg(feature = "x11")]
 pub fn get_backend() -> Result<impl DisplayBackend> {
     x11::X11Backend::new()
