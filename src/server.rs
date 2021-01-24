@@ -13,6 +13,15 @@ use tokio::sync::mpsc::*;
 pub fn initialize_server(config_dir_override: Option<std::path::PathBuf>) -> Result<()> {
     do_detach()?;
 
+    println!(
+        r#"
+
+┏━━━━━━━━━━━━━━━━━━━━━━━┓
+┃Initializing eww daemon┃
+┗━━━━━━━━━━━━━━━━━━━━━━━┛
+    "#
+    );
+
     simple_signal::set_handler(&[simple_signal::Signal::Int, simple_signal::Signal::Term], move |_| {
         println!("Shutting down eww daemon...");
         if let Err(e) = crate::application_lifecycle::send_exit() {

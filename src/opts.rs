@@ -28,7 +28,7 @@ struct RawOpt {
 #[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
 pub enum Action {
     /// Start the Eww daemon.
-    #[structopt(name = "daemon")]
+    #[structopt(name = "daemon", alias = "d")]
     Daemon {
         /// Custom Config Path
         #[structopt(short, long)]
@@ -64,7 +64,7 @@ pub enum ActionWithServer {
     },
 
     /// open a window
-    #[structopt(name = "open")]
+    #[structopt(name = "open", alias = "o")]
     OpenWindow {
         /// Name of the window you want to open.
         window_name: WindowName,
@@ -96,7 +96,7 @@ pub enum ActionWithServer {
     Reload,
 
     /// kill the eww daemon
-    #[structopt(name = "kill")]
+    #[structopt(name = "kill", alias = "k")]
     KillServer,
 
     /// Close all windows, without killing the daemon

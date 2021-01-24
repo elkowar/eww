@@ -411,7 +411,7 @@ dependencies = [
 [[package]]
 name = "gdk4"
 version = "0.1.0"
-source = "git+https://github.com/gtk-rs/gtk4-rs.git#0f06879b6c4fb1870112d613e5837e8befea0d02"
+source = "git+https://github.com/gtk-rs/gtk4-rs.git?rev=0f06879b6c4fb1870112d613e5837e8befea0d02#0f06879b6c4fb1870112d613e5837e8befea0d02"
 dependencies = [
  "bitflags",
  "cairo-rs",
@@ -426,7 +426,7 @@ dependencies = [
 [[package]]
 name = "gdk4-sys"
 version = "0.1.0"
-source = "git+https://github.com/gtk-rs/gtk4-rs.git#0f06879b6c4fb1870112d613e5837e8befea0d02"
+source = "git+https://github.com/gtk-rs/gtk4-rs.git?rev=0f06879b6c4fb1870112d613e5837e8befea0d02#0f06879b6c4fb1870112d613e5837e8befea0d02"
 dependencies = [
  "cairo-sys-rs",
  "gdk-pixbuf-sys",
@@ -441,7 +441,7 @@ dependencies = [
 [[package]]
 name = "gdk4-x11"
 version = "0.1.0"
-source = "git+https://github.com/gtk-rs/gtk4-rs.git#0f06879b6c4fb1870112d613e5837e8befea0d02"
+source = "git+https://github.com/gtk-rs/gtk4-rs.git?rev=0f06879b6c4fb1870112d613e5837e8befea0d02#0f06879b6c4fb1870112d613e5837e8befea0d02"
 dependencies = [
  "gdk4",
  "gdk4-x11-sys",
@@ -454,7 +454,7 @@ dependencies = [
 [[package]]
 name = "gdk4-x11-sys"
 version = "0.1.0"
-source = "git+https://github.com/gtk-rs/gtk4-rs.git#0f06879b6c4fb1870112d613e5837e8befea0d02"
+source = "git+https://github.com/gtk-rs/gtk4-rs.git?rev=0f06879b6c4fb1870112d613e5837e8befea0d02#0f06879b6c4fb1870112d613e5837e8befea0d02"
 dependencies = [
  "gdk4-sys",
  "glib-sys",
@@ -608,7 +608,7 @@ dependencies = [
 [[package]]
 name = "gsk4"
 version = "0.1.0"
-source = "git+https://github.com/gtk-rs/gtk4-rs.git#0f06879b6c4fb1870112d613e5837e8befea0d02"
+source = "git+https://github.com/gtk-rs/gtk4-rs.git?rev=0f06879b6c4fb1870112d613e5837e8befea0d02#0f06879b6c4fb1870112d613e5837e8befea0d02"
 dependencies = [
  "bitflags",
  "cairo-rs",
@@ -623,7 +623,7 @@ dependencies = [
 [[package]]
 name = "gsk4-sys"
 version = "0.1.0"
-source = "git+https://github.com/gtk-rs/gtk4-rs.git#0f06879b6c4fb1870112d613e5837e8befea0d02"
+source = "git+https://github.com/gtk-rs/gtk4-rs.git?rev=0f06879b6c4fb1870112d613e5837e8befea0d02#0f06879b6c4fb1870112d613e5837e8befea0d02"
 dependencies = [
  "cairo-sys-rs",
  "gdk4-sys",
@@ -638,7 +638,7 @@ dependencies = [
 [[package]]
 name = "gtk4"
 version = "0.1.0"
-source = "git+https://github.com/gtk-rs/gtk4-rs.git#0f06879b6c4fb1870112d613e5837e8befea0d02"
+source = "git+https://github.com/gtk-rs/gtk4-rs.git?rev=0f06879b6c4fb1870112d613e5837e8befea0d02#0f06879b6c4fb1870112d613e5837e8befea0d02"
 dependencies = [
  "bitflags",
  "cairo-rs",
@@ -660,7 +660,7 @@ dependencies = [
 [[package]]
 name = "gtk4-macros"
 version = "0.1.0"
-source = "git+https://github.com/gtk-rs/gtk4-rs.git#0f06879b6c4fb1870112d613e5837e8befea0d02"
+source = "git+https://github.com/gtk-rs/gtk4-rs.git?rev=0f06879b6c4fb1870112d613e5837e8befea0d02#0f06879b6c4fb1870112d613e5837e8befea0d02"
 dependencies = [
  "anyhow",
  "heck",
@@ -675,7 +675,7 @@ dependencies = [
 [[package]]
 name = "gtk4-sys"
 version = "0.1.0"
-source = "git+https://github.com/gtk-rs/gtk4-rs.git#0f06879b6c4fb1870112d613e5837e8befea0d02"
+source = "git+https://github.com/gtk-rs/gtk4-rs.git?rev=0f06879b6c4fb1870112d613e5837e8befea0d02#0f06879b6c4fb1870112d613e5837e8befea0d02"
 dependencies = [
  "cairo-sys-rs",
  "gdk-pixbuf-sys",

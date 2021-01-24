@@ -7,7 +7,6 @@
 
 use anyhow::*;
 
-use display_backend::DisplayBackend;
 use std::{os::unix::net, path::PathBuf};
 
 pub mod app;
@@ -16,6 +15,7 @@ pub mod client;
 pub mod config;
 pub mod display_backend;
 pub mod eww_state;
+pub mod geometry;
 pub mod ipc_server;
 pub mod opts;
 pub mod script_var_handler;
@@ -23,6 +23,8 @@ pub mod server;
 pub mod util;
 pub mod value;
 pub mod widgets;
+
+pub const CLIENT_RESPONSE_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(1000);
 
 lazy_static::lazy_static! {
     pub static ref IPC_SOCKET_PATH: std::path::PathBuf = std::env::var("XDG_RUNTIME_DIR")
@@ -39,6 +41,7 @@ lazy_static::lazy_static! {
         .map(PathBuf::from)
         .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap()).join(".cache"))
         .join("eww.log");
+
 }
 
 fn main() {

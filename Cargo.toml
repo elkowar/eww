@@ -13,8 +13,8 @@ homepage = "https://github.com/elkowar/eww"
 #gtk = { version = "0.9", features = [ "v3_16" ] }
 #gdk = { version = "", features = ["v3_16"] }
 
-gtk4 = { git = "https://github.com/gtk-rs/gtk4-rs.git" }
-gdk4-x11 = { git = "https://github.com/gtk-rs/gtk4-rs.git" }
+gtk4 = { git = "https://github.com/gtk-rs/gtk4-rs.git", rev = "0f06879b6c4fb1870112d613e5837e8befea0d02"}
+gdk4-x11 = { git = "https://github.com/gtk-rs/gtk4-rs.git", rev = "0f06879b6c4fb1870112d613e5837e8befea0d02" }
 
 #gdk-pixbuf = "0.9"
 

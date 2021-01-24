@@ -11,7 +11,7 @@ pub struct EwwWindowDefinition {
     pub name: WindowName,
     pub geometry: EwwWindowGeometry,
     pub stacking: WindowStacking,
-    pub screen_number: Option<i32>,
+    pub monitor_name: Option<String>,
     pub widget: WidgetUse,
     pub struts: Struts,
     pub focusable: bool,
@@ -21,7 +21,9 @@ impl EwwWindowDefinition {
     pub fn from_xml_element(xml: &XmlElement) -> Result<Self> {
         ensure_xml_tag_is!(xml, "window");
         let stacking: WindowStacking = xml.parse_optional_attr("stacking")?.unwrap_or_default();
-        let screen_number = xml.parse_optional_attr("screen")?;
+
+        // TODO maybe rename this to monitor?
+        let monitor_name = xml.parse_optional_attr("screen")?;
         let focusable = xml.parse_optional_attr("focusable")?;
 
         let struts = xml.child("struts").ok().map(Struts::from_xml_element).transpose()?;
@@ -34,7 +36,7 @@ impl EwwWindowDefinition {
             },
             widget: WidgetUse::from_xml_node(xml.child("widget")?.only_child()?)?,
             stacking,
-            screen_number,
+            monitor_name,
             focusable: focusable.unwrap_or(false),
             struts: struts.unwrap_or_default(),
         })

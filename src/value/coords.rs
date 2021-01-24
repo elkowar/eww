@@ -35,7 +35,7 @@ impl FromStr for NumWithUnit {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Display, Default)]
-#[display(fmt = "{}X{}", x, y)]
+#[display(fmt = "{}*{}", x, y)]
 pub struct Coords {
     pub x: NumWithUnit,
     pub y: NumWithUnit,
@@ -46,7 +46,7 @@ impl FromStr for Coords {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let (x, y) = s
-            .split_once(|x: char| x.to_ascii_lowercase() == 'x')
+            .split_once(|x: char| x.to_ascii_lowercase() == 'x' || x.to_ascii_lowercase() == '*')
             .ok_or_else(|| anyhow!("must be formatted like 200x500"))?;
         Coords::from_strs(x, y)
     }
@@ -59,6 +59,13 @@ impl fmt::Debug for Coords {
 }
 
 impl Coords {
+    pub fn from_pixels(x: i32, y: i32) -> Self {
+        Coords {
+            x: NumWithUnit::Pixels(x),
+            y: NumWithUnit::Pixels(y),
+        }
+    }
+
     /// parse a string for x and a string for y into a [`Coords`] object.
     pub fn from_strs(x: &str, y: &str) -> Result<Coords> {
         Ok(Coords {

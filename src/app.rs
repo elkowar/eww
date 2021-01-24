@@ -1,15 +1,16 @@
 use crate::{
     config,
     config::{window_definition::WindowName, AnchorPoint},
+    display_backend,
     display_backend::{DisplayBackend, StackingStrategy},
     eww_state,
     script_var_handler::*,
-    value::{AttrValue, Coords, NumWithUnit, PrimitiveValue, VarName},
+    value::{AttrValue, Coords, PrimitiveValue, VarName},
     widgets,
 };
 use anyhow::*;
 use debug_stub_derive::*;
-use gtk4::{gdk, GtkWindowExt, StyleContextExt, WidgetExt};
+use gtk4::{GtkWindowExt, StyleContextExt, WidgetExt};
 use itertools::Itertools;
 use std::{collections::HashMap, path::PathBuf};
 use tokio::sync::mpsc::UnboundedSender;
@@ -257,10 +258,11 @@ impl<B: DisplayBackend> App<B> {
             &maplit::hashmap! { "window_name".into() => AttrValue::from_primitive(window_name.to_string()) },
             &window_def.widget,
         )?;
+
         root_widget.get_style_context().add_class(&window_name.to_string());
 
-        let monitor_geometry = get_monitor_geometry(window_def.screen_number.unwrap_or_else(get_default_monitor_index));
-        let eww_window = initialize_window(&self.display_backend, monitor_geometry, root_widget, window_def)?;
+        let eww_window =
+            initialize_window(&self.display_backend, root_widget, window_def).context("Failed to initialize window")?;
 
         self.open_windows.insert(window_name.clone(), eww_window);
 
@@ -298,6 +300,7 @@ impl<B: DisplayBackend> App<B> {
     }
 
     /// Get all variable names that are currently referenced in any of the open windows.
+
     pub fn get_currently_used_variables(&self) -> impl Iterator<Item = &VarName> {
         self.open_windows
             .keys()
@@ -328,55 +331,61 @@ impl<B: DisplayBackend> App<B> {
 
 fn initialize_window<B: DisplayBackend>(
     backend: &B,
-    monitor_geometry: gdk::Rectangle,
     root_widget: gtk4::Widget,
-    mut window_def: config::EwwWindowDefinition,
+    window_def: config::EwwWindowDefinition,
 ) -> Result<EwwWindow> {
-    // let actual_window_rect = window_def.geometry.get_window_rectangle(monitor_geometry);
+    let monitor = get_monitor_for_window(backend, &window_def.monitor_name)?;
 
     let window = gtk4::Window::new();
     window.set_child(Some(&root_widget));
     window.show();
 
-    window.set_focusable(window_def.focusable);
-    window.set_title(Some(&format!("Eww - {}", window_def.name)));
-
     let win_id = backend.get_window_id_of(&window);
-    backend.set_window_title(win_id, format!("eww {}", window_def.name))?;
-    backend.set_application_id(win_id, "eww")?;
+    log::info!("Opened window with window id {:?}", win_id);
 
-    // window.set_position(gtk4::WindowPosition::Center);
-    backend.resize_window(win_id, 700, 700)?;
-    window.set_default_size(700, 700);
-    window.set_size_request(700, 700);
+    backend.set_application_id(win_id, "eww")?;
+    window.set_title(Some(&format!("Eww - {}", window_def.name)));
+    window.set_focusable(window_def.focusable);
     window.set_decorated(false);
     window.set_resizable(false);
 
     // Handle the fact that the gtk window will have a different size than specified,
     // as it is sized according to how much space it's contents require.
     // This is necessary to handle different anchors correctly in case the size was wrong.
-    // XXX this won't work
-    let (gtk_window_width, gtk_window_height) = window.get_default_size();
-    window_def.geometry.size = Coords {
-        x: NumWithUnit::Pixels(gtk_window_width),
-        y: NumWithUnit::Pixels(gtk_window_height),
+    let actual_window_geometry = {
+        let (gtk_window_width, gtk_window_height) = window.get_default_size();
+        let mut geometry = window_def.geometry.clone();
+        geometry.size = Coords::from_pixels(gtk_window_width, gtk_window_height);
+        geometry
     };
+    if !window_def.focusable {
+        backend.set_unmanaged(win_id)?;
+        backend.set_as_dock(win_id)?;
+    }
 
-    let actual_window_rect = window_def.geometry.get_window_rectangle(monitor_geometry);
-    dbg!(&actual_window_rect);
-    root_widget.show();
-    window.set_visible(true);
+    let window_rect_on_monitor = actual_window_geometry.get_window_rectangle_on(monitor);
 
-    backend.set_as_dock(win_id)?;
-    backend.place_window_at(win_id, 500, 500)?;
-    backend.resize_window(win_id, 700, 700)?;
+    backend
+        .place_window_at(win_id, window_rect_on_monitor.x, window_rect_on_monitor.y)
+        .with_context(|| format!("Failed to place window at {:?}", window_rect_on_monitor))?;
+    backend
+        .resize_window(
+            win_id,
+            window_rect_on_monitor.width as u32,
+            window_rect_on_monitor.height as u32,
+        )
+        .with_context(|| format!("Failed to resize window to {:?}", window_rect_on_monitor))?;
+
+    backend.map_window(win_id)?;
 
     let stacking = match window_def.stacking {
         config::WindowStacking::Foreground => StackingStrategy::AlwaysOnTop,
         config::WindowStacking::Background => StackingStrategy::AlwaysOnBottom,
     };
 
-    backend.set_stacking_strategy(win_id, stacking)?;
+    backend
+        .set_stacking_strategy(win_id, stacking)
+        .context("Failed to set stacking strategy")?;
 
     Ok(EwwWindow {
         name: window_def.name.clone(),
@@ -385,26 +394,13 @@ fn initialize_window<B: DisplayBackend>(
     })
 }
 
-/// get the index of the default monitor
-fn get_default_monitor_index() -> i32 {
-    // XXX This won't work
-    0
-}
-
-/// Get the monitor geometry of a given monitor number
-fn get_monitor_geometry(n: i32) -> gdk::Rectangle {
-    // gdk::Display::get_default()
-    //.expect("could not get default display")
-    //.get_monitors().unwrap().cast
-    //.get_monitor_geometry(n)
-
-    // XXX
-    gdk::Rectangle {
-        x: 0,
-        y: 0,
-        width: 500,
-        height: 500,
-    }
+/// Get the monitor with the specified name if given, otherwise get the primary monitor.
+fn get_monitor_for_window<B: DisplayBackend>(backend: &B, monitor_name: &Option<String>) -> Result<display_backend::MonitorData> {
+    let monitor = match monitor_name {
+        Some(monitor_name) => backend.get_monitor(&monitor_name)?,
+        None => backend.get_primary_monitor().context("Failed to get default monitor")?,
+    };
+    Ok(monitor)
 }
 
 /// In case of an Err, send the error message to a sender.

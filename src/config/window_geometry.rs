@@ -1,6 +1,6 @@
-use crate::value::Coords;
+use crate::{geometry, value::Coords};
+
 use anyhow::*;
-use gtk4::gdk;
 use serde::{Deserialize, Serialize};
 use smart_default::SmartDefault;
 
@@ -150,11 +150,67 @@ impl std::fmt::Display for EwwWindowGeometry {
 
 impl EwwWindowGeometry {
     /// Calculate the window rectangle given the configured window geometry
-    pub fn get_window_rectangle(&self, screen_rect: gdk::Rectangle) -> gdk::Rectangle {
-        let (offset_x, offset_y) = self.offset.relative_to(screen_rect.width, screen_rect.height);
-        let (width, height) = self.size.relative_to(screen_rect.width, screen_rect.height);
-        let x = screen_rect.x + offset_x + self.anchor_point.x.alignment_to_coordinate(width, screen_rect.width);
-        let y = screen_rect.y + offset_y + self.anchor_point.y.alignment_to_coordinate(height, screen_rect.height);
-        gdk::Rectangle { x, y, width, height }
+    pub fn get_window_rectangle_on(&self, rectangular: impl geometry::Rectangular) -> geometry::Rect {
+        let rect = rectangular.get_rect();
+
+        let (offset_x, offset_y) = self.offset.relative_to(rect.width as i32, rect.height as i32);
+        let (width, height) = self.size.relative_to(rect.width as i32, rect.height as i32);
+        let x = rect.x + offset_x + self.anchor_point.x.alignment_to_coordinate(width, rect.width as i32);
+        let y = rect.y + offset_y + self.anchor_point.y.alignment_to_coordinate(height, rect.height as i32);
+        geometry::Rect { x, y, width, height }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::{geometry::*, *};
+    use crate::value::NumWithUnit;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    pub fn test_get_window_rectangle_on_alignment() {
+        fn make_aligned_window(anchor: AnchorAlignment) -> EwwWindowGeometry {
+            EwwWindowGeometry {
+                anchor_point: AnchorPoint { x: anchor, y: anchor },
+                offset: Coords::from_pixels(1, 1),
+                size: Coords::from_pixels(10, 10),
+            }
+        }
+
+        let monitor = Rect::of(10, 10, 20, 20);
+
+        assert_eq!(
+            Rect::of(11, 11, 10, 10),
+            make_aligned_window(AnchorAlignment::START).get_window_rectangle_on(monitor)
+        );
+        assert_eq!(
+            Rect::of(16, 16, 10, 10),
+            make_aligned_window(AnchorAlignment::CENTER).get_window_rectangle_on(monitor)
+        );
+        assert_eq!(
+            Rect::of(21, 21, 10, 10),
+            make_aligned_window(AnchorAlignment::END).get_window_rectangle_on(monitor)
+        );
+    }
+    #[test]
+    pub fn test_get_window_rectangle_on_relative() {
+        let window = EwwWindowGeometry {
+            anchor_point: AnchorPoint {
+                x: AnchorAlignment::START,
+                y: AnchorAlignment::START,
+            },
+            offset: Coords {
+                x: NumWithUnit::Percent(50),
+                y: NumWithUnit::Pixels(0),
+            },
+            size: Coords {
+                x: NumWithUnit::Percent(25),
+                y: NumWithUnit::Percent(0),
+            },
+        };
+
+        let monitor = Rect::of(0, 0, 100, 100);
+
+        assert_eq!(Rect::of(50, 0, 25, 0), window.get_window_rectangle_on(monitor));
     }
 }
