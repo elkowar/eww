@@ -14,24 +14,84 @@ use super::{
 use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
+/// Structure to hold the eww config
 pub struct EwwConfig {
     widgets: HashMap<String, WidgetDefinition>,
     windows: HashMap<WindowName, EwwWindowDefinition>,
     initial_variables: HashMap<VarName, PrimitiveValue>,
 
     // TODO make this a hashmap
-    script_vars: Vec<ScriptVar>,
+    script_vars: HashMap<VarName, ScriptVar>,
     pub filepath: PathBuf,
+}
+
+fn check_merge<K: std::hash::Hash + Eq + std::fmt::Display, V: std::fmt::Debug>(
+    primary: &HashMap<K, V>,
+    secondary: &HashMap<K, V>,
+    path: &PathBuf,
+) {
+    let mut primary = primary;
+    let mut secondary = secondary;
+    // Checks which one is smaller, because we should iterate over that one, as iterating is O(n) and checking in a hashmap is O(1)
+    if primary.len() > secondary.len() {
+        secondary = primary;
+        primary = secondary;
+    }
+    primary
+        .keys()
+        .map(|a| {
+            if secondary.contains_key(a) {
+                eprintln!(
+                    "The normal config, and the included config: {}, both define a widget, with the same name: '{}'",
+                    path.display(),
+                    a
+                )
+            }
+        })
+        .for_each(drop);
 }
 
 impl EwwConfig {
     pub fn merge_includes(mut eww_config: EwwConfig, includes: Vec<EwwConfig>) -> Result<EwwConfig> {
-        // TODO issue warnings on conflict
         for config in includes {
-            eww_config.widgets.extend(config.widgets);
-            eww_config.windows.extend(config.windows);
-            eww_config.script_vars.extend(config.script_vars);
-            eww_config.initial_variables.extend(config.initial_variables);
+            // Destructures the `includes`, because of the borrow checker
+            let widgets_: HashMap<String, WidgetDefinition>;
+            let windows_: HashMap<WindowName, EwwWindowDefinition>;
+            let script_vars_: HashMap<VarName, ScriptVar>;
+            let initial_variables_: HashMap<VarName, PrimitiveValue>;
+            let path: PathBuf;
+            match config {
+                EwwConfig {
+                    widgets,
+                    windows,
+                    initial_variables,
+                    script_vars,
+                    filepath,
+                } => {
+                    widgets_ = widgets;
+                    windows_ = windows;
+                    initial_variables_ = initial_variables;
+                    script_vars_ = script_vars;
+                    path = filepath;
+                }
+            }
+
+            // widgets
+
+            check_merge(&eww_config.widgets, &widgets_, &path);
+            eww_config.widgets.extend(widgets_);
+
+            // windows
+            check_merge(&eww_config.windows, &windows_, &path);
+            eww_config.windows.extend(windows_);
+
+            // script vars
+            check_merge(&eww_config.script_vars, &script_vars_, &path);
+            eww_config.script_vars.extend(script_vars_);
+
+            // initial variables
+            check_merge(&eww_config.initial_variables, &initial_variables_, &path);
+            eww_config.initial_variables.extend(initial_variables_);
         }
         Ok(eww_config)
     }
@@ -118,7 +178,7 @@ impl EwwConfig {
         let mut vars = self
             .script_vars
             .iter()
-            .map(|var| Ok((var.name().clone(), var.initial_value()?)))
+            .map(|var| Ok((var.0.clone(), var.1.initial_value()?)))
             .collect::<Result<HashMap<_, _>>>()?;
         vars.extend(self.get_default_vars().clone());
         Ok(vars)
@@ -142,18 +202,18 @@ impl EwwConfig {
         &self.initial_variables
     }
 
-    pub fn get_script_vars(&self) -> &Vec<ScriptVar> {
-        &self.script_vars
+    pub fn get_script_vars(&self) -> Vec<ScriptVar> {
+        self.script_vars.iter().map(|a| a.1.clone()).collect()
     }
 
     pub fn get_script_var(&self, name: &VarName) -> Option<&ScriptVar> {
-        self.script_vars.iter().find(|x| x.name() == name)
+        self.script_vars.iter().map(|a| a.1).find(|x| x.name() == name)
     }
 }
 
-fn parse_variables_block(xml: XmlElement) -> Result<(HashMap<VarName, PrimitiveValue>, Vec<ScriptVar>)> {
+fn parse_variables_block(xml: XmlElement) -> Result<(HashMap<VarName, PrimitiveValue>, HashMap<VarName, ScriptVar>)> {
     let mut normal_vars = HashMap::new();
-    let mut script_vars = Vec::new();
+    let mut script_vars = HashMap::new();
     for node in xml.child_elements() {
         match node.tag_name() {
             "var" => {
@@ -165,7 +225,9 @@ fn parse_variables_block(xml: XmlElement) -> Result<(HashMap<VarName, PrimitiveV
                 normal_vars.insert(var_name, PrimitiveValue::from_string(value));
             }
             "script-var" => {
-                script_vars.push(ScriptVar::from_xml_element(node)?);
+                let script_var = ScriptVar::from_xml_element(node)?;
+                let name = script_var.name().clone();
+                script_vars.insert(name, script_var);
             }
             _ => bail!("Illegal element in variables block: {}", node.as_tag_string()),
         }
