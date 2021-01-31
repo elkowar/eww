@@ -135,6 +135,11 @@ impl PollVarHandler {
         self.poll_handles.insert(var.name.clone(), cancellation_token.clone());
         let evt_send = self.evt_send.clone();
         tokio::spawn(async move {
+            let result: Result<_> = try {
+                evt_send.send(app::DaemonCommand::UpdateVars(vec![(var.name.clone(), var.run_once()?)]))?;
+            };
+            crate::print_result_err!("while running script-var command", &result);
+
             crate::loop_select_exiting! {
                 _ = cancellation_token.cancelled() => break,
                 _ = tokio::time::sleep(var.interval) => {
