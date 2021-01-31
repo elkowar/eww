@@ -378,13 +378,8 @@ fn initialize_window<B: DisplayBackend>(
 
     backend.map_window(win_id)?;
 
-    let stacking = match window_def.stacking {
-        config::WindowStacking::Foreground => StackingStrategy::AlwaysOnTop,
-        config::WindowStacking::Background => StackingStrategy::AlwaysOnBottom,
-    };
-
     backend
-        .set_stacking_strategy(win_id, stacking)
+        .set_stacking_strategy(win_id, window_def.stacking.into())
         .context("Failed to set stacking strategy")?;
 
     Ok(EwwWindow {

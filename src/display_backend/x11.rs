@@ -103,6 +103,18 @@ impl DisplayBackend for X11Backend {
 
     fn set_unmanaged(&self, win: Self::WinId) -> Result<()> {
         self.conn
+            .change_property(
+                PropMode::Replace,
+                win,
+                self.atoms._NET_WM_STATE,
+                self.atoms.ATOM,
+                32,
+                1,
+                &self.atoms._NET_WM_STATE_STICKY.to_le_bytes(),
+            )?
+            .check()?;
+
+        self.conn
             .change_window_attributes(
                 win,
                 &ChangeWindowAttributesAux {
@@ -134,19 +146,35 @@ impl DisplayBackend for X11Backend {
     }
 
     fn set_stacking_strategy(&self, win: Self::WinId, strategy: StackingStrategy) -> Result<()> {
+        let (stack_mode, stacking_wm_state) = match strategy {
+            StackingStrategy::AlwaysOnTop => (StackMode::Above, self.atoms._NET_WM_STATE_ABOVE),
+            StackingStrategy::AlwaysOnBottom => (StackMode::Below, self.atoms._NET_WM_STATE_ABOVE),
+        };
+
         self.conn
             .configure_window(
                 win,
                 &ConfigureWindowAux {
-                    stack_mode: Some(match strategy {
-                        StackingStrategy::AlwaysOnTop => StackMode::Above,
-                        StackingStrategy::AlwaysOnBottom => StackMode::Below,
-                    }),
+                    stack_mode: Some(stack_mode),
                     ..ConfigureWindowAux::default()
                 },
             )?
             .check()?;
+
+        self.conn
+            .change_property(
+                PropMode::Append,
+                win,
+                self.atoms._NET_WM_STATE,
+                self.atoms.ATOM,
+                32,
+                1,
+                &stacking_wm_state.to_le_bytes(),
+            )?
+            .check()?;
+
         self.conn.flush()?;
+
         Ok(())
     }
 
@@ -188,6 +216,10 @@ x11rb::atom_manager! {
         _NET_WM_WINDOW_TYPE,
         _NET_WM_WINDOW_TYPE_DOCK,
         _NET_WM_WINDOW_TYPE_DIALOG,
+        _NET_WM_STATE,
+        _NET_WM_STATE_STICKY,
+        _NET_WM_STATE_ABOVE,
+        _NET_WM_STATE_BELOW,
         _NET_WM_NAME,
         WM_NAME,
         UTF8_STRING,

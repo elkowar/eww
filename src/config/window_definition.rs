@@ -1,4 +1,4 @@
-use crate::ensure_xml_tag_is;
+use crate::{display_backend, ensure_xml_tag_is};
 use anyhow::*;
 use derive_more::*;
 use serde::{Deserialize, Serialize};
@@ -73,6 +73,15 @@ pub enum WindowStacking {
     #[default]
     Foreground,
     Background,
+}
+
+impl Into<display_backend::StackingStrategy> for WindowStacking {
+    fn into(self) -> display_backend::StackingStrategy {
+        match self {
+            WindowStacking::Foreground => display_backend::StackingStrategy::AlwaysOnTop,
+            WindowStacking::Background => display_backend::StackingStrategy::AlwaysOnBottom,
+        }
+    }
 }
 
 impl std::str::FromStr for WindowStacking {
