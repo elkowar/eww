@@ -265,7 +265,7 @@ impl App {
         // TODO somehow make this less shit
         for newly_used_var in self
             .variables_only_used_in(&window_name)
-            .filter_map(|var| self.eww_config.get_script_var(&var))
+            .filter_map(|var| self.eww_config.get_script_var(&var).ok())
         {
             self.script_var_handler.add(newly_used_var.clone());
         }

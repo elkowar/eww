@@ -19,8 +19,6 @@ pub struct EwwConfig {
     widgets: HashMap<String, WidgetDefinition>,
     windows: HashMap<WindowName, EwwWindowDefinition>,
     initial_variables: HashMap<VarName, PrimitiveValue>,
-
-    // TODO make this a hashmap
     script_vars: HashMap<VarName, ScriptVar>,
     pub filepath: PathBuf,
 }
@@ -54,7 +52,7 @@ fn check_merge<K: std::hash::Hash + Eq + std::fmt::Display, V: std::fmt::Debug>(
 impl EwwConfig {
     pub fn merge_includes(mut eww_config: EwwConfig, includes: Vec<EwwConfig>) -> Result<EwwConfig> {
         for config in includes {
-            // Destructures the `includes`, because of the borrow checker
+            // Destructures `config`, because of the borrow checker
             let widgets_: HashMap<String, WidgetDefinition>;
             let windows_: HashMap<WindowName, EwwWindowDefinition>;
             let script_vars_: HashMap<VarName, ScriptVar>;
@@ -77,7 +75,6 @@ impl EwwConfig {
             }
 
             // widgets
-
             check_merge(&eww_config.widgets, &widgets_, &path);
             eww_config.widgets.extend(widgets_);
 
@@ -203,11 +200,13 @@ impl EwwConfig {
     }
 
     pub fn get_script_vars(&self) -> Vec<ScriptVar> {
-        self.script_vars.iter().map(|a| a.1.clone()).collect()
+        self.script_vars.values().map(|a| a.clone()).collect()
     }
 
-    pub fn get_script_var(&self, name: &VarName) -> Option<&ScriptVar> {
-        self.script_vars.iter().map(|a| a.1).find(|x| x.name() == name)
+    pub fn get_script_var(&self, name: &VarName) -> Result<&ScriptVar> {
+        self.script_vars
+            .get(name)
+            .with_context(|| format!("No script var named '{}' exists", name))
     }
 }
 
@@ -316,7 +315,7 @@ mod test {
             widgets: HashMap::new(),
             windows: HashMap::new(),
             initial_variables: HashMap::new(),
-            script_vars: Vec::new(),
+            script_vars: HashMap::new(),
             filepath: "test_path".into(),
         };
 
