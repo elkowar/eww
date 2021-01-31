@@ -23,72 +23,32 @@ pub struct EwwConfig {
     pub filepath: PathBuf,
 }
 
-fn check_merge<K: std::hash::Hash + Eq + std::fmt::Display, V: std::fmt::Debug>(
-    primary: &HashMap<K, V>,
-    secondary: &HashMap<K, V>,
-    path: &PathBuf,
-) {
-    let mut primary = primary;
-    let mut secondary = secondary;
-    // Checks which one is smaller, because we should iterate over that one, as iterating is O(n) and checking in a hashmap is O(1)
-    if primary.len() > secondary.len() {
-        secondary = primary;
-        primary = secondary;
-    }
-    primary
-        .keys()
-        .map(|a| {
-            if secondary.contains_key(a) {
-                eprintln!(
-                    "The normal config, and the included config: {}, both define a widget, with the same name: '{}'",
-                    path.display(),
-                    a
-                )
-            }
-        })
-        .for_each(drop);
-}
-
 impl EwwConfig {
     pub fn merge_includes(mut eww_config: EwwConfig, includes: Vec<EwwConfig>) -> Result<EwwConfig> {
-        for config in includes {
-            // Destructures `config`, because of the borrow checker
-            let widgets_: HashMap<String, WidgetDefinition>;
-            let windows_: HashMap<WindowName, EwwWindowDefinition>;
-            let script_vars_: HashMap<VarName, ScriptVar>;
-            let initial_variables_: HashMap<VarName, PrimitiveValue>;
-            let path: PathBuf;
-            match config {
-                EwwConfig {
-                    widgets,
-                    windows,
-                    initial_variables,
-                    script_vars,
-                    filepath,
-                } => {
-                    widgets_ = widgets;
-                    windows_ = windows;
-                    initial_variables_ = initial_variables;
-                    script_vars_ = script_vars;
-                    path = filepath;
-                }
+        let config_path = eww_config.filepath.clone();
+        let log_conflict = |what: &str, conflict: &str, included_path: &std::path::PathBuf| {
+            eprintln!(
+                "{} '{}' defined twice (defined in {} and in {})",
+                what,
+                conflict,
+                config_path.display(),
+                included_path.display()
+            );
+        };
+
+        for included_config in includes {
+            for conflict in extend_safe(&mut eww_config.widgets, included_config.widgets) {
+                log_conflict("widget", &conflict, &included_config.filepath)
             }
-
-            // widgets
-            check_merge(&eww_config.widgets, &widgets_, &path);
-            eww_config.widgets.extend(widgets_);
-
-            // windows
-            check_merge(&eww_config.windows, &windows_, &path);
-            eww_config.windows.extend(windows_);
-
-            // script vars
-            check_merge(&eww_config.script_vars, &script_vars_, &path);
-            eww_config.script_vars.extend(script_vars_);
-
-            // initial variables
-            check_merge(&eww_config.initial_variables, &initial_variables_, &path);
-            eww_config.initial_variables.extend(initial_variables_);
+            for conflict in extend_safe(&mut eww_config.windows, included_config.windows) {
+                log_conflict("window", &conflict.to_string(), &included_config.filepath)
+            }
+            for conflict in extend_safe(&mut eww_config.script_vars, included_config.script_vars) {
+                log_conflict("script-var", &conflict.to_string(), &included_config.filepath)
+            }
+            for conflict in extend_safe(&mut eww_config.initial_variables, included_config.initial_variables) {
+                log_conflict("var", &conflict.to_string(), &included_config.filepath)
+            }
         }
         Ok(eww_config)
     }
@@ -200,7 +160,7 @@ impl EwwConfig {
     }
 
     pub fn get_script_vars(&self) -> Vec<ScriptVar> {
-        self.script_vars.values().map(|a| a.clone()).collect()
+        self.script_vars.values().cloned().collect()
     }
 
     pub fn get_script_var(&self, name: &VarName) -> Result<&ScriptVar> {
@@ -225,8 +185,7 @@ fn parse_variables_block(xml: XmlElement) -> Result<(HashMap<VarName, PrimitiveV
             }
             "script-var" => {
                 let script_var = ScriptVar::from_xml_element(node)?;
-                let name = script_var.name().clone();
-                script_vars.insert(name, script_var);
+                script_vars.insert(script_var.name().clone(), script_var);
             }
             _ => bail!("Illegal element in variables block: {}", node.as_tag_string()),
         }
@@ -246,6 +205,16 @@ fn join_path_pretty<P: AsRef<std::path::Path>, P2: AsRef<std::path::Path>>(a: P,
     } else {
         a.parent().unwrap().join(b.strip_prefix("./").unwrap_or(&b))
     }
+}
+
+/// extends a hashmap, returning a list of keys that already where present in the hashmap.
+fn extend_safe<K: std::cmp::Eq + std::hash::Hash + Clone, V, T: IntoIterator<Item = (K, V)>>(
+    a: &mut HashMap<K, V>,
+    b: T,
+) -> Vec<K> {
+    b.into_iter()
+        .filter_map(|(k, v)| a.insert(k.clone(), v).map(|_| k.clone()))
+        .collect()
 }
 
 #[cfg(test)]
