@@ -29,7 +29,11 @@ struct RawOpt {
 pub enum Action {
     /// Start the Eww daemon.
     #[structopt(name = "daemon")]
-    Daemon(DaemonOpts),
+    Daemon {
+        /// Custom Config Path
+        #[structopt(short, long)]
+        config: Option<std::path::PathBuf>,
+    },
 
     #[structopt(flatten)]
     ClientOnly(ActionClientOnly),
@@ -38,12 +42,12 @@ pub enum Action {
     WithServer(ActionWithServer),
 }
 
-#[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
+/* #[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DaemonOpts {
-    /// Custom Config Path 
+    /// Custom Config Path
     #[structopt(short, long)]
-    pub config: Option<std::path::PathBuf>
-}
+    pub config: Option<std::path::PathBuf>,
+} */
 
 #[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ActionClientOnly {
