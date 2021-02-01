@@ -42,13 +42,6 @@ pub enum Action {
     WithServer(ActionWithServer),
 }
 
-/* #[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
-pub struct DaemonOpts {
-    /// Custom Config Path
-    #[structopt(short, long)]
-    pub config: Option<std::path::PathBuf>,
-} */
-
 #[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ActionClientOnly {
     /// Print and watch the eww logs
