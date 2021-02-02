@@ -8,7 +8,7 @@ use std::{
 };
 use tokio::sync::mpsc::*;
 
-pub fn initialize_server() -> Result<()> {
+pub fn initialize_server(config_dir_override: Option<std::path::PathBuf>) -> Result<()> {
     do_detach()?;
 
     simple_signal::set_handler(&[simple_signal::Signal::Int, simple_signal::Signal::Term], move |_| {
@@ -20,7 +20,8 @@ pub fn initialize_server() -> Result<()> {
     });
     let (ui_send, mut ui_recv) = tokio::sync::mpsc::unbounded_channel();
 
-    let config_file_path = crate::CONFIG_DIR.join("eww.xml");
+    let config_file_path = config_dir_override.unwrap_or(crate::CONFIG_DIR.join("eww.xml")); 
+
     let config_dir = config_file_path
         .parent()
         .context("config file did not have a parent?!")?

@@ -82,7 +82,7 @@ fn main() {
                 }
             }
 
-            opts::Action::Daemon => {
+            opts::Action::Daemon { config } => {
                 // make sure that there isn't already a Eww daemon running.
                 if check_server_running(&*IPC_SOCKET_PATH) {
                     eprintln!("Eww server already running.");
@@ -90,8 +90,10 @@ fn main() {
                 } else {
                     log::info!("Initializing Eww server.");
                     let _ = std::fs::remove_file(&*crate::IPC_SOCKET_PATH);
+
                     println!("Run `eww logs` to see any errors, warnings or information while editing your configuration.");
-                    server::initialize_server()?;
+                    server::initialize_server(config)?;
+
                 }
             }
         }
