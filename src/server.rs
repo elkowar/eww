@@ -20,7 +20,7 @@ pub fn initialize_server(config_dir_override: Option<std::path::PathBuf>) -> Res
     });
     let (ui_send, mut ui_recv) = tokio::sync::mpsc::unbounded_channel();
 
-    let config_file_path = config_dir_override.unwrap_or(crate::CONFIG_DIR.join("eww.xml")); 
+    let config_file_path = config_dir_override.unwrap_or_else(|| crate::CONFIG_DIR.join("eww.xml"));
 
     let config_dir = config_file_path
         .parent()
@@ -159,10 +159,12 @@ fn do_detach() -> Result<()> {
         .create(true)
         .append(true)
         .open(&*crate::LOG_FILE)
-        .expect(&format!(
-            "Error opening log file ({}), for writing",
-            &*crate::LOG_FILE.to_string_lossy()
-        ));
+        .unwrap_or_else(|_| {
+            panic!(
+                "Error opening log file ({}), for writing",
+                &*crate::LOG_FILE.to_string_lossy()
+            )
+        });
     let fd = file.as_raw_fd();
 
     if nix::unistd::isatty(1)? {

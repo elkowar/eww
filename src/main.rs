@@ -93,7 +93,6 @@ fn main() {
 
                     println!("Run `eww logs` to see any errors, warnings or information while editing your configuration.");
                     server::initialize_server(config)?;
-
                 }
             }
         }
@@ -106,7 +105,7 @@ fn main() {
 }
 
 /// Check if a eww server is currently running by trying to send a ping message to it.
-fn check_server_running(socket_path: &std::path::PathBuf) -> bool {
+fn check_server_running(socket_path: &std::path::Path) -> bool {
     let response = net::UnixStream::connect(socket_path)
         .ok()
         .and_then(|stream| client::do_server_call(stream, opts::ActionWithServer::Ping).ok());

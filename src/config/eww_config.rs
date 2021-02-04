@@ -65,7 +65,7 @@ impl EwwConfig {
 
             let parsed_includes = included_paths
                 .into_iter()
-                .map(|included_path| EwwConfig::read_from_file(included_path))
+                .map(EwwConfig::read_from_file)
                 .collect::<Result<Vec<_>>>()
                 .with_context(|| format!("Included in {}", path.as_ref().display()))?;
 

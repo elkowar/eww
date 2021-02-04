@@ -96,7 +96,7 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
                     gtk::Inhibit(false)
                 })
             ));
-            old_id.map(|id| gtk_widget.disconnect(id));
+            if let Some(id) = old_id { gtk_widget.disconnect(id) }
         },
         // @prop onhover - event to execute when the user hovers over the widget
         prop(onhover: as_string) {
@@ -107,7 +107,7 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
                     gtk::Inhibit(false)
                 })
             ));
-            old_id.map(|id| gtk_widget.disconnect(id));
+            if let Some(id) = old_id { gtk_widget.disconnect(id) }
         }
     });
 }
@@ -142,8 +142,7 @@ pub(super) fn resolve_range_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Ran
                     run_command(&onchange, gtk_widget.get_value());
                 })
             ));
-            old_id.map(|id| gtk_widget.disconnect(id));
-
+            if let Some(id) = old_id { gtk_widget.disconnect(id) }
         }
     });
 }
@@ -175,10 +174,10 @@ fn build_gtk_combo_box_text(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText
         prop(onchange: as_string) {
             let old_id = on_change_handler_id.replace(Some(
                 gtk_widget.connect_changed(move |gtk_widget| {
-                    run_command(&onchange, gtk_widget.get_active_text().unwrap_or("".into()));
+                    run_command(&onchange, gtk_widget.get_active_text().unwrap_or_else(|| "".into()));
                 })
             ));
-            old_id.map(|id| gtk_widget.disconnect(id));
+            if let Some(id) = old_id { gtk_widget.disconnect(id) }
         },
     });
     Ok(gtk_widget)
@@ -212,7 +211,7 @@ fn build_gtk_color_button(bargs: &mut BuilderArgs) -> Result<gtk::ColorButton> {
                     run_command(&onchange, gtk_widget.get_rgba());
                 })
             ));
-            old_id.map(|id| gtk_widget.disconnect(id));
+            if let Some(id) = old_id { gtk_widget.disconnect(id) }
         }
     });
 
@@ -235,7 +234,7 @@ fn build_gtk_color_chooser(bargs: &mut BuilderArgs) -> Result<gtk::ColorChooserW
                     run_command(&onchange, gtk_widget);
                 })
             ));
-            old_id.map(|id| gtk_widget.disconnect(id));
+            if let Some(id) = old_id { gtk_widget.disconnect(id) }
         }
     });
 
@@ -277,7 +276,7 @@ fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
                     run_command(&onchange, gtk_widget.get_text().to_string());
                 })
             ));
-            old_id.map(|id| gtk_widget.disconnect(id));
+            if let Some(id) = old_id { gtk_widget.disconnect(id) }
         }
     });
     Ok(gtk_widget)
@@ -295,8 +294,7 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
             let old_id = on_click_handler_id.replace(Some(
                 gtk_widget.connect_clicked(move |_| run_command(&onclick, ""))
             ));
-            old_id.map(|id| gtk_widget.disconnect(id));
-
+            if let Some(id) = old_id { gtk_widget.disconnect(id) }
         }
     });
     Ok(gtk_widget)
@@ -419,11 +417,9 @@ fn build_gtk_calendar(bargs: &mut BuilderArgs) -> Result<gtk::Calendar> {
                     )
                 })
             ));
-            old_id.map(|id| gtk_widget.disconnect(id));
+            if let Some(id) = old_id { gtk_widget.disconnect(id) }
         }
-
     });
-
     Ok(gtk_widget)
 }
 

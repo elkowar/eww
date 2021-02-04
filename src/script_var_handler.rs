@@ -23,8 +23,8 @@ pub fn init(evt_send: UnboundedSender<DaemonCommand>) -> ScriptVarHandlerHandle 
         rt.block_on(async {
             let _: Result<_> = try {
                 let mut handler = ScriptVarHandler {
-                    tail_handler: TailVarHandler::new(evt_send.clone())?,
-                    poll_handler: PollVarHandler::new(evt_send)?,
+                    tail_handler: TailVarHandler::new(evt_send.clone()),
+                    poll_handler: PollVarHandler::new(evt_send),
                 };
                 crate::loop_select_exiting! {
                     Some(msg) = msg_recv.recv() => match msg {
@@ -32,7 +32,7 @@ pub fn init(evt_send: UnboundedSender<DaemonCommand>) -> ScriptVarHandlerHandle 
                             handler.add(var).await;
                         }
                         ScriptVarHandlerMsg::Stop(name) => {
-                            handler.stop_for_variable(&name)?;
+                            handler.stop_for_variable(&name);
                         }
                         ScriptVarHandlerMsg::StopAll => {
                             handler.stop_all();
@@ -100,11 +100,10 @@ impl ScriptVarHandler {
     }
 
     /// Stop the handler that is responsible for a given variable.
-    fn stop_for_variable(&mut self, name: &VarName) -> Result<()> {
+    fn stop_for_variable(&mut self, name: &VarName) {
         log::debug!("Stopping script var process for variable {}", name);
         self.tail_handler.stop_for_variable(name);
         self.poll_handler.stop_for_variable(name);
-        Ok(())
     }
 
     /// stop all running scripts and schedules
@@ -121,12 +120,11 @@ struct PollVarHandler {
 }
 
 impl PollVarHandler {
-    fn new(evt_send: UnboundedSender<DaemonCommand>) -> Result<Self> {
-        let handler = PollVarHandler {
+    fn new(evt_send: UnboundedSender<DaemonCommand>) -> Self {
+        PollVarHandler {
             evt_send,
             poll_handles: HashMap::new(),
-        };
-        Ok(handler)
+        }
     }
 
     async fn start(&mut self, var: config::PollScriptVar) {
@@ -176,12 +174,11 @@ struct TailVarHandler {
 }
 
 impl TailVarHandler {
-    fn new(evt_send: UnboundedSender<DaemonCommand>) -> Result<Self> {
-        let handler = TailVarHandler {
+    fn new(evt_send: UnboundedSender<DaemonCommand>) -> Self {
+        TailVarHandler {
             evt_send,
             tail_process_handles: HashMap::new(),
-        };
-        Ok(handler)
+        }
     }
 
     async fn start(&mut self, var: config::TailScriptVar) {
