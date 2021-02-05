@@ -120,10 +120,12 @@ Here you can include other config files so that they are merged together at star
 
 ```xml
 <includes>
-  <file path="./something.xml"/>
-  <file path="./somethingelse.xml"/>
+  <file path="./other_config_file.xml"/>
+  <file path="./other_config_file2.xml"/>
 </includes>
 ```
+
+If you define a variable/widget/window, in a config file, when it's defined somewhere else, you can see a warning in the eww logs (`eww logs`)
 
 ### The `<definitions>` block
 In here you whole widget will be made, and you can also create your own widgets. Check [Widget Documentation](@/main/widgets.md) for pre-defined widgets.

@@ -179,14 +179,20 @@ impl<'a, 'b> XmlElement<'a, 'b> {
 
     pub fn optional_attr<O, F: FnOnce(&str) -> Result<O>>(&self, key: &str, parse: F) -> Result<Option<O>> {
         match self.0.attribute(key) {
-            Some(value) => parse(value).map(Some),
+            Some(value) => parse(value)
+                .with_context(|| format!("Parsing the value of {}=\"{}\" in <{}>", key, value, self.tag_name()))
+                .map(Some),
             None => Ok(None),
         }
     }
 
-    pub fn parse_optional_attr<E, O: std::str::FromStr<Err = E>>(&self, key: &str) -> Result<Option<O>, E> {
+    pub fn parse_optional_attr<E: Into<anyhow::Error>, O: std::str::FromStr<Err = E>>(&self, key: &str) -> Result<Option<O>> {
         match self.0.attribute(key) {
-            Some(value) => value.parse::<O>().map(Some),
+            Some(value) => value
+                .parse::<O>()
+                .map_err(|e| anyhow!(e))
+                .with_context(|| format!("Parsing the value of {}=\"{}\" in <{}>", key, value, self.tag_name()))
+                .map(Some),
             None => Ok(None),
         }
     }

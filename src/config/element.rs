@@ -18,7 +18,7 @@ pub struct WidgetDefinition {
 }
 
 impl WidgetDefinition {
-    pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
+    pub fn from_xml_element(xml: &XmlElement) -> Result<Self> {
         with_text_pos_context! { xml =>
             if xml.tag_name() != "def" {
                 bail!(
@@ -189,7 +189,7 @@ mod test {
 
         assert_eq!(
             expected,
-            WidgetDefinition::from_xml_element(xml.as_element().unwrap().to_owned()).unwrap()
+            WidgetDefinition::from_xml_element(xml.as_element().unwrap()).unwrap()
         );
     }
 }
