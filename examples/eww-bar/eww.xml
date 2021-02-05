@@ -7,10 +7,24 @@ contain are defined. -->
 
     <def name="bar"> <!-- Starts the definition of a widget named main -->
       <box orientation="h" hexpand="true">
+        <workspaces/>
+        <music/>
+        <sidestuff/>
+      </box>
+    </def>
+    <def name="sidestuff">
+      <box class="sidestuff" orientation="h" space-evenly="false" halign="end">
+          <slider-vol/>
+          <slider-ram/>
+          <time/>
+      </box>
+    </def>
+
+    <def name="workspaces">
         <box orientation="h" class="workspaces" space-evenly="true" halign="start"> <!-- Your workspaces.-->
           <button onclick="wmctrl -s 0">1</button>  
           <button onclick="wmctrl -s 1">2</button>  
-          <button onclick="wmctrl -s 2">3</button>  
+          <button onclick="wmctrl -s 2">3</button>
           <button onclick="wmctrl -s 3">4</button>  
           <button onclick="wmctrl -s 4">5</button>  
           <button onclick="wmctrl -s 5">6</button>  
@@ -18,32 +32,32 @@ contain are defined. -->
           <button onclick="wmctrl -s 7">8</button>  
           <button onclick="wmctrl -s 8">9</button>  
         </box>
-
+    </def>
+    <def name="music">
         <box orientation="h" class="music" halign="center" space-evenly="false">
           <!-- An image. We won't be using it, but it might be handy if you ever need it. -->
           <!-- <image path="/home/user/.config/eww/icons/music.svg"/> -->
 
              {{music}} <!--This is how you use variables.-->
         </box>
-
-        <box class="sidestuff" orientation="h" space-evenly="false" halign="end">
-          <!--A basic volume slider-->
-
-          <box orientation="h" class="slider-vol" space-evenly="false">
-            <box class="label-vol"></box>
-            <scale min="0" max="101" value="{{volume}}" onchange="amixer -D pulse sset Master {}%"/> 
-          </box>
-
-          <!--A basic RAM slider-->
-          <box orientation="h" class="slider-ram" space-evenly="false">
-            <box class="label-ram"></box>
-            <scale min="0" active="false" max="101" value="{{ram-used}}"/>
-          </box>
-
-          <!--Time-->
-          <box class="time">{{hour}}:{{min}} {{month}} {{number_day}}, {{year_full}}</box>
-        </box>
+    </def>
+    <def name="slider-vol">
+      <!--A basic volume slider-->
+      <box orientation="h" class="slider-vol" space-evenly="false">
+        <box class="label-vol"></box>
+        <scale min="0" max="101" value="{{volume}}" onchange="amixer -D pulse sset Master {}%"/> 
       </box>
+    </def>
+    <def name="slider-ram">
+      <!--A basic RAM slider-->
+      <box orientation="h" class="slider-ram" space-evenly="false">
+        <box class="label-ram"></box>
+        <scale min="0" active="false" max="101" value="{{ram-used}}"/>
+      </box>
+    </def>
+    <def name="time">
+      <!--Time-->
+      <box class="time">{{hour}}:{{min}} {{month}} {{number_day}}, {{year_full}}</box>
     </def>
   </definitions>
 
