@@ -150,7 +150,7 @@ impl std::fmt::Display for EwwWindowGeometry {
 
 impl EwwWindowGeometry {
     /// Calculate the window rectangle given the configured window geometry
-    pub fn get_window_rectangle_on(&self, rectangular: impl geometry::Rectangular) -> geometry::Rect {
+    pub fn get_window_rectangle_on(&self, rectangular: &impl geometry::Rectangular) -> geometry::Rect {
         let rect = rectangular.get_rect();
 
         let (offset_x, offset_y) = self.offset.relative_to(rect.width as i32, rect.height as i32);
@@ -181,15 +181,15 @@ mod test {
 
         assert_eq!(
             Rect::of(11, 11, 10, 10),
-            make_aligned_window(AnchorAlignment::START).get_window_rectangle_on(monitor)
+            make_aligned_window(AnchorAlignment::START).get_window_rectangle_on(&monitor)
         );
         assert_eq!(
             Rect::of(16, 16, 10, 10),
-            make_aligned_window(AnchorAlignment::CENTER).get_window_rectangle_on(monitor)
+            make_aligned_window(AnchorAlignment::CENTER).get_window_rectangle_on(&monitor)
         );
         assert_eq!(
             Rect::of(21, 21, 10, 10),
-            make_aligned_window(AnchorAlignment::END).get_window_rectangle_on(monitor)
+            make_aligned_window(AnchorAlignment::END).get_window_rectangle_on(&monitor)
         );
     }
     #[test]

@@ -349,6 +349,11 @@ fn initialize_window<B: DisplayBackend>(
     window.set_decorated(false);
     window.set_resizable(false);
 
+    let window_rect_on_monitor = window_def.geometry.get_window_rectangle_on(&monitor);
+    dbg!(&window_rect_on_monitor);
+    window.set_size_request(window_rect_on_monitor.width, window_rect_on_monitor.height);
+    window.set_default_size(window_rect_on_monitor.width, window_rect_on_monitor.height);
+
     // Handle the fact that the gtk window will have a different size than specified,
     // as it is sized according to how much space it's contents require.
     // This is necessary to handle different anchors correctly in case the size was wrong.
@@ -358,12 +363,13 @@ fn initialize_window<B: DisplayBackend>(
         geometry.size = Coords::from_pixels(gtk_window_width, gtk_window_height);
         geometry
     };
+
+    let window_rect_on_monitor = actual_window_geometry.get_window_rectangle_on(&monitor);
+
     if !window_def.focusable {
         backend.set_unmanaged(win_id)?;
         backend.set_as_dock(win_id)?;
     }
-
-    let window_rect_on_monitor = actual_window_geometry.get_window_rectangle_on(monitor);
 
     backend
         .place_window_at(win_id, window_rect_on_monitor.x, window_rect_on_monitor.y)
