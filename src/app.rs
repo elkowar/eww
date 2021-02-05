@@ -11,7 +11,7 @@ use debug_stub_derive::*;
 use gdk::WindowExt;
 use gtk::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt};
 use itertools::Itertools;
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 use tokio::sync::mpsc::UnboundedSender;
 
 /// Response that the app may send as a response to a event.
@@ -42,8 +42,9 @@ pub type DaemonResponseReceiver = tokio::sync::mpsc::UnboundedReceiver<DaemonRes
 pub enum DaemonCommand {
     NoOp,
     UpdateVars(Vec<(VarName, PrimitiveValue)>),
-    ReloadConfig(config::EwwConfig),
-    ReloadCss(String),
+    ReloadConfigAndCss(DaemonResponseSender),
+    UpdateConfig(config::EwwConfig),
+    UpdateCss(String),
     OpenMany {
         windows: Vec<WindowName>,
         sender: DaemonResponseSender,
@@ -83,11 +84,16 @@ impl EwwWindow {
 pub struct App {
     pub eww_state: eww_state::EwwState,
     pub eww_config: config::EwwConfig,
-    pub windows: HashMap<WindowName, EwwWindow>,
+    pub open_windows: HashMap<WindowName, EwwWindow>,
     pub css_provider: gtk::CssProvider,
+
+    #[debug_stub = "ScriptVarHandler(...)"]
     pub app_evt_send: UnboundedSender<DaemonCommand>,
     #[debug_stub = "ScriptVarHandler(...)"]
     pub script_var_handler: ScriptVarHandlerHandle,
+
+    pub config_file_path: PathBuf,
+    pub scss_file_path: PathBuf,
 }
 
 impl App {
@@ -102,10 +108,32 @@ impl App {
                         self.update_state(var_name, new_value)?;
                     }
                 }
-                DaemonCommand::ReloadConfig(config) => {
-                    self.reload_all_windows(config)?;
+                DaemonCommand::ReloadConfigAndCss(sender) => {
+                    let mut errors = Vec::new();
+
+                    let config_result = config::EwwConfig::read_from_file(&self.config_file_path);
+                    match config_result {
+                        Ok(new_config) => self.handle_command(DaemonCommand::UpdateConfig(new_config)),
+                        Err(e) => errors.push(e),
+                    }
+
+                    let css_result = crate::util::parse_scss_from_file(&self.scss_file_path);
+                    match css_result {
+                        Ok(new_css) => self.handle_command(DaemonCommand::UpdateCss(new_css)),
+                        Err(e) => errors.push(e),
+                    }
+
+                    let errors = errors.into_iter().map(|e| format!("{:?}", e)).join("\n");
+                    if errors.is_empty() {
+                        sender.send(DaemonResponse::Success(String::new()))?;
+                    } else {
+                        sender.send(DaemonResponse::Failure(errors))?;
+                    }
                 }
-                DaemonCommand::ReloadCss(css) => {
+                DaemonCommand::UpdateConfig(config) => {
+                    self.load_config(config)?;
+                }
+                DaemonCommand::UpdateCss(css) => {
                     self.load_css(&css)?;
                 }
                 DaemonCommand::KillServer => {
@@ -115,7 +143,7 @@ impl App {
                 }
                 DaemonCommand::CloseAll => {
                     log::info!("Received close command, closing all windows");
-                    for (window_name, _window) in self.windows.clone() {
+                    for (window_name, _window) in self.open_windows.clone() {
                         self.close_window(&window_name)?;
                     }
                 }
@@ -157,7 +185,7 @@ impl App {
                         .get_windows()
                         .keys()
                         .map(|window_name| {
-                            let is_open = self.windows.contains_key(window_name);
+                            let is_open = self.open_windows.contains_key(window_name);
                             format!("{}{}", if is_open { "*" } else { "" }, window_name)
                         })
                         .join("\n");
@@ -179,7 +207,7 @@ impl App {
 
     fn stop_application(&mut self) {
         self.script_var_handler.stop_all();
-        self.windows.drain().for_each(|(_, w)| w.close());
+        self.open_windows.drain().for_each(|(_, w)| w.close());
         gtk::main_quit();
     }
 
@@ -194,7 +222,7 @@ impl App {
         }
 
         let window = self
-            .windows
+            .open_windows
             .remove(window_name)
             .context(format!("No window with name '{}' is running.", window_name))?;
 
@@ -231,13 +259,13 @@ impl App {
         let monitor_geometry = get_monitor_geometry(window_def.screen_number.unwrap_or_else(get_default_monitor_index));
         let eww_window = initialize_window(monitor_geometry, root_widget, window_def)?;
 
-        self.windows.insert(window_name.clone(), eww_window);
+        self.open_windows.insert(window_name.clone(), eww_window);
 
         // initialize script var handlers for variables that where not used before opening this window.
         // TODO somehow make this less shit
         for newly_used_var in self
             .variables_only_used_in(&window_name)
-            .filter_map(|var| self.eww_config.get_script_var(&var))
+            .filter_map(|var| self.eww_config.get_script_var(&var).ok())
         {
             self.script_var_handler.add(newly_used_var.clone());
         }
@@ -245,7 +273,8 @@ impl App {
         Ok(())
     }
 
-    pub fn reload_all_windows(&mut self, config: config::EwwConfig) -> Result<()> {
+    /// Load the given configuration, reloading all script-vars and reopening all windows that where opened.
+    pub fn load_config(&mut self, config: config::EwwConfig) -> Result<()> {
         log::info!("Reloading windows");
         // refresh script-var poll stuff
         self.script_var_handler.stop_all();
@@ -253,7 +282,7 @@ impl App {
         self.eww_config = config;
         self.eww_state.clear_all_window_states();
 
-        let windows = self.windows.clone();
+        let windows = self.open_windows.clone();
         for (window_name, window) in windows {
             window.close();
             self.open_window(&window_name, None, None, None)?;
@@ -268,7 +297,7 @@ impl App {
 
     /// Get all variable names that are currently referenced in any of the open windows.
     pub fn get_currently_used_variables(&self) -> impl Iterator<Item = &VarName> {
-        self.windows
+        self.open_windows
             .keys()
             .flat_map(move |window_name| self.eww_state.vars_referenced_in(window_name))
     }
@@ -276,7 +305,7 @@ impl App {
     /// Get all variables mapped to a list of windows they are being used in.
     pub fn currently_used_variables<'a>(&'a self) -> HashMap<&'a VarName, Vec<&'a WindowName>> {
         let mut vars: HashMap<&'a VarName, Vec<_>> = HashMap::new();
-        for window_name in self.windows.keys() {
+        for window_name in self.open_windows.keys() {
             for var in self.eww_state.vars_referenced_in(window_name) {
                 vars.entry(var)
                     .and_modify(|l| l.push(window_name))

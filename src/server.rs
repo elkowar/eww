@@ -8,7 +8,7 @@ use std::{
 };
 use tokio::sync::mpsc::*;
 
-pub fn initialize_server() -> Result<()> {
+pub fn initialize_server(config_dir_override: Option<std::path::PathBuf>) -> Result<()> {
     do_detach()?;
 
     simple_signal::set_handler(&[simple_signal::Signal::Int, simple_signal::Signal::Term], move |_| {
@@ -20,7 +20,8 @@ pub fn initialize_server() -> Result<()> {
     });
     let (ui_send, mut ui_recv) = tokio::sync::mpsc::unbounded_channel();
 
-    let config_file_path = crate::CONFIG_DIR.join("eww.xml");
+    let config_file_path = config_dir_override.unwrap_or(crate::CONFIG_DIR.join("eww.xml")); 
+
     let config_dir = config_file_path
         .parent()
         .context("config file did not have a parent?!")?
@@ -38,22 +39,24 @@ pub fn initialize_server() -> Result<()> {
     let mut app = app::App {
         eww_state: EwwState::from_default_vars(eww_config.generate_initial_state()?),
         eww_config,
-        windows: HashMap::new(),
+        open_windows: HashMap::new(),
         css_provider: gtk::CssProvider::new(),
         script_var_handler,
         app_evt_send: ui_send.clone(),
+        config_file_path,
+        scss_file_path,
     };
 
     if let Some(screen) = gdk::Screen::get_default() {
         gtk::StyleContext::add_provider_for_screen(&screen, &app.css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
     }
 
-    if let Ok(eww_css) = util::parse_scss_from_file(&scss_file_path) {
+    if let Ok(eww_css) = util::parse_scss_from_file(&app.scss_file_path) {
         app.load_css(&eww_css)?;
     }
 
     // initialize all the handlers and tasks running asyncronously
-    init_async_part(config_file_path, scss_file_path, ui_send);
+    init_async_part(app.config_file_path.clone(), app.scss_file_path.clone(), ui_send);
 
     glib::MainContext::default().spawn_local(async move {
         while let Some(event) = ui_recv.recv().await {
@@ -127,11 +130,11 @@ async fn run_filewatch<P: AsRef<Path>>(
                 if event.wd == config_file_descriptor {
                         log::info!("Reloading eww configuration");
                         let new_eww_config = config::EwwConfig::read_from_file(config_file_path.as_ref())?;
-                        evt_send.send(app::DaemonCommand::ReloadConfig(new_eww_config))?;
+                        evt_send.send(app::DaemonCommand::UpdateConfig(new_eww_config))?;
                 } else if event.wd == scss_file_descriptor {
                         log::info!("reloading eww css file");
                         let eww_css = crate::util::parse_scss_from_file(scss_file_path.as_ref())?;
-                        evt_send.send(app::DaemonCommand::ReloadCss(eww_css))?;
+                        evt_send.send(app::DaemonCommand::UpdateCss(eww_css))?;
                 } else {
                     eprintln!("Got inotify event for unknown thing: {:?}", event);
                 }

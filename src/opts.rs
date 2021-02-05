@@ -29,7 +29,11 @@ struct RawOpt {
 pub enum Action {
     /// Start the Eww daemon.
     #[structopt(name = "daemon")]
-    Daemon,
+    Daemon {
+        /// Custom Config Path
+        #[structopt(short, long)]
+        config: Option<std::path::PathBuf>,
+    },
 
     #[structopt(flatten)]
     ClientOnly(ActionClientOnly),
@@ -86,6 +90,10 @@ pub enum ActionWithServer {
     /// Close the window with the given name
     #[structopt(name = "close")]
     CloseWindow { window_name: WindowName },
+
+    /// Reload the configuration
+    #[structopt(name = "reload")]
+    Reload,
 
     /// kill the eww daemon
     #[structopt(name = "kill")]
@@ -164,6 +172,7 @@ impl ActionWithServer {
             ActionWithServer::CloseWindow { window_name } => {
                 return with_response_channel(|sender| app::DaemonCommand::CloseWindow { window_name, sender });
             }
+            ActionWithServer::Reload => return with_response_channel(app::DaemonCommand::ReloadConfigAndCss),
             ActionWithServer::ShowWindows => return with_response_channel(app::DaemonCommand::PrintWindows),
             ActionWithServer::ShowState => return with_response_channel(app::DaemonCommand::PrintState),
             ActionWithServer::ShowDebug => return with_response_channel(app::DaemonCommand::PrintDebug),

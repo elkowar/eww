@@ -18,7 +18,7 @@ pub struct EwwWindowDefinition {
 }
 
 impl EwwWindowDefinition {
-    pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
+    pub fn from_xml_element(xml: &XmlElement) -> Result<Self> {
         ensure_xml_tag_is!(xml, "window");
         let stacking: WindowStacking = xml.parse_optional_attr("stacking")?.unwrap_or_default();
         let screen_number = xml.parse_optional_attr("screen")?;
