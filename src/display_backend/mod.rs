@@ -1,4 +1,4 @@
-use crate::geometry::*;
+use crate::{geometry::*, value::NumWithUnit};
 use anyhow::*;
 
 #[cfg(feature = "x11")]
@@ -26,6 +26,21 @@ impl Rectangular for MonitorData {
     }
 }
 
+#[derive(Debug, Clone, Copy, Eq, PartialEq, smart_default::SmartDefault)]
+pub enum Side {
+    #[default]
+    Top,
+    Left,
+    Right,
+    Bottom,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
+pub struct StrutDefinition {
+    pub side: Side,
+    pub dist: NumWithUnit,
+}
+
 pub trait DisplayBackend {
     type WinId: Copy + std::fmt::Debug;
 
@@ -41,6 +56,7 @@ pub trait DisplayBackend {
     fn set_unmanaged(&self, win: Self::WinId) -> Result<()>;
     fn set_application_id<S: AsRef<str>>(&self, win: Self::WinId, id: S) -> Result<()>;
     fn get_window_id_of(&self, window: &gtk4::Window) -> Self::WinId;
+    fn reserve_space(&self, win: Self::WinId, monitor: &Option<String>, strut_def: StrutDefinition) -> Result<()>;
 
     fn get_monitor(&self, name: &str) -> Result<MonitorData> {
         self.get_monitors()?

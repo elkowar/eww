@@ -13,7 +13,7 @@ pub struct EwwWindowDefinition {
     pub stacking: WindowStacking,
     pub monitor_name: Option<String>,
     pub widget: WidgetUse,
-    pub struts: Struts,
+    pub struts: display_backend::StrutDefinition,
     pub focusable: bool,
 }
 
@@ -26,7 +26,12 @@ impl EwwWindowDefinition {
         let monitor_name = xml.parse_optional_attr("screen")?;
         let focusable = xml.parse_optional_attr("focusable")?;
 
-        let struts = xml.child("struts").ok().map(Struts::from_xml_element).transpose()?;
+        let struts: Option<display_backend::StrutDefinition> = xml
+            .child("reserve")
+            .ok()
+            .map(parse_strut_definition)
+            .transpose()
+            .context("Failed to parse <reserve>")?;
 
         Ok(EwwWindowDefinition {
             name: WindowName(xml.attr("name")?.to_owned()),
@@ -48,23 +53,23 @@ impl EwwWindowDefinition {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct Struts {
-    left: i32,
-    right: i32,
-    top: i32,
-    bottom: i32,
+fn parse_strut_definition(xml: XmlElement) -> Result<display_backend::StrutDefinition> {
+    Ok(display_backend::StrutDefinition {
+        side: parse_side(xml.attr("side")?)?,
+        dist: xml.attr("distance")?.parse()?,
+    })
 }
 
-impl Struts {
-    pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
-        ensure_xml_tag_is!(xml, "struts");
-        Ok(Struts {
-            left: xml.attr("left")?.parse()?,
-            right: xml.attr("right")?.parse()?,
-            top: xml.attr("top")?.parse()?,
-            bottom: xml.attr("bottom")?.parse()?,
-        })
+fn parse_side(s: &str) -> Result<display_backend::Side> {
+    match s {
+        "l" | "left" => Ok(display_backend::Side::Left),
+        "r" | "right" => Ok(display_backend::Side::Right),
+        "t" | "top" => Ok(display_backend::Side::Top),
+        "b" | "bottom" => Ok(display_backend::Side::Bottom),
+        _ => Err(anyhow!(
+            "Failed to parse {} as valid side. Must be one of \"left\", \"right\", \"top\", \"bottom\"",
+            s
+        )),
     }
 }
 

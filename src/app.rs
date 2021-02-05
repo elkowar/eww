@@ -2,7 +2,7 @@ use crate::{
     config,
     config::{window_definition::WindowName, AnchorPoint},
     display_backend,
-    display_backend::{DisplayBackend, StackingStrategy},
+    display_backend::DisplayBackend,
     eww_state,
     script_var_handler::*,
     value::{AttrValue, Coords, PrimitiveValue, VarName},
@@ -375,6 +375,8 @@ fn initialize_window<B: DisplayBackend>(
             window_rect_on_monitor.height as u32,
         )
         .with_context(|| format!("Failed to resize window to {:?}", window_rect_on_monitor))?;
+
+    backend.reserve_space(win_id, &window_def.monitor_name, window_def.struts)?;
 
     backend.map_window(win_id)?;
 

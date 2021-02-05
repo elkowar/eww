@@ -214,6 +214,7 @@ The `<windows>` config should look something like this:
 <windows>
     <window name="main_window" stacking="fg" focusable="false" screen="1">
         <geometry anchor="top left" x="300px" y="50%" width="25%" height="20px"/>
+        <reserve side="left" distance="50px"/>
         <widget>
             <main/>
         </widget>
@@ -223,6 +224,7 @@ The `<windows>` config should look something like this:
 
 The window block contains multiple elements to configure the window.
 - `<geometry>` is used to specify the position and size of the window.
+- `<distance>` is used to have eww reserve space at a given side of the screen the widget is on.
 - `<widget>` will contain the widget that is shown in the window.
 
 There are a couple things you can optionally configure on the window itself:

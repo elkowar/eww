@@ -15,6 +15,15 @@ pub enum NumWithUnit {
     Pixels(i32),
 }
 
+impl NumWithUnit {
+    pub fn relative_to(&self, max: i32) -> i32 {
+        match *self {
+            NumWithUnit::Percent(n) => ((max as f64 / 100.0) * n as f64) as i32,
+            NumWithUnit::Pixels(n) => n,
+        }
+    }
+}
+
 impl FromStr for NumWithUnit {
     type Err = anyhow::Error;
 
@@ -76,16 +85,7 @@ impl Coords {
 
     /// resolve the possibly relative coordinates relative to a given containers size
     pub fn relative_to(&self, width: i32, height: i32) -> (i32, i32) {
-        (
-            match self.x {
-                NumWithUnit::Percent(n) => ((width as f64 / 100.0) * n as f64) as i32,
-                NumWithUnit::Pixels(n) => n,
-            },
-            match self.y {
-                NumWithUnit::Percent(n) => ((height as f64 / 100.0) * n as f64) as i32,
-                NumWithUnit::Pixels(n) => n,
-            },
-        )
+        (self.x.relative_to(width), self.y.relative_to(height))
     }
 }
 
