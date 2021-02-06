@@ -93,7 +93,6 @@ fn main() {
 
                     println!("Run `eww logs` to see any errors, warnings or information while editing your configuration.");
                     server::initialize_server(config)?;
-
                 }
             }
         }
