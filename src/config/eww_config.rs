@@ -25,6 +25,7 @@ pub struct EwwConfig {
 
 impl EwwConfig {
     pub fn merge_includes(mut eww_config: EwwConfig, includes: Vec<EwwConfig>) -> Result<EwwConfig> {
+        println!("{:#?}", eww_config);
         let config_path = eww_config.filepath.clone();
         let log_conflict = |what: &str, conflict: &str, included_path: &std::path::PathBuf| {
             eprintln!(
@@ -190,6 +191,12 @@ fn parse_variables_block(xml: XmlElement) -> Result<(HashMap<VarName, PrimitiveV
             _ => bail!("Illegal element in variables block: {}", node.as_tag_string()),
         }
     }
+
+    let mut extensions: HashMap<VarName, PrimitiveValue> = HashMap::new();
+    extensions.insert(VarName::from("HOME"), PrimitiveValue::from_string("/home/legend/".to_owned()));
+    // Extends the variables with the predefined variables
+    extend_safe(&mut normal_vars, extensions);
+
     Ok((normal_vars, script_vars))
 }
 
