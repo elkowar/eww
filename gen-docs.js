@@ -1,13 +1,29 @@
 const fs = require("fs");
-fs.readFile(process.argv[process.argv.length - 1], "utf8", (err, data) => {
-    if (err) {
-        return console.log(err);
-    } else {
-        const vars = parseVars(data);
-        printDocs(vars, parseDocs(data));
-    }
-});
+let data = fs.readFileSync(process.argv[2], "utf8");
+// magic vars
+if (data.startsWith("// DON'T REMOVE THIS!")) {
+    parseMagicVariables(data);
+    console.log("\n## Static Magic Variables\n");
+    let data2 = fs.readFileSync(process.argv[3], "utf8");
+    parseMagicVariables(data2);
+} else {
+    // Wigdet vars
+    const vars = parseVars(data);
+    printDocs(vars, parseDocs(data));
+}
 
+function parseMagicVariables(data) {
+    const pattern = /^.*\/\/ @desc +(.*)$/;
+    for (let line of data.split("\n")) {
+        let match = line.match(pattern);
+        if (match) {
+            let split = match[1].split("-");
+            let name = split[0].trim();
+            let desc = split[1].trim();
+            console.log(`### \`${name}\`\n${desc}`);
+        }
+    }
+}
 function parseVars(code) {
     const VAR_PATTERN = /^.*\/\/+ *@var +(.*?) +- +(.*)$/;
     const vars = {};

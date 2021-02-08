@@ -23,6 +23,14 @@ jobs:
                   node-version: "12.x"
             - run: node gen-docs.js ./src/widgets/widget_definitions.rs >> ./docs/content/main/widgets.md
 
+            # Build magic vars documentation
+
+            - name: Use nodejs to build magic vars documentation
+              uses: actions/setup-node@v1
+              with:
+                  node-version: "12.x"
+            - run: node gen-docs.js ./src/config/inbuilt.rs ./src/app.rs >> docs/content/main/magic-vars.mdnode gen-docs.js ./src/widgets/widget_definitions.rs >> ./docs/content/main/widgets.md
+
             # Build & deploy
             - name: shalzz/zola-deploy-action
               uses: shalzz/zola-deploy-action@v0.12.0

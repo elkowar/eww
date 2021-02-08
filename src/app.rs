@@ -251,7 +251,11 @@ impl App {
             &self.eww_config.get_widgets(),
             &mut self.eww_state,
             window_name,
-            &maplit::hashmap! { "window_name".into() => AttrValue::from_primitive(window_name.to_string()) },
+            &maplit::hashmap! {
+            // @desc WINDOW_NAME - The name of the window
+            "WINDOW_NAME".into() => AttrValue::from_primitive(window_name.to_string()),
+            // @desc HOME - The home env variable
+            "HOME".into() => AttrValue::from_primitive(std::env::var("HOME")?) },
             &window_def.widget,
         )?;
         root_widget.get_style_context().add_class(&window_name.to_string());

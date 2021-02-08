@@ -25,7 +25,6 @@ pub struct EwwConfig {
 
 impl EwwConfig {
     pub fn merge_includes(mut eww_config: EwwConfig, includes: Vec<EwwConfig>) -> Result<EwwConfig> {
-        println!("{:#?}", eww_config);
         let config_path = eww_config.filepath.clone();
         let log_conflict = |what: &str, conflict: &str, included_path: &std::path::PathBuf| {
             eprintln!(
@@ -36,7 +35,6 @@ impl EwwConfig {
                 included_path.display()
             );
         };
-
         for included_config in includes {
             for conflict in extend_safe(&mut eww_config.widgets, included_config.widgets) {
                 log_conflict("widget", &conflict, &included_config.filepath)
@@ -192,10 +190,15 @@ fn parse_variables_block(xml: XmlElement) -> Result<(HashMap<VarName, PrimitiveV
         }
     }
 
-    let mut extensions: HashMap<VarName, PrimitiveValue> = HashMap::new();
-    extensions.insert(VarName::from("HOME"), PrimitiveValue::from_string("/home/legend/".to_owned()));
     // Extends the variables with the predefined variables
-    extend_safe(&mut normal_vars, extensions);
+    let inbuilt = crate::config::inbuilt::get_inbuilt_vars();
+    for i in extend_safe(&mut script_vars, inbuilt) {
+        eprintln!(
+            "script-var '{}' defined twice (defined in your config and in the eww included variables)\nHint: don't define a \
+             variable 'window_name' or anything starting with 'EWW_'",
+            i,
+        );
+    }
 
     Ok((normal_vars, script_vars))
 }

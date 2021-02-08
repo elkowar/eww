@@ -47,5 +47,7 @@ futures-util = "0.3"
 inotify = "0.9"
 tokio-util = "0.6"
 
+sysinfo = "0.16.1"
+
 [dev-dependencies]
 pretty_assertions = "0.6.1"

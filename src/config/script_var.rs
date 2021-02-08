@@ -1,4 +1,4 @@
-use std::process::Command;
+use std::process::Command as Shell;
 
 use anyhow::*;
 
@@ -7,15 +7,23 @@ use crate::ensure_xml_tag_is;
 use super::*;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Command {
+    Shell(String),
+    Function(fn() -> Result<PrimitiveValue>),
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PollScriptVar {
     pub name: VarName,
-    pub command: String,
+    pub command: Command,
     pub interval: std::time::Duration,
 }
 
 impl PollScriptVar {
     pub fn run_once(&self) -> Result<PrimitiveValue> {
-        run_command(&self.command)
+        match &self.command {
+            Command::Shell(x) => run_command(x),
+            Command::Function(x) => x(),
+        }
     }
 }
 
@@ -41,7 +49,10 @@ impl ScriptVar {
 
     pub fn initial_value(&self) -> Result<PrimitiveValue> {
         match self {
-            ScriptVar::Poll(x) => Ok(run_command(&x.command)?),
+            ScriptVar::Poll(x) => Ok(match x.command.clone() {
+                Command::Shell(x) => run_command(&x)?,
+                Command::Function(x) => x()?,
+            }),
             ScriptVar::Tail(_) => Ok(PrimitiveValue::from_string(String::new())),
         }
     }
@@ -53,7 +64,11 @@ impl ScriptVar {
         let command = xml.only_child()?.as_text()?.text();
         if let Ok(interval) = xml.attr("interval") {
             let interval = util::parse_duration(interval)?;
-            Ok(ScriptVar::Poll(PollScriptVar { name, command, interval }))
+            Ok(ScriptVar::Poll(PollScriptVar {
+                name,
+                command: crate::config::Command::Shell(command),
+                interval,
+            }))
         } else {
             Ok(ScriptVar::Tail(TailScriptVar { name, command }))
         }
@@ -62,7 +77,7 @@ impl ScriptVar {
 
 /// Run a command and get the output
 fn run_command(cmd: &str) -> Result<PrimitiveValue> {
-    let output = String::from_utf8(Command::new("/bin/sh").arg("-c").arg(cmd).output()?.stdout)?;
+    let output = String::from_utf8(Shell::new("/bin/sh").arg("-c").arg(cmd).output()?.stdout)?;
     let output = output.trim_matches('\n');
     Ok(PrimitiveValue::from(output))
 }
