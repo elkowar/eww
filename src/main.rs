@@ -90,6 +90,7 @@ fn main() {
                 } else {
                     log::info!("Initializing Eww server.");
                     let _ = std::fs::remove_file(&*crate::IPC_SOCKET_PATH);
+
                     println!("Run `eww logs` to see any errors, warnings or information while editing your configuration.");
                     server::initialize_server(config)?;
                 }
