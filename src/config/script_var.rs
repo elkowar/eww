@@ -7,22 +7,22 @@ use crate::ensure_xml_tag_is;
 use super::*;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Command {
+pub enum VarSource {
     Shell(String),
     Function(fn() -> Result<PrimitiveValue>),
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PollScriptVar {
     pub name: VarName,
-    pub command: Command,
+    pub command: VarSource,
     pub interval: std::time::Duration,
 }
 
 impl PollScriptVar {
     pub fn run_once(&self) -> Result<PrimitiveValue> {
         match &self.command {
-            Command::Shell(x) => run_command(x),
-            Command::Function(x) => x(),
+            VarSource::Shell(x) => run_command(x),
+            VarSource::Function(x) => x(),
         }
     }
 }
@@ -49,10 +49,7 @@ impl ScriptVar {
 
     pub fn initial_value(&self) -> Result<PrimitiveValue> {
         match self {
-            ScriptVar::Poll(x) => Ok(match x.command.clone() {
-                Command::Shell(x) => run_command(&x)?,
-                Command::Function(x) => x()?,
-            }),
+            ScriptVar::Poll(x) => x.run_once(),
             ScriptVar::Tail(_) => Ok(PrimitiveValue::from_string(String::new())),
         }
     }
@@ -66,7 +63,7 @@ impl ScriptVar {
             let interval = util::parse_duration(interval)?;
             Ok(ScriptVar::Poll(PollScriptVar {
                 name,
-                command: crate::config::Command::Shell(command),
+                command: crate::config::VarSource::Shell(command),
                 interval,
             }))
         } else {

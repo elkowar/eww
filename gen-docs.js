@@ -1,18 +1,17 @@
 const fs = require("fs");
-let data = fs.readFileSync(process.argv[2], "utf8");
 // magic vars
-if (data.startsWith("// DON'T REMOVE THIS!")) {
-    parseMagicVariables(data);
-    console.log("\n## Static Magic Variables\n");
-    let data2 = fs.readFileSync(process.argv[3], "utf8");
-    parseMagicVariables(data2);
-} else {
-    // Wigdet vars
-    const vars = parseVars(data);
-    printDocs(vars, parseDocs(data));
-}
+let stream = fs.createWriteStream("./docs/content/main/magic-vars.md", {
+    flags: "a",
+});
+parseMagicVariables(fs.readFileSync("./src/config/inbuilt.rs", "utf8"), stream);
+stream.write("\n## Static Magic Variables\n\n");
+parseMagicVariables(fs.readFileSync("./src/app.rs", "utf8"), stream);
+stream.close();
+// Wigdet docs
+let data1 = fs.readFileSync("./src/widgets/widget_definitions.rs", "utf8");
+printDocs(parseVars(data1), parseDocs(data1));
 
-function parseMagicVariables(data) {
+function parseMagicVariables(data, stream) {
     const pattern = /^.*\/\/ @desc +(.*)$/;
     for (let line of data.split("\n")) {
         let match = line.match(pattern);
@@ -20,10 +19,11 @@ function parseMagicVariables(data) {
             let split = match[1].split("-");
             let name = split[0].trim();
             let desc = split[1].trim();
-            console.log(`### \`${name}\`\n${desc}`);
+            stream.write(`### \`${name}\`\n${desc}\n`);
         }
     }
 }
+
 function parseVars(code) {
     const VAR_PATTERN = /^.*\/\/+ *@var +(.*?) +- +(.*)$/;
     const vars = {};
@@ -93,7 +93,7 @@ function printDocs(vars, docs) {
         .map((x) => printWidget(x))
         .map((x) => x.replace(/\$\w+/g, (x) => vars[x.replace("$", "")]))
         .join("\n\n");
-    console.log(output);
+    fs.appendFileSync("./docs/content/main/widgets.md", output);
 }
 
 function printWidget(widget) {
