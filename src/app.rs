@@ -173,6 +173,7 @@ impl App {
                         .eww_state
                         .get_variables()
                         .iter()
+                        //.filter(|(x, _)| {})
                         .map(|(key, value)| format!("{}: {}", key, value))
                         .join("\n");
                     sender

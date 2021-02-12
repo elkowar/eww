@@ -194,8 +194,8 @@ fn parse_variables_block(xml: XmlElement) -> Result<(HashMap<VarName, PrimitiveV
     let inbuilt = crate::config::inbuilt::get_inbuilt_vars();
     for i in extend_safe(&mut script_vars, inbuilt) {
         eprintln!(
-            "script-var '{}' defined twice (defined in your config and in the eww included variables)\nHint: don't define a \
-             variable 'window_name' or anything starting with 'EWW_'",
+            "script-var '{}' defined twice (defined in your config and in the eww included variables)\nHint: don't define any \
+             varible like any of these: https://elkowar.github.io/eww/main/magic-variables-documenation/",
             i,
         );
     }
