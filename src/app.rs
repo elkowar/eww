@@ -62,7 +62,10 @@ pub enum DaemonCommand {
     },
     KillServer,
     CloseAll,
-    PrintState(DaemonResponseSender),
+    PrintState {
+        all: bool,
+        sender: DaemonResponseSender,
+    },
     PrintDebug(DaemonResponseSender),
     PrintWindows(DaemonResponseSender),
 }
@@ -105,7 +108,7 @@ impl App {
                 DaemonCommand::NoOp => {}
                 DaemonCommand::UpdateVars(mappings) => {
                     for (var_name, new_value) in mappings {
-                        self.update_state(var_name, new_value)?;
+                        self.update_state(var_name, new_value);
                     }
                 }
                 DaemonCommand::ReloadConfigAndCss(sender) => {
@@ -168,14 +171,26 @@ impl App {
                     let result = self.close_window(&window_name);
                     respond_with_error(sender, result)?;
                 }
-                DaemonCommand::PrintState(sender) => {
-                    let output = self
-                        .eww_state
-                        .get_variables()
-                        .iter()
-                        //.filter(|(x, _)| {})
-                        .map(|(key, value)| format!("{}: {}", key, value))
-                        .join("\n");
+                DaemonCommand::PrintState { all, sender } => {
+                    let vars = self.eww_state.get_variables().iter();
+                    let output;
+                    // duplicate code (the map) but whatever. because of difference of Filter and Iter ??
+                    if !all {
+                        output = vars
+                            .filter(|(x, _)| {
+                                for i in self.eww_state.referenced_vars() {
+                                    // It has to continue running, if it's not true
+                                    if i == x.clone() {
+                                        return true;
+                                    }
+                                }
+                                return false;
+                            })
+                            .map(|(key, value)| format!("{}: {}", key, value))
+                            .join("\n");
+                    } else {
+                        output = vars.map(|(key, value)| format!("{}: {}", key, value)).join("\n");
+                    }
                     sender
                         .send(DaemonResponse::Success(output))
                         .context("sending response from main thread")?
@@ -212,7 +227,7 @@ impl App {
         gtk::main_quit();
     }
 
-    fn update_state(&mut self, fieldname: VarName, value: PrimitiveValue) -> Result<()> {
+    fn update_state(&mut self, fieldname: VarName, value: PrimitiveValue) {
         self.eww_state.update_variable(fieldname, value)
     }
 

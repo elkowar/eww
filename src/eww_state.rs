@@ -100,7 +100,7 @@ impl EwwState {
 
     /// Update the value of a variable, running all registered
     /// [StateChangeHandler]s.
-    pub fn update_variable(&mut self, key: VarName, value: PrimitiveValue) -> Result<()> {
+    pub fn update_variable(&mut self, key: VarName, value: PrimitiveValue) {
         self.variables_state.insert(key.clone(), value);
 
         let handlers = self
@@ -112,7 +112,6 @@ impl EwwState {
         for handler in handlers {
             handler.run_with_state(&self.variables_state)
         }
-        Ok(())
     }
 
     /// resolves a value if possible, using the current eww_state

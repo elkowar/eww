@@ -103,9 +103,13 @@ pub enum ActionWithServer {
     #[structopt(name = "close-all")]
     CloseAll,
 
-    /// Print the current eww-state
+    /// Prints the variables used in all currently open window
     #[structopt(name = "state")]
-    ShowState,
+    ShowState {
+        /// Shows all variables, including not currently used ones
+        #[structopt(short, long)]
+        all: bool,
+    },
 
     /// Print the names of all configured windows. Windows with a * in front of them are currently opened.
     #[structopt(name = "windows")]
@@ -174,7 +178,9 @@ impl ActionWithServer {
             }
             ActionWithServer::Reload => return with_response_channel(app::DaemonCommand::ReloadConfigAndCss),
             ActionWithServer::ShowWindows => return with_response_channel(app::DaemonCommand::PrintWindows),
-            ActionWithServer::ShowState => return with_response_channel(app::DaemonCommand::PrintState),
+            ActionWithServer::ShowState { all } => {
+                return with_response_channel(|sender| app::DaemonCommand::PrintState { all, sender })
+            }
             ActionWithServer::ShowDebug => return with_response_channel(app::DaemonCommand::PrintDebug),
         };
         (command, None)
