@@ -18,7 +18,7 @@ pub struct Opt {
 #[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
 struct RawOpt {
     /// Write out debug logs. (To read the logs, run `eww logs`).
-    #[structopt(long = "debug")]
+    #[structopt(long = "debug", global = true)]
     log_debug: bool,
 
     #[structopt(subcommand)]
