@@ -2,6 +2,8 @@ pub use platform::*;
 
 #[cfg(feature = "no-x11")]
 mod platform {
+    use crate::config::{Side, StrutDefinition};
+    use anyhow::*;
     pub fn reserve_space_for(window: &gtk::Window, monitor: gdk::Rectangle, strut_def: StrutDefinition) -> Result<()> {
         Err(anyhow!("Cannot reserve space on non-X11 backends"))
     }
