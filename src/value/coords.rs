@@ -15,6 +15,15 @@ pub enum NumWithUnit {
     Pixels(i32),
 }
 
+impl NumWithUnit {
+    pub fn relative_to(&self, max: i32) -> i32 {
+        match *self {
+            NumWithUnit::Percent(n) => ((max as f64 / 100.0) * n as f64) as i32,
+            NumWithUnit::Pixels(n) => n,
+        }
+    }
+}
+
 impl FromStr for NumWithUnit {
     type Err = anyhow::Error;
 
@@ -35,7 +44,7 @@ impl FromStr for NumWithUnit {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Display, Default)]
-#[display(fmt = "{}X{}", x, y)]
+#[display(fmt = "{}*{}", x, y)]
 pub struct Coords {
     pub x: NumWithUnit,
     pub y: NumWithUnit,
@@ -46,7 +55,7 @@ impl FromStr for Coords {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let (x, y) = s
-            .split_once(|x: char| x.to_ascii_lowercase() == 'x')
+            .split_once(|x: char| x.to_ascii_lowercase() == 'x' || x.to_ascii_lowercase() == '*')
             .ok_or_else(|| anyhow!("must be formatted like 200x500"))?;
         Coords::from_strs(x, y)
     }
@@ -59,6 +68,13 @@ impl fmt::Debug for Coords {
 }
 
 impl Coords {
+    pub fn from_pixels(x: i32, y: i32) -> Self {
+        Coords {
+            x: NumWithUnit::Pixels(x),
+            y: NumWithUnit::Pixels(y),
+        }
+    }
+
     /// parse a string for x and a string for y into a [`Coords`] object.
     pub fn from_strs(x: &str, y: &str) -> Result<Coords> {
         Ok(Coords {
@@ -69,16 +85,7 @@ impl Coords {
 
     /// resolve the possibly relative coordinates relative to a given containers size
     pub fn relative_to(&self, width: i32, height: i32) -> (i32, i32) {
-        (
-            match self.x {
-                NumWithUnit::Percent(n) => ((width as f64 / 100.0) * n as f64) as i32,
-                NumWithUnit::Pixels(n) => n,
-            },
-            match self.y {
-                NumWithUnit::Percent(n) => ((height as f64 / 100.0) * n as f64) as i32,
-                NumWithUnit::Pixels(n) => n,
-            },
-        )
+        (self.x.relative_to(width), self.y.relative_to(height))
     }
 }
 

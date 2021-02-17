@@ -1,7 +1,7 @@
 use crate::{
     config,
     config::{window_definition::WindowName, AnchorPoint, WindowStacking},
-    eww_state,
+    display_backend, eww_state,
     script_var_handler::*,
     value::{AttrValue, Coords, NumWithUnit, PrimitiveValue, VarName},
     widgets,
@@ -378,6 +378,8 @@ fn initialize_window(
         gdk_window.lower();
         window.set_keep_below(true);
     }
+
+    display_backend::reserve_space_for(&window, monitor_geometry, window_def.struts)?;
 
     Ok(EwwWindow {
         name: window_def.name.clone(),
