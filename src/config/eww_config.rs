@@ -9,22 +9,88 @@ use crate::{
 use super::{
     element::WidgetDefinition,
     xml_ext::{XmlElement, XmlNode},
-    EwwWindowDefinition, ScriptVar, WindowName,
+    EwwWindowDefinition, RawEwwWindowDefinition, ScriptVar, WindowName,
 };
 use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
-/// Structure to hold the eww config
 pub struct EwwConfig {
-    widgets: HashMap<String, WidgetDefinition>,
     windows: HashMap<WindowName, EwwWindowDefinition>,
     initial_variables: HashMap<VarName, PrimitiveValue>,
     script_vars: HashMap<VarName, ScriptVar>,
     pub filepath: PathBuf,
 }
-
 impl EwwConfig {
-    pub fn merge_includes(mut eww_config: EwwConfig, includes: Vec<EwwConfig>) -> Result<EwwConfig> {
+    pub fn read_from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self> {
+        Ok(Self::generate(RawEwwConfig::read_from_file(path)?)?)
+    }
+
+    pub fn generate(conf: RawEwwConfig) -> Result<Self> {
+        Ok(EwwConfig {
+            windows: conf
+                .windows
+                .into_iter()
+                .map(|(name, window)| {
+                    Ok((
+                        name,
+                        EwwWindowDefinition::generate(&conf.widgets, window).context("Failed expand window definition")?,
+                    ))
+                })
+                .collect::<Result<HashMap<_, _>>>()?,
+            initial_variables: conf.initial_variables,
+            script_vars: conf.script_vars,
+            filepath: conf.filepath,
+        })
+    }
+
+    // TODO this is kinda ugly
+    pub fn generate_initial_state(&self) -> Result<HashMap<VarName, PrimitiveValue>> {
+        let mut vars = self
+            .script_vars
+            .iter()
+            .map(|var| Ok((var.0.clone(), var.1.initial_value()?)))
+            .collect::<Result<HashMap<_, _>>>()?;
+        vars.extend(self.get_default_vars().clone());
+        Ok(vars)
+    }
+
+    pub fn get_windows(&self) -> &HashMap<WindowName, EwwWindowDefinition> {
+        &self.windows
+    }
+
+    pub fn get_window(&self, name: &WindowName) -> Result<&EwwWindowDefinition> {
+        self.windows
+            .get(name)
+            .with_context(|| format!("No window named '{}' exists", name))
+    }
+
+    pub fn get_default_vars(&self) -> &HashMap<VarName, PrimitiveValue> {
+        &self.initial_variables
+    }
+
+    pub fn get_script_vars(&self) -> Vec<ScriptVar> {
+        self.script_vars.values().cloned().collect()
+    }
+
+    pub fn get_script_var(&self, name: &VarName) -> Result<&ScriptVar> {
+        self.script_vars
+            .get(name)
+            .with_context(|| format!("No script var named '{}' exists", name))
+    }
+}
+
+#[derive(Debug, Clone)]
+/// Structure to hold the eww config
+pub struct RawEwwConfig {
+    widgets: HashMap<String, WidgetDefinition>,
+    windows: HashMap<WindowName, RawEwwWindowDefinition>,
+    initial_variables: HashMap<VarName, PrimitiveValue>,
+    script_vars: HashMap<VarName, ScriptVar>,
+    pub filepath: PathBuf,
+}
+
+impl RawEwwConfig {
+    pub fn merge_includes(mut eww_config: RawEwwConfig, includes: Vec<RawEwwConfig>) -> Result<RawEwwConfig> {
         let config_path = eww_config.filepath.clone();
         let log_conflict = |what: &str, conflict: &str, included_path: &std::path::PathBuf| {
             eprintln!(
@@ -60,24 +126,16 @@ impl EwwConfig {
             let root_node = XmlNode::from(document.root_element());
             let root_element = root_node.as_element()?;
 
-            let (config, included_paths) = EwwConfig::from_xml_element(root_element.clone(), path.as_ref())
+            let (config, included_paths) = Self::from_xml_element(root_element.clone(), path.as_ref())
                 .with_context(|| format!("Error parsing eww config file {}", path.as_ref().display()))?;
 
             let parsed_includes = included_paths
                 .into_iter()
-                .map(|included_path| EwwConfig::read_from_file(included_path))
+                .map(|included_path| Self::read_from_file(included_path))
                 .collect::<Result<Vec<_>>>()
                 .with_context(|| format!("Included in {}", path.as_ref().display()))?;
 
-            config.windows.values().for_each(|window| {
-                dbg!(crate::widgets::widget_node::generate_generic_widget_node(
-                    config.get_widgets(),
-                    &HashMap::new(),
-                    window.widget.clone(),
-                ));
-            });
-
-            EwwConfig::merge_includes(config, parsed_includes)
+            Self::merge_includes(config, parsed_includes)
                 .context("Failed to merge included files into parent configuration file")?
         };
         result.with_context(|| format!("Failed to load eww config file {}", path.as_ref().display()))
@@ -114,7 +172,7 @@ impl EwwConfig {
             Some(tag) => tag
                 .child_elements()
                 .map(|child| {
-                    let def = EwwWindowDefinition::from_xml_element(&child).with_context(|| {
+                    let def = RawEwwWindowDefinition::from_xml_element(&child).with_context(|| {
                         format!("Error parsing window definition at {}:{}", path.display(), &child.text_pos())
                     })?;
                     Ok((def.name.to_owned(), def))
@@ -128,7 +186,7 @@ impl EwwConfig {
             None => Default::default(),
         };
 
-        let config = EwwConfig {
+        let config = RawEwwConfig {
             widgets: definitions,
             windows,
             initial_variables,
@@ -136,45 +194,6 @@ impl EwwConfig {
             filepath: path.to_path_buf(),
         };
         Ok((config, included_paths))
-    }
-
-    // TODO this is kinda ugly
-    pub fn generate_initial_state(&self) -> Result<HashMap<VarName, PrimitiveValue>> {
-        let mut vars = self
-            .script_vars
-            .iter()
-            .map(|var| Ok((var.0.clone(), var.1.initial_value()?)))
-            .collect::<Result<HashMap<_, _>>>()?;
-        vars.extend(self.get_default_vars().clone());
-        Ok(vars)
-    }
-
-    pub fn get_widgets(&self) -> &HashMap<String, WidgetDefinition> {
-        &self.widgets
-    }
-
-    pub fn get_windows(&self) -> &HashMap<WindowName, EwwWindowDefinition> {
-        &self.windows
-    }
-
-    pub fn get_window(&self, name: &WindowName) -> Result<&EwwWindowDefinition> {
-        self.windows
-            .get(name)
-            .with_context(|| format!("No window named '{}' exists", name))
-    }
-
-    pub fn get_default_vars(&self) -> &HashMap<VarName, PrimitiveValue> {
-        &self.initial_variables
-    }
-
-    pub fn get_script_vars(&self) -> Vec<ScriptVar> {
-        self.script_vars.values().cloned().collect()
-    }
-
-    pub fn get_script_var(&self, name: &VarName) -> Result<&ScriptVar> {
-        self.script_vars
-            .get(name)
-            .with_context(|| format!("No script var named '{}' exists", name))
     }
 }
 
@@ -227,7 +246,7 @@ fn extend_safe<K: std::cmp::Eq + std::hash::Hash + Clone, V, T: IntoIterator<Ite
 
 #[cfg(test)]
 mod test {
-    use crate::config::{EwwConfig, XmlNode};
+    use crate::config::{RawEwwConfig, XmlNode};
     use std::collections::HashMap;
 
     #[test]
@@ -282,13 +301,13 @@ mod test {
 
         let document1 = roxmltree::Document::parse(&input1).unwrap();
         let document2 = roxmltree::Document::parse(input2).unwrap();
-        let config1 = EwwConfig::from_xml_element(XmlNode::from(document1.root_element()).as_element().unwrap().clone(), "")
+        let config1 = RawEwwConfig::from_xml_element(XmlNode::from(document1.root_element()).as_element().unwrap().clone(), "")
             .unwrap()
             .0;
-        let config2 = EwwConfig::from_xml_element(XmlNode::from(document2.root_element()).as_element().unwrap().clone(), "")
+        let config2 = RawEwwConfig::from_xml_element(XmlNode::from(document2.root_element()).as_element().unwrap().clone(), "")
             .unwrap()
             .0;
-        let base_config = EwwConfig {
+        let base_config = RawEwwConfig {
             widgets: HashMap::new(),
             windows: HashMap::new(),
             initial_variables: HashMap::new(),
@@ -296,7 +315,7 @@ mod test {
             filepath: "test_path".into(),
         };
 
-        let merged_config = EwwConfig::merge_includes(base_config, vec![config1, config2]).unwrap();
+        let merged_config = RawEwwConfig::merge_includes(base_config, vec![config1, config2]).unwrap();
 
         assert_eq!(merged_config.widgets.len(), 2);
         assert_eq!(merged_config.windows.len(), 2);

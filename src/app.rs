@@ -67,7 +67,7 @@ pub enum DaemonCommand {
     PrintWindows(DaemonResponseSender),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct EwwWindow {
     pub name: WindowName,
     pub definition: config::EwwWindowDefinition,
@@ -111,7 +111,8 @@ impl App {
                 DaemonCommand::ReloadConfigAndCss(sender) => {
                     let mut errors = Vec::new();
 
-                    let config_result = config::EwwConfig::read_from_file(&self.config_file_path);
+                    let config_result =
+                        config::RawEwwConfig::read_from_file(&self.config_file_path).and_then(config::EwwConfig::generate);
                     match config_result {
                         Ok(new_config) => self.handle_command(DaemonCommand::UpdateConfig(new_config)),
                         Err(e) => errors.push(e),

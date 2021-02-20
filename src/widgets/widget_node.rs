@@ -3,15 +3,18 @@ use crate::{
     value::{AttrName, AttrValue, VarName},
 };
 use anyhow::*;
+use dyn_clone;
 use std::collections::HashMap;
-pub trait WidgetNode: std::fmt::Debug {
+pub trait WidgetNode: std::fmt::Debug + dyn_clone::DynClone + Send + Sync {
     fn get_name(&self) -> &str;
     fn get_text_pos(&self) -> Option<&roxmltree::TextPos>;
     fn get_children(&self) -> &Vec<Box<dyn WidgetNode>>;
     fn render(&self) -> Result<gtk::Widget>;
 }
 
-#[derive(Debug)]
+dyn_clone::clone_trait_object!(WidgetNode);
+
+#[derive(Debug, Clone)]
 pub struct UserDefined {
     name: String,
     text_pos: Option<roxmltree::TextPos>,
@@ -36,7 +39,7 @@ impl WidgetNode for UserDefined {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Generic {
     name: String,
     text_pos: Option<roxmltree::TextPos>,
