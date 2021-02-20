@@ -7,7 +7,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use crate::value::{AttrValue, PrimitiveValue};
 
-/// Handler that get's executed to apply the necessary parts of the eww state to
+/// Handler that gets executed to apply the necessary parts of the eww state to
 /// a gtk widget. These are created and initialized in EwwState::resolve.
 pub struct StateChangeHandler {
     func: Box<dyn Fn(HashMap<AttrName, PrimitiveValue>) -> Result<()> + 'static>,
@@ -31,12 +31,9 @@ impl StateChangeHandler {
 
         match resolved_attrs {
             Ok(resolved_attrs) => {
-                let result: Result<_> = (self.func)(resolved_attrs);
-                crate::print_result_err!("while updating UI based after state change", &result);
+                crate::print_result_err!("while updating UI based after state change", &(self.func)(resolved_attrs))
             }
-            Err(err) => {
-                eprintln!("Error while resolving attributes: {:?}", err);
-            }
+            Err(err) => eprintln!("Error while resolving attributes: {:?}", err),
         }
     }
 }
@@ -111,17 +108,20 @@ impl EwwState {
             .for_each(|handler| handler.run_with_state(&self.variables_state));
     }
 
+    /// Look up a single variable in the eww state, returning an `Err` when the value is not found.
+    pub fn lookup(&self, var_name: &VarName) -> Result<&PrimitiveValue> {
+        self.variables_state
+            .get(var_name)
+            .with_context(|| format!("Unknown variable '{}' referenced", var_name))
+    }
+
     /// resolves a value if possible, using the current eww_state.
     pub fn resolve_once<'a>(&'a self, value: &'a AttrValue) -> Result<PrimitiveValue> {
         value
             .iter()
             .map(|element| match element {
                 AttrValueElement::Primitive(primitive) => Ok(primitive.clone()),
-                AttrValueElement::VarRef(var_name) => self
-                    .variables_state
-                    .get(var_name)
-                    .cloned()
-                    .with_context(|| format!("Unknown variable '{}' referenced", var_name)),
+                AttrValueElement::VarRef(var_name) => self.lookup(var_name).cloned(),
             })
             .collect()
     }
@@ -143,11 +143,10 @@ impl EwwState {
 
         // only store the handler if at least one variable is being used
         if handler.used_variables().next().is_some() {
-            let window_state = self
-                .windows
+            self.windows
                 .entry(window_name.clone())
-                .or_insert_with(EwwWindowState::default);
-            window_state.put_handler(handler);
+                .or_insert_with(EwwWindowState::default)
+                .put_handler(handler);
         }
     }
 

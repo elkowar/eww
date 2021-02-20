@@ -13,6 +13,7 @@ use super::{
 };
 use std::path::PathBuf;
 
+/// Eww configuration structure.
 #[derive(Debug, Clone)]
 pub struct EwwConfig {
     windows: HashMap<WindowName, EwwWindowDefinition>,
@@ -34,6 +35,9 @@ impl EwwConfig {
             widgets,
         } = conf;
         Ok(EwwConfig {
+            initial_variables,
+            script_vars,
+            filepath,
             windows: windows
                 .into_iter()
                 .map(|(name, window)| {
@@ -43,9 +47,6 @@ impl EwwConfig {
                     ))
                 })
                 .collect::<Result<HashMap<_, _>>>()?,
-            initial_variables,
-            script_vars,
-            filepath,
         })
     }
 
@@ -56,7 +57,7 @@ impl EwwConfig {
             .iter()
             .map(|var| Ok((var.0.clone(), var.1.initial_value()?)))
             .collect::<Result<HashMap<_, _>>>()?;
-        vars.extend(self.get_default_vars().clone());
+        vars.extend(self.initial_variables.clone());
         Ok(vars)
     }
 
@@ -70,14 +71,6 @@ impl EwwConfig {
             .with_context(|| format!("No window named '{}' exists", name))
     }
 
-    pub fn get_default_vars(&self) -> &HashMap<VarName, PrimitiveValue> {
-        &self.initial_variables
-    }
-
-    pub fn get_script_vars(&self) -> Vec<ScriptVar> {
-        self.script_vars.values().cloned().collect()
-    }
-
     pub fn get_script_var(&self, name: &VarName) -> Result<&ScriptVar> {
         self.script_vars
             .get(name)
@@ -85,8 +78,8 @@ impl EwwConfig {
     }
 }
 
+/// Raw Eww configuration, before expanding widget usages.
 #[derive(Debug, Clone)]
-/// Structure to hold the eww config
 pub struct RawEwwConfig {
     widgets: HashMap<String, WidgetDefinition>,
     windows: HashMap<WindowName, RawEwwWindowDefinition>,
@@ -109,16 +102,16 @@ impl RawEwwConfig {
         };
 
         for included_config in includes {
-            for conflict in extend_safe(&mut eww_config.widgets, included_config.widgets) {
+            for conflict in util::extend_safe(&mut eww_config.widgets, included_config.widgets) {
                 log_conflict("widget", &conflict, &included_config.filepath)
             }
-            for conflict in extend_safe(&mut eww_config.windows, included_config.windows) {
+            for conflict in util::extend_safe(&mut eww_config.windows, included_config.windows) {
                 log_conflict("window", &conflict.to_string(), &included_config.filepath)
             }
-            for conflict in extend_safe(&mut eww_config.script_vars, included_config.script_vars) {
+            for conflict in util::extend_safe(&mut eww_config.script_vars, included_config.script_vars) {
                 log_conflict("script-var", &conflict.to_string(), &included_config.filepath)
             }
-            for conflict in extend_safe(&mut eww_config.initial_variables, included_config.initial_variables) {
+            for conflict in util::extend_safe(&mut eww_config.initial_variables, included_config.initial_variables) {
                 log_conflict("var", &conflict.to_string(), &included_config.filepath)
             }
         }
@@ -155,7 +148,7 @@ impl RawEwwConfig {
                 .child_elements()
                 .map(|child| {
                     crate::ensure_xml_tag_is!(child, "file");
-                    Ok(join_path_pretty(path, PathBuf::from(child.attr("path")?)))
+                    Ok(util::join_path_pretty(path, PathBuf::from(child.attr("path")?)))
                 })
                 .collect::<Result<Vec<_>>>()?,
             None => Default::default(),
@@ -209,12 +202,11 @@ fn parse_variables_block(xml: XmlElement) -> Result<(HashMap<VarName, PrimitiveV
     for node in xml.child_elements() {
         match node.tag_name() {
             "var" => {
-                let var_name = VarName(node.attr("name")?.to_owned());
                 let value = node
                     .only_child()
                     .map(|c| c.as_text_or_sourcecode())
                     .unwrap_or_else(|_| String::new());
-                normal_vars.insert(var_name, PrimitiveValue::from_string(value));
+                normal_vars.insert(VarName(node.attr("name")?.to_owned()), PrimitiveValue::from_string(value));
             }
             "script-var" => {
                 let script_var = ScriptVar::from_xml_element(node)?;
@@ -224,30 +216,6 @@ fn parse_variables_block(xml: XmlElement) -> Result<(HashMap<VarName, PrimitiveV
         }
     }
     Ok((normal_vars, script_vars))
-}
-
-/// Joins two paths while keeping it somewhat pretty.
-/// If the second path is absolute, this will just return the second path.
-/// If it is relative, it will return the second path joined onto the first path, removing any `./` if present.
-/// TODO this is not yet perfect, as it will still leave ../ and multiple ./ etc,... check for a Path::simplify or something.
-fn join_path_pretty<P: AsRef<std::path::Path>, P2: AsRef<std::path::Path>>(a: P, b: P2) -> PathBuf {
-    let a = a.as_ref();
-    let b = b.as_ref();
-    if b.is_absolute() {
-        b.to_path_buf()
-    } else {
-        a.parent().unwrap().join(b.strip_prefix("./").unwrap_or(&b))
-    }
-}
-
-/// extends a hashmap, returning a list of keys that already where present in the hashmap.
-fn extend_safe<K: std::cmp::Eq + std::hash::Hash + Clone, V, T: IntoIterator<Item = (K, V)>>(
-    a: &mut HashMap<K, V>,
-    b: T,
-) -> Vec<K> {
-    b.into_iter()
-        .filter_map(|(k, v)| a.insert(k.clone(), v).map(|_| k.clone()))
-        .collect()
 }
 
 #[cfg(test)]

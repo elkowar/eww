@@ -12,11 +12,8 @@ use std::collections::HashMap;
 pub trait WidgetNode: std::fmt::Debug + dyn_clone::DynClone + Send + Sync {
     fn get_name(&self) -> &str;
     fn get_text_pos(&self) -> Option<&roxmltree::TextPos>;
-    fn get_children(&self) -> &Vec<Box<dyn WidgetNode>>;
 
     /// Generate a [gtk::Widget] from a [element::WidgetUse].
-    /// The widget_use may be using a builtin widget, or a custom
-    /// [element::WidgetDefinition].
     ///
     /// Also registers all the necessary state-change handlers in the eww_state.
     ///
@@ -44,10 +41,6 @@ impl WidgetNode for UserDefined {
         self.text_pos.as_ref()
     }
 
-    fn get_children(&self) -> &Vec<Box<dyn WidgetNode>> {
-        self.content.get_children()
-    }
-
     fn render(&self, eww_state: &mut EwwState, window_name: &WindowName) -> Result<gtk::Widget> {
         self.content.render(eww_state, window_name)
     }
@@ -65,7 +58,7 @@ impl Generic {
     pub fn get_attr(&self, key: &str) -> Result<&AttrValue> {
         self.attrs
             .get(key)
-            .context(format!("attribute '{}' missing from widgetuse of '{}'", key, &self.name))
+            .context(format!("attribute '{}' missing from use of '{}'", key, &self.name))
     }
 
     /// returns all the variables that are referenced in this widget
@@ -81,10 +74,6 @@ impl WidgetNode for Generic {
 
     fn get_text_pos(&self) -> Option<&roxmltree::TextPos> {
         self.text_pos.as_ref()
-    }
-
-    fn get_children(&self) -> &Vec<Box<dyn WidgetNode>> {
-        &self.children
     }
 
     fn render(&self, eww_state: &mut EwwState, window_name: &WindowName) -> Result<gtk::Widget> {
@@ -140,13 +129,13 @@ mod test {
     #[test]
     fn test_generic_generate() {
         let w_def1 = {
-            let input = r#"<def name="foo"><box>{{nested1}}{{raw1}}</box></def>"#;
+            let input = r#"<def name="foo"><box><box>{{nested1}}{{raw1}}</box></box></def>"#;
             let document = roxmltree::Document::parse(input).unwrap();
             let xml = XmlNode::from(document.root_element().clone());
             WidgetDefinition::from_xml_element(&xml.as_element().unwrap()).unwrap()
         };
         let w_def2 = {
-            let input = r#"<def name="bar"><foo nested1="{{nested2}}" raw1="raw value"/></def>"#;
+            let input = r#"<def name="bar"><box><foo nested1="{{nested2}}" raw1="raw value"/></box></def>"#;
             let document = roxmltree::Document::parse(input).unwrap();
             let xml = XmlNode::from(document.root_element().clone());
             WidgetDefinition::from_xml_element(&xml.as_element().unwrap()).unwrap()
@@ -165,7 +154,7 @@ mod test {
         )
         .unwrap();
 
-        assert_eq!(generic.get_name(), "box".to_string());
+        // TODO actually implement this test ._.
 
         dbg!(&generic);
         // panic!("REEEEEEEEEE")
