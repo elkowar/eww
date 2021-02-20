@@ -1,4 +1,4 @@
-use std::process::Command as Shell;
+use std::process::Command;
 
 use anyhow::*;
 
@@ -74,7 +74,7 @@ impl ScriptVar {
 
 /// Run a command and get the output
 fn run_command(cmd: &str) -> Result<PrimitiveValue> {
-    let output = String::from_utf8(Shell::new("/bin/sh").arg("-c").arg(cmd).output()?.stdout)?;
+    let output = String::from_utf8(Command::new("/bin/sh").arg("-c").arg(cmd).output()?.stdout)?;
     let output = output.trim_matches('\n');
     Ok(PrimitiveValue::from(output))
 }

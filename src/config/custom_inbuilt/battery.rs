@@ -5,11 +5,7 @@ use regex::Regex;
 
 pub fn get_battery_capacity() -> Result<u8> {
     #[cfg(target_os = "linux")]
-    let capacity = std::fs::read_to_string("/sys/class/power_supply/BAT0/capacity")
-        .context("Couldn't get battery info from /sys/class/power_supply/BAT0/capacity")?
-        .trim()
-        .parse()
-        .context("Couldn't parse the number in /sys/class/power_supply/BAT0/capacity")?;
+    let capacity = linux()?;
 
     #[cfg(target_os = "macos")]
     let capacity = macos()?;
@@ -34,4 +30,12 @@ fn macos() -> Result<u8> {
     let mut number = regex.captures(&capacity).unwrap().get(0).unwrap().as_str().to_string();
     number.pop();
     Ok(number.parse().context("Couldn't make a number from the parsed text")?)
+}
+
+fn linux() -> Result<u8> {
+    Ok(std::fs::read_to_string("/sys/class/power_supply/BAT0/capacity")
+        .context("Couldn't get battery info from /sys/class/power_supply/BAT0/capacity")?
+        .trim()
+        .parse()
+        .context("Couldn't parse the number in /sys/class/power_supply/BAT0/capacity")?)
 }

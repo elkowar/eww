@@ -173,24 +173,14 @@ impl App {
                 }
                 DaemonCommand::PrintState { all, sender } => {
                     let vars = self.eww_state.get_variables().iter();
-                    let output;
                     // duplicate code (the map) but whatever. because of difference of Filter and Iter ??
-                    if !all {
-                        output = vars
-                            .filter(|(x, _)| {
-                                for i in self.eww_state.referenced_vars() {
-                                    // It has to continue running, if it's not true
-                                    if i == x.clone() {
-                                        return true;
-                                    }
-                                }
-                                return false;
-                            })
-                            .map(|(key, value)| format!("{}: {}", key, value))
-                            .join("\n");
+                    let output = if all {
+                        vars.map(|(key, value)| format!("{}: {}", key, value)).join("\n")
                     } else {
-                        output = vars.map(|(key, value)| format!("{}: {}", key, value)).join("\n");
-                    }
+                        vars.filter(|(x, _)| self.eww_state.referenced_vars().any(|var| x == &var))
+                            .map(|(key, value)| format!("{}: {}", key, value))
+                            .join("\n")
+                    };
                     sender
                         .send(DaemonResponse::Success(output))
                         .context("sending response from main thread")?

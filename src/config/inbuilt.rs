@@ -15,8 +15,7 @@ pub fn get_inbuilt_vars() -> HashMap<VarName, ScriptVar> {
          VarName::from("EWW_RAM_USAGE") => ScriptVar::Poll(PollScriptVar {
          name: VarName::from("EWW_RAM_USAGE"),
          command: crate::config::VarSource::Function(|| -> Result<PrimitiveValue, Error> {
-             let r = RefreshKind::new().with_memory();
-             let c: System = System::new_with_specifics(r);
+             let c: System = System::new_with_specifics(RefreshKind::new().with_memory());
              Ok(PrimitiveValue::from(format!(
                  // converts it to GB and only displays two fraction digits
                  "{:.2}",
@@ -29,10 +28,8 @@ pub fn get_inbuilt_vars() -> HashMap<VarName, ScriptVar> {
          VarName::from("EWW_CORES") => ScriptVar::Poll(PollScriptVar {
          name: VarName::from("EWW_CORES"),
          command: crate::config::VarSource::Function(|| -> Result<PrimitiveValue, Error> {
-             let r = RefreshKind::new().with_components_list();
-             let c = System::new_with_specifics(r);
-             let c = c.get_components();
-             let cores = c.iter().filter(|&x| x.get_label().starts_with("Core "));
+             let c = System::new_with_specifics(RefreshKind::new().with_components_list());
+             let cores = c.get_components().iter().filter(|&x| x.get_label().starts_with("Core "));
              Ok(PrimitiveValue::from(format!("{:.1}", cores.clone().map(|x| x.get_temperature()).sum::<f32>() / cores.collect::<Vec<&Component>>().len() as f32)))
          }),
          interval,
@@ -41,10 +38,8 @@ pub fn get_inbuilt_vars() -> HashMap<VarName, ScriptVar> {
         VarName::from("EWW_DISK") => ScriptVar::Poll(PollScriptVar {
         name: VarName::from("EWW_DISK"),
         command: crate::config::VarSource::Function(|| -> Result<PrimitiveValue, Error> {
-             let r = RefreshKind::new().with_disks_list();
-             let c = System::new_with_specifics(r);
-             let c = c.get_disks();
-             let root = c.iter().find(|&x| x.get_mount_point() == std::path::Path::new("/")).unwrap(); // unwrap because i'm pretty positive there's always a /
+             let c = System::new_with_specifics(RefreshKind::new().with_disks_list());
+             let root = c.get_disks().iter().find(|&x| x.get_mount_point() == std::path::Path::new("/")).ok_or_else(|| anyhow!("Couldn't find a drive mounted at /"))?;
              Ok(PrimitiveValue::from(format!("{:.1}", (root.get_total_space() as f32 - root.get_available_space() as f32) / 1000000000 as f32)))
          }),
          interval,
@@ -63,21 +58,33 @@ pub fn get_inbuilt_vars() -> HashMap<VarName, ScriptVar> {
          }),
          interval,
      }),
-        // @desc EWW_CPU - Average CPU usage (all cores) in the last two seconds
+        // @desc EWW_CPU - Average CPU usage (all cores) in the last two seconds (No MacOS support)
         VarName::from("EWW_CPU") => ScriptVar::Poll(PollScriptVar {
         name: VarName::from("EWW_CPU"),
         command: crate::config::VarSource::Function(|| -> Result<PrimitiveValue, Error> {
             Ok(PrimitiveValue::from(format!("{:.2}",
-           match crate::config::custom_inbuilt::cpu::get_cpu_usage() {
-                Err(e) => {log::error!("Couldn't get the cpu usage: {:?}", e); f32::NAN }
-                Ok(o) => {
-                    crate::config::custom_inbuilt::cpu::calculate_cpu_usage(o, vec![1 , 1, 1, 1, 1, 1 ,1 ,1 ,1 ,1 ,1 ])
-                },
-            }
+           crate::config::custom_inbuilt::cpu::get_avg_cpu_usage()
             )))
          }),
          interval,
      }),
-
+        // @desc EWW_NET_UP - Megabyte uploaded on interface (excluding the docker and local one)
+        VarName::from("EWW_NET_UP") => ScriptVar::Poll(PollScriptVar {
+        name: VarName::from("EWW_NET_UP"),
+        command: crate::config::VarSource::Function(|| -> Result<PrimitiveValue, Error> {
+            Ok(PrimitiveValue::from(format!("{:.2}", crate::config::custom_inbuilt::network::get_up()
+            )))
+         }),
+         interval,
+     }),
+        // @desc EWW_NET_DOWN - Megabyte downloaded on all interfaces (excluding the docker and local one)
+        VarName::from("EWW_NET_DOWN") => ScriptVar::Poll(PollScriptVar {
+        name: VarName::from("EWW_NET_DOWN"),
+        command: crate::config::VarSource::Function(|| -> Result<PrimitiveValue, Error> {
+            Ok(PrimitiveValue::from(format!("{:.2}", crate::config::custom_inbuilt::network::get_down()
+            )))
+         }),
+         interval,
+     }),
     }
 }
