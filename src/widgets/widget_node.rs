@@ -1,5 +1,9 @@
 use crate::{
-    config::element::{WidgetDefinition, WidgetUse},
+    config::{
+        element::{WidgetDefinition, WidgetUse},
+        WindowName,
+    },
+    eww_state::EwwState,
     value::{AttrName, AttrValue, VarName},
 };
 use anyhow::*;
@@ -9,7 +13,17 @@ pub trait WidgetNode: std::fmt::Debug + dyn_clone::DynClone + Send + Sync {
     fn get_name(&self) -> &str;
     fn get_text_pos(&self) -> Option<&roxmltree::TextPos>;
     fn get_children(&self) -> &Vec<Box<dyn WidgetNode>>;
-    fn render(&self) -> Result<gtk::Widget>;
+
+    /// Generate a [gtk::Widget] from a [element::WidgetUse].
+    /// The widget_use may be using a builtin widget, or a custom
+    /// [element::WidgetDefinition].
+    ///
+    /// Also registers all the necessary state-change handlers in the eww_state.
+    ///
+    /// This may return `Err` in case there was an actual error while parsing or
+    /// resolving the widget, Or `Ok(None)` if the widget_use just didn't match any
+    /// widget name.
+    fn render(&self, eww_state: &mut EwwState, window_name: &WindowName) -> Result<gtk::Widget>;
 }
 
 dyn_clone::clone_trait_object!(WidgetNode);
@@ -34,17 +48,30 @@ impl WidgetNode for UserDefined {
         self.content.get_children()
     }
 
-    fn render(&self) -> Result<gtk::Widget> {
-        self.content.render()
+    fn render(&self, eww_state: &mut EwwState, window_name: &WindowName) -> Result<gtk::Widget> {
+        self.content.render(eww_state, window_name)
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Generic {
-    name: String,
-    text_pos: Option<roxmltree::TextPos>,
-    children: Vec<Box<dyn WidgetNode>>,
-    attrs: HashMap<AttrName, AttrValue>,
+    pub name: String,
+    pub text_pos: Option<roxmltree::TextPos>,
+    pub children: Vec<Box<dyn WidgetNode>>,
+    pub attrs: HashMap<AttrName, AttrValue>,
+}
+
+impl Generic {
+    pub fn get_attr(&self, key: &str) -> Result<&AttrValue> {
+        self.attrs
+            .get(key)
+            .context(format!("attribute '{}' missing from widgetuse of '{}'", key, &self.name))
+    }
+
+    /// returns all the variables that are referenced in this widget
+    pub fn referenced_vars(&self) -> impl Iterator<Item = &VarName> {
+        self.attrs.iter().flat_map(|(_, value)| value.var_refs())
+    }
 }
 
 impl WidgetNode for Generic {
@@ -60,8 +87,9 @@ impl WidgetNode for Generic {
         &self.children
     }
 
-    fn render(&self) -> Result<gtk::Widget> {
-        unimplemented!();
+    fn render(&self, eww_state: &mut EwwState, window_name: &WindowName) -> Result<gtk::Widget> {
+        Ok(crate::widgets::build_builtin_gtk_widget(eww_state, window_name, &self)?
+            .with_context(|| format!("Unknown widget '{}'", self.get_name()))?)
     }
 }
 

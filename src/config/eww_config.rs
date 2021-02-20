@@ -26,20 +26,26 @@ impl EwwConfig {
     }
 
     pub fn generate(conf: RawEwwConfig) -> Result<Self> {
+        let RawEwwConfig {
+            windows,
+            initial_variables,
+            script_vars,
+            filepath,
+            widgets,
+        } = conf;
         Ok(EwwConfig {
-            windows: conf
-                .windows
+            windows: windows
                 .into_iter()
                 .map(|(name, window)| {
                     Ok((
                         name,
-                        EwwWindowDefinition::generate(&conf.widgets, window).context("Failed expand window definition")?,
+                        EwwWindowDefinition::generate(&widgets, window).context("Failed expand window definition")?,
                     ))
                 })
                 .collect::<Result<HashMap<_, _>>>()?,
-            initial_variables: conf.initial_variables,
-            script_vars: conf.script_vars,
-            filepath: conf.filepath,
+            initial_variables,
+            script_vars,
+            filepath,
         })
     }
 

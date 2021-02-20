@@ -75,11 +75,6 @@ impl RawEwwWindowDefinition {
             struts: struts.unwrap_or_default(),
         })
     }
-
-    /// returns all the variables that are referenced in this window
-    pub fn referenced_vars(&self) -> impl Iterator<Item = &VarName> {
-        self.widget.referenced_vars()
-    }
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, smart_default::SmartDefault)]
