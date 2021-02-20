@@ -12,6 +12,7 @@ use std::{collections::HashMap, process::Command};
 use widget_definitions::*;
 
 pub mod widget_definitions;
+pub mod widget_node;
 
 const CMD_STRING_PLACEHODLER: &str = "{}";
 

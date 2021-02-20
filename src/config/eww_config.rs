@@ -69,6 +69,14 @@ impl EwwConfig {
                 .collect::<Result<Vec<_>>>()
                 .with_context(|| format!("Included in {}", path.as_ref().display()))?;
 
+            config.windows.values().for_each(|window| {
+                dbg!(crate::widgets::widget_node::generate_generic_widget_node(
+                    config.get_widgets(),
+                    &HashMap::new(),
+                    window.widget.clone(),
+                ));
+            });
+
             EwwConfig::merge_includes(config, parsed_includes)
                 .context("Failed to merge included files into parent configuration file")?
         };
