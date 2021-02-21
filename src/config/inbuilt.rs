@@ -64,7 +64,7 @@ pub fn get_inbuilt_vars() -> HashMap<VarName, ScriptVar> {
         VarName::from("EWW_NET_UP") => ScriptVar::Poll(PollScriptVar {
         name: VarName::from("EWW_NET_UP"),
         command: Function(|| -> Result<PrimitiveValue, Error> {
-            Ok(PrimitiveValue::from(format!("{:.2}", network::get_up())))
+            Ok(PrimitiveValue::from(format!("{:.2}", network_up::get_up())))
         }),
         interval,
     }),
@@ -72,7 +72,7 @@ pub fn get_inbuilt_vars() -> HashMap<VarName, ScriptVar> {
         VarName::from("EWW_NET_DOWN") => ScriptVar::Poll(PollScriptVar {
         name: VarName::from("EWW_NET_DOWN"),
         command: Function(|| -> Result<PrimitiveValue, Error> {
-            Ok(PrimitiveValue::from(format!("{:.2}", network::get_down())))
+            Ok(PrimitiveValue::from(format!("{:.2}", network_down::get_down())))
         }),
         interval,
     }),
