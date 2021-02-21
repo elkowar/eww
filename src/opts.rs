@@ -18,7 +18,7 @@ pub struct Opt {
 #[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
 struct RawOpt {
     /// Write out debug logs. (To read the logs, run `eww logs`).
-    #[structopt(long = "debug")]
+    #[structopt(long = "debug", global = true)]
     log_debug: bool,
 
     #[structopt(subcommand)]
@@ -28,7 +28,7 @@ struct RawOpt {
 #[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
 pub enum Action {
     /// Start the Eww daemon.
-    #[structopt(name = "daemon")]
+    #[structopt(name = "daemon", alias = "d")]
     Daemon {
         /// Custom Config Path
         #[structopt(short, long)]
@@ -56,7 +56,7 @@ pub enum ActionWithServer {
     Ping,
 
     /// Update the value of a variable, in a running eww instance
-    #[structopt(name = "update")]
+    #[structopt(name = "update", alias = "u")]
     Update {
         /// variable_name="new_value"-pairs that will be updated
         #[structopt(parse(try_from_str = parse_var_update_arg))]
@@ -64,7 +64,7 @@ pub enum ActionWithServer {
     },
 
     /// open a window
-    #[structopt(name = "open")]
+    #[structopt(name = "open", alias = "o")]
     OpenWindow {
         /// Name of the window you want to open.
         window_name: WindowName,
@@ -88,19 +88,19 @@ pub enum ActionWithServer {
     OpenMany { windows: Vec<WindowName> },
 
     /// Close the window with the given name
-    #[structopt(name = "close")]
+    #[structopt(name = "close", alias = "c")]
     CloseWindow { window_name: WindowName },
 
     /// Reload the configuration
-    #[structopt(name = "reload")]
+    #[structopt(name = "reload", alias = "r")]
     Reload,
 
     /// kill the eww daemon
-    #[structopt(name = "kill")]
+    #[structopt(name = "kill", alias = "k")]
     KillServer,
 
     /// Close all windows, without killing the daemon
-    #[structopt(name = "close-all")]
+    #[structopt(name = "close-all", alias = "ca")]
     CloseAll,
 
     /// Prints the variables used in all currently open window

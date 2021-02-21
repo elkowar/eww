@@ -23,6 +23,8 @@ pub mod server;
 pub mod util;
 pub mod value;
 pub mod widgets;
+pub mod geometry;
+pub mod display_backend;
 
 lazy_static::lazy_static! {
     pub static ref IPC_SOCKET_PATH: std::path::PathBuf = std::env::var("XDG_RUNTIME_DIR")
@@ -89,6 +91,7 @@ fn main() {
                 } else {
                     log::info!("Initializing Eww server.");
                     let _ = std::fs::remove_file(&*crate::IPC_SOCKET_PATH);
+
                     println!("Run `eww logs` to see any errors, warnings or information while editing your configuration.");
                     server::initialize_server(config)?;
                 }

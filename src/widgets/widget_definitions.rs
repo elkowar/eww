@@ -13,6 +13,7 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<Option<gtk
     let gtk_widget = match bargs.widget.name.as_str() {
         "box" => build_gtk_box(bargs)?.upcast(),
         "scale" => build_gtk_scale(bargs)?.upcast(),
+        "progress" => build_gtk_progress(bargs)?.upcast(),
         "image" => build_gtk_image(bargs)?.upcast(),
         "button" => build_gtk_button(bargs)?.upcast(),
         "label" => build_gtk_label(bargs)?.upcast(),
@@ -255,6 +256,23 @@ fn build_gtk_scale(bargs: &mut BuilderArgs) -> Result<gtk::Scale> {
 
         // @prop draw-value - draw the value of the property
         prop(draw_value: as_bool = false) { gtk_widget.set_draw_value(draw_value) },
+    });
+    Ok(gtk_widget)
+}
+
+/// @widget progress
+/// @desc A progress bar
+fn build_gtk_progress(bargs: &mut BuilderArgs) -> Result<gtk::ProgressBar> {
+    let gtk_widget = gtk::ProgressBar::new();
+    resolve_block!(bargs, gtk_widget, {
+        // @prop flipped - flip the direction
+        prop(flipped: as_bool) { gtk_widget.set_inverted(flipped) },
+
+        // @prop value - value of the progress bar (between 0-100)
+        prop(value: as_f64) { gtk_widget.set_fraction(value / 100f64) },
+
+        // @prop orientation - orientation of the progress bar. possible values: $orientation
+        prop(orientation: as_string) { gtk_widget.set_orientation(parse_orientation(&orientation)?) },
     });
     Ok(gtk_widget)
 }

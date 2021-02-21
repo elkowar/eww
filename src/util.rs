@@ -52,10 +52,12 @@ macro_rules! loop_select {
 
 /// read an scss file, replace all environment variable references within it and
 /// then parse it into css.
-pub fn parse_scss_from_file<P: AsRef<Path>>(path: P) -> Result<String> {
-    let scss_content = replace_env_var_references(std::fs::read_to_string(path)?);
-    grass::from_string(scss_content, &grass::Options::default())
-        .map_err(|err| anyhow!("encountered SCSS parsing error: {:?}", err))
+pub fn parse_scss_from_file(path: &Path) -> Result<String> {
+    let config_dir = path.parent().context("Given SCSS file has no parent directory?!")?;
+    let scss_file_content = std::fs::read_to_string(path).with_context(|| { format!("Given SCSS File Doesnt Exist! {}", path.display()) })?;
+    let file_content = replace_env_var_references(scss_file_content);
+    let grass_config = grass::Options::default().load_path(config_dir);
+    grass::from_string(file_content, &grass_config).map_err(|err| anyhow!("Encountered SCSS parsing error: {:?}", err))
 }
 
 #[ext(pub, name = StringExt)]
