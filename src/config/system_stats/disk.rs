@@ -18,5 +18,5 @@ pub fn disk() -> Result<f32> {
         .iter()
         .find(|&x| x.get_mount_point() == std::path::Path::new("/"))
         .ok_or_else(|| anyhow!("Couldn't find a drive mounted at /"))?;
-    Ok((root.get_total_space() as f32 - root.get_available_space() as f32) / 1000000000 as f32)
+    Ok((root.get_total_space() as f32 - root.get_available_space() as f32) / 1_000_000_000f32)
 }
