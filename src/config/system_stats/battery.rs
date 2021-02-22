@@ -3,15 +3,8 @@ use anyhow::*;
 #[cfg(target_os = "macos")]
 use regex::Regex;
 
-pub fn get_battery_capacity() -> Result<u8> {
-    
-    let capacity = os_specific_capacity()?;
-
-    Ok(capacity)
-}
-
 #[cfg(target_os = "macos")]
-fn os_specific_capacity() -> Result<u8> {
+pub fn get_battery_capacity() -> Result<u8> {
     let capacity = String::from_utf8(
         std::process::Command::new("pmset")
             .args(&["-g", "batt"])
@@ -19,9 +12,9 @@ fn os_specific_capacity() -> Result<u8> {
             .context("\nError while getting the battery value on macos, with `pmset`: ")?
             .stdout,
     )?;
-    //! Sample output of that command:
+    // Sample output of that command:
     // Now drawing from 'Battery Power'
-    // -InternalBattery-0 (id=11403363)	100%; discharging; (no estimate) present: true
+    //-InternalBattery-0 (id=11403363)	100%; discharging; (no estimate) present: true
 
     let regex = Regex::new(r"[0-9]*%")?;
     let mut number = regex.captures(&capacity).unwrap().get(0).unwrap().as_str().to_string();
@@ -30,7 +23,7 @@ fn os_specific_capacity() -> Result<u8> {
     Ok(number.parse().context("Couldn't make a number from the parsed text")?)
 }
 #[cfg(target_os = "linux")]
-fn os_specific_capacity() -> Result<u8> {
+pub fn get_battery_capacity() -> Result<u8> {
     Ok(std::fs::read_to_string("/sys/class/power_supply/BAT0/capacity")
         .context("Couldn't get battery info from /sys/class/power_supply/BAT0/capacity")?
         .trim()
@@ -40,6 +33,6 @@ fn os_specific_capacity() -> Result<u8> {
 
 #[cfg(not(target_os = "macos"))]
 #[cfg(not(target_os = "linux"))]
-fn os_specific_capacity() -> Result<u8> {
+pub fn get_battery_capacity() -> Result<u8> {
     anyhow!("EWW doesn't support your OS for getting the battery capacity")
 }
