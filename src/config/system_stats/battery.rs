@@ -4,21 +4,14 @@ use anyhow::*;
 use regex::Regex;
 
 pub fn get_battery_capacity() -> Result<u8> {
-    #[cfg(target_os = "linux")]
-    let capacity = linux()?;
-
-    #[cfg(target_os = "macos")]
-    let capacity = macos()?;
-
-    #[cfg(not(target_os = "macos"))]
-    #[cfg(not(target_os = "linux"))]
-    return anyhow!("Not supported OS");
+    
+    let capacity = os_specific_capacity()?;
 
     Ok(capacity)
 }
 
 #[cfg(target_os = "macos")]
-fn macos() -> Result<u8> {
+fn os_specific_capacity() -> Result<u8> {
     let capacity = String::from_utf8(
         std::process::Command::new("pmset")
             .args(&["-g", "batt"])
@@ -36,11 +29,17 @@ fn macos() -> Result<u8> {
     number.pop();
     Ok(number.parse().context("Couldn't make a number from the parsed text")?)
 }
-
-fn linux() -> Result<u8> {
+#[cfg(target_os = "linux")]
+fn os_specific_capacity() -> Result<u8> {
     Ok(std::fs::read_to_string("/sys/class/power_supply/BAT0/capacity")
         .context("Couldn't get battery info from /sys/class/power_supply/BAT0/capacity")?
         .trim()
         .parse()
         .context("Couldn't parse the number in /sys/class/power_supply/BAT0/capacity")?)
+}
+
+#[cfg(not(target_os = "macos"))]
+#[cfg(not(target_os = "linux"))]
+fn os_specific_capacity() -> Result<u8> {
+    anyhow!("EWW doesn't support your OS for getting the battery capacity")
 }
