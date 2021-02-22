@@ -26,8 +26,15 @@ fn macos() -> Result<u8> {
             .context("\nError while getting the battery value on macos, with `pmset`: ")?
             .stdout,
     )?;
+    //! Samlple output of that command:
+    
+    // Now drawing from 'Battery Power'
+    // -InternalBattery-0 (id=11403363)	100%; discharging; (no estimate) present: true
+
+
     let regex = Regex::new(r"[0-9]*%")?;
     let mut number = regex.captures(&capacity).unwrap().get(0).unwrap().as_str().to_string();
+    // Removes the % at the end
     number.pop();
     Ok(number.parse().context("Couldn't make a number from the parsed text")?)
 }
