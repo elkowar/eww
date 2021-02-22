@@ -10,5 +10,5 @@ pub fn ram() -> f32 {
     let sys = SYSTEM.clone();
     let mut c = sys.lock().unwrap();
     c.refresh_memory();
-    (c.get_used_memory() as f32 + c.get_used_swap() as f32) / 1000000 as f32
+    (c.get_used_memory() as f32 + c.get_used_swap() as f32) / 1_000_000f32
 }
