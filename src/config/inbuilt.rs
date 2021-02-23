@@ -1,6 +1,9 @@
-// Network and CPU load have to be done with the *async magic*
 use crate::{
-    config::{system_stats::*, PollScriptVar, ScriptVar, VarSource::Function},
+    config::{
+        system_stats::{battery, cores, cpu, disk, network_down, network_up, ram},
+        PollScriptVar, ScriptVar,
+        VarSource::Function,
+    },
     value::{PrimitiveValue, VarName},
 };
 use anyhow::*;
