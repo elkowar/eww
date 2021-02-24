@@ -25,7 +25,7 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<Option<gtk
         "color-chooser" => build_gtk_color_chooser(bargs)?.upcast(),
         "combo-box-text" => build_gtk_combo_box_text(bargs)?.upcast(),
         "checkbox" => build_gtk_checkbox(bargs)?.upcast(),
-        
+
         _ => return Ok(None),
     };
     Ok(Some(gtk_widget))
