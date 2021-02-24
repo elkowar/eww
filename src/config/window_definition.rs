@@ -1,10 +1,25 @@
-use crate::ensure_xml_tag_is;
+use crate::{ensure_xml_tag_is, value::NumWithUnit};
 use anyhow::*;
 use derive_more::*;
 use serde::{Deserialize, Serialize};
 use smart_default::SmartDefault;
 
 use super::*;
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, smart_default::SmartDefault)]
+pub enum Side {
+    #[default]
+    Top,
+    Left,
+    Right,
+    Bottom,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
+pub struct StrutDefinition {
+    pub side: Side,
+    pub dist: NumWithUnit,
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct EwwWindowDefinition {
@@ -13,7 +28,7 @@ pub struct EwwWindowDefinition {
     pub stacking: WindowStacking,
     pub screen_number: Option<i32>,
     pub widget: WidgetUse,
-    pub struts: Struts,
+    pub struts: StrutDefinition,
     pub focusable: bool,
 }
 
@@ -21,10 +36,17 @@ impl EwwWindowDefinition {
     pub fn from_xml_element(xml: &XmlElement) -> Result<Self> {
         ensure_xml_tag_is!(xml, "window");
         let stacking: WindowStacking = xml.parse_optional_attr("stacking")?.unwrap_or_default();
-        let screen_number = xml.parse_optional_attr("screen")?;
-        let focusable = xml.parse_optional_attr("focusable")?;
 
-        let struts = xml.child("struts").ok().map(Struts::from_xml_element).transpose()?;
+        // TODO maybe rename this to monitor?
+        let focusable = xml.parse_optional_attr("focusable")?;
+        let screen_number = xml.parse_optional_attr("screen")?;
+
+        let struts: Option<StrutDefinition> = xml
+            .child("reserve")
+            .ok()
+            .map(parse_strut_definition)
+            .transpose()
+            .context("Failed to parse <reserve>")?;
 
         Ok(EwwWindowDefinition {
             name: WindowName(xml.attr("name")?.to_owned()),
@@ -46,23 +68,23 @@ impl EwwWindowDefinition {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct Struts {
-    left: i32,
-    right: i32,
-    top: i32,
-    bottom: i32,
+fn parse_strut_definition(xml: XmlElement) -> Result<StrutDefinition> {
+    Ok(StrutDefinition {
+        side: parse_side(xml.attr("side")?)?,
+        dist: xml.attr("distance")?.parse()?,
+    })
 }
 
-impl Struts {
-    pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
-        ensure_xml_tag_is!(xml, "struts");
-        Ok(Struts {
-            left: xml.attr("left")?.parse()?,
-            right: xml.attr("right")?.parse()?,
-            top: xml.attr("top")?.parse()?,
-            bottom: xml.attr("bottom")?.parse()?,
-        })
+fn parse_side(s: &str) -> Result<Side> {
+    match s {
+        "l" | "left" => Ok(Side::Left),
+        "r" | "right" => Ok(Side::Right),
+        "t" | "top" => Ok(Side::Top),
+        "b" | "bottom" => Ok(Side::Bottom),
+        _ => Err(anyhow!(
+            "Failed to parse {} as valid side. Must be one of \"left\", \"right\", \"top\", \"bottom\"",
+            s
+        )),
     }
 }
 

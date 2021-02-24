@@ -24,6 +24,8 @@ pub mod server;
 pub mod util;
 pub mod value;
 pub mod widgets;
+pub mod geometry;
+pub mod display_backend;
 
 lazy_static::lazy_static! {
     pub static ref IPC_SOCKET_PATH: std::path::PathBuf = std::env::var("XDG_RUNTIME_DIR")
