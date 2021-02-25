@@ -1,83 +1,53 @@
 use crate::{
-    config::{
-        system_stats::{battery, cores, cpu, disk, network_down, network_up, ram},
-        PollScriptVar, ScriptVar,
-        VarSource::Function,
-    },
+    config::{system_stats::*, PollScriptVar, ScriptVar, VarSource},
     value::{PrimitiveValue, VarName},
 };
-use anyhow::*;
 use std::{collections::HashMap, time::Duration};
 
-pub fn get_inbuilt_vars() -> HashMap<VarName, ScriptVar> {
-    let interval = Duration::new(2, 0);
+macro_rules! builtin_vars {
+    ($interval:expr, $($name:literal => $fun:expr),*$(,)?) => {{
+        maplit::hashmap! {
+            $(
+            VarName::from($name) => ScriptVar::Poll(PollScriptVar {
+                name: VarName::from($name),
+                command: VarSource::Function($fun),
+                interval: $interval,
+            })
+            ),*
+        }
+    }}}
 
-    maplit::hashmap! {
-        // @desc EWW_RAM - The current RAM + Swap usage
-        VarName::from("EWW_RAM") => ScriptVar::Poll(PollScriptVar {
-        name: VarName::from("EWW_RAM"),
-        command: Function(|| -> Result<PrimitiveValue, Error> {
-            Ok(PrimitiveValue::from(format!("{:.2}", ram::ram())))
-        }),
-        interval,
-    }),
+pub fn get_inbuilt_vars() -> HashMap<VarName, ScriptVar> {
+    builtin_vars! {Duration::new(2, 0),
         // @desc EWW_CORES - The average core heat in Celcius
-        VarName::from("EWW_CORES") => ScriptVar::Poll(PollScriptVar {
-        name: VarName::from("EWW_CORES"),
-        command: Function(|| -> Result<PrimitiveValue, Error> {
-            Ok(PrimitiveValue::from(format!("{:.1}", cores::cores())))
-        }),
-        interval,
-    }),
+        "EWW_CORES" => || Ok(PrimitiveValue::from(format!("{:.2}", cores()))),
+
+        // @desc EWW_RAM - The current RAM + Swap usage
+        "EWW_RAM" => || Ok(PrimitiveValue::from(format!("{:.2}", ram()))),
+
         // @desc EWW_DISK - Used space on / in GB (Might report inaccurately on some filesystems, like btrfs)
-        VarName::from("EWW_DISK") => ScriptVar::Poll(PollScriptVar {
-        name: VarName::from("EWW_DISK"),
-        command: Function(|| -> Result<PrimitiveValue, Error> {
-            Ok(PrimitiveValue::from(format!("{:.1}",
-                match disk::disk() {
-                    Err(e) => {log::error!("Couldn't get disk usage on `/`: {:?}", e); f32::NAN}
-                    Ok(o) => o
-                }
-            )))
-        }),
-        interval,
-    }),
+        "EWW_DISK" => || Ok(PrimitiveValue::from(format!("{:.1}",
+            match disk() {
+                Err(e) => {log::error!("Couldn't get disk usage on `/`: {:?}", e); f32::NAN}
+                Ok(o) => o
+            }
+        ))),
+
         // @desc EWW_BATTERY - Battery capacity in procent of the main battery
-        VarName::from("EWW_BATTERY") => ScriptVar::Poll(PollScriptVar {
-        name: VarName::from("EWW_BATTERY"),
-        command: Function(|| -> Result<PrimitiveValue, Error> {
-            Ok(PrimitiveValue::from(
-                match battery::get_battery_capacity() {
-                    Err(e) => {log::error!("Couldn't get the battery capacity: {:?}", e); f32::NAN }
-                    Ok(o) => o as f32,
-                }
-            ))
-        }),
-        interval,
-    }),
+        "EWW_BATTERY" => || Ok(PrimitiveValue::from(
+            match get_battery_capacity() {
+                Err(e) => {log::error!("Couldn't get the battery capacity: {:?}", e); f32::NAN }
+                Ok(o) => o as f32,
+            }
+        )),
+
         // @desc EWW_CPU - Average CPU usage (all cores) in the last two seconds (No MacOS support)
-        VarName::from("EWW_CPU") => ScriptVar::Poll(PollScriptVar {
-        name: VarName::from("EWW_CPU"),
-        command: Function(|| -> Result<PrimitiveValue, Error> {
-            Ok(PrimitiveValue::from(format!("{:.2}", cpu::get_avg_cpu_usage())))
-        }),
-        interval,
-    }),
-        // @desc EWW_NET_UP - Megabyte uploaded on interface since last update (excluding the docker and local one)
-        VarName::from("EWW_NET_UP") => ScriptVar::Poll(PollScriptVar {
-        name: VarName::from("EWW_NET_UP"),
-        command: Function(|| -> Result<PrimitiveValue, Error> {
-            Ok(PrimitiveValue::from(format!("{:.2}", network_up::get_up())))
-        }),
-        interval,
-    }),
-        // @desc EWW_NET_DOWN - Megabyte downloaded on all interfaces since last update (excluding the docker and local one)
-        VarName::from("EWW_NET_DOWN") => ScriptVar::Poll(PollScriptVar {
-        name: VarName::from("EWW_NET_DOWN"),
-        command: Function(|| -> Result<PrimitiveValue, Error> {
-            Ok(PrimitiveValue::from(format!("{:.2}", network_down::get_down())))
-        }),
-        interval,
-    }),
+        "EWW_CPU" => || Ok(PrimitiveValue::from(format!("{:.2}", get_avg_cpu_usage()))),
+
+        // @desc EWW_NET_UP - Megabyte uploaded on all interfaces that have a routing table since last update
+        "EWW_NET_UP" => || Ok(PrimitiveValue::from(format!("{:.2}", get_up()))),
+
+        // @desc EWW_NET_DOWN - Megabyte downloaded on all interfaces that have a routing table since last update
+        "EWW_NET_DOWN" => || Ok(PrimitiveValue::from(format!("{:.2}", get_down())))
     }
 }

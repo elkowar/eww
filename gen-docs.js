@@ -1,27 +1,28 @@
 const fs = require("fs");
 // magic vars
-let stream = fs.createWriteStream("./docs/content/main/magic-vars.md", {
-    flags: "a",
-});
-parseMagicVariables(fs.readFileSync("./src/config/inbuilt.rs", "utf8"), stream);
-stream.write("\n## Static Magic Variables\n\n");
-parseMagicVariables(fs.readFileSync("./src/app.rs", "utf8"), stream);
-stream.close();
+fs.appendFileSync(
+    "./docs/content/main/magic-vars.md",
+    parseMagicVariables(fs.readFileSync("./src/config/inbuilt.rs", "utf8")) +
+        "\n## Static Magic Variables\n\n" +
+        parseMagicVariables(fs.readFileSync("./src/app.rs", "utf8"))
+);
 // Wigdet docs
 let data1 = fs.readFileSync("./src/widgets/widget_definitions.rs", "utf8");
-printDocs(parseVars(data1), parseDocs(data1));
+writeDocs(parseVars(data1), parseDocs(data1));
 
-function parseMagicVariables(data, stream) {
+function parseMagicVariables(data) {
     const pattern = /^.*\/\/ @desc +(.*)$/;
+    let output = "";
     for (let line of data.split("\n")) {
         let match = line.match(pattern);
         if (match) {
             let split = match[1].split("-");
             let name = split[0].trim();
             let desc = split[1].trim();
-            stream.write(`### \`${name}\`\n${desc}\n`);
+            output = output + `### \`${name}\`\n${desc}\n`;
         }
     }
+    return output;
 }
 
 function parseVars(code) {
@@ -80,7 +81,7 @@ function parseDocs(code) {
     return widgets;
 }
 
-function printDocs(vars, docs) {
+function writeDocs(vars, docs) {
     let output = Object.values(docs)
         .filter((x) => x.isVisible)
         .map((x) => {
@@ -90,13 +91,13 @@ function printDocs(vars, docs) {
             ];
             return x;
         })
-        .map((x) => printWidget(x))
+        .map((x) => returnWidget(x))
         .map((x) => x.replace(/\$\w+/g, (x) => vars[x.replace("$", "")]))
         .join("\n\n");
     fs.appendFileSync("./docs/content/main/widgets.md", output);
 }
 
-function printWidget(widget) {
+function returnWidget(widget) {
     return `
 ## \`${widget.name}\` ${widget.desc ? `\n${widget.desc}` : ""}
 
