@@ -3,8 +3,7 @@ use crate::{
     config::{window_definition::WindowName, AnchorPoint, WindowStacking},
     display_backend, eww_state,
     script_var_handler::*,
-    value::{AttrValue, Coords, NumWithUnit, PrimitiveValue, VarName},
-    widgets,
+    value::{Coords, NumWithUnit, PrimitiveValue, VarName},
 };
 use anyhow::*;
 use debug_stub_derive::*;
@@ -67,7 +66,7 @@ pub enum DaemonCommand {
     PrintWindows(DaemonResponseSender),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct EwwWindow {
     pub name: WindowName,
     pub definition: config::EwwWindowDefinition,
@@ -105,13 +104,14 @@ impl App {
                 DaemonCommand::NoOp => {}
                 DaemonCommand::UpdateVars(mappings) => {
                     for (var_name, new_value) in mappings {
-                        self.update_state(var_name, new_value)?;
+                        self.update_state(var_name, new_value);
                     }
                 }
                 DaemonCommand::ReloadConfigAndCss(sender) => {
                     let mut errors = Vec::new();
 
-                    let config_result = config::EwwConfig::read_from_file(&self.config_file_path);
+                    let config_result =
+                        config::RawEwwConfig::read_from_file(&self.config_file_path).and_then(config::EwwConfig::generate);
                     match config_result {
                         Ok(new_config) => self.handle_command(DaemonCommand::UpdateConfig(new_config)),
                         Err(e) => errors.push(e),
@@ -211,7 +211,7 @@ impl App {
         gtk::main_quit();
     }
 
-    fn update_state(&mut self, fieldname: VarName, value: PrimitiveValue) -> Result<()> {
+    fn update_state(&mut self, fieldname: VarName, value: PrimitiveValue) {
         self.eww_state.update_variable(fieldname, value)
     }
 
@@ -247,13 +247,7 @@ impl App {
         let mut window_def = self.eww_config.get_window(window_name)?.clone();
         window_def.geometry = window_def.geometry.override_if_given(anchor, pos, size);
 
-        let root_widget = widgets::widget_use_to_gtk_widget(
-            &self.eww_config.get_widgets(),
-            &mut self.eww_state,
-            window_name,
-            &maplit::hashmap! { "window_name".into() => AttrValue::from_primitive(window_name.to_string()) },
-            &window_def.widget,
-        )?;
+        let root_widget = window_def.widget.render(&mut self.eww_state, window_name)?;
         root_widget.get_style_context().add_class(&window_name.to_string());
 
         let monitor_geometry = get_monitor_geometry(window_def.screen_number.unwrap_or_else(get_default_monitor_index));

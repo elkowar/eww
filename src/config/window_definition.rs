@@ -1,28 +1,42 @@
-use crate::{ensure_xml_tag_is, value::NumWithUnit};
+use crate::{ensure_xml_tag_is, value::NumWithUnit, widgets::widget_node};
 use anyhow::*;
 use derive_more::*;
 use serde::{Deserialize, Serialize};
 use smart_default::SmartDefault;
+use std::collections::HashMap;
 
 use super::*;
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, smart_default::SmartDefault)]
-pub enum Side {
-    #[default]
-    Top,
-    Left,
-    Right,
-    Bottom,
-}
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
-pub struct StrutDefinition {
-    pub side: Side,
-    pub dist: NumWithUnit,
-}
-
-#[derive(Debug, Clone, PartialEq)]
+/// Full window-definition containing the fully expanded widget tree.
+/// **Use this** rather than `[RawEwwWindowDefinition]`.
+#[derive(Debug, Clone)]
 pub struct EwwWindowDefinition {
+    pub name: WindowName,
+    pub geometry: EwwWindowGeometry,
+    pub stacking: WindowStacking,
+    pub screen_number: Option<i32>,
+    pub widget: Box<dyn widget_node::WidgetNode>,
+    pub struts: StrutDefinition,
+    pub focusable: bool,
+}
+
+impl EwwWindowDefinition {
+    pub fn generate(defs: &HashMap<String, WidgetDefinition>, window: RawEwwWindowDefinition) -> Result<Self> {
+        Ok(EwwWindowDefinition {
+            name: window.name,
+            geometry: window.geometry,
+            stacking: window.stacking,
+            screen_number: window.screen_number,
+            widget: widget_node::generate_generic_widget_node(defs, &HashMap::new(), window.widget)?,
+            struts: window.struts,
+            focusable: window.focusable,
+        })
+    }
+}
+
+/// Window-definition storing the raw WidgetUse, as received directly from parsing.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RawEwwWindowDefinition {
     pub name: WindowName,
     pub geometry: EwwWindowGeometry,
     pub stacking: WindowStacking,
@@ -32,7 +46,7 @@ pub struct EwwWindowDefinition {
     pub focusable: bool,
 }
 
-impl EwwWindowDefinition {
+impl RawEwwWindowDefinition {
     pub fn from_xml_element(xml: &XmlElement) -> Result<Self> {
         ensure_xml_tag_is!(xml, "window");
         let stacking: WindowStacking = xml.parse_optional_attr("stacking")?.unwrap_or_default();
@@ -44,11 +58,11 @@ impl EwwWindowDefinition {
         let struts: Option<StrutDefinition> = xml
             .child("reserve")
             .ok()
-            .map(parse_strut_definition)
+            .map(StrutDefinition::from_xml_element)
             .transpose()
             .context("Failed to parse <reserve>")?;
 
-        Ok(EwwWindowDefinition {
+        Ok(RawEwwWindowDefinition {
             name: WindowName(xml.attr("name")?.to_owned()),
             geometry: match xml.child("geometry") {
                 Ok(node) => EwwWindowGeometry::from_xml_element(node)?,
@@ -61,30 +75,45 @@ impl EwwWindowDefinition {
             struts: struts.unwrap_or_default(),
         })
     }
+}
 
-    /// returns all the variables that are referenced in this window
-    pub fn referenced_vars(&self) -> impl Iterator<Item = &VarName> {
-        self.widget.referenced_vars()
+#[derive(Debug, Clone, Copy, Eq, PartialEq, smart_default::SmartDefault)]
+pub enum Side {
+    #[default]
+    Top,
+    Left,
+    Right,
+    Bottom,
+}
+impl std::str::FromStr for Side {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Side> {
+        match s {
+            "l" | "left" => Ok(Side::Left),
+            "r" | "right" => Ok(Side::Right),
+            "t" | "top" => Ok(Side::Top),
+            "b" | "bottom" => Ok(Side::Bottom),
+            _ => Err(anyhow!(
+                "Failed to parse {} as valid side. Must be one of \"left\", \"right\", \"top\", \"bottom\"",
+                s
+            )),
+        }
     }
 }
 
-fn parse_strut_definition(xml: XmlElement) -> Result<StrutDefinition> {
-    Ok(StrutDefinition {
-        side: parse_side(xml.attr("side")?)?,
-        dist: xml.attr("distance")?.parse()?,
-    })
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
+pub struct StrutDefinition {
+    pub side: Side,
+    pub dist: NumWithUnit,
 }
 
-fn parse_side(s: &str) -> Result<Side> {
-    match s {
-        "l" | "left" => Ok(Side::Left),
-        "r" | "right" => Ok(Side::Right),
-        "t" | "top" => Ok(Side::Top),
-        "b" | "bottom" => Ok(Side::Bottom),
-        _ => Err(anyhow!(
-            "Failed to parse {} as valid side. Must be one of \"left\", \"right\", \"top\", \"bottom\"",
-            s
-        )),
+impl StrutDefinition {
+    pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
+        Ok(StrutDefinition {
+            side: xml.attr("side")?.parse()?,
+            dist: xml.attr("distance")?.parse()?,
+        })
     }
 }
 

@@ -41,7 +41,9 @@ impl ScriptVar {
 
     pub fn initial_value(&self) -> Result<PrimitiveValue> {
         match self {
-            ScriptVar::Poll(x) => Ok(run_command(&x.command)?),
+            ScriptVar::Poll(x) => {
+                run_command(&x.command).with_context(|| format!("Failed to compute initial value for {}", &self.name()))
+            }
             ScriptVar::Tail(_) => Ok(PrimitiveValue::from_string(String::new())),
         }
     }

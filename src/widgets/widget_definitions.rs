@@ -1,8 +1,8 @@
 use super::{run_command, BuilderArgs};
-use crate::{config, eww_state, resolve_block, value::AttrValue};
+use crate::{config, eww_state, resolve_block, value::AttrValue, widgets::widget_node};
 use anyhow::*;
 use gtk::{prelude::*, ImageExt};
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 // TODO figure out how to
 // TODO https://developer.gnome.org/gtk3/stable/GtkFixed.html
@@ -40,7 +40,7 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
     if let Ok(visible) = bargs
         .widget
         .get_attr("visible")
-        .and_then(|v| bargs.eww_state.resolve_once(bargs.local_env, v)?.as_bool())
+        .and_then(|v| bargs.eww_state.resolve_once(v)?.as_bool())
     {
         connect_first_map(gtk_widget, move |w| {
             if visible {
@@ -410,7 +410,6 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
 
     // TODO these clones here are dumdum
     let window_name = bargs.window_name.clone();
-    let widget_definitions = bargs.widget_definitions.clone();
     resolve_block!(bargs, gtk_widget, {
         // @prop content - inline Eww XML that will be rendered as a widget.
         prop(content: as_string) {
@@ -418,13 +417,9 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
             if !content.is_empty() {
                 let document = roxmltree::Document::parse(&content).map_err(|e| anyhow!("Failed to parse eww xml literal: {:?}", e))?;
                 let content_widget_use = config::element::WidgetUse::from_xml_node(document.root_element().into())?;
-                let child_widget = super::widget_use_to_gtk_widget(
-                    &widget_definitions,
-                    &mut eww_state::EwwState::default(),
-                    &window_name,
-                    &std::collections::HashMap::new(),
-                    &content_widget_use,
-                )?;
+
+                let widget_node = &*widget_node::generate_generic_widget_node(&HashMap::new(), &HashMap::new(), content_widget_use)?;
+                let child_widget = widget_node.render( &mut eww_state::EwwState::default(), &window_name)?;
                 gtk_widget.add(&child_widget);
                 child_widget.show();
             }

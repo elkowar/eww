@@ -7,11 +7,11 @@ use std::{collections::HashMap, sync::Arc};
 
 use crate::value::{AttrValue, PrimitiveValue};
 
-/// Handler that get's executed to apply the necessary parts of the eww state to
+/// Handler that gets executed to apply the necessary parts of the eww state to
 /// a gtk widget. These are created and initialized in EwwState::resolve.
 pub struct StateChangeHandler {
     func: Box<dyn Fn(HashMap<AttrName, PrimitiveValue>) -> Result<()> + 'static>,
-    unresolved_values: Vec<(AttrName, AttrValue)>,
+    unresolved_values: HashMap<AttrName, AttrValue>,
 }
 
 impl StateChangeHandler {
@@ -24,19 +24,16 @@ impl StateChangeHandler {
     fn run_with_state(&self, state: &HashMap<VarName, PrimitiveValue>) {
         let resolved_attrs = self
             .unresolved_values
-            .iter()
-            .cloned()
+            .clone()
+            .into_iter()
             .map(|(attr_name, value)| Ok((attr_name, value.resolve_fully(state)?)))
             .collect::<Result<_>>();
 
         match resolved_attrs {
             Ok(resolved_attrs) => {
-                let result: Result<_> = (self.func)(resolved_attrs);
-                crate::print_result_err!("while updating UI based after state change", &result);
+                crate::print_result_err!("while updating UI based after state change", &(self.func)(resolved_attrs))
             }
-            Err(err) => {
-                eprintln!("Error while resolving attributes: {:?}", err);
-            }
+            Err(err) => eprintln!("Error while resolving attributes: {:?}", err),
         }
     }
 }
@@ -100,73 +97,56 @@ impl EwwState {
 
     /// Update the value of a variable, running all registered
     /// [StateChangeHandler]s.
-    pub fn update_variable(&mut self, key: VarName, value: PrimitiveValue) -> Result<()> {
+    pub fn update_variable(&mut self, key: VarName, value: PrimitiveValue) {
         self.variables_state.insert(key.clone(), value);
 
-        let handlers = self
-            .windows
+        // run all of the handlers
+        self.windows
             .values()
             .filter_map(|window_state| window_state.state_change_handlers.get(&key))
-            .flatten();
-
-        for handler in handlers {
-            handler.run_with_state(&self.variables_state)
-        }
-        Ok(())
+            .flatten()
+            .for_each(|handler| handler.run_with_state(&self.variables_state));
     }
 
-    /// resolves a value if possible, using the current eww_state
-    /// Expects there to be at max one level of nesting var_refs from local-env.
-    /// This means that no elements in the local_env may be var-refs into the
-    /// local_env again, but only into the global state.
-    pub fn resolve_once<'a>(
-        &'a self,
-        local_env: &'a HashMap<VarName, AttrValue>,
-        value: &'a AttrValue,
-    ) -> Result<PrimitiveValue> {
+    /// Look up a single variable in the eww state, returning an `Err` when the value is not found.
+    pub fn lookup(&self, var_name: &VarName) -> Result<&PrimitiveValue> {
+        self.variables_state
+            .get(var_name)
+            .with_context(|| format!("Unknown variable '{}' referenced", var_name))
+    }
+
+    /// resolves a value if possible, using the current eww_state.
+    pub fn resolve_once<'a>(&'a self, value: &'a AttrValue) -> Result<PrimitiveValue> {
         value
             .iter()
             .map(|element| match element {
                 AttrValueElement::Primitive(primitive) => Ok(primitive.clone()),
-                AttrValueElement::VarRef(var_name) => self
-                    .variables_state
-                    .get(var_name)
-                    .cloned()
-                    .or_else(|| local_env.get(var_name).and_then(|x| self.resolve_once(local_env, x).ok()))
-                    .with_context(|| format!("Unknown variable '{}' referenced", var_name)),
+                AttrValueElement::VarRef(var_name) => self.lookup(var_name).cloned(),
             })
             .collect()
     }
 
     /// Resolve takes a function that applies a set of fully resolved attribute
-    /// values to it's gtk widget. Expects there to be at max one level of
-    /// nesting var_refs from local-env. This means that no elements in the
-    /// local_env may be var-refs into the local_env again, but only into the
-    /// global state.
+    /// values to it's gtk widget.
     pub fn resolve<F: Fn(HashMap<AttrName, PrimitiveValue>) -> Result<()> + 'static + Clone>(
         &mut self,
         window_name: &WindowName,
-        local_env: &HashMap<VarName, AttrValue>,
         required_attributes: HashMap<AttrName, AttrValue>,
         set_value: F,
     ) {
         let handler = StateChangeHandler {
             func: Box::new(set_value),
-            unresolved_values: required_attributes
-                .into_iter()
-                .map(|(attr_name, attr_value)| (attr_name, attr_value.resolve_one_level(local_env)))
-                .collect(),
+            unresolved_values: required_attributes,
         };
 
         handler.run_with_state(&self.variables_state);
 
         // only store the handler if at least one variable is being used
         if handler.used_variables().next().is_some() {
-            let window_state = self
-                .windows
+            self.windows
                 .entry(window_name.clone())
-                .or_insert_with(EwwWindowState::default);
-            window_state.put_handler(handler);
+                .or_insert_with(EwwWindowState::default)
+                .put_handler(handler);
         }
     }
 
