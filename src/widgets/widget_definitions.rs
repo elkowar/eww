@@ -24,6 +24,8 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<Option<gtk
         "expander" => build_gtk_expander(bargs)?.upcast(),
         "color-chooser" => build_gtk_color_chooser(bargs)?.upcast(),
         "combo-box-text" => build_gtk_combo_box_text(bargs)?.upcast(),
+        "checkbox" => build_gtk_checkbox(bargs)?.upcast(),
+
         _ => return Ok(None),
     };
     Ok(Some(gtk_widget))
@@ -193,6 +195,30 @@ fn build_gtk_expander(bargs: &mut BuilderArgs) -> Result<gtk::Expander> {
     prop(name: as_string) {gtk_widget.set_label(Some(&name));},
     // @prop expanded - sets if the tree is expanded
     prop(expanded: as_bool) { gtk_widget.set_expanded(expanded); }
+    });
+    Ok(gtk_widget)
+}
+
+/// @widget a checkbox
+/// @desc A checkbox that can trigger events on checked / unchecked.
+fn build_gtk_checkbox(bargs: &mut BuilderArgs) -> Result<gtk::CheckButton> {
+    let gtk_widget = gtk::CheckButton::new();
+    let on_change_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
+    resolve_block!(bargs, gtk_widget, {
+       // @prop onchecked - action (command) to be executed when checked by the user
+       // @prop onunchecked - similar to onchecked but when the widget is unchecked
+       prop(onchecked: as_string = "", onunchecked: as_string = "") {
+            let old_id = on_change_handler_id.replace(Some(
+                gtk_widget.connect_toggled(move |gtk_widget| {
+                    if gtk_widget.get_active() {
+                        run_command(&onchecked, "");
+                    } else {
+                        run_command(&onunchecked, "");
+                    }
+                })
+            ));
+            old_id.map(|id| gtk_widget.disconnect(id));
+       }
     });
     Ok(gtk_widget)
 }
