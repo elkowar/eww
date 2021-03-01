@@ -7,6 +7,7 @@
 
 extern crate gio;
 extern crate gtk;
+extern crate gtk_layer_shell_rs as gtk_layer_shell;
 
 use anyhow::*;
 
