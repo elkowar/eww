@@ -47,9 +47,9 @@ impl std::fmt::Display for AttrValueExpr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             AttrValueExpr::VarRef(x) => write!(f, "{}", x),
-            AttrValueExpr::Literal(x) => write!(f, "'{:?}'", x),
+            AttrValueExpr::Literal(x) => write!(f, "\"{}\"", x),
             AttrValueExpr::BinOp(l, op, r) => write!(f, "({} {} {})", l, op, r),
-            AttrValueExpr::IfElse(a, b, c) => write!(f, "[if {} then {} else {}]", a, b, c),
+            AttrValueExpr::IfElse(a, b, c) => write!(f, "(if {} then {} else {})", a, b, c),
         }
     }
 }
@@ -147,38 +147,6 @@ impl AttrValueExpr {
             }
         }
     }
-
-    // TODO this is way too fucked right now
-    // i.e. variable names are just not supported, pretty much. that needs to change.
-    // REEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-    // pub fn parse(s: &str) -> Result<Self> {
-    // use regex::Regex;
-    // use AttrValueExpr::*;
-    // let op_pattern: Regex = Regex::new(r#"\((.*) (.*) (.*)\)"#).unwrap();
-    // let ternary_pattern: Regex = Regex::new(r#"if (.+?) then (.+?) else (.+)"#).unwrap();
-    // let literal_pattern: Regex = Regex::new(r#"(".*"|\d+|true|false)"#).unwrap();
-    // dbg!("bruh????");
-
-    // if let Some(caps) = ternary_pattern.captures(s) {
-    // dbg!(&caps);
-    // Ok(IfElse(
-    // Box::new(AttrValueExpr::parse(&caps[1])?),
-    // Box::new(AttrValueExpr::parse(&caps[2])?),
-    // Box::new(AttrValueExpr::parse(&caps[3])?),
-    //))
-    //} else if let Some(caps) = op_pattern.captures(s) {
-    // dbg!(&caps);
-    // Ok(BinOp(
-    // Box::new(AttrValueExpr::parse(&caps[1])?),
-    // Op::parse(&caps[2])?,
-    // Box::new(AttrValueExpr::parse(&caps[3])?),
-    //))
-    //} else if let Some(caps) = literal_pattern.captures(s) {
-    // dbg!("c");
-    // Ok(Literal(AttrValue::parse_string(&caps[1])))
-    //} else {
-    // bail!("Could not parse {} as valid expression", s);
-    //}
 
     pub fn parse<'a>(s: &'a str) -> Result<Self> {
         let parsed = match parser::parse(s) {
@@ -336,13 +304,15 @@ mod parser {
 #[cfg(test)]
 mod test {
     use super::*;
+    use pretty_assertions::assert_eq;
     #[test]
     fn test() {
-        let x = AttrValueExpr::parse(r#"if (12 == 15) then "foo" else true"#).unwrap();
-        // let x = AttrValueExpr::parse(r#"(12 == 15)"#).unwrap();
-        // let x = AttrValueExpr::parse(r#"if true then 12 else 14"#).unwrap();
-        dbg!(&x);
+        let parsed =
+            AttrValueExpr::parse(r#"if hi > 12 + 2 * 2 && 12 == 15 then "foo" else if true then 'hi' else "{{bruh}}""#).unwrap();
 
-        panic!("fuck :<");
+        assert_eq!(
+            r#"(if ((hi > ("12" + ("2" * "2"))) && ("12" == "15")) then "foo" else (if "true" then "hi" else "{{bruh}}"))"#,
+            format!("{}", parsed),
+        )
     }
 }
