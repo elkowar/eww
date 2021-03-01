@@ -35,19 +35,6 @@ impl std::fmt::Display for Op {
     }
 }
 
-impl Op {
-    fn parse(s: &str) -> Result<Self> {
-        use Op::*;
-        match s {
-            "==" => Ok(Equals),
-            "!=" => Ok(NotEquals),
-            "&&" => Ok(And),
-            "||" => Ok(Or),
-            _ => bail!("{} is not a valid operator", s),
-        }
-    }
-}
-
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub enum AttrValueExpr {
     Literal(AttrValue),
@@ -60,7 +47,7 @@ impl std::fmt::Display for AttrValueExpr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             AttrValueExpr::VarRef(x) => write!(f, "{}", x),
-            AttrValueExpr::Literal(x) => write!(f, "\"{:?}\"", x),
+            AttrValueExpr::Literal(x) => write!(f, "'{:?}'", x),
             AttrValueExpr::BinOp(l, op, r) => write!(f, "({} {} {})", l, op, r),
             AttrValueExpr::IfElse(a, b, c) => write!(f, "[if {} then {} else {}]", a, b, c),
         }
@@ -232,7 +219,10 @@ mod parser {
     }
 
     fn parse_stringlit(i: &str) -> IResult<&str, &str, VerboseError<&str>> {
-        delimited(tag("\""), take_while(|c| c != '"'), tag("\""))(i)
+        alt((
+            delimited(tag("'"), take_while(|c| c != '\''), tag("'")),
+            delimited(tag("\""), take_while(|c| c != '"'), tag("\"")),
+        ))(i)
     }
 
     fn parse_bool(i: &str) -> IResult<&str, &str, VerboseError<&str>> {

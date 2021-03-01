@@ -125,7 +125,6 @@ mod test {
     use super::*;
     use crate::config::xml_ext::*;
     use maplit::hashmap;
-    use pretty_assertions::assert_eq;
     #[test]
     fn test_generic_generate() {
         let w_def1 = {
