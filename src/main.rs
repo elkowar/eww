@@ -1,4 +1,5 @@
 #![feature(trace_macros)]
+#![feature(or_patterns)]
 #![feature(box_patterns)]
 #![feature(slice_concat_trait)]
 #![feature(result_cloned)]

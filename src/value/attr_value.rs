@@ -50,9 +50,9 @@ impl AttrValue {
         self.into_iter()
             .map(|entry| match entry {
                 AttrValueElement::Expr(expr) => AttrValueElement::Expr(expr.map_terminals_into(|child_expr| match child_expr {
-                    AttrValueExpr::Ref(var_name) => match variables.get(&var_name) {
+                    AttrValueExpr::VarRef(var_name) => match variables.get(&var_name) {
                         Some(value) => AttrValueExpr::Literal(value.clone()),
-                        None => AttrValueExpr::Ref(var_name),
+                        None => AttrValueExpr::VarRef(var_name),
                     },
                     other => other,
                 })),

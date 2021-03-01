@@ -54,6 +54,12 @@ impl From<i32> for PrimitiveValue {
     }
 }
 
+impl From<f64> for PrimitiveValue {
+    fn from(s: f64) -> Self {
+        PrimitiveValue(s.to_string())
+    }
+}
+
 impl From<&str> for PrimitiveValue {
     fn from(s: &str) -> Self {
         PrimitiveValue(s.to_string())
