@@ -17,9 +17,9 @@ So the directory structure should look like this:
 ```
 $HOME
 └──.config
-   └──eww
-      ├──eww.xml
-      └──eww.scss
+    ──eww
+        ├──eww.xml
+        └──eww.scss
 ```
 
 ### Config structure
@@ -28,20 +28,20 @@ Your config structure should look like this:
 ```xml
 <eww>
     <includes>
-		<!-- Put your <file>'s in here -->
-	</includes>
+        <!-- Put your <file>'s in here -->
+    </includes>
 
-	<definitions>
-		<!-- Put your <def>'s in here -->
-	</definitions>
+    <definitions>
+        <!-- Put your <def>'s in here -->
+    </definitions>
 
-	<variables>
-		<!-- Put your <script-var> and <var>'s in here -->
-	</variables>
+    <variables>
+        <!-- Put your <script-var> and <var>'s in here -->
+    </variables>
 
-	<windows>
-		<!-- Put your window blocks here -->
-	</windows>
+    <windows>
+        <!-- Put your window blocks here -->
+    </windows>
 </eww>
 ```
 See
@@ -214,6 +214,7 @@ The `<windows>` config should look something like this:
 <windows>
     <window name="main_window" stacking="fg" focusable="false" screen="1">
         <geometry anchor="top left" x="300px" y="50%" width="25%" height="20px"/>
+        <reserve side="left" distance="50px"/>
         <widget>
             <main/>
         </widget>
@@ -223,6 +224,7 @@ The `<windows>` config should look something like this:
 
 The window block contains multiple elements to configure the window.
 - `<geometry>` is used to specify the position and size of the window.
+- `<reserve>` is used to have eww reserve space at a given side of the screen the widget is on.
 - `<widget>` will contain the widget that is shown in the window.
 
 There are a couple things you can optionally configure on the window itself:
