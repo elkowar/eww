@@ -12,6 +12,7 @@ use crate::{
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Opt {
     pub log_debug: bool,
+    pub config_path: Option<std::path::PathBuf>,
     pub action: Action,
 }
 
@@ -21,6 +22,10 @@ struct RawOpt {
     #[structopt(long = "debug", global = true)]
     log_debug: bool,
 
+    /// override config-file path (path to eww.xml)
+    #[structopt(short, long, global = true)]
+    config: Option<std::path::PathBuf>,
+
     #[structopt(subcommand)]
     action: Action,
 }
@@ -29,11 +34,7 @@ struct RawOpt {
 pub enum Action {
     /// Start the Eww daemon.
     #[structopt(name = "daemon", alias = "d")]
-    Daemon {
-        /// Custom Config Path
-        #[structopt(short, long)]
-        config: Option<std::path::PathBuf>,
-    },
+    Daemon,
 
     #[structopt(flatten)]
     ClientOnly(ActionClientOnly),
@@ -128,8 +129,16 @@ impl Opt {
 
 impl From<RawOpt> for Opt {
     fn from(other: RawOpt) -> Self {
-        let RawOpt { action, log_debug } = other;
-        Opt { action, log_debug }
+        let RawOpt {
+            action,
+            log_debug,
+            config,
+        } = other;
+        Opt {
+            action,
+            log_debug,
+            config_path: config,
+        }
     }
 }
 

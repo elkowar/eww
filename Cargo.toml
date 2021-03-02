@@ -57,16 +57,10 @@ futures-core = "0.3"
 futures-util = "0.3"
 tokio-util = "0.6"
 
-<<<<<<< HEAD
 nom = "6.1"
 dyn-clone = "1.0"
 base64 = "0.13"
 wait-timeout = "0.2"
-=======
-
-nom = "6.1"
-dyn-clone = "1.0"
->>>>>>> 9a8bbf4 (Expression language (#124))
 
 [target.'cfg(target_os="linux")'.dependencies]
 inotify = "0.9"
