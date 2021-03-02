@@ -131,6 +131,7 @@ pub fn parse_expr(i: &str) -> IResult<&str, AttrValueExpr, VerboseError<&str>> {
     let (i, remainder) = many0(alt((
         map(preceded(tag("&&"), parse_term1), |x| (BinOp::And, x)),
         map(preceded(tag("||"), parse_term1), |x| (BinOp::Or, x)),
+        map(preceded(tag("?:"), parse_term1), |x| (BinOp::Elvis, x)),
     )))(i)?;
 
     let exprs = remainder
