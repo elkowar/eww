@@ -46,7 +46,11 @@ fn main() {
         .init();
 
     let result: Result<_> = try {
-        let paths = opts.config_path.map(EwwPaths::from_config_dir).unwrap_or_default();
+        let paths = opts
+            .config_path
+            .map(EwwPaths::from_config_dir)
+            .unwrap_or_else(EwwPaths::default)
+            .context("Failed set paths")?;
 
         match opts.action {
             opts::Action::ClientOnly(action) => {
@@ -115,11 +119,20 @@ pub struct EwwPaths {
 }
 
 impl EwwPaths {
-    pub fn from_config_dir<P: AsRef<Path>>(config_dir: P) -> Self {
-        let daemon_id = base64::encode(format!("{}", config_dir.as_ref().display()));
+    pub fn from_config_dir<P: AsRef<Path>>(config_dir: P) -> Result<Self> {
+        let config_dir = config_dir.as_ref();
+        let config_dir = if config_dir.is_file() {
+            config_dir
+                .parent()
+                .context("Given config file did not have a parent directory")?
+        } else {
+            config_dir
+        };
+        let config_dir = config_dir.canonicalize()?;
+        let daemon_id = base64::encode(format!("{}", config_dir.display()));
 
-        EwwPaths {
-            config_dir: config_dir.as_ref().to_path_buf(),
+        Ok(EwwPaths {
+            config_dir: config_dir.to_path_buf(),
             log_file: std::env::var("XDG_CACHE_HOME")
                 .map(PathBuf::from)
                 .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap()).join(".cache"))
@@ -128,7 +141,16 @@ impl EwwPaths {
                 .map(std::path::PathBuf::from)
                 .unwrap_or_else(|_| std::path::PathBuf::from("/tmp"))
                 .join(format!("eww-server_{}", daemon_id)),
-        }
+        })
+    }
+
+    pub fn default() -> Result<Self> {
+        let config_dir = std::env::var("XDG_CONFIG_HOME")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap()).join(".config"))
+            .join("eww");
+
+        Self::from_config_dir(config_dir)
     }
 
     pub fn get_log_file(&self) -> &Path {
@@ -149,17 +171,6 @@ impl EwwPaths {
 
     pub fn get_eww_scss_path(&self) -> PathBuf {
         self.config_dir.join("eww.scss")
-    }
-}
-
-impl Default for EwwPaths {
-    fn default() -> Self {
-        let config_dir = std::env::var("XDG_CONFIG_HOME")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap()).join(".config"))
-            .join("eww");
-
-        Self::from_config_dir(config_dir)
     }
 }
 
