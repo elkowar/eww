@@ -20,7 +20,7 @@ pub struct EwwWindowDefinition {
     pub stacking: WindowStacking,
     pub screen_number: Option<i32>,
     pub widget: Box<dyn widget_node::WidgetNode>,
-    pub struts: StrutDefinition,
+    pub struts: SurfaceDefinition,
     pub focusable: bool,
 }
 
@@ -101,6 +101,11 @@ impl std::str::FromStr for Side {
             "r" | "right" => Ok(Side::Right),
             "t" | "top" => Ok(Side::Top),
             "b" | "bottom" => Ok(Side::Bottom),
+            "c" | "center" => Ok(Side::Center),
+            "tl" | "top-left" => Ok(Side::Top_Left),
+            "tr" | "top-right" => Ok(Side::Top_Right),
+            "bl" | "bottom-left" => Ok(Side::Bottom_Left),
+            "br" | "bottom-right" => Ok(Side::Bottom_Right),
             _ => Err(anyhow!("Failed to parse {} as valid side. Must be one of \"left\", \"right\", \"top\", \"bottom\"", s)),
         }
     }
@@ -128,7 +133,7 @@ impl std::str::FromStr for Side {
 // Surface definition if the backend for X11 is enable
 #[cfg(feature = "x11")]
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
-pub struct StrutDefinition {
+pub struct SurfaceDefinition {
     pub side: Side,
     pub dist: NumWithUnit,
 }
@@ -181,6 +186,8 @@ impl std::str::FromStr for WindowStacking {
         match s.as_str() {
             "foreground" | "fg" | "f" => Ok(WindowStacking::Foreground),
             "background" | "bg" | "b" => Ok(WindowStacking::Background),
+            "bottom" | "bm" => Ok(WindowStacking::Bottom),
+            "overlay" | "ov" => Ok(WindowStacking::Overlay),
             _ => Err(anyhow!("Couldn't parse '{}' as window stacking, must be either foreground, fg, background or bg", s)),
         }
     }

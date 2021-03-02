@@ -191,6 +191,18 @@ mod platform {
                 _ => (monitor_rect.height / 2) as u32,
             };
 
+            match strut_def.stacking {
+                WindowStacking::Foreground=> {
+                    gdk_window.raise(),
+                    window.set_keep_above(true);
+                }
+                WindowStacking::Background=> {
+                    gdk_window.lower(),
+                    window.set_keep_below(true);
+                }
+                - => { }
+            }
+
             // don't question it,.....
             // it's how the X gods want it to be.
             // left, right, top, bottom, left_start_y, left_end_y, right_start_y, right_end_y, top_start_x, top_end_x, bottom_start_x, bottom_end_x

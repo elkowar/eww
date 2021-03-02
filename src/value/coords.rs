@@ -43,6 +43,20 @@ impl FromStr for NumWithUnit {
     }
 }
 
+// Margins for Wayland backend
+// I kept the name Coords for compatibility
+#[cfg(feature = "wayland")]
+#[derive(Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Display, DebugCustom, SmartDefault)]
+#[display(fmt = "{}*{}", x, y)]
+pub struct Coords {
+    pub top: NumWithUnit,
+    pub right: NumWithUnit,
+    pub bottom: NumWithUnit,
+    pub left: NumWithUnit,
+}
+
+// Margins for X
+#[cfg(feature = "x11")]
 #[derive(Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Display, Default)]
 #[display(fmt = "{}*{}", x, y)]
 pub struct Coords {
