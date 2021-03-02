@@ -16,6 +16,7 @@ use std::path::PathBuf;
 /// Eww configuration structure.
 #[derive(Debug, Clone)]
 pub struct EwwConfig {
+    widgets: HashMap<String, WidgetDefinition>,
     windows: HashMap<WindowName, EwwWindowDefinition>,
     initial_variables: HashMap<VarName, PrimitiveValue>,
     script_vars: HashMap<VarName, ScriptVar>,
@@ -35,9 +36,6 @@ impl EwwConfig {
             widgets,
         } = conf;
         Ok(EwwConfig {
-            initial_variables,
-            script_vars,
-            filepath,
             windows: windows
                 .into_iter()
                 .map(|(name, window)| {
@@ -47,6 +45,10 @@ impl EwwConfig {
                     ))
                 })
                 .collect::<Result<HashMap<_, _>>>()?,
+            widgets,
+            initial_variables,
+            script_vars,
+            filepath,
         })
     }
 
@@ -75,6 +77,10 @@ impl EwwConfig {
         self.script_vars
             .get(name)
             .with_context(|| format!("No script var named '{}' exists", name))
+    }
+
+    pub fn get_widget_definitions(&self) -> &HashMap<String, WidgetDefinition> {
+        &self.widgets
     }
 }
 

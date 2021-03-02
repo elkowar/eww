@@ -1,7 +1,12 @@
-use crate::{config::window_definition::WindowName, eww_state::*, value::AttrName};
+use crate::{
+    config::{element::WidgetDefinition, window_definition::WindowName},
+    eww_state::*,
+    value::AttrName,
+};
 use anyhow::*;
 use gtk::prelude::*;
 use itertools::Itertools;
+use std::collections::HashMap;
 
 use std::process::Command;
 use widget_definitions::*;
@@ -36,11 +41,12 @@ pub(self) fn run_command<T: 'static + std::fmt::Display + Send + Sync>(cmd: &str
     });
 }
 
-struct BuilderArgs<'a, 'b, 'c, 'd> {
+struct BuilderArgs<'a, 'b, 'c, 'd, 'e> {
     eww_state: &'a mut EwwState,
     widget: &'b widget_node::Generic,
     unhandled_attrs: Vec<&'c AttrName>,
     window_name: &'d WindowName,
+    widget_definitions: &'e HashMap<String, WidgetDefinition>,
 }
 
 /// build a [`gtk::Widget`] out of a [`element::WidgetUse`] that uses a
@@ -55,6 +61,7 @@ struct BuilderArgs<'a, 'b, 'c, 'd> {
 fn build_builtin_gtk_widget(
     eww_state: &mut EwwState,
     window_name: &WindowName,
+    widget_definitions: &HashMap<String, WidgetDefinition>,
     widget: &widget_node::Generic,
 ) -> Result<Option<gtk::Widget>> {
     let mut bargs = BuilderArgs {
@@ -62,6 +69,7 @@ fn build_builtin_gtk_widget(
         widget,
         window_name,
         unhandled_attrs: widget.attrs.keys().collect(),
+        widget_definitions,
     };
     let gtk_widget = match widget_to_gtk_widget(&mut bargs) {
         Ok(Some(gtk_widget)) => gtk_widget,
@@ -81,14 +89,16 @@ fn build_builtin_gtk_widget(
     if let Some(gtk_widget) = gtk_widget.dynamic_cast_ref::<gtk::Container>() {
         resolve_container_attrs(&mut bargs, &gtk_widget);
         for child in &widget.children {
-            let child_widget = child.render(bargs.eww_state, window_name).with_context(|| {
-                format!(
-                    "{}error while building child '{:#?}' of '{}'",
-                    widget.text_pos.map(|x| format!("{} |", x)).unwrap_or_default(),
-                    &child,
-                    &gtk_widget.get_widget_name()
-                )
-            })?;
+            let child_widget = child
+                .render(bargs.eww_state, window_name, widget_definitions)
+                .with_context(|| {
+                    format!(
+                        "{}error while building child '{:#?}' of '{}'",
+                        widget.text_pos.map(|x| format!("{} |", x)).unwrap_or_default(),
+                        &child,
+                        &gtk_widget.get_widget_name()
+                    )
+                })?;
             gtk_widget.add(&child_widget);
             child_widget.show();
         }
