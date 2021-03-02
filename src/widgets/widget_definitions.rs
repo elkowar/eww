@@ -258,8 +258,8 @@ fn build_gtk_color_chooser(bargs: &mut BuilderArgs) -> Result<gtk::ColorChooserW
         // @prop onchange - runs the code when the color was selected
         prop(onchange: as_string) {
             let old_id = on_change_handler_id.replace(Some(
-                gtk_widget.connect_color_activated(move |_a, gtk_widget| {
-                    run_command(&onchange, gtk_widget);
+                gtk_widget.connect_color_activated(move |_a, color| {
+                    run_command(&onchange, color.clone());
                 })
             ));
             old_id.map(|id| gtk_widget.disconnect(id));

@@ -31,7 +31,7 @@ pub mod value;
 pub mod widgets;
 
 lazy_static::lazy_static! {
-    pub static ref IPC_SOCKET_PATH: std::path::PathBuf = std::env::var("XDG_RUNTIME_DIR")
+    static ref IPC_SOCKET_PATH: std::path::PathBuf = std::env::var("XDG_RUNTIME_DIR")
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|_| std::path::PathBuf::from("/tmp"))
         .join("eww-server");
@@ -45,6 +45,21 @@ lazy_static::lazy_static! {
         .map(PathBuf::from)
         .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap()).join(".cache"))
         .join("eww.log");
+}
+
+pub struct Paths {}
+
+pub fn calculate_socket_path<P: AsRef<std::path::Path>>(config_file_path: P) -> std::path::PathBuf {
+    let daemon_id = base64::encode(format!("{}", config_file_path.as_ref().display()));
+    let socket_filename = format!(
+        "{}_{}",
+        &*crate::IPC_SOCKET_PATH
+            .file_name()
+            .and_then(|x| x.to_str())
+            .expect("Invalid socket path"),
+        daemon_id,
+    );
+    crate::IPC_SOCKET_PATH.with_file_name(socket_filename).to_path_buf()
 }
 
 fn main() {
@@ -61,15 +76,16 @@ fn main() {
         .init();
 
     let result: Result<_> = try {
+        let socket_path = calculate_socket_path(opts.config_path.clone().unwrap_or(CONFIG_DIR.join("eww.xml")));
         match opts.action {
             opts::Action::ClientOnly(action) => {
                 client::handle_client_only_action(action)?;
             }
             opts::Action::WithServer(action) => {
-                log::info!("Trying to find server process");
-                match net::UnixStream::connect(&*IPC_SOCKET_PATH) {
+                log::info!("Trying to find server process at socket {}", socket_path.display());
+                match net::UnixStream::connect(&socket_path) {
                     Ok(stream) => {
-                        log::info!("Connected to Eww server.");
+                        log::info!("Connected to Eww server ({}).", &socket_path.display());
                         let response =
                             client::do_server_call(stream, action).context("Error while forwarding command to server")?;
                         if let Some(response) = response {
@@ -87,17 +103,17 @@ fn main() {
                 }
             }
 
-            opts::Action::Daemon { config } => {
+            opts::Action::Daemon => {
                 // make sure that there isn't already a Eww daemon running.
-                if check_server_running(&*IPC_SOCKET_PATH) {
+                if check_server_running(&socket_path) {
                     eprintln!("Eww server already running.");
                     std::process::exit(1);
                 } else {
-                    log::info!("Initializing Eww server.");
-                    let _ = std::fs::remove_file(&*crate::IPC_SOCKET_PATH);
+                    log::info!("Initializing Eww server. ({})", socket_path.display());
+                    let _ = std::fs::remove_file(socket_path);
 
                     println!("Run `eww logs` to see any errors, warnings or information while editing your configuration.");
-                    server::initialize_server(config)?;
+                    server::initialize_server(opts.config_path)?;
                 }
             }
         }

@@ -89,12 +89,14 @@ fn init_async_part(config_file_path: PathBuf, scss_file_path: PathBuf, ui_send: 
         rt.block_on(async {
             let filewatch_join_handle = {
                 let ui_send = ui_send.clone();
+                let config_file_path = config_file_path.clone();
                 tokio::spawn(async move { run_filewatch(config_file_path, scss_file_path, ui_send).await })
             };
 
             let ipc_server_join_handle = {
                 let ui_send = ui_send.clone();
-                tokio::spawn(async move { ipc_server::run_server(ui_send).await })
+                let socket_path = crate::calculate_socket_path(config_file_path);
+                tokio::spawn(async move { ipc_server::run_server(ui_send, socket_path).await })
             };
 
             let forward_exit_to_app_handle = {

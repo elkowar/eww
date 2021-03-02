@@ -6,8 +6,9 @@ use tokio::{
     sync::mpsc::*,
 };
 
-pub async fn run_server(evt_send: UnboundedSender<app::DaemonCommand>) -> Result<()> {
-    let listener = tokio::net::UnixListener::bind(&*crate::IPC_SOCKET_PATH)?;
+pub async fn run_server<P: AsRef<std::path::Path>>(evt_send: UnboundedSender<app::DaemonCommand>, socket_path: P) -> Result<()> {
+    let socket_path = socket_path.as_ref();
+    let listener = { tokio::net::UnixListener::bind(socket_path)? };
     log::info!("IPC server initialized");
     crate::loop_select_exiting! {
         connection = listener.accept() => match connection {

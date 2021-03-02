@@ -64,6 +64,7 @@ impl ScriptVar {
 
 /// Run a command and get the output
 fn run_command(cmd: &str) -> Result<PrimitiveValue> {
+    log::debug!("Running command: {}", cmd);
     let output = String::from_utf8(Command::new("/bin/sh").arg("-c").arg(cmd).output()?.stdout)?;
     let output = output.trim_matches('\n');
     Ok(PrimitiveValue::from(output))

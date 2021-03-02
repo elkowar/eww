@@ -58,6 +58,8 @@ tokio-util = "0.6"
 
 nom = "6.1"
 dyn-clone = "1.0"
+base64 = "0.13"
+wait-timeout = "0.2"
 
 [target.'cfg(target_os="linux")'.dependencies]
 inotify = "0.9"
