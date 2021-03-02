@@ -1,4 +1,5 @@
 #![feature(trace_macros)]
+#![feature(box_syntax)]
 #![feature(or_patterns)]
 #![feature(box_patterns)]
 #![feature(slice_concat_trait)]

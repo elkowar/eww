@@ -5,7 +5,7 @@ use std::{convert::TryFrom, fmt, iter::FromIterator};
 
 use crate::impl_try_from;
 
-#[derive(Clone, PartialEq, Deserialize, Serialize, derive_more::From, Default)]
+#[derive(Clone, Deserialize, Serialize, derive_more::From, Default)]
 pub struct PrimitiveValue(String);
 
 impl fmt::Display for PrimitiveValue {
@@ -16,6 +16,17 @@ impl fmt::Display for PrimitiveValue {
 impl fmt::Debug for PrimitiveValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "\"{}\"", self.0)
+    }
+}
+
+/// Manually implement equality, to allow for values in different formats (i.e. "1" and "1.0") to still be considered as equal.
+impl std::cmp::PartialEq<Self> for PrimitiveValue {
+    fn eq(&self, other: &Self) -> bool {
+        if let (Ok(a), Ok(b)) = (self.as_f64(), other.as_f64()) {
+            a == b
+        } else {
+            self.0 == other.0
+        }
     }
 }
 
