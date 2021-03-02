@@ -121,6 +121,7 @@ impl RawEwwConfig {
     pub fn read_from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self> {
         let result: Result<_> = try {
             let content = util::replace_env_var_references(std::fs::read_to_string(path.as_ref())?);
+            let content = content.replace("&", "&amp;");
             let document = roxmltree::Document::parse(&content).map_err(|e| anyhow!(e))?;
             let root_node = XmlNode::from(document.root_element());
             let root_element = root_node.as_element()?;
