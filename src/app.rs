@@ -365,14 +365,6 @@ fn initialize_window(
     gdk_window.set_override_redirect(!window_def.focusable);
     gdk_window.move_(actual_window_rect.x, actual_window_rect.y);
 
-    if window_def.stacking == WindowStacking::Foreground {
-        gdk_window.raise();
-        window.set_keep_above(true);
-    } else {
-        gdk_window.lower();
-        window.set_keep_below(true);
-    }
-
     display_backend::reserve_space_for(&window, monitor_geometry, window_def.struts)?;
 
     Ok(EwwWindow {

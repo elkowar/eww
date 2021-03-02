@@ -11,11 +11,11 @@ mod platform {
 
 #[cfg(feature = "wayland")]
 mod platform {
-    use crate::config::{Side, StrutDefinition};
+    use crate::config::{Side, SurfaceDefiniton};
     use gtk::prelude::*;
     use anyhow::*;
 
-    pub fn reserve_space_for(window: &gtk::Window, monitor: gdk::Rectangle, strut_def: StrutDefinition) -> Result<()> {
+    pub fn reserve_space_for(window: &gtk::Window, monitor: gdk::Rectangle, surface: SurfaceDefiniton) -> Result<()> {
         // Initializing the layer surface
         let backend = WaylandBackend::new()?;
         backend.reserve_space_for(window, monitor, strut_def)?;
@@ -23,33 +23,28 @@ mod platform {
     }
 
     struct WaylandBackend {
-        layer: gtk_layer_shell::Layer;
         conn: RustConnection<DefaultStream>,
-        // I have no idea what this is. Might look later
-        // root_window: u32,
     }
 
     impl WaylandBackend {
         fn new() -> Result<Self> {
             let (conn, screen_num) = RustConnection::connect(None)?;
             Ok((WaylandBackend {
-                layer,
                 conn,
             }))
         }
 
-        fn reserve_space_for()
+        fn reserve_space_for(
             &self,
             window: &gtk::Window,
             monitor_rect: gdk::Rectangle,
-            strut_def: StrutDefinition,
+            surface: SurfaceDefiniton,
         ) -> Result<()> {
             let win_id = window
                 .get_window()
                 .context("Couldn't get gdk window from gtk window")?
                 .ok()
-                .context("Failed to get layer shell surface for gtk window")? // A modifier
-                // .get_xid() as u32;
+                .context("Failed to get layer shell surface for gtk window")?; // A modifier
             let root_window_geometry = self.conn.get_geometry(self.root_window)?.reply()?;
 
             // Initialising a layer shell surface
@@ -57,49 +52,20 @@ mod platform {
             // Set the layer where the layer shell surface will spawn
             gtk_layer_shell::set_layer(window, self.layer);
             // Anchoring the surface to an edge
-            self.set_anchor(strut_def, window);
+            self.set_anchor(surface, window);
             // I don't like the way NumWithWidth is used to define margins
-            self.set_margin(strut_def, window);
-
-            // From my understanding the Atom equivalent on Wayland is something like APP_ID 
-            // This absolutely change but in the meanwhile I'll keep it here to not forget
-            self.conn
-                .change_property(
-                    PropMode::Replace,
-                    win_id,
-                    self.atoms._NET_WM_STRUT,
-                    self.atoms.CARDINAL,
-                    32,
-                    4,
-                    &strut_list[0..16],
-                )?
-                .check()?;
-            self.conn
-                .change_property(
-                    PropMode::Replace,
-                    win_id,
-                    self.atoms._NET_WM_STRUT_PARTIAL,
-                    self.atoms.CARDINAL,
-                    32,
-                    12,
-                    &strut_list,
-                )?
-                .check()?;
-            self.conn.flush()?;
-            Ok(())
-        }
-    }
+            self.set_margin(monitor_rect, surface.margin, window);
         }
 
-        fn set_anchor(strut_def:StrutDefinition) {
-            let top=false;
-            let left=false;
-            let right=false;
-            let bottom=false;
+        fn set_anchor(surface:SurfaceDefiniton,window: &gtk::Window) {
+            let mut top=false;
+            let mut left=false;
+            let mut right=false;
+            let mut bottom=false;
 
-            match strut_def.side {
+            match surface.anchor {
                 Edge::Top=>top=true,
-                Edge::Left=>left=true;
+                Edge::Left=>left=true,
                 Edge::Right=>right=true,
                 Edge::Bottom=>bottom=true,
                 Edge::Center=>{},
@@ -122,49 +88,20 @@ mod platform {
             }
 
             // Anchors are if the window is pinned to each edge of the output
-            gtk_layer_shell::set_anchor(self.window, gtk_layer_shell::Edge::Left, top);
-            gtk_layer_shell::set_anchor(self.window, gtk_layer_shell::Edge::Right, right);
-            gtk_layer_shell::set_anchor(self.window, gtk_layer_shell::Edge::Top, top);
-            gtk_layer_shell::set_anchor(self.window, gtk_layer_shell::Edge::Bottom, bottom);
+            gtk_layer_shell::set_anchor(window, gtk_layer_shell::Edge::Left, top);
+            gtk_layer_shell::set_anchor(window, gtk_layer_shell::Edge::Right, right);
+            gtk_layer_shell::set_anchor(window, gtk_layer_shell::Edge::Top, top);
+            gtk_layer_shell::set_anchor(window, gtk_layer_shell::Edge::Bottom, bottom);
         }
 
-        fn set_margin(margin:(u32,u32,u32,u32),window: &gtk::Window) {
-            let (margin_top, margin_right, margin_bottom, margin_left) = margin;
+        // Create a margin struct for Wayland
+        fn set_margin(monitor_rect:Rectangle, margin:Coords, window: &gtk::Window) {
+            let (margin_top, margin_right, margin_bottom, margin_left):u32 = margin;
 
-            if margin_top>0 {
-                gtk_layer_shell::set_margin(window, gtk_layer_shell::Edge::Top, margin_top);
-            }
-            if margin_right>0 {
-                gtk_layer_shell::set_margin(window, gtk_layer_shell::Edge::Right, margin_right);
-            }
-            if margin_bottom>0 {
-                gtk_layer_shell::set_margin(window, gtk_layer_shell::Edge::Bottom, margin_bottom);
-            }
-            if margin_left>0 {
-                gtk_layer_shell::set_margin(window, gtk_layer_shell::Edge::Left, margin_left);
-            }
-        }
-    }
-
-    x11rb::atom_manager! {
-        pub AtomCollection: AtomCollectionCookie {
-            _NET_WM_WINDOW_TYPE,
-            _NET_WM_WINDOW_TYPE_DOCK,
-            _NET_WM_WINDOW_TYPE_DIALOG,
-            _NET_WM_STATE,
-            _NET_WM_STATE_STICKY,
-            _NET_WM_STATE_ABOVE,
-            _NET_WM_STATE_BELOW,
-            _NET_WM_NAME,
-            _NET_WM_STRUT,
-            _NET_WM_STRUT_PARTIAL,
-            WM_NAME,
-            UTF8_STRING,
-            COMPOUND_TEXT,
-            CARDINAL,
-            ATOM,
-            WM_CLASS,
-            STRING,
+            gtk_layer_shell::set_margin(window, gtk_layer_shell::Edge::Top, margin_top.relative_to(monitor_rect.height));
+            gtk_layer_shell::set_margin(window, gtk_layer_shell::Edge::Right, margin_right.relative_to(monitor_rect.width));
+            gtk_layer_shell::set_margin(window, gtk_layer_shell::Edge::Bottom, margin_bottom.relative_to(monitor_rect.height));
+            gtk_layer_shell::set_margin(window, gtk_layer_shell::Edge::Left, margin_left.relative_to(monitor_rect.width));
         }
     }
 }
@@ -230,6 +167,18 @@ mod platform {
                 Side::Left | Side::Right => strut_def.dist.relative_to(monitor_rect.width) as u32,
                 Side::Top | Side::Bottom => strut_def.dist.relative_to(monitor_rect.height) as u32,
             };
+
+            match strut_def.stacking {
+                WindowStacking::Foreground=> {
+                    gdk_window.raise(),
+                    window.set_keep_above(true);
+                }
+                WindowStacking::Background=> {
+                    gdk_window.lower(),
+                    window.set_keep_below(true);
+                }
+                - => { }
+            }
 
             // don't question it,.....
             // it's how the X gods want it to be.

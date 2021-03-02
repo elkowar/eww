@@ -1,4 +1,4 @@
-use crate::{ensure_xml_tag_is, value::NumWithUnit, widgets::widget_node};
+use crate::{ensure_xml_tag_is, value::NumWithUnit, value::Margin, gtk_layer_shell::Layer, widgets::widget_node};
 use anyhow::*;
 use derive_more::*;
 use serde::{Deserialize, Serialize};
@@ -16,7 +16,7 @@ pub struct EwwWindowDefinition {
     pub stacking: WindowStacking,
     pub screen_number: Option<i32>,
     pub widget: Box<dyn widget_node::WidgetNode>,
-    pub struts: StrutDefinition,
+    pub struts: SurfaceDefinition,
     pub focusable: bool,
 }
 
@@ -90,6 +90,7 @@ pub enum Side {
     Bottom_Left,
     Bottom_Right,
 }
+
 impl std::str::FromStr for Side {
     type Err = anyhow::Error;
 
@@ -99,6 +100,11 @@ impl std::str::FromStr for Side {
             "r" | "right" => Ok(Side::Right),
             "t" | "top" => Ok(Side::Top),
             "b" | "bottom" => Ok(Side::Bottom),
+            "c" | "center" => Ok(Side::Center),
+            "tl" | "top-left" => Ok(Side::Top_Left),
+            "tr" | "top-right" => Ok(Side::Top_Right),
+            "bl" | "bottom-left" => Ok(Side::Bottom_Left),
+            "br" | "bottom-right" => Ok(Side::Bottom_Right),
             _ => Err(anyhow!(
                 "Failed to parse {} as valid side. Must be one of \"left\", \"right\", \"top\", \"bottom\"",
                 s
@@ -107,8 +113,10 @@ impl std::str::FromStr for Side {
     }
 }
 
+// Surface definition if the backend for X11 is enable
+#[cfg(feature = "x11")]
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
-pub struct StrutDefinition {
+pub struct SurfaceDefinition {
     pub side: Side,
     pub dist: NumWithUnit,
 }
@@ -122,11 +130,31 @@ impl StrutDefinition {
     }
 }
 
+// Surface definition if the backend for Wayland is enable
+#[cfg(feature = "wayland")]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
+pub struct SurfaceDefinition {
+    pub layer: gtk_layer_shell::Layer,
+    pub anchor: Side,
+    pub margin: Margin,
+}
+
+impl SurfaceDefinition {
+    pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
+        Ok(StrutDefinition {
+            side: xml.attr("side")?.parse()?,
+            dist: xml.attr("distance")?.parse()?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, derive_more::Display, SmartDefault)]
 pub enum WindowStacking {
     #[default]
     Foreground,
     Background,
+    Bottom,
+    Overlay,
 }
 
 impl std::str::FromStr for WindowStacking {
@@ -135,8 +163,10 @@ impl std::str::FromStr for WindowStacking {
     fn from_str(s: &str) -> Result<Self> {
         let s = s.to_lowercase();
         match s.as_str() {
-            "foreground" | "fg" | "f" => Ok(WindowStacking::Foreground),
-            "background" | "bg" | "b" => Ok(WindowStacking::Background),
+            "foreground" | "fg" => Ok(WindowStacking::Foreground),
+            "background" | "bg" => Ok(WindowStacking::Background),
+            "bottom" | "bm" => Ok(WindowStacking::Bottom),
+            "overlay" | "ov" => Ok(WindowStacking::Overlay),
             _ => Err(anyhow!(
                 "Couldn't parse '{}' as window stacking, must be either foreground, fg, background or bg",
                 s
