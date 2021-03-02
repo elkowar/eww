@@ -20,7 +20,12 @@ pub trait WidgetNode: std::fmt::Debug + dyn_clone::DynClone + Send + Sync {
     /// This may return `Err` in case there was an actual error while parsing or
     /// resolving the widget, Or `Ok(None)` if the widget_use just didn't match any
     /// widget name.
-    fn render(&self, eww_state: &mut EwwState, window_name: &WindowName) -> Result<gtk::Widget>;
+    fn render(
+        &self,
+        eww_state: &mut EwwState,
+        window_name: &WindowName,
+        widget_definitions: &HashMap<String, WidgetDefinition>,
+    ) -> Result<gtk::Widget>;
 }
 
 dyn_clone::clone_trait_object!(WidgetNode);
@@ -41,8 +46,13 @@ impl WidgetNode for UserDefined {
         self.text_pos.as_ref()
     }
 
-    fn render(&self, eww_state: &mut EwwState, window_name: &WindowName) -> Result<gtk::Widget> {
-        self.content.render(eww_state, window_name)
+    fn render(
+        &self,
+        eww_state: &mut EwwState,
+        window_name: &WindowName,
+        widget_definitions: &HashMap<String, WidgetDefinition>,
+    ) -> Result<gtk::Widget> {
+        self.content.render(eww_state, window_name, widget_definitions)
     }
 }
 
@@ -76,9 +86,16 @@ impl WidgetNode for Generic {
         self.text_pos.as_ref()
     }
 
-    fn render(&self, eww_state: &mut EwwState, window_name: &WindowName) -> Result<gtk::Widget> {
-        Ok(crate::widgets::build_builtin_gtk_widget(eww_state, window_name, &self)?
-            .with_context(|| format!("Unknown widget '{}'", self.get_name()))?)
+    fn render(
+        &self,
+        eww_state: &mut EwwState,
+        window_name: &WindowName,
+        widget_definitions: &HashMap<String, WidgetDefinition>,
+    ) -> Result<gtk::Widget> {
+        Ok(
+            crate::widgets::build_builtin_gtk_widget(eww_state, window_name, widget_definitions, &self)?
+                .with_context(|| format!("Unknown widget '{}'", self.get_name()))?,
+        )
     }
 }
 

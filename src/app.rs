@@ -246,7 +246,10 @@ impl App {
         let mut window_def = self.eww_config.get_window(window_name)?.clone();
         window_def.geometry = window_def.geometry.override_if_given(anchor, pos, size);
 
-        let root_widget = window_def.widget.render(&mut self.eww_state, window_name)?;
+        let root_widget =
+            window_def
+                .widget
+                .render(&mut self.eww_state, window_name, &self.eww_config.get_widget_definitions())?;
         root_widget.get_style_context().add_class(&window_name.to_string());
 
         let monitor_geometry = get_monitor_geometry(window_def.screen_number.unwrap_or_else(get_default_monitor_index));

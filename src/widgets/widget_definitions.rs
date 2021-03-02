@@ -411,6 +411,7 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
 
     // TODO these clones here are dumdum
     let window_name = bargs.window_name.clone();
+    let widget_definitions = bargs.widget_definitions.clone();
     resolve_block!(bargs, gtk_widget, {
         // @prop content - inline Eww XML that will be rendered as a widget.
         prop(content: as_string) {
@@ -419,8 +420,8 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
                 let document = roxmltree::Document::parse(&content).map_err(|e| anyhow!("Failed to parse eww xml literal: {:?}", e))?;
                 let content_widget_use = config::element::WidgetUse::from_xml_node(document.root_element().into())?;
 
-                let widget_node = &*widget_node::generate_generic_widget_node(&HashMap::new(), &HashMap::new(), content_widget_use)?;
-                let child_widget = widget_node.render( &mut eww_state::EwwState::default(), &window_name)?;
+                let widget_node = &*widget_node::generate_generic_widget_node(&widget_definitions, &HashMap::new(), content_widget_use)?;
+                let child_widget = widget_node.render(&mut eww_state::EwwState::default(), &window_name, &widget_definitions)?;
                 gtk_widget.add(&child_widget);
                 child_widget.show();
             }
