@@ -54,6 +54,7 @@ pub enum DaemonCommand {
         pos: Option<Coords>,
         size: Option<Coords>,
         anchor: Option<AnchorPoint>,
+        monitor: Option<i32>,
         sender: DaemonResponseSender,
     },
     CloseWindow {
@@ -150,7 +151,7 @@ impl App {
                 DaemonCommand::OpenMany { windows, sender } => {
                     let result = windows
                         .iter()
-                        .map(|w| self.open_window(w, None, None, None))
+                        .map(|w| self.open_window(w, None, None, None, None))
                         .collect::<Result<()>>();
                     respond_with_error(sender, result)?;
                 }
@@ -159,9 +160,10 @@ impl App {
                     pos,
                     size,
                     anchor,
+                    monitor,
                     sender,
                 } => {
-                    let result = self.open_window(&window_name, pos, size, anchor);
+                    let result = self.open_window(&window_name, pos, size, monitor, anchor);
                     respond_with_error(sender, result)?;
                 }
                 DaemonCommand::CloseWindow { window_name, sender } => {
@@ -237,6 +239,7 @@ impl App {
         window_name: &WindowName,
         pos: Option<Coords>,
         size: Option<Coords>,
+        monitor: Option<i32>,
         anchor: Option<config::AnchorPoint>,
     ) -> Result<()> {
         // remove and close existing window with the same name
@@ -253,7 +256,8 @@ impl App {
                 .render(&mut self.eww_state, window_name, &self.eww_config.get_widget_definitions())?;
         root_widget.get_style_context().add_class(&window_name.to_string());
 
-        let monitor_geometry = get_monitor_geometry(window_def.screen_number.unwrap_or_else(get_default_monitor_index));
+        let monitor_geometry =
+            get_monitor_geometry(monitor.or(window_def.screen_number).unwrap_or_else(get_default_monitor_index));
         let eww_window = initialize_window(monitor_geometry, root_widget, window_def)?;
 
         self.open_windows.insert(window_name.clone(), eww_window);
@@ -282,7 +286,7 @@ impl App {
         let windows = self.open_windows.clone();
         for (window_name, window) in windows {
             window.close();
-            self.open_window(&window_name, None, None, None)?;
+            self.open_window(&window_name, None, None, None, None)?;
         }
         Ok(())
     }

@@ -70,6 +70,10 @@ pub enum ActionWithServer {
         /// Name of the window you want to open.
         window_name: WindowName,
 
+        /// Monitor-index the window should open on
+        #[structopt(short, long)]
+        monitor: Option<i32>,
+
         /// The position of the window, where it should open.
         #[structopt(short, long)]
         pos: Option<Coords>,
@@ -168,6 +172,7 @@ impl ActionWithServer {
                 window_name,
                 pos,
                 size,
+                monitor,
                 anchor,
             } => {
                 return with_response_channel(|sender| app::DaemonCommand::OpenWindow {
@@ -175,6 +180,7 @@ impl ActionWithServer {
                     pos,
                     size,
                     anchor,
+                    monitor,
                     sender,
                 })
             }
