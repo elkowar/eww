@@ -1,8 +1,8 @@
 use super::{run_command, BuilderArgs};
-use crate::{config, eww_state, resolve_block, value::AttrValue};
+use crate::{config, eww_state, resolve_block, value::AttrValue, widgets::widget_node};
 use anyhow::*;
 use gtk::{prelude::*, ImageExt};
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 // TODO figure out how to
 // TODO https://developer.gnome.org/gtk3/stable/GtkFixed.html
@@ -24,6 +24,8 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<Option<gtk
         "expander" => build_gtk_expander(bargs)?.upcast(),
         "color-chooser" => build_gtk_color_chooser(bargs)?.upcast(),
         "combo-box-text" => build_gtk_combo_box_text(bargs)?.upcast(),
+        "checkbox" => build_gtk_checkbox(bargs)?.upcast(),
+
         _ => return Ok(None),
     };
     Ok(Some(gtk_widget))
@@ -38,7 +40,7 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
     if let Ok(visible) = bargs
         .widget
         .get_attr("visible")
-        .and_then(|v| bargs.eww_state.resolve_once(bargs.local_env, v)?.as_bool())
+        .and_then(|v| bargs.eww_state.resolve_once(v)?.as_bool())
     {
         connect_first_map(gtk_widget, move |w| {
             if visible {
@@ -193,6 +195,30 @@ fn build_gtk_expander(bargs: &mut BuilderArgs) -> Result<gtk::Expander> {
     prop(name: as_string) {gtk_widget.set_label(Some(&name));},
     // @prop expanded - sets if the tree is expanded
     prop(expanded: as_bool) { gtk_widget.set_expanded(expanded); }
+    });
+    Ok(gtk_widget)
+}
+
+/// @widget a checkbox
+/// @desc A checkbox that can trigger events on checked / unchecked.
+fn build_gtk_checkbox(bargs: &mut BuilderArgs) -> Result<gtk::CheckButton> {
+    let gtk_widget = gtk::CheckButton::new();
+    let on_change_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
+    resolve_block!(bargs, gtk_widget, {
+       // @prop onchecked - action (command) to be executed when checked by the user
+       // @prop onunchecked - similar to onchecked but when the widget is unchecked
+       prop(onchecked: as_string = "", onunchecked: as_string = "") {
+            let old_id = on_change_handler_id.replace(Some(
+                gtk_widget.connect_toggled(move |gtk_widget| {
+                    if gtk_widget.get_active() {
+                        run_command(&onchecked, "");
+                    } else {
+                        run_command(&onunchecked, "");
+                    }
+                })
+            ));
+            old_id.map(|id| gtk_widget.disconnect(id));
+       }
     });
     Ok(gtk_widget)
 }
@@ -384,7 +410,6 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
 
     // TODO these clones here are dumdum
     let window_name = bargs.window_name.clone();
-    let widget_definitions = bargs.widget_definitions.clone();
     resolve_block!(bargs, gtk_widget, {
         // @prop content - inline Eww XML that will be rendered as a widget.
         prop(content: as_string) {
@@ -392,13 +417,9 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
             if !content.is_empty() {
                 let document = roxmltree::Document::parse(&content).map_err(|e| anyhow!("Failed to parse eww xml literal: {:?}", e))?;
                 let content_widget_use = config::element::WidgetUse::from_xml_node(document.root_element().into())?;
-                let child_widget = super::widget_use_to_gtk_widget(
-                    &widget_definitions,
-                    &mut eww_state::EwwState::default(),
-                    &window_name,
-                    &std::collections::HashMap::new(),
-                    &content_widget_use,
-                )?;
+
+                let widget_node = &*widget_node::generate_generic_widget_node(&HashMap::new(), &HashMap::new(), content_widget_use)?;
+                let child_widget = widget_node.render( &mut eww_state::EwwState::default(), &window_name)?;
                 gtk_widget.add(&child_widget);
                 child_widget.show();
             }

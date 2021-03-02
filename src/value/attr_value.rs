@@ -43,6 +43,9 @@ impl AttrValue {
         self.0.iter().filter_map(|x| x.as_var_ref())
     }
 
+    /// resolve partially.
+    /// If a var-ref links to another var-ref, that other var-ref is used.
+    /// If a referenced variable is not found in the given hashmap, returns the var-ref unchanged.
     pub fn resolve_one_level(self, variables: &HashMap<VarName, AttrValue>) -> AttrValue {
         self.into_iter()
             .flat_map(|entry| match entry {
@@ -55,6 +58,9 @@ impl AttrValue {
             .collect()
     }
 
+    /// resolve fully.
+    /// As the variables here have to be primitive values,
+    /// this enforces that var-refs are not linking to other variables.
     pub fn resolve_fully(self, variables: &HashMap<VarName, PrimitiveValue>) -> Result<PrimitiveValue> {
         self.into_iter()
             .map(|element| match element {
