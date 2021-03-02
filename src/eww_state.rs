@@ -121,7 +121,7 @@ impl EwwState {
             .iter()
             .map(|element| match element {
                 AttrValueElement::Primitive(primitive) => Ok(primitive.clone()),
-                AttrValueElement::VarRef(var_name) => self.lookup(var_name).cloned(),
+                AttrValueElement::Expr(expr) => expr.clone().eval(&self.variables_state),
             })
             .collect()
     }
