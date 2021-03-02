@@ -1,7 +1,7 @@
 +++
 title = "Eww expressions"
 slug = "Embedded eww expression language"
-weight = 6
+weight = 5
 +++
 
 # The embedded Eww expression-language
@@ -27,6 +27,8 @@ The expression language supports:
 - simple mathematical operations (`+`, `-`, `*`, `/`, `%`)
 - comparisons (`==`, `!=`, `>`, `<`)
 - boolean operations (`||`, `&&`, `!`)
+- elvis operator (`?:`)
+    - if the left side is `""`, then returns the right side, otherwise evaluates to the left side.
 - conditionals (`if condition then 'value' else 'other value'`)
 - numbers, strings, booleans and variable references (`12`, `'hi'`, `true`, `some_variable`)
     - strings can contain other expressions again: `'foo {{some_variable}} bar'`

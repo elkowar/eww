@@ -16,6 +16,7 @@ pub enum BinOp {
     Or,
     GT,
     LT,
+    Elvis,
 }
 
 impl std::fmt::Display for BinOp {
@@ -32,6 +33,7 @@ impl std::fmt::Display for BinOp {
             BinOp::Or => write!(f, "||"),
             BinOp::GT => write!(f, ">"),
             BinOp::LT => write!(f, "<"),
+            BinOp::Elvis => write!(f, "?:"),
         }
     }
 }
@@ -150,6 +152,7 @@ impl AttrValueExpr {
                     BinOp::Mod => PrimitiveValue::from(a.as_f64()? % b.as_f64()?),
                     BinOp::GT => PrimitiveValue::from(a.as_f64()? > b.as_f64()?),
                     BinOp::LT => PrimitiveValue::from(a.as_f64()? < b.as_f64()?),
+                    BinOp::Elvis => PrimitiveValue::from(if a.0.is_empty() { b } else { a }),
                 })
             }
             AttrValueExpr::UnaryOp(op, a) => {
