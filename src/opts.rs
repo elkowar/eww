@@ -22,7 +22,7 @@ struct RawOpt {
     #[structopt(long = "debug", global = true)]
     log_debug: bool,
 
-    /// override config-file path (path to eww.xml)
+    /// override path to configuration directory (directory that contains eww.xml and eww.scss)
     #[structopt(short, long, global = true)]
     config: Option<std::path::PathBuf>,
 

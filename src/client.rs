@@ -3,6 +3,7 @@ use std::process::Stdio;
 use crate::{
     app,
     opts::{self, ActionClientOnly},
+    EwwPaths,
 };
 use anyhow::*;
 use std::{
@@ -10,11 +11,11 @@ use std::{
     os::unix::net::UnixStream,
 };
 
-pub fn handle_client_only_action(action: ActionClientOnly) -> Result<()> {
+pub fn handle_client_only_action(paths: &EwwPaths, action: ActionClientOnly) -> Result<()> {
     match action {
         ActionClientOnly::Logs => {
             std::process::Command::new("tail")
-                .args(["-f", crate::LOG_FILE.to_string_lossy().as_ref()].iter())
+                .args(["-f", paths.get_log_file().to_string_lossy().as_ref()].iter())
                 .stdin(Stdio::null())
                 .spawn()?
                 .wait()?;
