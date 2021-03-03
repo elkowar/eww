@@ -94,7 +94,7 @@ mod platform {
             }
 
             // Anchors are if the window is pinned to each edge of the output
-            gtk_layer_shell::set_anchor(window, gtk_layer_shell::Edge::Left, top);
+            gtk_layer_shell::set_anchor(window, gtk_layer_shell::Edge::Left, left);
             gtk_layer_shell::set_anchor(window, gtk_layer_shell::Edge::Right, right);
             gtk_layer_shell::set_anchor(window, gtk_layer_shell::Edge::Top, top);
             gtk_layer_shell::set_anchor(window, gtk_layer_shell::Edge::Bottom, bottom);

@@ -1,4 +1,6 @@
 use super::{run_command, BuilderArgs};
+use gio::glib;
+use gtk;
 use crate::{config, eww_state, resolve_block, value::AttrValue, widgets::widget_node};
 use anyhow::*;
 use gtk::{prelude::*, ImageExt};
@@ -355,7 +357,7 @@ fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
         // @prop width - width of the image
         // @prop height - height of the image
         prop(path: as_string, width: as_i32 = 10000, height: as_i32 = 10000) {
-            let pixbuf = gdk_pixbuf::Pixbuf::from_file_at_size(std::path::PathBuf::from(path), width, height)?;
+            let pixbuf = gtk::gdk_pixbuf::Pixbuf::from_file_at_size(std::path::PathBuf::from(path), width, height)?;
             gtk_widget.set_from_pixbuf(Some(&pixbuf));
         }
     });

@@ -7,7 +7,7 @@ use crate::{
 };
 use anyhow::*;
 use debug_stub_derive::*;
-use gdk::WindowExt;
+// use gdk::WindowAttr;
 use gtk::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt};
 use itertools::Itertools;
 use std::{collections::HashMap, path::PathBuf};
