@@ -11,77 +11,83 @@ mod platform {
 
 #[cfg(feature = "wayland")]
 mod platform {
-    use crate::config::{Side, SurfaceDefiniton};
+    use crate::config::{Side, SurfaceDefinition, WindowStacking};
+    use crate::value::Coords;
     use gtk::prelude::*;
+    use gio::prelude::*;
     use anyhow::*;
 
-    pub fn reserve_space_for(window: &gtk::Window, monitor: gdk::Rectangle, surface: SurfaceDefiniton) -> Result<()> {
+    pub fn reserve_space_for(window: &gtk::Window, monitor: gdk::Rectangle, surface: SurfaceDefinition) -> Result<()> {
         // Initializing the layer surface
-        let backend = WaylandBackend::new()?;
-        backend.reserve_space_for(window, monitor, strut_def)?;
+        let backend = LayerShellBackend::new()?;
+        backend.reserve_space_for(window, monitor, surface);
         Ok(())
     }
 
-    struct WaylandBackend {
-        conn: RustConnection<DefaultStream>,
+    struct LayerShellBackend {
     }
 
-    impl WaylandBackend {
+    impl LayerShellBackend {
         fn new() -> Result<Self> {
-            let (conn, screen_num) = RustConnection::connect(None)?;
-            Ok((WaylandBackend {
-                conn,
-            }))
+            Ok(LayerShellBackend {
+            })
         }
 
         fn reserve_space_for(
             &self,
             window: &gtk::Window,
             monitor_rect: gdk::Rectangle,
-            surface: SurfaceDefiniton,
-        ) -> Result<()> {
+            surface: SurfaceDefinition,
+        ) {
             let win_id = window
                 .get_window()
-                .context("Couldn't get gdk window from gtk window")?
-                .ok()
-                .context("Failed to get layer shell surface for gtk window")?; // A modifier
-            let root_window_geometry = self.conn.get_geometry(self.root_window)?.reply()?;
+                .context("Couldn't get gdk window from gtk window");
 
             // Initialising a layer shell surface
             gtk_layer_shell::init_for_window(window);
             // Set the layer where the layer shell surface will spawn
-            gtk_layer_shell::set_layer(window, self.layer);
+            LayerShellBackend::set_layer(surface, window);
             // Anchoring the surface to an edge
-            self.set_anchor(surface, window);
+            LayerShellBackend::set_anchor(surface, window);
             // I don't like the way NumWithWidth is used to define margins
-            self.set_margin(monitor_rect, surface.margin, window);
+            LayerShellBackend::set_margin(monitor_rect, surface.coords, window);
         }
 
-        fn set_anchor(surface:SurfaceDefiniton,window: &gtk::Window) {
+        fn set_layer(surface:SurfaceDefinition,window: &gtk::Window) {
+
+            match surface.layer {
+                WindowStacking::Foreground=>gtk_layer_shell::set_layer(window, gtk_layer_shell::Layer::Top),
+                WindowStacking::Background=>gtk_layer_shell::set_layer(window, gtk_layer_shell::Layer::Background),
+                WindowStacking::Bottom=>gtk_layer_shell::set_layer(window, gtk_layer_shell::Layer::Bottom),
+                WindowStacking::Overlay=>gtk_layer_shell::set_layer(window, gtk_layer_shell::Layer::Overlay)
+            }
+        }
+
+        fn set_anchor(surface:SurfaceDefinition,window: &gtk::Window) {
             let mut top=false;
             let mut left=false;
             let mut right=false;
             let mut bottom=false;
 
-            match surface.anchor {
-                Edge::Top=>top=true,
-                Edge::Left=>left=true,
-                Edge::Right=>right=true,
-                Edge::Bottom=>bottom=true,
-                Edge::Center=>{},
-                Edge::Top_Left=>{
+            match surface.side {
+                Side::Top=>top=true,
+                Side::Left=>left=true,
+                Side::Right=>right=true,
+                Side::Bottom=>bottom=true,
+                Side::Center=>{},
+                Side::TopLeft=>{
                     top=true;
                     left=true;
                 }
-                Edge::Top_Right=>{
+                Side::TopRight=>{
                     top=true;
                     right=true;
                 }
-                Edge::Bottom_Right=>{
+                Side::BottomRight=>{
                     bottom=true;
                     right=true;
                 }
-                Edge::Bottom_Left=>{
+                Side::BottomLeft=>{
                     left=true;
                     bottom=true;
                 }
@@ -95,20 +101,28 @@ mod platform {
         }
 
         // Create a margin struct for Wayland
-        fn set_margin(monitor_rect:Rectangle, margin:Coords, window: &gtk::Window) {
-            let (margin_top, margin_right, margin_bottom, margin_left):u32 = margin;
+        fn set_margin(monitor_rect:gdk::Rectangle, margin:Coords, window: &gtk::Window) {
 
-            gtk_layer_shell::set_margin(window, gtk_layer_shell::Edge::Top, margin_top.relative_to(monitor_rect.height));
-            gtk_layer_shell::set_margin(window, gtk_layer_shell::Edge::Right, margin_right.relative_to(monitor_rect.width));
-            gtk_layer_shell::set_margin(window, gtk_layer_shell::Edge::Bottom, margin_bottom.relative_to(monitor_rect.height));
-            gtk_layer_shell::set_margin(window, gtk_layer_shell::Edge::Left, margin_left.relative_to(monitor_rect.width));
+            let xoffset = margin.x.relative_to(monitor_rect.width);
+            let yoffset = margin.y.relative_to(monitor_rect.height);
+
+            if xoffset > 0 {
+                gtk_layer_shell::set_margin(window, gtk_layer_shell::Edge::Left, xoffset);
+            } else {
+                gtk_layer_shell::set_margin(window, gtk_layer_shell::Edge::Right, xoffset);
+            }
+            if yoffset > 0 {
+                gtk_layer_shell::set_margin(window, gtk_layer_shell::Edge::Bottom, yoffset);
+            } else {
+                gtk_layer_shell::set_margin(window, gtk_layer_shell::Edge::Top, yoffset);
+            }
         }
     }
 }
 
 #[cfg(feature = "x11")]
 mod platform {
-    use crate::config::{Side, StrutDefinition};
+    use crate::config::{Side, SurfaceDefinition};
     use anyhow::*;
     use gdkx11;
     use gtk::{self, prelude::*};
@@ -170,14 +184,14 @@ mod platform {
 
             match strut_def.stacking {
                 WindowStacking::Foreground=> {
-                    gdk_window.raise(),
+                    gdk_window.raise();
                     window.set_keep_above(true);
                 }
                 WindowStacking::Background=> {
-                    gdk_window.lower(),
+                    gdk_window.lower();
                     window.set_keep_below(true);
                 }
-                - => { }
+                _=>{},
             }
 
             // don't question it,.....

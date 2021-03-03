@@ -15,18 +15,16 @@ x11 = ["gdkx11", "x11rb"]
 wayland = ["gtk-layer-shell-rs"]
 no-x11-wayland = []
 
-[dependencies.cairo-sys-rs]
-version = "0.10.0"
-
 [dependencies]
-gtk = { version = "0.9", features = [ "v3_16" ] }
-gdk = { version = "", features = ["v3_16"] }
-gio = { version = "", features = ["v2_44"] }
+gtk = { git = "https://github.com/gtk-rs/gtk-rs" }
+gdk = { git = "https://github.com/gtk-rs/gtk-rs", features = ["v3_22"] }
+gdk-sys = { git = "https://github.com/gtk-rs/gtk-rs" }
+gio = { git = "https://github.com/gtk-rs/gtk-rs" }
 glib = { version = "", features = ["v2_44"] }
 
 gdk-pixbuf = "0.9"
 
-gdkx11 = { version = "0.9", optional = true }
+gdkx11 = { git = "https://github.com/gtk-rs/gtk-rs", optional = true }
 x11rb = { version = "0.7", features = ["randr"], optional = true }
 gtk-layer-shell-rs = { git = "https://github.com/subgraph/gtk-layer-shell-rs", optional = true }
 regex = "1"

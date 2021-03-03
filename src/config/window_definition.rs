@@ -1,7 +1,8 @@
-use crate::{ensure_xml_tag_is, value::NumWithUnit, value::Margin, gtk_layer_shell::Layer, widgets::widget_node};
+use crate::{ensure_xml_tag_is, value::NumWithUnit, widgets::widget_node};
 use anyhow::*;
 use derive_more::*;
 use serde::{Deserialize, Serialize};
+use crate::value::Coords;
 use smart_default::SmartDefault;
 use std::collections::HashMap;
 
@@ -42,7 +43,7 @@ pub struct RawEwwWindowDefinition {
     pub stacking: WindowStacking,
     pub screen_number: Option<i32>,
     pub widget: WidgetUse,
-    pub struts: StrutDefinition,
+    pub struts: SurfaceDefinition,
     pub focusable: bool,
 }
 
@@ -55,10 +56,10 @@ impl RawEwwWindowDefinition {
         let focusable = xml.parse_optional_attr("focusable")?;
         let screen_number = xml.parse_optional_attr("screen")?;
 
-        let struts: Option<StrutDefinition> = xml
+        let struts: Option<SurfaceDefinition> = xml
             .child("reserve")
             .ok()
-            .map(StrutDefinition::from_xml_element)
+            .map(SurfaceDefinition::from_xml_element)
             .transpose()
             .context("Failed to parse <reserve>")?;
 
@@ -85,10 +86,10 @@ pub enum Side {
     Right,
     Bottom,
     Center,
-    Top_Left,
-    Top_Right,
-    Bottom_Left,
-    Bottom_Right,
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
 }
 
 impl std::str::FromStr for Side {
@@ -101,10 +102,10 @@ impl std::str::FromStr for Side {
             "t" | "top" => Ok(Side::Top),
             "b" | "bottom" => Ok(Side::Bottom),
             "c" | "center" => Ok(Side::Center),
-            "tl" | "top-left" => Ok(Side::Top_Left),
-            "tr" | "top-right" => Ok(Side::Top_Right),
-            "bl" | "bottom-left" => Ok(Side::Bottom_Left),
-            "br" | "bottom-right" => Ok(Side::Bottom_Right),
+            "tl" | "top-left" => Ok(Side::TopLeft),
+            "tr" | "top-right" => Ok(Side::TopRight),
+            "bl" | "bottom-left" => Ok(Side::BottomLeft),
+            "br" | "bottom-right" => Ok(Side::BottomRight),
             _ => Err(anyhow!(
                 "Failed to parse {} as valid side. Must be one of \"left\", \"right\", \"top\", \"bottom\"",
                 s
@@ -121,9 +122,10 @@ pub struct SurfaceDefinition {
     pub dist: NumWithUnit,
 }
 
-impl StrutDefinition {
+#[cfg(feature = "x11")]
+impl SurfaceDefinition {
     pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
-        Ok(StrutDefinition {
+        Ok(SurfaceDefinition {
             side: xml.attr("side")?.parse()?,
             dist: xml.attr("distance")?.parse()?,
         })
@@ -134,16 +136,18 @@ impl StrutDefinition {
 #[cfg(feature = "wayland")]
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct SurfaceDefinition {
-    pub layer: gtk_layer_shell::Layer,
-    pub anchor: Side,
-    pub margin: Margin,
+    pub layer: WindowStacking,
+    pub side: Side,
+    pub coords: Coords,
 }
 
+#[cfg(feature = "wayland")]
 impl SurfaceDefinition {
     pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
-        Ok(StrutDefinition {
+        Ok(SurfaceDefinition {
             side: xml.attr("side")?.parse()?,
-            dist: xml.attr("distance")?.parse()?,
+            layer: xml.attr("layer")?.parse()?,
+            coords: xml.attr("coords")?.parse()?,
         })
     }
 }
