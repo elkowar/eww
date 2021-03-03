@@ -1,6 +1,6 @@
 use crate::{
     config,
-    config::{window_definition::WindowName, AnchorPoint},
+    config::{window_definition::WindowName, AnchorPoint, WindowStacking},
     display_backend, eww_state,
     script_var_handler::*,
     value::{Coords, NumWithUnit, PrimVal, VarName},
