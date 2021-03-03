@@ -2,9 +2,9 @@ pub use platform::*;
 
 #[cfg(feature = "no-x11-wayland")]
 mod platform {
-    use crate::config::{Side, StrutDefinition};
+    use crate::config::{Side, SurfaceDefinition};
     use anyhow::*;
-    pub fn reserve_space_for(window: &gtk::Window, monitor: gdk::Rectangle, strut_def: StrutDefinition) -> Result<()> {
+    pub fn reserve_space_for(window: &gtk::Window, monitor: gdk::Rectangle, strut_def: SurfaceDefinition) -> Result<()> {
         Err(anyhow!("Cannot reserve space on non X11 or and wayland backends"))
     }
 }
@@ -139,7 +139,7 @@ mod platform {
         rust_connection::{DefaultStream, RustConnection},
     };
 
-    pub fn reserve_space_for(window: &gtk::Window, monitor: gdk::Rectangle, strut_def: StrutDefinition) -> Result<()> {
+    pub fn reserve_space_for(window: &gtk::Window, monitor: gdk::Rectangle, strut_def: SurfaceDefinition) -> Result<()> {
         let backend = X11Backend::new()?;
         backend.reserve_space_for(window, monitor, strut_def)?;
         Ok(())
@@ -167,7 +167,7 @@ mod platform {
             &self,
             window: &gtk::Window,
             monitor_rect: gdk::Rectangle,
-            strut_def: StrutDefinition,
+            strut_def: SurfaceDefinition,
         ) -> Result<()> {
             let win_id = window
                 .get_window()
@@ -184,19 +184,8 @@ mod platform {
             let dist = match strut_def.side {
                 Side::Left | Side::Right => strut_def.dist.relative_to(monitor_rect.width) as u32,
                 Side::Top | Side::Bottom => strut_def.dist.relative_to(monitor_rect.height) as u32,
+                _ => (monitor_rect.height/2) as u32
             };
-
-            match strut_def.stacking {
-                WindowStacking::Foreground=> {
-                    gdk_window.raise();
-                    window.set_keep_above(true);
-                }
-                WindowStacking::Background=> {
-                    gdk_window.lower();
-                    window.set_keep_below(true);
-                }
-                _=>{},
-            }
 
             // don't question it,.....
             // it's how the X gods want it to be.
@@ -206,7 +195,8 @@ mod platform {
                 Side::Left   => vec![dist + monitor_rect.x as u32,  0,                                                     0,                             0,                                                      monitor_rect.y as u32,  mon_end_y,  0,                      0,          0,                      0,          0,                      0],
                 Side::Right  => vec![0,                             root_window_geometry.width as u32 - mon_end_x + dist,  0,                             0,                                                      0,                      0,          monitor_rect.y as u32,  mon_end_y,  0,                      0,          0,                      0],
                 Side::Top    => vec![0,                             0,                                                     dist + monitor_rect.y as u32,  0,                                                      0,                      0,          0,                      0,          monitor_rect.x as u32,  mon_end_x,  0,                      0],
-                Side::Bottom => vec![0,                             0,                                                     0,                             root_window_geometry.height as u32 - mon_end_y + dist,  0,                      0,          0,                      0,          0,                      0,          monitor_rect.x as u32,  mon_end_x]
+                Side::Bottom => vec![0,                             0,                                                     0,                             root_window_geometry.height as u32 - mon_end_y + dist,  0,                      0,          0,                      0,          0,                      0,          monitor_rect.x as u32,  mon_end_x],
+                _  => vec![0,0,0,0,0,0,0,0,0,0,0]
             }.iter().flat_map(|x| x.to_le_bytes().to_vec()).collect();
 
             self.conn
