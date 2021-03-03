@@ -137,6 +137,7 @@ impl SurfaceDefinition {
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct SurfaceDefinition {
     pub layer: WindowStacking,
+    pub exclusive: bool,
     pub side: Side,
     pub coords: Coords,
 }
@@ -147,7 +148,11 @@ impl SurfaceDefinition {
         Ok(SurfaceDefinition {
             side: xml.attr("side")?.parse()?,
             layer: xml.attr("layer")?.parse()?,
-            coords: xml.attr("coords")?.parse()?,
+            exclusive: xml.attr("exclusive")?.parse()?,
+            coords: Coords {
+                x: xml.attr("xoffset")?.parse()?,
+                y: xml.attr("yoffset")?.parse()?,
+            }
         })
     }
 }

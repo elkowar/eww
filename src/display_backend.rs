@@ -45,6 +45,10 @@ mod platform {
 
             // Initialising a layer shell surface
             gtk_layer_shell::init_for_window(window);
+            // Making the surface occupied by widget exclusive
+            if surface.exclusive {
+                gtk_layer_shell::auto_exclusive_zone_enable(window);
+            }
             // Set the layer where the layer shell surface will spawn
             LayerShellBackend::set_layer(surface, window);
             // Anchoring the surface to an edge
