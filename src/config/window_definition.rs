@@ -1,12 +1,8 @@
-<<<<<<< HEAD
 use crate::{
     ensure_xml_tag_is,
     value::{Coords, NumWithUnit},
     widgets::widget_node,
 };
-=======
-use crate::{ensure_xml_tag_is, value::NumWithUnit, widgets::widget_node};
->>>>>>> d86601a (gtk-layer-shell-rs imported)
 use anyhow::*;
 use derive_more::*;
 use serde::{Deserialize, Serialize};
@@ -163,7 +159,11 @@ pub struct StrutDefinition {
 =======
 pub struct SurfaceDefinition {
     pub layer: WindowStacking,
+<<<<<<< HEAD
 >>>>>>> d86601a (gtk-layer-shell-rs imported)
+=======
+    pub exclusive: bool,
+>>>>>>> fccf503 (Full layershell support)
     pub side: Side,
     pub coords: Coords,
 }
@@ -185,8 +185,16 @@ impl SurfaceDefinition {
             },
 =======
             layer: xml.attr("layer")?.parse()?,
+<<<<<<< HEAD
             coords: xml.attr("coords")?.parse()?,
 >>>>>>> d86601a (gtk-layer-shell-rs imported)
+=======
+            exclusive: xml.attr("exclusive")?.parse()?,
+            coords: Coords {
+                x: xml.attr("xoffset")?.parse()?,
+                y: xml.attr("yoffset")?.parse()?,
+            }
+>>>>>>> fccf503 (Full layershell support)
         })
     }
 }

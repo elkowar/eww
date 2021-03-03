@@ -304,6 +304,9 @@ fn initialize_window(
 
     let window = display_backend::initialize_window(&mut window_def);
 
+    #[cfg(feature = "wayland")]
+    gtk_layer_shell::init_for_window(&window);
+
     window.set_title(&format!("Eww - {}", window_def.name));
     let wm_class_name = format!("eww-{}", window_def.name);
     window.set_wmclass(&wm_class_name, &wm_class_name);

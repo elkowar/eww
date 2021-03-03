@@ -25,7 +25,6 @@ mod platform {
         Ok(())
     }
 
-<<<<<<< HEAD
     pub fn initialize_window(window_def: &mut EwwWindowDefinition) -> gtk::Window {
         let mut window = gtk::Window::new(gtk::WindowType::Toplevel);
         window.set_resizable(true);
