@@ -1,11 +1,16 @@
+<<<<<<< HEAD
 use crate::{
     ensure_xml_tag_is,
     value::{Coords, NumWithUnit},
     widgets::widget_node,
 };
+=======
+use crate::{ensure_xml_tag_is, value::NumWithUnit, widgets::widget_node};
+>>>>>>> d86601a (gtk-layer-shell-rs imported)
 use anyhow::*;
 use derive_more::*;
 use serde::{Deserialize, Serialize};
+use crate::value::Coords;
 use smart_default::SmartDefault;
 use std::collections::HashMap;
 
@@ -46,7 +51,7 @@ pub struct RawEwwWindowDefinition {
     pub stacking: WindowStacking,
     pub screen_number: Option<i32>,
     pub widget: WidgetUse,
-    pub struts: StrutDefinition,
+    pub struts: SurfaceDefinition,
     pub focusable: bool,
 }
 
@@ -59,8 +64,17 @@ impl RawEwwWindowDefinition {
         let focusable = xml.parse_optional_attr("focusable")?;
         let screen_number = xml.parse_optional_attr("screen")?;
 
+<<<<<<< HEAD
         let struts: Option<StrutDefinition> =
             xml.child("reserve").ok().map(StrutDefinition::from_xml_element).transpose().context("Failed to parse <reserve>")?;
+=======
+        let struts: Option<SurfaceDefinition> = xml
+            .child("reserve")
+            .ok()
+            .map(SurfaceDefinition::from_xml_element)
+            .transpose()
+            .context("Failed to parse <reserve>")?;
+>>>>>>> 782db39 (gtk-layer-shell-rs imported)
 
         Ok(RawEwwWindowDefinition {
             name: WindowName(xml.attr("name")?.to_owned()),
@@ -139,7 +153,11 @@ pub struct SurfaceDefinition {
 }
 
 #[cfg(feature = "x11")]
+<<<<<<< HEAD
 impl StrutDefinition {
+=======
+impl SurfaceDefinition {
+>>>>>>> d86601a (gtk-layer-shell-rs imported)
     pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
         Ok(StrutDefinition { side: xml.attr("side")?.parse()?, dist: xml.attr("distance")?.parse()? })
     }
@@ -148,22 +166,36 @@ impl StrutDefinition {
 // Surface definition if the backend for Wayland is enable
 #[cfg(feature = "wayland")]
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
+<<<<<<< HEAD
 pub struct StrutDefinition {
     pub exclusive: bool,
+=======
+pub struct SurfaceDefinition {
+    pub layer: WindowStacking,
+>>>>>>> d86601a (gtk-layer-shell-rs imported)
     pub side: Side,
     pub coords: Coords,
 }
 
 #[cfg(feature = "wayland")]
+<<<<<<< HEAD
 impl StrutDefinition {
+=======
+impl SurfaceDefinition {
+>>>>>>> d86601a (gtk-layer-shell-rs imported)
     pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
-        Ok(StrutDefinition {
+        Ok(SurfaceDefinition {
             side: xml.attr("side")?.parse()?,
+<<<<<<< HEAD
             exclusive: xml.attr("exclusive")?.parse()?,
             coords: Coords {
                 x: xml.attr("x")?.parse()?,
                 y: xml.attr("y")?.parse()?,
             },
+=======
+            layer: xml.attr("layer")?.parse()?,
+            coords: xml.attr("coords")?.parse()?,
+>>>>>>> d86601a (gtk-layer-shell-rs imported)
         })
     }
 }

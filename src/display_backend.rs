@@ -11,20 +11,32 @@ mod platform {
 
 #[cfg(feature = "wayland")]
 mod platform {
+<<<<<<< HEAD
     use crate::{
         app::get_monitor,
         config::{EwwWindowDefinition, Side, StrutDefinition, WindowStacking},
     };
+=======
+    use crate::config::{Side, SurfaceDefinition, WindowStacking};
+    use crate::value::Coords;
+    use gtk::prelude::*;
+    use gio::prelude::*;
+>>>>>>> d86601a (gtk-layer-shell-rs imported)
     use anyhow::*;
     use gtk::prelude::*;
 
+<<<<<<< HEAD
     pub fn reserve_space_for(window: &gtk::Window, monitor: gdk::Rectangle, surface: StrutDefinition) -> Result<()> {
+=======
+    pub fn reserve_space_for(window: &gtk::Window, monitor: gdk::Rectangle, surface: SurfaceDefinition) -> Result<()> {
+>>>>>>> d86601a (gtk-layer-shell-rs imported)
         // Initializing the layer surface
         let backend = LayerShellBackend::new()?;
         backend.reserve_space_for(window, monitor, surface);
         Ok(())
     }
 
+<<<<<<< HEAD
     pub fn initialize_window(window_def: &mut EwwWindowDefinition) -> gtk::Window {
         let mut window = gtk::Window::new(gtk::WindowType::Toplevel);
         window.set_resizable(true);
@@ -93,6 +105,74 @@ mod platform {
                 Side::BottomLeft => {
                     left = true;
                     bottom = true;
+=======
+    struct LayerShellBackend {
+    }
+
+    impl LayerShellBackend {
+        fn new() -> Result<Self> {
+            Ok(LayerShellBackend {
+            })
+        }
+
+        fn reserve_space_for(
+            &self,
+            window: &gtk::Window,
+            monitor_rect: gdk::Rectangle,
+            surface: SurfaceDefinition,
+        ) {
+            let win_id = window
+                .get_window()
+                .context("Couldn't get gdk window from gtk window");
+
+            // Initialising a layer shell surface
+            gtk_layer_shell::init_for_window(window);
+            // Set the layer where the layer shell surface will spawn
+            LayerShellBackend::set_layer(surface, window);
+            // Anchoring the surface to an edge
+            LayerShellBackend::set_anchor(surface, window);
+            // I don't like the way NumWithWidth is used to define margins
+            LayerShellBackend::set_margin(monitor_rect, surface.coords, window);
+        }
+
+        fn set_layer(surface:SurfaceDefinition,window: &gtk::Window) {
+
+            match surface.layer {
+                WindowStacking::Foreground=>gtk_layer_shell::set_layer(window, gtk_layer_shell::Layer::Top),
+                WindowStacking::Background=>gtk_layer_shell::set_layer(window, gtk_layer_shell::Layer::Background),
+                WindowStacking::Bottom=>gtk_layer_shell::set_layer(window, gtk_layer_shell::Layer::Bottom),
+                WindowStacking::Overlay=>gtk_layer_shell::set_layer(window, gtk_layer_shell::Layer::Overlay)
+            }
+        }
+
+        fn set_anchor(surface:SurfaceDefinition,window: &gtk::Window) {
+            let mut top=false;
+            let mut left=false;
+            let mut right=false;
+            let mut bottom=false;
+
+            match surface.side {
+                Side::Top=>top=true,
+                Side::Left=>left=true,
+                Side::Right=>right=true,
+                Side::Bottom=>bottom=true,
+                Side::Center=>{},
+                Side::TopLeft=>{
+                    top=true;
+                    left=true;
+                }
+                Side::TopRight=>{
+                    top=true;
+                    right=true;
+                }
+                Side::BottomRight=>{
+                    bottom=true;
+                    right=true;
+                }
+                Side::BottomLeft=>{
+                    left=true;
+                    bottom=true;
+>>>>>>> d86601a (gtk-layer-shell-rs imported)
                 }
             }
 
@@ -102,15 +182,29 @@ mod platform {
             gtk_layer_shell::set_anchor(window, gtk_layer_shell::Edge::Top, top);
             gtk_layer_shell::set_anchor(window, gtk_layer_shell::Edge::Bottom, bottom);
 
+<<<<<<< HEAD
             let xoffset = surface.coords.x.relative_to(monitor_rect.width);
             let yoffset = surface.coords.y.relative_to(monitor_rect.height);
 
             if left {
+=======
+        // Create a margin struct for Wayland
+        fn set_margin(monitor_rect:gdk::Rectangle, margin:Coords, window: &gtk::Window) {
+
+            let xoffset = margin.x.relative_to(monitor_rect.width);
+            let yoffset = margin.y.relative_to(monitor_rect.height);
+
+            if xoffset > 0 {
+>>>>>>> d86601a (gtk-layer-shell-rs imported)
                 gtk_layer_shell::set_margin(window, gtk_layer_shell::Edge::Left, xoffset);
             } else {
                 gtk_layer_shell::set_margin(window, gtk_layer_shell::Edge::Right, xoffset);
             }
+<<<<<<< HEAD
             if bottom {
+=======
+            if yoffset > 0 {
+>>>>>>> d86601a (gtk-layer-shell-rs imported)
                 gtk_layer_shell::set_margin(window, gtk_layer_shell::Edge::Bottom, yoffset);
             } else {
                 gtk_layer_shell::set_margin(window, gtk_layer_shell::Edge::Top, yoffset);
@@ -121,7 +215,11 @@ mod platform {
 
 #[cfg(feature = "x11")]
 mod platform {
+<<<<<<< HEAD
     use crate::config::{EwwWindowDefinition, Side, StrutDefinition, WindowStacking};
+=======
+    use crate::config::{Side, SurfaceDefinition};
+>>>>>>> d86601a (gtk-layer-shell-rs imported)
     use anyhow::*;
     use gdkx11;
     use gtk::{self, prelude::*};
@@ -193,14 +291,14 @@ mod platform {
 
             match strut_def.stacking {
                 WindowStacking::Foreground=> {
-                    gdk_window.raise(),
+                    gdk_window.raise();
                     window.set_keep_above(true);
                 }
                 WindowStacking::Background=> {
-                    gdk_window.lower(),
+                    gdk_window.lower();
                     window.set_keep_below(true);
                 }
-                - => { }
+                _=>{},
             }
 
             // don't question it,.....

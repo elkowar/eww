@@ -5,8 +5,13 @@ use structopt::StructOpt;
 use crate::{
     app,
     config::{AnchorPoint, WindowName},
+<<<<<<< HEAD
     value::{Coords, PrimVal, VarName},
+=======
+    value::{Coords,PrimitiveValue, VarName},
+>>>>>>> 782db39 (gtk-layer-shell-rs imported)
 };
+// use crate::value::coords;
 
 /// Struct that gets generated from `RawOpt`.
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
