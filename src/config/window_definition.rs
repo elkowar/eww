@@ -64,17 +64,8 @@ impl RawEwwWindowDefinition {
         let focusable = xml.parse_optional_attr("focusable")?;
         let screen_number = xml.parse_optional_attr("screen")?;
 
-<<<<<<< HEAD
         let struts: Option<StrutDefinition> =
             xml.child("reserve").ok().map(StrutDefinition::from_xml_element).transpose().context("Failed to parse <reserve>")?;
-=======
-        let struts: Option<SurfaceDefinition> = xml
-            .child("reserve")
-            .ok()
-            .map(SurfaceDefinition::from_xml_element)
-            .transpose()
-            .context("Failed to parse <reserve>")?;
->>>>>>> 782db39 (gtk-layer-shell-rs imported)
 
         Ok(RawEwwWindowDefinition {
             name: WindowName(xml.attr("name")?.to_owned()),

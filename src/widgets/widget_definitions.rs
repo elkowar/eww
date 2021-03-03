@@ -1,5 +1,11 @@
 use super::{run_command, BuilderArgs};
+<<<<<<< HEAD
 use crate::{config, eww_state, resolve_block, value::AttrVal, widgets::widget_node};
+=======
+use gio::glib;
+use gtk;
+use crate::{config, eww_state, resolve_block, value::AttrValue, widgets::widget_node};
+>>>>>>> fbc1557 (Eww compiles with wayland backend)
 use anyhow::*;
 use glib;
 use gtk::{self, prelude::*, ImageExt};
@@ -378,6 +384,7 @@ fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
         // @prop width - width of the image
         // @prop height - height of the image
         prop(path: as_string, width: as_i32 = 10000, height: as_i32 = 10000) {
+<<<<<<< HEAD
             if path.ends_with(".gif") {
                 let pixbuf_animation = gdk_pixbuf::PixbufAnimation::from_file(std::path::PathBuf::from(path))?;
                 gtk_widget.set_from_animation(&pixbuf_animation);
@@ -385,6 +392,10 @@ fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
                 let pixbuf = gdk_pixbuf::Pixbuf::from_file_at_size(std::path::PathBuf::from(path), width, height)?;
                 gtk_widget.set_from_pixbuf(Some(&pixbuf));
             }
+=======
+            let pixbuf = gtk::gdk_pixbuf::Pixbuf::from_file_at_size(std::path::PathBuf::from(path), width, height)?;
+            gtk_widget.set_from_pixbuf(Some(&pixbuf));
+>>>>>>> fbc1557 (Eww compiles with wayland backend)
         }
     });
     Ok(gtk_widget)
