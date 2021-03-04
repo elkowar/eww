@@ -12,9 +12,7 @@ mod platform {
 #[cfg(feature = "wayland")]
 mod platform {
     use crate::config::{Side, SurfaceDefinition, WindowStacking};
-    use crate::value::Coords;
     use gtk::prelude::*;
-    use gio::prelude::*;
     use anyhow::*;
 
     pub fn reserve_space_for(window: &gtk::Window, monitor: gdk::Rectangle, surface: SurfaceDefinition) -> Result<()> {
@@ -49,25 +47,15 @@ mod platform {
             if surface.exclusive {
                 gtk_layer_shell::auto_exclusive_zone_enable(window);
             }
+
             // Set the layer where the layer shell surface will spawn
-            LayerShellBackend::set_layer(surface, window);
-            // Anchoring the surface to an edge
-            LayerShellBackend::set_anchor(surface, window);
-            // I don't like the way NumWithWidth is used to define margins
-            LayerShellBackend::set_margin(monitor_rect, surface.coords, window);
-        }
-
-        fn set_layer(surface:SurfaceDefinition,window: &gtk::Window) {
-
             match surface.layer {
                 WindowStacking::Foreground=>gtk_layer_shell::set_layer(window, gtk_layer_shell::Layer::Top),
                 WindowStacking::Background=>gtk_layer_shell::set_layer(window, gtk_layer_shell::Layer::Background),
                 WindowStacking::Bottom=>gtk_layer_shell::set_layer(window, gtk_layer_shell::Layer::Bottom),
                 WindowStacking::Overlay=>gtk_layer_shell::set_layer(window, gtk_layer_shell::Layer::Overlay)
             }
-        }
 
-        fn set_anchor(surface:SurfaceDefinition,window: &gtk::Window) {
             let mut top=false;
             let mut left=false;
             let mut right=false;
@@ -102,20 +90,16 @@ mod platform {
             gtk_layer_shell::set_anchor(window, gtk_layer_shell::Edge::Right, right);
             gtk_layer_shell::set_anchor(window, gtk_layer_shell::Edge::Top, top);
             gtk_layer_shell::set_anchor(window, gtk_layer_shell::Edge::Bottom, bottom);
-        }
 
-        // Create a margin struct for Wayland
-        fn set_margin(monitor_rect:gdk::Rectangle, margin:Coords, window: &gtk::Window) {
+            let xoffset = surface.coords.x.relative_to(monitor_rect.width);
+            let yoffset = surface.coords.y.relative_to(monitor_rect.height);
 
-            let xoffset = margin.x.relative_to(monitor_rect.width);
-            let yoffset = margin.y.relative_to(monitor_rect.height);
-
-            if xoffset > 0 {
+            if left {
                 gtk_layer_shell::set_margin(window, gtk_layer_shell::Edge::Left, xoffset);
             } else {
                 gtk_layer_shell::set_margin(window, gtk_layer_shell::Edge::Right, xoffset);
             }
-            if yoffset > 0 {
+            if bottom {
                 gtk_layer_shell::set_margin(window, gtk_layer_shell::Edge::Bottom, yoffset);
             } else {
                 gtk_layer_shell::set_margin(window, gtk_layer_shell::Edge::Top, yoffset);

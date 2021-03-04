@@ -93,9 +93,9 @@ contain are defined. -->
 
   <windows>
     <!-- These are the windows -->
-    <window name="bar" screen="0">
+    <window name="bar" screen="1">
       <geometry x="0%" y="0%" width="100%" height="4%"/> <!--Specifies geometry-->
-      <reserve side="top" xoffset="4%" yoffset="%4" layer="fg"/>
+      <reserve side="top" x="4%" y="%4" stacking="fg" exclusive="true"/>
       <widget>
         <bar/> <!--This is the def we created earlier-->
       </widget>

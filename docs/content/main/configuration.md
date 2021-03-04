@@ -234,3 +234,5 @@ There are a couple things you can optionally configure on the window itself:
   Possible values: `"true"`, `"false"`. Default: `"false"`
 - `screen`: Specifies on which display to show the window in a multi-monitor setup.
   This can be any number, representing the index of your monitor.
+- `exclusive`: specifies if a surface can be occupied on another. This option is only valid on wayland.
+  Possible values: `"true"`, `"false"`.

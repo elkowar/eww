@@ -147,11 +147,11 @@ impl SurfaceDefinition {
     pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
         Ok(SurfaceDefinition {
             side: xml.attr("side")?.parse()?,
-            layer: xml.attr("layer")?.parse()?,
+            layer: xml.attr("stacking")?.parse()?,
             exclusive: xml.attr("exclusive")?.parse()?,
             coords: Coords {
-                x: xml.attr("xoffset")?.parse()?,
-                y: xml.attr("yoffset")?.parse()?,
+                x: xml.attr("x")?.parse()?,
+                y: xml.attr("y")?.parse()?,
             }
         })
     }
@@ -174,10 +174,16 @@ impl std::str::FromStr for WindowStacking {
         match s.as_str() {
             "foreground" | "fg" => Ok(WindowStacking::Foreground),
             "background" | "bg" => Ok(WindowStacking::Background),
-            "bottom" | "bm" => Ok(WindowStacking::Bottom),
+            "bottom" | "bt" => Ok(WindowStacking::Bottom),
             "overlay" | "ov" => Ok(WindowStacking::Overlay),
+            #[cfg(feature = "x11")]
             _ => Err(anyhow!(
                 "Couldn't parse '{}' as window stacking, must be either foreground, fg, background or bg",
+                s
+            )),
+            #[cfg(feature = "wayland")]
+            _ => Err(anyhow!(
+                "Couldn't parse '{}' as window stacking, must be either foreground, fg, background, bg, bottom, bt, overlay or ov",
                 s
             )),
         }
