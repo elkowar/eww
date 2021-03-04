@@ -187,11 +187,7 @@ mod platform {
             let dist = match strut_def.side {
                 Side::Left | Side::Right => strut_def.dist.relative_to(monitor_rect.width) as u32,
                 Side::Top | Side::Bottom => strut_def.dist.relative_to(monitor_rect.height) as u32,
-<<<<<<< HEAD
                 _ => (monitor_rect.height / 2) as u32,
-=======
-                _ => (monitor_rect.height/2) as u32
->>>>>>> 2042325 (Compatibility with x11 backend)
             };
 
             // don't question it,.....
@@ -203,13 +199,9 @@ mod platform {
                 Side::Right  => vec![0,                             root_window_geometry.width as u32 - mon_end_x + dist,  0,                             0,                                                      0,                      0,          monitor_rect.y as u32,  mon_end_y,  0,                      0,          0,                      0],
                 Side::Top    => vec![0,                             0,                                                     dist + monitor_rect.y as u32,  0,                                                      0,                      0,          0,                      0,          monitor_rect.x as u32,  mon_end_x,  0,                      0],
                 Side::Bottom => vec![0,                             0,                                                     0,                             root_window_geometry.height as u32 - mon_end_y + dist,  0,                      0,          0,                      0,          0,                      0,          monitor_rect.x as u32,  mon_end_x],
-<<<<<<< HEAD
                 // This should never happen but if it does the window will be anchored on the
                 // right of the screen
                 _  => vec![0,                             root_window_geometry.width as u32 - mon_end_x + dist,  0,                             0,                                                      0,                      0,          monitor_rect.y as u32,  mon_end_y,  0,                      0,          0,                      0],
-=======
-                _  => vec![0,0,0,0,0,0,0,0,0,0,0]
->>>>>>> 2042325 (Compatibility with x11 backend)
             }.iter().flat_map(|x| x.to_le_bytes().to_vec()).collect();
 
             self.conn

@@ -140,11 +140,7 @@ pub struct SurfaceDefinition {
 }
 
 #[cfg(feature = "x11")]
-<<<<<<< HEAD
 impl StrutDefinition {
-=======
-impl SurfaceDefinition {
->>>>>>> d86601a (gtk-layer-shell-rs imported)
     pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
         Ok(StrutDefinition { side: xml.attr("side")?.parse()?, dist: xml.attr("distance")?.parse()? })
     }
@@ -153,48 +149,22 @@ impl SurfaceDefinition {
 // Surface definition if the backend for Wayland is enable
 #[cfg(feature = "wayland")]
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
-<<<<<<< HEAD
 pub struct StrutDefinition {
     pub exclusive: bool,
-=======
-pub struct SurfaceDefinition {
-    pub layer: WindowStacking,
-<<<<<<< HEAD
->>>>>>> d86601a (gtk-layer-shell-rs imported)
-=======
-    pub exclusive: bool,
->>>>>>> fccf503 (Full layershell support)
     pub side: Side,
     pub coords: Coords,
 }
 
 #[cfg(feature = "wayland")]
-<<<<<<< HEAD
 impl StrutDefinition {
-=======
-impl SurfaceDefinition {
->>>>>>> d86601a (gtk-layer-shell-rs imported)
     pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
         Ok(SurfaceDefinition {
             side: xml.attr("side")?.parse()?,
-<<<<<<< HEAD
             exclusive: xml.attr("exclusive")?.parse()?,
             coords: Coords {
                 x: xml.attr("x")?.parse()?,
                 y: xml.attr("y")?.parse()?,
             },
-=======
-            layer: xml.attr("layer")?.parse()?,
-<<<<<<< HEAD
-            coords: xml.attr("coords")?.parse()?,
->>>>>>> d86601a (gtk-layer-shell-rs imported)
-=======
-            exclusive: xml.attr("exclusive")?.parse()?,
-            coords: Coords {
-                x: xml.attr("xoffset")?.parse()?,
-                y: xml.attr("yoffset")?.parse()?,
-            }
->>>>>>> fccf503 (Full layershell support)
         })
     }
 }
@@ -215,11 +185,20 @@ impl std::str::FromStr for WindowStacking {
     fn from_str(s: &str) -> Result<Self> {
         let s = s.to_lowercase();
         match s.as_str() {
-            "foreground" | "fg" | "f" => Ok(WindowStacking::Foreground),
-            "background" | "bg" | "b" => Ok(WindowStacking::Background),
-            "bottom" | "bm" => Ok(WindowStacking::Bottom),
+            "foreground" | "fg" => Ok(WindowStacking::Foreground),
+            "background" | "bg" => Ok(WindowStacking::Background),
+            "bottom" | "bt" => Ok(WindowStacking::Bottom),
             "overlay" | "ov" => Ok(WindowStacking::Overlay),
-            _ => Err(anyhow!("Couldn't parse '{}' as window stacking, must be either foreground, fg, background or bg", s)),
+            #[cfg(feature = "x11")]
+            _ => Err(anyhow!(
+                "Couldn't parse '{}' as window stacking, must be either foreground, fg, background or bg",
+                s
+            )),
+            #[cfg(feature = "wayland")]
+            _ => Err(anyhow!(
+                "Couldn't parse '{}' as window stacking, must be either foreground, fg, background, bg, bottom, bt, overlay or ov",
+                s
+            )),
         }
     }
 
