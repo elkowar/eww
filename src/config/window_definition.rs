@@ -53,6 +53,7 @@ impl RawEwwWindowDefinition {
         let stacking: WindowStacking = xml.parse_optional_attr("stacking")?.unwrap_or_default();
 
         // TODO maybe rename this to monitor?
+        // Yes, you should
         let focusable = xml.parse_optional_attr("focusable")?;
         let screen_number = xml.parse_optional_attr("screen")?;
 
