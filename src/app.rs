@@ -304,8 +304,15 @@ fn initialize_window(
 
     let window = display_backend::initialize_window(&mut window_def);
 
+    let monitor = get_monitor(window_def.screen_number.unwrap_or_else(get_default_monitor_index));
+
     #[cfg(feature = "wayland")]
+    // Inititialising a layer shell surface
     gtk_layer_shell::init_for_window(&window);
+    #[cfg(feature = "wayland")]
+    // Sets the monitor where the surface is shown
+    // Idk how to make it so this function runs only if 'screen' is defined
+    gtk_layer_shell::set_monitor(&window, &monitor);
 
     window.set_title(&format!("Eww - {}", window_def.name));
     let wm_class_name = format!("eww-{}", window_def.name);
@@ -350,6 +357,13 @@ fn on_screen_changed(window: &gtk::Window, _old_screen: Option<&gdk::Screen>) {
 
 fn get_default_monitor_index() -> i32 {
     gdk::Display::get_default().expect("could not get default display").get_default_screen().get_primary_monitor()
+}
+
+fn get_monitor(n:i32) -> gdk::Monitor {
+    gdk::Display::get_default()
+        .expect("could not get default display")
+        .get_monitor(n)
+        .unwrap()
 }
 
 /// Get the monitor geometry of a given monitor number
