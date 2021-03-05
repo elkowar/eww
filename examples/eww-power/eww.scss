@@ -1,0 +1,54 @@
+// @import "/home/bryan/.config/waybar/material.css";
+
+* {
+  all: unset; //Unsets everything so you can style everything from scratch
+}
+
+@keyframes fadeIn {
+  from {opacity: 0;}
+  to {opacity: 1;}
+}
+
+//Global Styles
+window {
+  margin: 10px;
+	color: #b0b4bc;
+  font-family: CascadiaCode;
+}
+
+.menu {
+  animation-name: fadeIn;
+  animation-duration: 0.5s;
+  margin: 10px;
+  padding-top: 15px;
+  border: 2px solid #474747;
+  border-radius: 10px;
+	background-color: #3a3a3a;
+  box-shadow: 0px 0px 2px 1px  #0F0F0F;
+}
+
+// Styles on classes (see eww.xml for more information)
+
+.item {
+	background-color: #4e4e4e;
+  all: unset;
+	animation-name: fadeIn;
+	animation-duration: 0.5s;
+  margin: 4px 10px 4px 10px;
+  font-size: 12px;
+  border-radius: 10px;
+}
+
+.window:hover {
+	background-color: #6f6f6f;
+}
+
+.button {
+  all: unset;
+  border-radius: 5px;
+  margin: 8px;
+}
+
+.button:hover {
+	background-color: #474747;
+}

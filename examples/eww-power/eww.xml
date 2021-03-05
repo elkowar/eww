@@ -1,0 +1,52 @@
+<!-- The main eww configuration file. This is where your widgets and how they appear on the screen and what they
+contain are defined. -->
+
+<eww>
+  <definitions>
+    <def name="power-menu">
+      <box orientation="h" class="menu" space-evenly="true">
+        <lock/>
+        <suspend/>
+        <logout/>
+        <shutdown/>
+      </box>
+    </def>
+    <def name="lock">
+      <box orientation="v" valign="fill" class="item">
+        <image height="50" path="/usr/share/icons/Papirus-Dark/symbolic/status/changes-prevent-symbolic.svg"/>
+        <button height="10" class="button" onclick="swaylock;eww close power-menu">Lock</button>
+      </box>
+    </def>
+    <def name="suspend">
+      <box orientation="v" valign="fill" class="item">
+        <image height="50" path="/usr/share/icons/Papirus-Dark/symbolic/status/weather-few-clouds-night-symbolic.svg"/>
+        <button height="10" class="button" onclick="systemctl suspend;eww close power-menu">Suspend</button>
+      </box>
+    </def>
+    <def name="logout">
+      <box orientation="v" valign="fill" class="item">
+        <image height="50" path="/usr/share/icons/Papirus-Dark/symbolic/actions/document-export-symbolic.svg"/>
+        <button height="10" class="button" onclick="loginctl terminate-user $USER">Logout</button>
+      </box>
+    </def>
+    <def name="shutdown">
+      <box orientation="v" valign="fill" class="item">
+        <image height="50" path="/usr/share/icons/Papirus-Dark/symbolic/actions/system-shutdown-symbolic.svg"/>
+        <button height="10" class="button" onclick="systemctl shutdown">Shutdown</button>
+      </box>
+    </def>
+  </definitions>
+
+  <variables>
+  </variables>
+
+  <windows>
+    <window name="power-menu" screen="1">
+      <geometry x="0%" y="0%" width="600" height="10%"/> <!--Specifies geometry-->
+      <reserve side="center" x="0%" y="0%" stacking="fg" exclusive="false"/>
+      <widget>
+        <power-menu/> <!--This is the def we created earlier-->
+      </widget>
+    </window>
+  </windows>
+</eww>
