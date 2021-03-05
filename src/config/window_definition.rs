@@ -104,11 +104,14 @@ impl std::str::FromStr for Side {
             "t" | "top" => Ok(Side::Top),
             "b" | "bottom" => Ok(Side::Bottom),
             "c" | "center" => Ok(Side::Center),
-            "tl" | "top-left" => Ok(Side::Top_Left),
-            "tr" | "top-right" => Ok(Side::Top_Right),
-            "bl" | "bottom-left" => Ok(Side::Bottom_Left),
-            "br" | "bottom-right" => Ok(Side::Bottom_Right),
-            _ => Err(anyhow!("Failed to parse {} as valid side. Must be one of \"left\", \"right\", \"top\", \"bottom\"", s)),
+            "tl" | "top-left" => Ok(Side::TopLeft),
+            "tr" | "top-right" => Ok(Side::TopRight),
+            "bl" | "bottom-left" => Ok(Side::BottomLeft),
+            "br" | "bottom-right" => Ok(Side::BottomRight),
+            _ => Err(anyhow!(
+                "Failed to parse {} as valid side. Must be one of \"left\", \"right\", \"top\", \"bottom\", \"top-right\", \"top-left\", \"bottom-left\", \"bottom-right\"",
+                s
+            )),
         }
     }
 
