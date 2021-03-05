@@ -226,9 +226,9 @@ The window block contains multiple elements to configure the window.
 - `<widget>` will contain the widget that is shown in the window.
 
 There are a couple things you can optionally configure on the window itself:
-- `stacking`: stacking describes if the window will be shown in the foreground (in front of other windows)
-  or in the background (behind other windows).
-  Possible values: `"fg"`, `"bg"`. Default: `"fg"`
+- `stacking`: stacking describes on what "layer" of the screen the window is shown.
+  Possible values on the X11 backend: `foreground "fg"`, `background "bg"`. Default: `"fg"`
+  Possible values on the Wayland backend: `foreground "fg"`, `bottom "bt"`, `background "bg"`, `overlay "ov"`. Default: `"fg"`
 - `focusable`: whether the window should be focusable by the windowmanager.
   This is necessary for things like text-input-fields to work properly.
   Possible values: `"true"`, `"false"`. Default: `"false"`

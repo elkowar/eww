@@ -108,7 +108,7 @@ impl std::str::FromStr for Side {
             "bl" | "bottom-left" => Ok(Side::BottomLeft),
             "br" | "bottom-right" => Ok(Side::BottomRight),
             _ => Err(anyhow!(
-                "Failed to parse {} as valid side. Must be one of \"left\", \"right\", \"top\", \"bottom\"",
+                "Failed to parse {} as valid side. Must be one of \"left\", \"right\", \"top\", \"bottom\", \"top-right\", \"top-left\", \"bottom-left\", \"bottom-right\"",
                 s
             )),
         }
