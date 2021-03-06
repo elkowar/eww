@@ -78,6 +78,10 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
         prop(height: as_f64) { gtk_widget.set_size_request(gtk_widget.get_allocated_width(), height as i32) },
         // @prop active - If this widget can be interacted with
         prop(active: as_bool = true) { gtk_widget.set_sensitive(active) },
+        // @prop tooltip - tooltip text (on hover)
+        prop(tooltip: as_string) {
+            gtk_widget.set_tooltip_text(Some(&tooltip));
+        },
         // @prop visible - visibility of the widget
         prop(visible: as_bool = true) {
             // TODO how do i call this only after the widget has been mapped? this is actually an issue,....
@@ -111,7 +115,8 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
                 })
             ));
             old_id.map(|id| gtk_widget.disconnect(id));
-        }
+        },
+
     });
 }
 
@@ -220,6 +225,7 @@ fn build_gtk_checkbox(bargs: &mut BuilderArgs) -> Result<gtk::CheckButton> {
             old_id.map(|id| gtk_widget.disconnect(id));
        }
     });
+
     Ok(gtk_widget)
 }
 
