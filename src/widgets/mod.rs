@@ -1,7 +1,12 @@
-use crate::{config::window_definition::WindowName, eww_state::*, print_result_err, value::AttrName};
+use crate::{
+    config::{element::WidgetDefinition, window_definition::WindowName},
+    eww_state::*,
+    value::AttrName,
+};
 use anyhow::*;
 use gtk::prelude::*;
 use itertools::Itertools;
+use std::collections::HashMap;
 
 use std::process::Command;
 use widget_definitions::*;
@@ -13,21 +18,35 @@ const CMD_STRING_PLACEHODLER: &str = "{}";
 
 /// Run a command that was provided as an attribute. This command may use a
 /// placeholder ('{}') which will be replaced by the value provided as [`arg`]
-pub(self) fn run_command<T: std::fmt::Display>(cmd: &str, arg: T) {
-    let cmd = cmd.replace(CMD_STRING_PLACEHODLER, &format!("{}", arg));
-    let command_result = Command::new("/bin/sh")
-        .arg("-c")
-        .arg(&cmd)
-        .spawn()
-        .and_then(|mut child| child.wait());
-    print_result_err!(format!("executing command {}", &cmd), command_result);
+pub(self) fn run_command<T: 'static + std::fmt::Display + Send + Sync>(cmd: &str, arg: T) {
+    use wait_timeout::ChildExt;
+    let cmd = cmd.to_string();
+    std::thread::spawn(move || {
+        let cmd = cmd.replace(CMD_STRING_PLACEHODLER, &format!("{}", arg));
+        log::debug!("Running command from widget: {}", cmd);
+        let child = Command::new("/bin/sh").arg("-c").arg(&cmd).spawn();
+        match child {
+            Ok(mut child) => match child.wait_timeout(std::time::Duration::from_millis(200)) {
+                // child timed out
+                Ok(None) => {
+                    eprintln!("WARNING: command {} timed out", &cmd);
+                    let _ = child.kill();
+                    let _ = child.wait();
+                }
+                Err(err) => eprintln!("Failed to execute command {}: {}", cmd, err),
+                Ok(Some(_)) => {}
+            },
+            Err(err) => eprintln!("Failed to launch child process: {}", err),
+        }
+    });
 }
 
-struct BuilderArgs<'a, 'b, 'c, 'd> {
+struct BuilderArgs<'a, 'b, 'c, 'd, 'e> {
     eww_state: &'a mut EwwState,
     widget: &'b widget_node::Generic,
     unhandled_attrs: Vec<&'c AttrName>,
     window_name: &'d WindowName,
+    widget_definitions: &'e HashMap<String, WidgetDefinition>,
 }
 
 /// build a [`gtk::Widget`] out of a [`element::WidgetUse`] that uses a
@@ -42,6 +61,7 @@ struct BuilderArgs<'a, 'b, 'c, 'd> {
 fn build_builtin_gtk_widget(
     eww_state: &mut EwwState,
     window_name: &WindowName,
+    widget_definitions: &HashMap<String, WidgetDefinition>,
     widget: &widget_node::Generic,
 ) -> Result<Option<gtk::Widget>> {
     let mut bargs = BuilderArgs {
@@ -49,6 +69,7 @@ fn build_builtin_gtk_widget(
         widget,
         window_name,
         unhandled_attrs: widget.attrs.keys().collect(),
+        widget_definitions,
     };
     let gtk_widget = match widget_to_gtk_widget(&mut bargs) {
         Ok(Some(gtk_widget)) => gtk_widget,
@@ -68,14 +89,16 @@ fn build_builtin_gtk_widget(
     if let Some(gtk_widget) = gtk_widget.dynamic_cast_ref::<gtk::Container>() {
         resolve_container_attrs(&mut bargs, &gtk_widget);
         for child in &widget.children {
-            let child_widget = child.render(bargs.eww_state, window_name).with_context(|| {
-                format!(
-                    "{}error while building child '{:#?}' of '{}'",
-                    widget.text_pos.map(|x| format!("{} |", x)).unwrap_or_default(),
-                    &child,
-                    &gtk_widget.get_widget_name()
-                )
-            })?;
+            let child_widget = child
+                .render(bargs.eww_state, window_name, widget_definitions)
+                .with_context(|| {
+                    format!(
+                        "{}error while building child '{:#?}' of '{}'",
+                        widget.text_pos.map(|x| format!("{} |", x)).unwrap_or_default(),
+                        &child,
+                        &gtk_widget.get_widget_name()
+                    )
+                })?;
             gtk_widget.add(&child_widget);
             child_widget.show();
         }

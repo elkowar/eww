@@ -12,6 +12,7 @@ use crate::{
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Opt {
     pub log_debug: bool,
+    pub config_path: Option<std::path::PathBuf>,
     pub action: Action,
 }
 
@@ -21,6 +22,10 @@ struct RawOpt {
     #[structopt(long = "debug", global = true)]
     log_debug: bool,
 
+    /// override path to configuration directory (directory that contains eww.xml and eww.scss)
+    #[structopt(short, long, global = true)]
+    config: Option<std::path::PathBuf>,
+
     #[structopt(subcommand)]
     action: Action,
 }
@@ -29,11 +34,7 @@ struct RawOpt {
 pub enum Action {
     /// Start the Eww daemon.
     #[structopt(name = "daemon", alias = "d")]
-    Daemon {
-        /// Custom Config Path
-        #[structopt(short, long)]
-        config: Option<std::path::PathBuf>,
-    },
+    Daemon,
 
     #[structopt(flatten)]
     ClientOnly(ActionClientOnly),
@@ -68,6 +69,10 @@ pub enum ActionWithServer {
     OpenWindow {
         /// Name of the window you want to open.
         window_name: WindowName,
+
+        /// Monitor-index the window should open on
+        #[structopt(short, long)]
+        monitor: Option<i32>,
 
         /// The position of the window, where it should open.
         #[structopt(short, long)]
@@ -132,8 +137,16 @@ impl Opt {
 
 impl From<RawOpt> for Opt {
     fn from(other: RawOpt) -> Self {
-        let RawOpt { action, log_debug } = other;
-        Opt { action, log_debug }
+        let RawOpt {
+            action,
+            log_debug,
+            config,
+        } = other;
+        Opt {
+            action,
+            log_debug,
+            config_path: config,
+        }
     }
 }
 
@@ -163,6 +176,7 @@ impl ActionWithServer {
                 window_name,
                 pos,
                 size,
+                monitor,
                 anchor,
             } => {
                 return with_response_channel(|sender| app::DaemonCommand::OpenWindow {
@@ -170,6 +184,7 @@ impl ActionWithServer {
                     pos,
                     size,
                     anchor,
+                    monitor,
                     sender,
                 })
             }

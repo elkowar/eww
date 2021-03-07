@@ -16,6 +16,7 @@ use std::path::PathBuf;
 /// Eww configuration structure.
 #[derive(Debug, Clone)]
 pub struct EwwConfig {
+    widgets: HashMap<String, WidgetDefinition>,
     windows: HashMap<WindowName, EwwWindowDefinition>,
     initial_variables: HashMap<VarName, PrimitiveValue>,
     script_vars: HashMap<VarName, ScriptVar>,
@@ -35,9 +36,6 @@ impl EwwConfig {
             widgets,
         } = conf;
         Ok(EwwConfig {
-            initial_variables,
-            script_vars,
-            filepath,
             windows: windows
                 .into_iter()
                 .map(|(name, window)| {
@@ -47,6 +45,10 @@ impl EwwConfig {
                     ))
                 })
                 .collect::<Result<HashMap<_, _>>>()?,
+            widgets,
+            initial_variables,
+            script_vars,
+            filepath,
         })
     }
 
@@ -75,6 +77,10 @@ impl EwwConfig {
         self.script_vars
             .get(name)
             .with_context(|| format!("No script var named '{}' exists", name))
+    }
+
+    pub fn get_widget_definitions(&self) -> &HashMap<String, WidgetDefinition> {
+        &self.widgets
     }
 }
 
@@ -120,6 +126,7 @@ impl RawEwwConfig {
     pub fn read_from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self> {
         let result: Result<_> = try {
             let content = util::replace_env_var_references(std::fs::read_to_string(path.as_ref())?);
+            let content = content.replace("&", "&amp;");
             let document = roxmltree::Document::parse(&content).map_err(|e| anyhow!(e))?;
             let root_node = XmlNode::from(document.root_element());
             let root_element = root_node.as_element()?;

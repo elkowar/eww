@@ -1,7 +1,7 @@
 +++
 title = "Examples"
 slug = "Sample configs"
-weight = 5
+weight = 6
 +++
 
 ## Example Configurations

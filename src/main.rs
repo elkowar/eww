@@ -1,4 +1,7 @@
 #![feature(trace_macros)]
+#![feature(box_syntax)]
+#![feature(or_patterns)]
+#![feature(box_patterns)]
 #![feature(slice_concat_trait)]
 #![feature(result_cloned)]
 #![feature(iterator_fold_self)]
@@ -9,8 +12,11 @@ extern crate gio;
 extern crate gtk;
 
 use anyhow::*;
+use std::{
+    os::unix::net,
+    path::{Path, PathBuf},
+};
 
-use std::{os::unix::net, path::PathBuf};
 pub mod app;
 pub mod application_lifecycle;
 pub mod client;
@@ -26,23 +32,6 @@ pub mod util;
 pub mod value;
 pub mod widgets;
 
-lazy_static::lazy_static! {
-    pub static ref IPC_SOCKET_PATH: std::path::PathBuf = std::env::var("XDG_RUNTIME_DIR")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|_| std::path::PathBuf::from("/tmp"))
-        .join("eww-server");
-
-    pub static ref CONFIG_DIR: std::path::PathBuf = std::env::var("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap()).join(".config"))
-        .join("eww");
-
-    pub static ref LOG_FILE: std::path::PathBuf = std::env::var("XDG_CACHE_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap()).join(".cache"))
-        .join("eww.log");
-}
-
 fn main() {
     let opts: opts::Opt = opts::Opt::from_env();
 
@@ -57,15 +46,24 @@ fn main() {
         .init();
 
     let result: Result<_> = try {
+        let paths = opts
+            .config_path
+            .map(EwwPaths::from_config_dir)
+            .unwrap_or_else(EwwPaths::default)
+            .context("Failed set paths")?;
+
         match opts.action {
             opts::Action::ClientOnly(action) => {
-                client::handle_client_only_action(action)?;
+                client::handle_client_only_action(&paths, action)?;
             }
             opts::Action::WithServer(action) => {
-                log::info!("Trying to find server process");
-                match net::UnixStream::connect(&*IPC_SOCKET_PATH) {
+                log::info!(
+                    "Trying to find server process at socket {}",
+                    paths.get_ipc_socket_file().display()
+                );
+                match net::UnixStream::connect(&paths.get_ipc_socket_file()) {
                     Ok(stream) => {
-                        log::info!("Connected to Eww server.");
+                        log::info!("Connected to Eww server ({}).", &paths.get_ipc_socket_file().display());
                         let response =
                             client::do_server_call(stream, action).context("Error while forwarding command to server")?;
                         if let Some(response) = response {
@@ -83,17 +81,17 @@ fn main() {
                 }
             }
 
-            opts::Action::Daemon { config } => {
+            opts::Action::Daemon => {
                 // make sure that there isn't already a Eww daemon running.
-                if check_server_running(&*IPC_SOCKET_PATH) {
+                if check_server_running(paths.get_ipc_socket_file()) {
                     eprintln!("Eww server already running.");
                     std::process::exit(1);
                 } else {
-                    log::info!("Initializing Eww server.");
-                    let _ = std::fs::remove_file(&*crate::IPC_SOCKET_PATH);
+                    log::info!("Initializing Eww server. ({})", paths.get_ipc_socket_file().display());
+                    let _ = std::fs::remove_file(paths.get_ipc_socket_file());
 
                     println!("Run `eww logs` to see any errors, warnings or information while editing your configuration.");
-                    server::initialize_server(config)?;
+                    server::initialize_server(paths)?;
                 }
             }
         }
@@ -106,9 +104,84 @@ fn main() {
 }
 
 /// Check if a eww server is currently running by trying to send a ping message to it.
-fn check_server_running(socket_path: &std::path::PathBuf) -> bool {
+fn check_server_running(socket_path: impl AsRef<Path>) -> bool {
     let response = net::UnixStream::connect(socket_path)
         .ok()
         .and_then(|stream| client::do_server_call(stream, opts::ActionWithServer::Ping).ok());
     response.is_some()
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EwwPaths {
+    log_file: PathBuf,
+    ipc_socket_file: PathBuf,
+    config_dir: PathBuf,
+}
+
+impl EwwPaths {
+    pub fn from_config_dir<P: AsRef<Path>>(config_dir: P) -> Result<Self> {
+        let config_dir = config_dir.as_ref();
+        let config_dir = if config_dir.is_file() {
+            config_dir
+                .parent()
+                .context("Given config file did not have a parent directory")?
+        } else {
+            config_dir
+        };
+        let config_dir = config_dir.canonicalize()?;
+        let daemon_id = base64::encode(format!("{}", config_dir.display()));
+
+        Ok(EwwPaths {
+            config_dir: config_dir.to_path_buf(),
+            log_file: std::env::var("XDG_CACHE_HOME")
+                .map(PathBuf::from)
+                .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap()).join(".cache"))
+                .join(format!("eww_{}.log", daemon_id)),
+            ipc_socket_file: std::env::var("XDG_RUNTIME_DIR")
+                .map(std::path::PathBuf::from)
+                .unwrap_or_else(|_| std::path::PathBuf::from("/tmp"))
+                .join(format!("eww-server_{}", daemon_id)),
+        })
+    }
+
+    pub fn default() -> Result<Self> {
+        let config_dir = std::env::var("XDG_CONFIG_HOME")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap()).join(".config"))
+            .join("eww");
+
+        Self::from_config_dir(config_dir)
+    }
+
+    pub fn get_log_file(&self) -> &Path {
+        self.log_file.as_path()
+    }
+
+    pub fn get_ipc_socket_file(&self) -> &Path {
+        self.ipc_socket_file.as_path()
+    }
+
+    pub fn get_config_dir(&self) -> &Path {
+        self.config_dir.as_path()
+    }
+
+    pub fn get_eww_xml_path(&self) -> PathBuf {
+        self.config_dir.join("eww.xml")
+    }
+
+    pub fn get_eww_scss_path(&self) -> PathBuf {
+        self.config_dir.join("eww.scss")
+    }
+}
+
+impl std::fmt::Display for EwwPaths {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "config-dir: {}, ipc-socket: {}, log-file: {}",
+            self.config_dir.display(),
+            self.ipc_socket_file.display(),
+            self.log_file.display()
+        )
+    }
 }

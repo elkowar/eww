@@ -4,13 +4,14 @@ use crate::{
     display_backend, eww_state,
     script_var_handler::*,
     value::{Coords, NumWithUnit, PrimitiveValue, VarName},
+    EwwPaths,
 };
 use anyhow::*;
 use debug_stub_derive::*;
 use gdk::WindowExt;
 use gtk::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt};
 use itertools::Itertools;
-use std::{collections::HashMap, path::PathBuf};
+use std::collections::HashMap;
 use tokio::sync::mpsc::UnboundedSender;
 
 /// Response that the app may send as a response to a event.
@@ -53,6 +54,7 @@ pub enum DaemonCommand {
         pos: Option<Coords>,
         size: Option<Coords>,
         anchor: Option<AnchorPoint>,
+        monitor: Option<i32>,
         sender: DaemonResponseSender,
     },
     CloseWindow {
@@ -94,8 +96,7 @@ pub struct App {
     #[debug_stub = "ScriptVarHandler(...)"]
     pub script_var_handler: ScriptVarHandlerHandle,
 
-    pub config_file_path: PathBuf,
-    pub scss_file_path: PathBuf,
+    pub paths: EwwPaths,
 }
 
 impl App {
@@ -113,14 +114,14 @@ impl App {
                 DaemonCommand::ReloadConfigAndCss(sender) => {
                     let mut errors = Vec::new();
 
-                    let config_result =
-                        config::RawEwwConfig::read_from_file(&self.config_file_path).and_then(config::EwwConfig::generate);
+                    let config_result = config::RawEwwConfig::read_from_file(&self.paths.get_eww_xml_path())
+                        .and_then(config::EwwConfig::generate);
                     match config_result {
                         Ok(new_config) => self.handle_command(DaemonCommand::UpdateConfig(new_config)),
                         Err(e) => errors.push(e),
                     }
 
-                    let css_result = crate::util::parse_scss_from_file(&self.scss_file_path);
+                    let css_result = crate::util::parse_scss_from_file(&self.paths.get_eww_scss_path());
                     match css_result {
                         Ok(new_css) => self.handle_command(DaemonCommand::UpdateCss(new_css)),
                         Err(e) => errors.push(e),
@@ -153,7 +154,7 @@ impl App {
                 DaemonCommand::OpenMany { windows, sender } => {
                     let result = windows
                         .iter()
-                        .map(|w| self.open_window(w, None, None, None))
+                        .map(|w| self.open_window(w, None, None, None, None))
                         .collect::<Result<()>>();
                     respond_with_error(sender, result)?;
                 }
@@ -162,9 +163,10 @@ impl App {
                     pos,
                     size,
                     anchor,
+                    monitor,
                     sender,
                 } => {
-                    let result = self.open_window(&window_name, pos, size, anchor);
+                    let result = self.open_window(&window_name, pos, size, monitor, anchor);
                     respond_with_error(sender, result)?;
                 }
                 DaemonCommand::CloseWindow { window_name, sender } => {
@@ -243,25 +245,25 @@ impl App {
         window_name: &WindowName,
         pos: Option<Coords>,
         size: Option<Coords>,
+        monitor: Option<i32>,
         anchor: Option<config::AnchorPoint>,
     ) -> Result<()> {
         // remove and close existing window with the same name
         let _ = self.close_window(window_name);
-        // let mut state = self
-        // .eww_state
-        // .set_new_variable(VarName::from("WINDOW"), PrimitiveValue::from(window_name.to_string()))
-        // .clone();
-        // println!("{:#?}", state);
         log::info!("Opening window {}", window_name);
 
         let mut window_def = self.eww_config.get_window(window_name)?.clone();
         window_def.geometry = window_def.geometry.override_if_given(anchor, pos, size);
 
-        let root_widget = window_def.widget.render(&mut self.eww_state, window_name)?;
+        let root_widget =
+            window_def
+                .widget
+                .render(&mut self.eww_state, window_name, &self.eww_config.get_widget_definitions())?;
 
         root_widget.get_style_context().add_class(&window_name.to_string());
 
-        let monitor_geometry = get_monitor_geometry(window_def.screen_number.unwrap_or_else(get_default_monitor_index));
+        let monitor_geometry =
+            get_monitor_geometry(monitor.or(window_def.screen_number).unwrap_or_else(get_default_monitor_index));
         let eww_window = initialize_window(monitor_geometry, root_widget, window_def)?;
 
         self.open_windows.insert(window_name.clone(), eww_window);
@@ -290,7 +292,7 @@ impl App {
         let windows = self.open_windows.clone();
         for (window_name, window) in windows {
             window.close();
-            self.open_window(&window_name, None, None, None)?;
+            self.open_window(&window_name, None, None, None, None)?;
         }
         Ok(())
     }

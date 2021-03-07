@@ -1,15 +1,11 @@
-use crate::{app, config, eww_state::*, ipc_server, script_var_handler, try_logging_errors, util};
+use crate::{app, config, eww_state::*, ipc_server, script_var_handler, try_logging_errors, util, EwwPaths};
 use anyhow::*;
 use futures_util::StreamExt;
-use std::{
-    collections::HashMap,
-    os::unix::io::AsRawFd,
-    path::{Path, PathBuf},
-};
+use std::{collections::HashMap, os::unix::io::AsRawFd, path::Path};
 use tokio::sync::mpsc::*;
 
-pub fn initialize_server(config_dir_override: Option<std::path::PathBuf>) -> Result<()> {
-    do_detach()?;
+pub fn initialize_server(paths: EwwPaths) -> Result<()> {
+    do_detach(&paths.get_log_file())?;
 
     println!(
         r#"
@@ -28,18 +24,11 @@ pub fn initialize_server(config_dir_override: Option<std::path::PathBuf>) -> Res
     });
     let (ui_send, mut ui_recv) = tokio::sync::mpsc::unbounded_channel();
 
-    let config_file_path = config_dir_override.unwrap_or(crate::CONFIG_DIR.join("eww.xml"));
+    std::env::set_current_dir(&paths.get_config_dir())
+        .with_context(|| format!("Failed to change working directory to {}", paths.get_config_dir().display()))?;
 
-    let config_dir = config_file_path
-        .parent()
-        .context("config file did not have a parent?!")?
-        .to_owned();
-    std::env::set_current_dir(&config_dir)
-        .with_context(|| format!("Failed to change working directory to {}", config_dir.display()))?;
-    let scss_file_path = config_dir.join("eww.scss");
-
-    log::info!("reading configuration from {:?}", &config_file_path);
-    let eww_config = config::EwwConfig::read_from_file(&config_file_path)?;
+    log::info!("Loading paths: {}", &paths);
+    let eww_config = config::EwwConfig::read_from_file(&paths.get_eww_xml_path())?;
 
     gtk::init()?;
 
@@ -53,20 +42,19 @@ pub fn initialize_server(config_dir_override: Option<std::path::PathBuf>) -> Res
         css_provider: gtk::CssProvider::new(),
         script_var_handler,
         app_evt_send: ui_send.clone(),
-        config_file_path,
-        scss_file_path,
+        paths,
     };
 
     if let Some(screen) = gdk::Screen::get_default() {
         gtk::StyleContext::add_provider_for_screen(&screen, &app.css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
     }
 
-    if let Ok(eww_css) = util::parse_scss_from_file(&app.scss_file_path) {
+    if let Ok(eww_css) = util::parse_scss_from_file(&app.paths.get_eww_scss_path()) {
         app.load_css(&eww_css)?;
     }
 
     // initialize all the handlers and tasks running asyncronously
-    init_async_part(app.config_file_path.clone(), app.scss_file_path.clone(), ui_send);
+    init_async_part(app.paths.clone(), ui_send);
 
     glib::MainContext::default().spawn_local(async move {
         while let Some(event) = ui_recv.recv().await {
@@ -80,7 +68,7 @@ pub fn initialize_server(config_dir_override: Option<std::path::PathBuf>) -> Res
     Ok(())
 }
 
-fn init_async_part(config_file_path: PathBuf, scss_file_path: PathBuf, ui_send: UnboundedSender<app::DaemonCommand>) {
+fn init_async_part(paths: EwwPaths, ui_send: UnboundedSender<app::DaemonCommand>) {
     std::thread::spawn(move || {
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
@@ -89,12 +77,13 @@ fn init_async_part(config_file_path: PathBuf, scss_file_path: PathBuf, ui_send: 
         rt.block_on(async {
             let filewatch_join_handle = {
                 let ui_send = ui_send.clone();
-                tokio::spawn(async move { run_filewatch(config_file_path, scss_file_path, ui_send).await })
+                let paths = paths.clone();
+                tokio::spawn(async move { run_filewatch(paths.get_eww_xml_path(), paths.get_eww_scss_path(), ui_send).await })
             };
 
             let ipc_server_join_handle = {
                 let ui_send = ui_send.clone();
-                tokio::spawn(async move { ipc_server::run_server(ui_send).await })
+                tokio::spawn(async move { ipc_server::run_server(ui_send, paths.get_ipc_socket_file()).await })
             };
 
             let forward_exit_to_app_handle = {
@@ -166,7 +155,7 @@ async fn run_filewatch<P: AsRef<Path>>(
 }
 
 /// detach the process from the terminal, also redirecting stdout and stderr to LOG_FILE
-fn do_detach() -> Result<()> {
+fn do_detach(log_file_path: impl AsRef<Path>) -> Result<()> {
     // detach from terminal
     match unsafe { nix::unistd::fork()? } {
         nix::unistd::ForkResult::Parent { .. } => {
@@ -178,10 +167,10 @@ fn do_detach() -> Result<()> {
     let file = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open(&*crate::LOG_FILE)
+        .open(&log_file_path)
         .expect(&format!(
             "Error opening log file ({}), for writing",
-            &*crate::LOG_FILE.to_string_lossy()
+            log_file_path.as_ref().to_string_lossy()
         ));
     let fd = file.as_raw_fd();
 
