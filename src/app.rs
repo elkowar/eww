@@ -247,22 +247,16 @@ impl App {
     ) -> Result<()> {
         // remove and close existing window with the same name
         let _ = self.close_window(window_name);
-
+        // let mut state = self
+        // .eww_state
+        // .set_new_variable(VarName::from("WINDOW"), PrimitiveValue::from(window_name.to_string()))
+        // .clone();
+        // println!("{:#?}", state);
         log::info!("Opening window {}", window_name);
 
         let mut window_def = self.eww_config.get_window(window_name)?.clone();
         window_def.geometry = window_def.geometry.override_if_given(anchor, pos, size);
 
-        // let root_widget = widgets::widget_use_to_gtk_widget(
-        // &self.eww_config.get_widgets(),
-        // &mut self.eww_state,
-        // window_name,
-        // &maplit::hashmap! {
-        // @desc WINDOW_NAME - The name of the window
-        // "WINDOW_NAME".into() => AttrValue::from_primitive(window_name.to_string()),
-        // },
-        // &window_def.widget,
-        // )?;
         let root_widget = window_def.widget.render(&mut self.eww_state, window_name)?;
 
         root_widget.get_style_context().add_class(&window_name.to_string());

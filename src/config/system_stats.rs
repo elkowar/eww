@@ -88,7 +88,6 @@ pub fn get_down() -> f32 {
         .filter(|a| conn_interfaces.contains(a.0))
         .map(|a| a.1.get_received())
         .sum();
-    println!("{:#?}", interfaces);
     c.refresh_networks_list();
     interfaces as f32 / 1000000 as f32
 }
@@ -96,7 +95,6 @@ pub fn get_down() -> f32 {
 pub fn get_up() -> f32 {
     let mut c = SYSTEM_NET_UP.lock().unwrap();
     let conn_interfaces = get_interfaces().unwrap_or_else(|_| vec!["docker0".to_string(), "lo".to_string()]);
-    println!("{:#?}", conn_interfaces);
     let interfaces: u64 = c
         .get_networks()
         .iter()

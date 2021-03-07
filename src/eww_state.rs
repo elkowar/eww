@@ -95,6 +95,12 @@ impl EwwState {
         self.windows.clear();
     }
 
+    // pub fn set_new_variable(&self, k: VarName, v: PrimitiveValue) -> &Self {
+    // let mut s = self.to_owned();
+    // s.variables_state.insert(k, v);
+    // s
+    // }
+
     /// Update the value of a variable, running all registered
     /// [StateChangeHandler]s.
     pub fn update_variable(&mut self, key: VarName, value: PrimitiveValue) {
