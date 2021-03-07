@@ -79,7 +79,9 @@ impl From<f32> for PrimitiveValue {
 
 impl From<u8> for PrimitiveValue {
     fn from(s: u8) -> Self {
-
+        PrimitiveValue(s.to_string())
+    }
+}
 impl From<f64> for PrimitiveValue {
     fn from(s: f64) -> Self {
         PrimitiveValue(s.to_string())
