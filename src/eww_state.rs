@@ -51,10 +51,7 @@ impl EwwWindowState {
     fn put_handler(&mut self, handler: StateChangeHandler) {
         let handler = Arc::new(handler);
         for var_name in handler.used_variables() {
-            self.state_change_handlers
-                .entry(var_name.clone())
-                .or_insert_with(Vec::new)
-                .push(handler.clone());
+            self.state_change_handlers.entry(var_name.clone()).or_insert_with(Vec::new).push(handler.clone());
         }
     }
 }
@@ -75,10 +72,7 @@ impl std::fmt::Debug for EwwState {
 
 impl EwwState {
     pub fn from_default_vars(defaults: HashMap<VarName, PrimitiveValue>) -> Self {
-        EwwState {
-            variables_state: defaults,
-            ..EwwState::default()
-        }
+        EwwState { variables_state: defaults, ..EwwState::default() }
     }
 
     pub fn get_variables(&self) -> &HashMap<VarName, PrimitiveValue> {
@@ -110,9 +104,7 @@ impl EwwState {
 
     /// Look up a single variable in the eww state, returning an `Err` when the value is not found.
     pub fn lookup(&self, var_name: &VarName) -> Result<&PrimitiveValue> {
-        self.variables_state
-            .get(var_name)
-            .with_context(|| format!("Unknown variable '{}' referenced", var_name))
+        self.variables_state.get(var_name).with_context(|| format!("Unknown variable '{}' referenced", var_name))
     }
 
     /// resolves a value if possible, using the current eww_state.
@@ -134,19 +126,13 @@ impl EwwState {
         required_attributes: HashMap<AttrName, AttrValue>,
         set_value: F,
     ) {
-        let handler = StateChangeHandler {
-            func: Box::new(set_value),
-            unresolved_values: required_attributes,
-        };
+        let handler = StateChangeHandler { func: Box::new(set_value), unresolved_values: required_attributes };
 
         handler.run_with_state(&self.variables_state);
 
         // only store the handler if at least one variable is being used
         if handler.used_variables().next().is_some() {
-            self.windows
-                .entry(window_name.clone())
-                .or_insert_with(EwwWindowState::default)
-                .put_handler(handler);
+            self.windows.entry(window_name.clone()).or_insert_with(EwwWindowState::default).put_handler(handler);
         }
     }
 
@@ -155,9 +141,6 @@ impl EwwState {
     }
 
     pub fn vars_referenced_in(&self, window_name: &WindowName) -> std::collections::HashSet<&VarName> {
-        self.windows
-            .get(window_name)
-            .map(|window| window.state_change_handlers.keys().collect())
-            .unwrap_or_default()
+        self.windows.get(window_name).map(|window| window.state_change_handlers.keys().collect()).unwrap_or_default()
     }
 }

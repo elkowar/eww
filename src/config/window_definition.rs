@@ -55,12 +55,8 @@ impl RawEwwWindowDefinition {
         let focusable = xml.parse_optional_attr("focusable")?;
         let screen_number = xml.parse_optional_attr("screen")?;
 
-        let struts: Option<StrutDefinition> = xml
-            .child("reserve")
-            .ok()
-            .map(StrutDefinition::from_xml_element)
-            .transpose()
-            .context("Failed to parse <reserve>")?;
+        let struts: Option<StrutDefinition> =
+            xml.child("reserve").ok().map(StrutDefinition::from_xml_element).transpose().context("Failed to parse <reserve>")?;
 
         Ok(RawEwwWindowDefinition {
             name: WindowName(xml.attr("name")?.to_owned()),
@@ -94,10 +90,7 @@ impl std::str::FromStr for Side {
             "r" | "right" => Ok(Side::Right),
             "t" | "top" => Ok(Side::Top),
             "b" | "bottom" => Ok(Side::Bottom),
-            _ => Err(anyhow!(
-                "Failed to parse {} as valid side. Must be one of \"left\", \"right\", \"top\", \"bottom\"",
-                s
-            )),
+            _ => Err(anyhow!("Failed to parse {} as valid side. Must be one of \"left\", \"right\", \"top\", \"bottom\"", s)),
         }
     }
 }
@@ -110,10 +103,7 @@ pub struct StrutDefinition {
 
 impl StrutDefinition {
     pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
-        Ok(StrutDefinition {
-            side: xml.attr("side")?.parse()?,
-            dist: xml.attr("distance")?.parse()?,
-        })
+        Ok(StrutDefinition { side: xml.attr("side")?.parse()?, dist: xml.attr("distance")?.parse()? })
     }
 }
 
@@ -132,10 +122,7 @@ impl std::str::FromStr for WindowStacking {
         match s.as_str() {
             "foreground" | "fg" | "f" => Ok(WindowStacking::Foreground),
             "background" | "bg" | "b" => Ok(WindowStacking::Background),
-            _ => Err(anyhow!(
-                "Couldn't parse '{}' as window stacking, must be either foreground, fg, background or bg",
-                s
-            )),
+            _ => Err(anyhow!("Couldn't parse '{}' as window stacking, must be either foreground, fg, background or bg", s)),
         }
     }
 }

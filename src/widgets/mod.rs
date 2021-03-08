@@ -64,18 +64,13 @@ fn build_builtin_gtk_widget(
     widget_definitions: &HashMap<String, WidgetDefinition>,
     widget: &widget_node::Generic,
 ) -> Result<Option<gtk::Widget>> {
-    let mut bargs = BuilderArgs {
-        eww_state,
-        widget,
-        window_name,
-        unhandled_attrs: widget.attrs.keys().collect(),
-        widget_definitions,
-    };
+    let mut bargs =
+        BuilderArgs { eww_state, widget, window_name, unhandled_attrs: widget.attrs.keys().collect(), widget_definitions };
     let gtk_widget = match widget_to_gtk_widget(&mut bargs) {
         Ok(Some(gtk_widget)) => gtk_widget,
         result => {
             return result.with_context(|| {
-                anyhow!(
+                format!(
                     "{}Error building widget {}",
                     bargs.widget.text_pos.map(|x| format!("{} |", x)).unwrap_or_default(),
                     bargs.widget.name,
@@ -89,16 +84,14 @@ fn build_builtin_gtk_widget(
     if let Some(gtk_widget) = gtk_widget.dynamic_cast_ref::<gtk::Container>() {
         resolve_container_attrs(&mut bargs, &gtk_widget);
         for child in &widget.children {
-            let child_widget = child
-                .render(bargs.eww_state, window_name, widget_definitions)
-                .with_context(|| {
-                    format!(
-                        "{}error while building child '{:#?}' of '{}'",
-                        widget.text_pos.map(|x| format!("{} |", x)).unwrap_or_default(),
-                        &child,
-                        &gtk_widget.get_widget_name()
-                    )
-                })?;
+            let child_widget = child.render(bargs.eww_state, window_name, widget_definitions).with_context(|| {
+                format!(
+                    "{}error while building child '{:#?}' of '{}'",
+                    widget.text_pos.map(|x| format!("{} |", x)).unwrap_or_default(),
+                    &child,
+                    &gtk_widget.get_widget_name()
+                )
+            })?;
             gtk_widget.add(&child_widget);
             child_widget.show();
         }

@@ -31,11 +31,8 @@ impl<'a, 'b> fmt::Display for XmlNode<'a, 'b> {
 /// Get the part of a string that is selected by the start and end TextPos.
 /// Will panic if the range is out of bounds in any way.
 fn get_text_from_text_range(s: &str, (start_pos, end_pos): (roxmltree::TextPos, roxmltree::TextPos)) -> String {
-    let mut code_text = s
-        .lines()
-        .dropping(start_pos.row as usize - 1)
-        .take(end_pos.row as usize - (start_pos.row as usize - 1))
-        .collect_vec();
+    let mut code_text =
+        s.lines().dropping(start_pos.row as usize - 1).take(end_pos.row as usize - (start_pos.row as usize - 1)).collect_vec();
     if let Some(first_line) = code_text.first_mut() {
         *first_line = first_line.split_at(start_pos.col as usize - 1).1;
     }
@@ -133,11 +130,7 @@ impl<'a, 'b> fmt::Display for XmlElement<'a, 'b> {
 
 impl<'a, 'b> XmlElement<'a, 'b> {
     pub fn as_tag_string(&self) -> String {
-        let attrs = self
-            .attributes()
-            .iter()
-            .map(|attr| format!("{}=\"{}\"", attr.name(), attr.value()))
-            .join(" ");
+        let attrs = self.attributes().iter().map(|attr| format!("{}=\"{}\"", attr.name(), attr.value())).join(" ");
 
         format!("<{} {}>", self.tag_name(), attrs)
     }
@@ -255,10 +248,7 @@ mod test {
         let input = "<something>whatever</something>";
         let document = roxmltree::Document::parse(&input).unwrap();
         let root_node = XmlNode::from(document.root_element());
-        assert_eq!(
-            root_node.as_element().unwrap().only_child().unwrap().as_text_or_sourcecode(),
-            "whatever".to_string()
-        );
+        assert_eq!(root_node.as_element().unwrap().only_child().unwrap().as_text_or_sourcecode(), "whatever".to_string());
     }
 
     #[test]

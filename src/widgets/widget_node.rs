@@ -66,9 +66,7 @@ pub struct Generic {
 
 impl Generic {
     pub fn get_attr(&self, key: &str) -> Result<&AttrValue> {
-        self.attrs
-            .get(key)
-            .context(format!("attribute '{}' missing from use of '{}'", key, &self.name))
+        self.attrs.get(key).context(format!("attribute '{}' missing from use of '{}'", key, &self.name))
     }
 
     /// returns all the variables that are referenced in this widget
@@ -92,10 +90,8 @@ impl WidgetNode for Generic {
         window_name: &WindowName,
         widget_definitions: &HashMap<String, WidgetDefinition>,
     ) -> Result<gtk::Widget> {
-        Ok(
-            crate::widgets::build_builtin_gtk_widget(eww_state, window_name, widget_definitions, &self)?
-                .with_context(|| format!("Unknown widget '{}'", self.get_name()))?,
-        )
+        Ok(crate::widgets::build_builtin_gtk_widget(eww_state, window_name, widget_definitions, &self)?
+            .with_context(|| format!("Unknown widget '{}'", self.get_name()))?)
     }
 }
 
@@ -114,20 +110,12 @@ pub fn generate_generic_widget_node(
             .collect::<HashMap<_, _>>();
 
         let content = generate_generic_widget_node(defs, &new_local_env, def.structure.clone())?;
-        Ok(Box::new(UserDefined {
-            name: w.name,
-            text_pos: w.text_pos,
-            content,
-        }))
+        Ok(Box::new(UserDefined { name: w.name, text_pos: w.text_pos, content }))
     } else {
         Ok(Box::new(Generic {
             name: w.name,
             text_pos: w.text_pos,
-            attrs: w
-                .attrs
-                .into_iter()
-                .map(|(name, value)| (name, value.resolve_one_level(local_env)))
-                .collect(),
+            attrs: w.attrs.into_iter().map(|(name, value)| (name, value.resolve_one_level(local_env))).collect(),
             children: w
                 .children
                 .into_iter()

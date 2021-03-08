@@ -70,10 +70,7 @@ pub fn initialize_server(paths: EwwPaths) -> Result<()> {
 
 fn init_async_part(paths: EwwPaths, ui_send: UnboundedSender<app::DaemonCommand>) {
     std::thread::spawn(move || {
-        let rt = tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .build()
-            .expect("Failed to initialize tokio runtime");
+        let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().expect("Failed to initialize tokio runtime");
         rt.block_on(async {
             let filewatch_join_handle = {
                 let ui_send = ui_send.clone();
@@ -168,10 +165,7 @@ fn do_detach(log_file_path: impl AsRef<Path>) -> Result<()> {
         .create(true)
         .append(true)
         .open(&log_file_path)
-        .expect(&format!(
-            "Error opening log file ({}), for writing",
-            log_file_path.as_ref().to_string_lossy()
-        ));
+        .expect(&format!("Error opening log file ({}), for writing", log_file_path.as_ref().to_string_lossy()));
     let fd = file.as_raw_fd();
 
     if nix::unistd::isatty(1)? {

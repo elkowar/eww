@@ -28,21 +28,12 @@ impl EwwConfig {
     }
 
     pub fn generate(conf: RawEwwConfig) -> Result<Self> {
-        let RawEwwConfig {
-            windows,
-            initial_variables,
-            script_vars,
-            filepath,
-            widgets,
-        } = conf;
+        let RawEwwConfig { windows, initial_variables, script_vars, filepath, widgets } = conf;
         Ok(EwwConfig {
             windows: windows
                 .into_iter()
                 .map(|(name, window)| {
-                    Ok((
-                        name,
-                        EwwWindowDefinition::generate(&widgets, window).context("Failed expand window definition")?,
-                    ))
+                    Ok((name, EwwWindowDefinition::generate(&widgets, window).context("Failed expand window definition")?))
                 })
                 .collect::<Result<HashMap<_, _>>>()?,
             widgets,
@@ -54,11 +45,8 @@ impl EwwConfig {
 
     // TODO this is kinda ugly
     pub fn generate_initial_state(&self) -> Result<HashMap<VarName, PrimitiveValue>> {
-        let mut vars = self
-            .script_vars
-            .iter()
-            .map(|var| Ok((var.0.clone(), var.1.initial_value()?)))
-            .collect::<Result<HashMap<_, _>>>()?;
+        let mut vars =
+            self.script_vars.iter().map(|var| Ok((var.0.clone(), var.1.initial_value()?))).collect::<Result<HashMap<_, _>>>()?;
         vars.extend(self.initial_variables.clone());
         Ok(vars)
     }
@@ -68,15 +56,11 @@ impl EwwConfig {
     }
 
     pub fn get_window(&self, name: &WindowName) -> Result<&EwwWindowDefinition> {
-        self.windows
-            .get(name)
-            .with_context(|| format!("No window named '{}' exists", name))
+        self.windows.get(name).with_context(|| format!("No window named '{}' exists", name))
     }
 
     pub fn get_script_var(&self, name: &VarName) -> Result<&ScriptVar> {
-        self.script_vars
-            .get(name)
-            .with_context(|| format!("No script var named '{}' exists", name))
+        self.script_vars.get(name).with_context(|| format!("No script var named '{}' exists", name))
     }
 
     pub fn get_widget_definitions(&self) -> &HashMap<String, WidgetDefinition> {
@@ -192,13 +176,7 @@ impl RawEwwConfig {
             None => Default::default(),
         };
 
-        let config = RawEwwConfig {
-            widgets: definitions,
-            windows,
-            initial_variables,
-            script_vars,
-            filepath: path.to_path_buf(),
-        };
+        let config = RawEwwConfig { widgets: definitions, windows, initial_variables, script_vars, filepath: path.to_path_buf() };
         Ok((config, included_paths))
     }
 }
@@ -209,10 +187,7 @@ fn parse_variables_block(xml: XmlElement) -> Result<(HashMap<VarName, PrimitiveV
     for node in xml.child_elements() {
         match node.tag_name() {
             "var" => {
-                let value = node
-                    .only_child()
-                    .map(|c| c.as_text_or_sourcecode())
-                    .unwrap_or_else(|_| String::new());
+                let value = node.only_child().map(|c| c.as_text_or_sourcecode()).unwrap_or_else(|_| String::new());
                 normal_vars.insert(VarName(node.attr("name")?.to_owned()), PrimitiveValue::from_string(value));
             }
             "script-var" => {
@@ -282,12 +257,10 @@ mod test {
 
         let document1 = roxmltree::Document::parse(&input1).unwrap();
         let document2 = roxmltree::Document::parse(input2).unwrap();
-        let config1 = RawEwwConfig::from_xml_element(XmlNode::from(document1.root_element()).as_element().unwrap().clone(), "")
-            .unwrap()
-            .0;
-        let config2 = RawEwwConfig::from_xml_element(XmlNode::from(document2.root_element()).as_element().unwrap().clone(), "")
-            .unwrap()
-            .0;
+        let config1 =
+            RawEwwConfig::from_xml_element(XmlNode::from(document1.root_element()).as_element().unwrap().clone(), "").unwrap().0;
+        let config2 =
+            RawEwwConfig::from_xml_element(XmlNode::from(document2.root_element()).as_element().unwrap().clone(), "").unwrap().0;
         let base_config = RawEwwConfig {
             widgets: HashMap::new(),
             windows: HashMap::new(),

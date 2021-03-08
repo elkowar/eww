@@ -92,21 +92,15 @@ impl PrimitiveValue {
     }
 
     pub fn as_f64(&self) -> Result<f64> {
-        self.0
-            .parse()
-            .map_err(|e| anyhow!("couldn't convert {:?} to f64: {}", &self, e))
+        self.0.parse().map_err(|e| anyhow!("couldn't convert {:?} to f64: {}", &self, e))
     }
 
     pub fn as_i32(&self) -> Result<i32> {
-        self.0
-            .parse()
-            .map_err(|e| anyhow!("couldn't convert {:?} to i32: {}", &self, e))
+        self.0.parse().map_err(|e| anyhow!("couldn't convert {:?} to i32: {}", &self, e))
     }
 
     pub fn as_bool(&self) -> Result<bool> {
-        self.0
-            .parse()
-            .map_err(|e| anyhow!("couldn't convert {:?} to bool: {}", &self, e))
+        self.0.parse().map_err(|e| anyhow!("couldn't convert {:?} to bool: {}", &self, e))
     }
 
     pub fn as_vec(&self) -> Result<Vec<String>> {
@@ -141,36 +135,21 @@ mod test {
     use pretty_assertions::assert_eq;
     #[test]
     fn test_parse_vec() {
-        assert_eq!(
-            vec![""],
-            parse_vec("[]".to_string()).unwrap(),
-            "should be able to parse empty lists"
-        );
-        assert_eq!(
-            vec!["hi"],
-            parse_vec("[hi]".to_string()).unwrap(),
-            "should be able to parse single element list"
-        );
+        assert_eq!(vec![""], parse_vec("[]".to_string()).unwrap(), "should be able to parse empty lists");
+        assert_eq!(vec!["hi"], parse_vec("[hi]".to_string()).unwrap(), "should be able to parse single element list");
         assert_eq!(
             vec!["hi", "ho", "hu"],
             parse_vec("[hi,ho,hu]".to_string()).unwrap(),
             "should be able to parse three element list"
         );
-        assert_eq!(
-            vec!["hi,ho"],
-            parse_vec("[hi\\,ho]".to_string()).unwrap(),
-            "should be able to parse list with escaped comma"
-        );
+        assert_eq!(vec!["hi,ho"], parse_vec("[hi\\,ho]".to_string()).unwrap(), "should be able to parse list with escaped comma");
         assert_eq!(
             vec!["hi,ho", "hu"],
             parse_vec("[hi\\,ho,hu]".to_string()).unwrap(),
             "should be able to parse two element list with escaped comma"
         );
         assert!(parse_vec("".to_string()).is_err(), "Should fail when parsing empty string");
-        assert!(
-            parse_vec("[a,b".to_string()).is_err(),
-            "Should fail when parsing unclosed list"
-        );
+        assert!(parse_vec("[a,b".to_string()).is_err(), "Should fail when parsing unclosed list");
         assert!(parse_vec("a]".to_string()).is_err(), "Should fail when parsing unopened list");
     }
 }

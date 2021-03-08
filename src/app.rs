@@ -149,20 +149,10 @@ impl App {
                     }
                 }
                 DaemonCommand::OpenMany { windows, sender } => {
-                    let result = windows
-                        .iter()
-                        .map(|w| self.open_window(w, None, None, None, None))
-                        .collect::<Result<()>>();
+                    let result = windows.iter().map(|w| self.open_window(w, None, None, None, None)).collect::<Result<()>>();
                     respond_with_error(sender, result)?;
                 }
-                DaemonCommand::OpenWindow {
-                    window_name,
-                    pos,
-                    size,
-                    anchor,
-                    monitor,
-                    sender,
-                } => {
+                DaemonCommand::OpenWindow { window_name, pos, size, anchor, monitor, sender } => {
                     let result = self.open_window(&window_name, pos, size, monitor, anchor);
                     respond_with_error(sender, result)?;
                 }
@@ -171,15 +161,9 @@ impl App {
                     respond_with_error(sender, result)?;
                 }
                 DaemonCommand::PrintState(sender) => {
-                    let output = self
-                        .eww_state
-                        .get_variables()
-                        .iter()
-                        .map(|(key, value)| format!("{}: {}", key, value))
-                        .join("\n");
-                    sender
-                        .send(DaemonResponse::Success(output))
-                        .context("sending response from main thread")?
+                    let output =
+                        self.eww_state.get_variables().iter().map(|(key, value)| format!("{}: {}", key, value)).join("\n");
+                    sender.send(DaemonResponse::Success(output)).context("sending response from main thread")?
                 }
                 DaemonCommand::PrintWindows(sender) => {
                     let output = self
@@ -191,15 +175,11 @@ impl App {
                             format!("{}{}", if is_open { "*" } else { "" }, window_name)
                         })
                         .join("\n");
-                    sender
-                        .send(DaemonResponse::Success(output))
-                        .context("sending response from main thread")?
+                    sender.send(DaemonResponse::Success(output)).context("sending response from main thread")?
                 }
                 DaemonCommand::PrintDebug(sender) => {
                     let output = format!("state: {:#?}\n\nconfig: {:#?}", &self.eww_state, &self.eww_config);
-                    sender
-                        .send(DaemonResponse::Success(output))
-                        .context("sending response from main thread")?
+                    sender.send(DaemonResponse::Success(output)).context("sending response from main thread")?
                 }
             }
         };
@@ -223,10 +203,8 @@ impl App {
             self.script_var_handler.stop_for_variable(unused_var.clone());
         }
 
-        let window = self
-            .open_windows
-            .remove(window_name)
-            .context(format!("No window with name '{}' is running.", window_name))?;
+        let window =
+            self.open_windows.remove(window_name).context(format!("No window with name '{}' is running.", window_name))?;
 
         window.close();
         self.eww_state.clear_window_state(window_name);
@@ -251,9 +229,7 @@ impl App {
         window_def.geometry = window_def.geometry.override_if_given(anchor, pos, size);
 
         let root_widget =
-            window_def
-                .widget
-                .render(&mut self.eww_state, window_name, &self.eww_config.get_widget_definitions())?;
+            window_def.widget.render(&mut self.eww_state, window_name, &self.eww_config.get_widget_definitions())?;
         root_widget.get_style_context().add_class(&window_name.to_string());
 
         let monitor_geometry =
@@ -264,9 +240,8 @@ impl App {
 
         // initialize script var handlers for variables that where not used before opening this window.
         // TODO somehow make this less shit
-        for newly_used_var in self
-            .variables_only_used_in(&window_name)
-            .filter_map(|var| self.eww_config.get_script_var(&var).ok())
+        for newly_used_var in
+            self.variables_only_used_in(&window_name).filter_map(|var| self.eww_config.get_script_var(&var).ok())
         {
             self.script_var_handler.add(newly_used_var.clone());
         }
@@ -298,9 +273,7 @@ impl App {
 
     /// Get all variable names that are currently referenced in any of the open windows.
     pub fn get_currently_used_variables(&self) -> impl Iterator<Item = &VarName> {
-        self.open_windows
-            .keys()
-            .flat_map(move |window_name| self.eww_state.vars_referenced_in(window_name))
+        self.open_windows.keys().flat_map(move |window_name| self.eww_state.vars_referenced_in(window_name))
     }
 
     /// Get all variables mapped to a list of windows they are being used in.
@@ -308,9 +281,7 @@ impl App {
         let mut vars: HashMap<&'a VarName, Vec<_>> = HashMap::new();
         for window_name in self.open_windows.keys() {
             for var in self.eww_state.vars_referenced_in(window_name) {
-                vars.entry(var)
-                    .and_modify(|l| l.push(window_name))
-                    .or_insert_with(|| vec![window_name]);
+                vars.entry(var).and_modify(|l| l.push(window_name)).or_insert_with(|| vec![window_name]);
             }
         }
         vars
@@ -332,11 +303,8 @@ fn initialize_window(
 ) -> Result<EwwWindow> {
     let actual_window_rect = window_def.geometry.get_window_rectangle(monitor_geometry);
 
-    let window = if window_def.focusable {
-        gtk::Window::new(gtk::WindowType::Toplevel)
-    } else {
-        gtk::Window::new(gtk::WindowType::Popup)
-    };
+    let window =
+        if window_def.focusable { gtk::Window::new(gtk::WindowType::Toplevel) } else { gtk::Window::new(gtk::WindowType::Popup) };
 
     window.set_title(&format!("Eww - {}", window_def.name));
     let wm_class_name = format!("eww-{}", window_def.name);
@@ -360,10 +328,7 @@ fn initialize_window(
     // as it is sized according to how much space it's contents require.
     // This is necessary to handle different anchors correctly in case the size was wrong.
     let (gtk_window_width, gtk_window_height) = window.get_size();
-    window_def.geometry.size = Coords {
-        x: NumWithUnit::Pixels(gtk_window_width),
-        y: NumWithUnit::Pixels(gtk_window_height),
-    };
+    window_def.geometry.size = Coords { x: NumWithUnit::Pixels(gtk_window_width), y: NumWithUnit::Pixels(gtk_window_height) };
     let actual_window_rect = window_def.geometry.get_window_rectangle(monitor_geometry);
 
     window.show_all();
@@ -382,37 +347,24 @@ fn initialize_window(
 
     display_backend::reserve_space_for(&window, monitor_geometry, window_def.struts)?;
 
-    Ok(EwwWindow {
-        name: window_def.name.clone(),
-        definition: window_def,
-        gtk_window: window,
-    })
+    Ok(EwwWindow { name: window_def.name.clone(), definition: window_def, gtk_window: window })
 }
 
 fn on_screen_changed(window: &gtk::Window, _old_screen: Option<&gdk::Screen>) {
-    let visual = window.get_screen().and_then(|screen| {
-        screen
-            .get_rgba_visual()
-            .filter(|_| screen.is_composited())
-            .or_else(|| screen.get_system_visual())
-    });
+    let visual = window
+        .get_screen()
+        .and_then(|screen| screen.get_rgba_visual().filter(|_| screen.is_composited()).or_else(|| screen.get_system_visual()));
     window.set_visual(visual.as_ref());
 }
 
 /// get the index of the default monitor
 fn get_default_monitor_index() -> i32 {
-    gdk::Display::get_default()
-        .expect("could not get default display")
-        .get_default_screen()
-        .get_primary_monitor()
+    gdk::Display::get_default().expect("could not get default display").get_default_screen().get_primary_monitor()
 }
 
 /// Get the monitor geometry of a given monitor number
 fn get_monitor_geometry(n: i32) -> gdk::Rectangle {
-    gdk::Display::get_default()
-        .expect("could not get default display")
-        .get_default_screen()
-        .get_monitor_geometry(n)
+    gdk::Display::get_default().expect("could not get default display").get_default_screen().get_monitor_geometry(n)
 }
 
 /// In case of an Err, send the error message to a sender.
