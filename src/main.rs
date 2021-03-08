@@ -40,8 +40,11 @@ fn main() {
     pretty_env_logger::formatted_builder().filter(Some("eww"), log_level_filter).init();
 
     let result: Result<_> = try {
-        let paths =
-            opts.config_path.map(EwwPaths::from_config_dir).unwrap_or_else(EwwPaths::default).context("Failed set paths")?;
+        let paths = opts
+            .config_path
+            .map(EwwPaths::from_config_dir)
+            .unwrap_or_else(EwwPaths::default)
+            .context("Failed to initialize eww paths")?;
 
         match opts.action {
             opts::Action::ClientOnly(action) => {
@@ -114,6 +117,11 @@ impl EwwPaths {
         } else {
             config_dir
         };
+
+        if !config_dir.exists() {
+            bail!("Configuration directory {} does not exist", config_dir.display());
+        }
+
         let config_dir = config_dir.canonicalize()?;
         let daemon_id = base64::encode(format!("{}", config_dir.display()));
 
