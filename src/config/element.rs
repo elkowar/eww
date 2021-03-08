@@ -58,12 +58,7 @@ impl PartialEq for WidgetUse {
 
 impl WidgetUse {
     pub fn new(name: String, children: Vec<WidgetUse>) -> Self {
-        WidgetUse {
-            name,
-            children,
-            attrs: HashMap::new(),
-            ..WidgetUse::default()
-        }
+        WidgetUse { name, children, attrs: HashMap::new(), ..WidgetUse::default() }
     }
 
     pub fn from_xml_node(xml: XmlNode) -> Result<Self> {
@@ -171,9 +166,6 @@ mod test {
             },
         };
 
-        assert_eq!(
-            expected,
-            WidgetDefinition::from_xml_element(xml.as_element().unwrap()).unwrap()
-        );
+        assert_eq!(expected, WidgetDefinition::from_xml_element(xml.as_element().unwrap()).unwrap());
     }
 }

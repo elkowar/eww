@@ -69,9 +69,7 @@ pub fn extend_safe<K: std::cmp::Eq + std::hash::Hash + Clone, V, T: IntoIterator
     a: &mut std::collections::HashMap<K, V>,
     b: T,
 ) -> Vec<K> {
-    b.into_iter()
-        .filter_map(|(k, v)| a.insert(k.clone(), v).map(|_| k.clone()))
-        .collect()
+    b.into_iter().filter_map(|(k, v)| a.insert(k.clone(), v).map(|_| k.clone())).collect()
 }
 
 /// read an scss file, replace all environment variable references within it and
@@ -122,9 +120,7 @@ pub fn replace_env_var_references(input: String) -> String {
         static ref ENV_VAR_PATTERN: regex::Regex = regex::Regex::new(r"\$\{([^\s]*)\}").unwrap();
     }
     ENV_VAR_PATTERN
-        .replace_all(&input, |var_name: &regex::Captures| {
-            std::env::var(var_name.get(1).unwrap().as_str()).unwrap_or_default()
-        })
+        .replace_all(&input, |var_name: &regex::Captures| std::env::var(var_name.get(1).unwrap().as_str()).unwrap_or_default())
         .into_owned()
 }
 

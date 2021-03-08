@@ -164,11 +164,7 @@ mod platform {
             let (conn, screen_num) = RustConnection::connect(None)?;
             let screen = conn.setup().roots[screen_num].clone();
             let atoms = AtomCollection::new(&conn)?.reply()?;
-            Ok(X11Backend {
-                conn,
-                root_window: screen.root,
-                atoms,
-            })
+            Ok(X11Backend { conn, root_window: screen.root, atoms })
         }
 
         fn reserve_space_for(

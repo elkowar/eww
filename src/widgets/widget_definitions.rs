@@ -26,7 +26,7 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<Option<gtk
         "color-chooser" => build_gtk_color_chooser(bargs)?.upcast(),
         "combo-box-text" => build_gtk_combo_box_text(bargs)?.upcast(),
         "checkbox" => build_gtk_checkbox(bargs)?.upcast(),
-
+        "if-else" => build_if_else(bargs)?.upcast(),
         _ => return Ok(None),
     };
     Ok(Some(gtk_widget))
@@ -38,11 +38,7 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<Option<gtk
 pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Widget) {
     let css_provider = gtk::CssProvider::new();
 
-    if let Ok(visible) = bargs
-        .widget
-        .get_attr("visible")
-        .and_then(|v| bargs.eww_state.resolve_once(v)?.as_bool())
-    {
+    if let Ok(visible) = bargs.widget.get_attr("visible").and_then(|v| bargs.eww_state.resolve_once(v)?.as_bool()) {
         connect_first_map(gtk_widget, move |w| {
             if visible {
                 w.show();
@@ -162,6 +158,29 @@ pub(super) fn resolve_orientable_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk
 
 // concrete widgets
 
+fn build_if_else(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
+    if bargs.widget.children.len() != 2 {
+        bail!("if-widget needs to have exactly two children, but had {}", bargs.widget.children.len());
+    }
+    let gtk_widget = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    let (yes_widget, no_widget) = (bargs.widget.children[0].clone(), bargs.widget.children[1].clone());
+
+    let yes_widget = yes_widget.render(bargs.eww_state, bargs.window_name, bargs.widget_definitions)?;
+    let no_widget = no_widget.render(bargs.eww_state, bargs.window_name, bargs.widget_definitions)?;
+
+    resolve_block!(bargs, gtk_widget, {
+        prop(cond: as_bool) {
+            gtk_widget.get_children().iter().for_each(|w| gtk_widget.remove(w));
+            if cond {
+                gtk_widget.add(&yes_widget)
+            } else {
+                gtk_widget.add(&no_widget)
+            }
+        }
+    });
+    Ok(gtk_widget)
+}
+
 /// @widget combo-box-text
 /// @desc A combo box allowing the user to choose between several items.
 fn build_gtk_combo_box_text(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText> {
@@ -273,10 +292,7 @@ fn build_gtk_color_chooser(bargs: &mut BuilderArgs) -> Result<gtk::ColorChooserW
 /// @widget scale extends range
 /// @desc A slider.
 fn build_gtk_scale(bargs: &mut BuilderArgs) -> Result<gtk::Scale> {
-    let gtk_widget = gtk::Scale::new(
-        gtk::Orientation::Horizontal,
-        Some(&gtk::Adjustment::new(0.0, 0.0, 100.0, 1.0, 1.0, 1.0)),
-    );
+    let gtk_widget = gtk::Scale::new(gtk::Orientation::Horizontal, Some(&gtk::Adjustment::new(0.0, 0.0, 100.0, 1.0, 1.0, 1.0)));
     resolve_block!(bargs, gtk_widget, {
         // @prop flipped - flip the direction
         prop(flipped: as_bool) { gtk_widget.set_inverted(flipped) },
@@ -473,10 +489,7 @@ fn parse_orientation(o: &str) -> Result<gtk::Orientation> {
     Ok(match o {
         "vertical" | "v" => gtk::Orientation::Vertical,
         "horizontal" | "h" => gtk::Orientation::Horizontal,
-        _ => bail!(
-            r#"Couldn't parse orientation: '{}'. Possible values are "vertical", "v", "horizontal", "h""#,
-            o
-        ),
+        _ => bail!(r#"Couldn't parse orientation: '{}'. Possible values are "vertical", "v", "horizontal", "h""#, o),
     })
 }
 
@@ -488,10 +501,7 @@ fn parse_align(o: &str) -> Result<gtk::Align> {
         "center" => gtk::Align::Center,
         "start" => gtk::Align::Start,
         "end" => gtk::Align::End,
-        _ => bail!(
-            r#"Couldn't parse alignment: '{}'. Possible values are "fill", "baseline", "center", "start", "end""#,
-            o
-        ),
+        _ => bail!(r#"Couldn't parse alignment: '{}'. Possible values are "fill", "baseline", "center", "start", "end""#, o),
     })
 }
 

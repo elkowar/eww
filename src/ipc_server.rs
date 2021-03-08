@@ -53,17 +53,11 @@ async fn handle_connection(mut stream: tokio::net::UnixStream, evt_send: Unbound
 /// The format here requires the first 4 bytes to be the size of the rest of the message (in big-endian), followed by the rest of the message.
 async fn read_action_from_stream(stream_read: &'_ mut tokio::net::unix::ReadHalf<'_>) -> Result<opts::ActionWithServer> {
     let mut message_byte_length = [0u8; 4];
-    stream_read
-        .read_exact(&mut message_byte_length)
-        .await
-        .context("Failed to read message size header in IPC message")?;
+    stream_read.read_exact(&mut message_byte_length).await.context("Failed to read message size header in IPC message")?;
     let message_byte_length = u32::from_be_bytes(message_byte_length);
     let mut raw_message = Vec::<u8>::with_capacity(message_byte_length as usize);
     while raw_message.len() < message_byte_length as usize {
-        stream_read
-            .read_buf(&mut raw_message)
-            .await
-            .context("Failed to read actual IPC message")?;
+        stream_read.read_buf(&mut raw_message).await.context("Failed to read actual IPC message")?;
     }
 
     bincode::deserialize(&raw_message).context("Failed to parse client message")

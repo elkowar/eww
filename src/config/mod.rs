@@ -24,12 +24,7 @@ macro_rules! ensure_xml_tag_is {
     ($element:ident, $name:literal) => {
         ensure!(
             $element.tag_name() == $name,
-            anyhow!(
-                "{} | Tag needed to be of type '{}', but was: {}",
-                $element.text_pos(),
-                $name,
-                $element.as_tag_string()
-            )
+            anyhow!("{} | Tag needed to be of type '{}', but was: {}", $element.text_pos(), $name, $element.as_tag_string())
         )
     };
 }

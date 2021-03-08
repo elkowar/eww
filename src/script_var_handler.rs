@@ -122,10 +122,7 @@ struct PollVarHandler {
 
 impl PollVarHandler {
     fn new(evt_send: UnboundedSender<DaemonCommand>) -> Result<Self> {
-        let handler = PollVarHandler {
-            evt_send,
-            poll_handles: HashMap::new(),
-        };
+        let handler = PollVarHandler { evt_send, poll_handles: HashMap::new() };
         Ok(handler)
     }
 
@@ -177,10 +174,7 @@ struct TailVarHandler {
 
 impl TailVarHandler {
     fn new(evt_send: UnboundedSender<DaemonCommand>) -> Result<Self> {
-        let handler = TailVarHandler {
-            evt_send,
-            tail_process_handles: HashMap::new(),
-        };
+        let handler = TailVarHandler { evt_send, tail_process_handles: HashMap::new() };
         Ok(handler)
     }
 

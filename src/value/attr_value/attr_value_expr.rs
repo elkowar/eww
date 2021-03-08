@@ -94,18 +94,13 @@ impl AttrValueExpr {
         match self {
             Literal(x) => Ok(AttrValueExpr::Literal(x)),
             VarRef(ref name) => Ok(Literal(AttrValue::from_primitive(
-                variables
-                    .get(name)
-                    .with_context(|| format!("Unknown variable {} referenced in {:?}", &name, &self))?
-                    .clone(),
+                variables.get(name).with_context(|| format!("Unknown variable {} referenced in {:?}", &name, &self))?.clone(),
             ))),
             BinOp(box a, op, box b) => Ok(BinOp(box a.resolve_refs(variables)?, op, box b.resolve_refs(variables)?)),
             UnaryOp(op, box x) => Ok(UnaryOp(op, box x.resolve_refs(variables)?)),
-            IfElse(box a, box b, box c) => Ok(IfElse(
-                box a.resolve_refs(variables)?,
-                box b.resolve_refs(variables)?,
-                box c.resolve_refs(variables)?,
-            )),
+            IfElse(box a, box b, box c) => {
+                Ok(IfElse(box a.resolve_refs(variables)?, box b.resolve_refs(variables)?, box c.resolve_refs(variables)?))
+            }
         }
     }
 
@@ -132,10 +127,10 @@ impl AttrValueExpr {
     pub fn eval(self, values: &HashMap<VarName, PrimitiveValue>) -> Result<PrimitiveValue> {
         match self {
             AttrValueExpr::Literal(x) => x.resolve_fully(&values),
-            AttrValueExpr::VarRef(ref name) => values.get(name).cloned().context(format!(
-                "Got unresolved variable {} while trying to evaluate expression {:?}",
-                &name, &self
-            )),
+            AttrValueExpr::VarRef(ref name) => values
+                .get(name)
+                .cloned()
+                .context(format!("Got unresolved variable {} while trying to evaluate expression {:?}", &name, &self)),
             AttrValueExpr::BinOp(a, op, b) => {
                 let a = a.eval(values)?;
                 let b = b.eval(values)?;
