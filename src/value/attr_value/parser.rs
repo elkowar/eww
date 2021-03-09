@@ -28,10 +28,7 @@ fn parse_num(i: &str) -> IResult<&str, i32, VerboseError<&str>> {
 }
 
 fn parse_stringlit(i: &str) -> IResult<&str, &str, VerboseError<&str>> {
-    alt((
-        delimited(tag("'"), take_while(|c| c != '\''), tag("'")),
-        delimited(tag("\""), take_while(|c| c != '"'), tag("\"")),
-    ))(i)
+    alt((delimited(tag("'"), take_while(|c| c != '\''), tag("'")), delimited(tag("\""), take_while(|c| c != '"'), tag("\""))))(i)
 }
 
 fn parse_bool(i: &str) -> IResult<&str, &str, VerboseError<&str>> {
@@ -43,13 +40,9 @@ fn parse_literal(i: &str) -> IResult<&str, &str, VerboseError<&str>> {
 }
 
 fn parse_identifier(i: &str) -> IResult<&str, &str, VerboseError<&str>> {
-    verify(
-        recognize(pair(
-            alt((alpha1, tag("_"), tag("-"))),
-            many0(alt((alphanumeric1, tag("_"), tag("-")))),
-        )),
-        |x| !["if", "then", "else"].contains(x),
-    )(i)
+    verify(recognize(pair(alt((alpha1, tag("_"), tag("-"))), many0(alt((alphanumeric1, tag("_"), tag("-")))))), |x| {
+        !["if", "then", "else"].contains(x)
+    })(i)
 }
 
 fn parse_unary_op(i: &str) -> IResult<&str, UnaryOp, VerboseError<&str>> {
@@ -65,14 +58,8 @@ fn parse_factor(i: &str) -> IResult<&str, AttrValueExpr, VerboseError<&str>> {
     let (i, factor) = alt((
         context("expression", ws(delimited(tag("("), parse_expr, tag(")")))),
         context("if-expression", ws(parse_ifelse)),
-        context(
-            "literal",
-            map(ws(parse_literal), |x| AttrValueExpr::Literal(AttrValue::parse_string(x))),
-        ),
-        context(
-            "identifier",
-            map(ws(parse_identifier), |x| AttrValueExpr::VarRef(VarName(x.to_string()))),
-        ),
+        context("literal", map(ws(parse_literal), |x| AttrValueExpr::Literal(AttrValue::parse_string(x)))),
+        context("identifier", map(ws(parse_identifier), |x| AttrValueExpr::VarRef(VarName(x.to_string())))),
     ))(i)?;
     Ok((
         i,
@@ -91,9 +78,7 @@ fn parse_term3(i: &str) -> IResult<&str, AttrValueExpr, VerboseError<&str>> {
         map(preceded(tag("%"), parse_factor), |x| (BinOp::Mod, x)),
     )))(i)?;
 
-    let exprs = remainder
-        .into_iter()
-        .fold(initial, |acc, (op, expr)| AttrValueExpr::BinOp(box acc, op, box expr));
+    let exprs = remainder.into_iter().fold(initial, |acc, (op, expr)| AttrValueExpr::BinOp(box acc, op, box expr));
 
     Ok((i, exprs))
 }
@@ -104,9 +89,7 @@ fn parse_term2(i: &str) -> IResult<&str, AttrValueExpr, VerboseError<&str>> {
         map(preceded(tag("-"), parse_term3), |x| (BinOp::Minus, x)),
     )))(i)?;
 
-    let exprs = remainder
-        .into_iter()
-        .fold(initial, |acc, (op, expr)| AttrValueExpr::BinOp(box acc, op, box expr));
+    let exprs = remainder.into_iter().fold(initial, |acc, (op, expr)| AttrValueExpr::BinOp(box acc, op, box expr));
 
     Ok((i, exprs))
 }
@@ -120,9 +103,7 @@ fn parse_term1(i: &str) -> IResult<&str, AttrValueExpr, VerboseError<&str>> {
         map(preceded(tag("<"), parse_term2), |x| (BinOp::LT, x)),
     )))(i)?;
 
-    let exprs = remainder
-        .into_iter()
-        .fold(initial, |acc, (op, expr)| AttrValueExpr::BinOp(box acc, op, box expr));
+    let exprs = remainder.into_iter().fold(initial, |acc, (op, expr)| AttrValueExpr::BinOp(box acc, op, box expr));
 
     Ok((i, exprs))
 }
@@ -134,9 +115,7 @@ pub fn parse_expr(i: &str) -> IResult<&str, AttrValueExpr, VerboseError<&str>> {
         map(preceded(tag("?:"), parse_term1), |x| (BinOp::Elvis, x)),
     )))(i)?;
 
-    let exprs = remainder
-        .into_iter()
-        .fold(initial, |acc, (op, expr)| AttrValueExpr::BinOp(box acc, op, box expr));
+    let exprs = remainder.into_iter().fold(initial, |acc, (op, expr)| AttrValueExpr::BinOp(box acc, op, box expr));
 
     Ok((i, exprs))
 }
@@ -161,10 +140,7 @@ mod test {
     use pretty_assertions::assert_eq;
     #[test]
     fn test_parser() {
-        assert_eq!(
-            AttrValueExpr::Literal(AttrValue::from_primitive("12")),
-            AttrValueExpr::parse("12").unwrap()
-        );
+        assert_eq!(AttrValueExpr::Literal(AttrValue::from_primitive("12")), AttrValueExpr::parse("12").unwrap());
         assert_eq!(
             AttrValueExpr::UnaryOp(UnaryOp::Not, box AttrValueExpr::Literal(AttrValue::from_primitive("false"))),
             AttrValueExpr::parse("!false").unwrap()

@@ -35,32 +35,23 @@ pub mod widgets;
 fn main() {
     let opts: opts::Opt = opts::Opt::from_env();
 
-    let log_level_filter = if opts.log_debug {
-        log::LevelFilter::Debug
-    } else {
-        log::LevelFilter::Off
-    };
+    let log_level_filter = if opts.log_debug { log::LevelFilter::Debug } else { log::LevelFilter::Off };
 
-    pretty_env_logger::formatted_builder()
-        .filter(Some("eww"), log_level_filter)
-        .init();
+    pretty_env_logger::formatted_builder().filter(Some("eww"), log_level_filter).init();
 
     let result: Result<_> = try {
         let paths = opts
             .config_path
             .map(EwwPaths::from_config_dir)
             .unwrap_or_else(EwwPaths::default)
-            .context("Failed set paths")?;
+            .context("Failed to initialize eww paths")?;
 
         match opts.action {
             opts::Action::ClientOnly(action) => {
                 client::handle_client_only_action(&paths, action)?;
             }
             opts::Action::WithServer(action) => {
-                log::info!(
-                    "Trying to find server process at socket {}",
-                    paths.get_ipc_socket_file().display()
-                );
+                log::info!("Trying to find server process at socket {}", paths.get_ipc_socket_file().display());
                 match net::UnixStream::connect(&paths.get_ipc_socket_file()) {
                     Ok(stream) => {
                         log::info!("Connected to Eww server ({}).", &paths.get_ipc_socket_file().display());
@@ -122,12 +113,15 @@ impl EwwPaths {
     pub fn from_config_dir<P: AsRef<Path>>(config_dir: P) -> Result<Self> {
         let config_dir = config_dir.as_ref();
         let config_dir = if config_dir.is_file() {
-            config_dir
-                .parent()
-                .context("Given config file did not have a parent directory")?
+            config_dir.parent().context("Given config file did not have a parent directory")?
         } else {
             config_dir
         };
+
+        if !config_dir.exists() {
+            bail!("Configuration directory {} does not exist", config_dir.display());
+        }
+
         let config_dir = config_dir.canonicalize()?;
         let daemon_id = base64::encode(format!("{}", config_dir.display()));
 

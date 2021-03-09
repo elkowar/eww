@@ -26,24 +26,16 @@ pub fn handle_client_only_action(paths: &EwwPaths, action: ActionClientOnly) -> 
 
 pub fn do_server_call(mut stream: UnixStream, action: opts::ActionWithServer) -> Result<Option<app::DaemonResponse>> {
     log::info!("Forwarding options to server");
-    stream
-        .set_nonblocking(false)
-        .context("Failed to set stream to non-blocking")?;
+    stream.set_nonblocking(false).context("Failed to set stream to non-blocking")?;
 
     let message_bytes = bincode::serialize(&action)?;
 
-    stream
-        .write(&(message_bytes.len() as u32).to_be_bytes())
-        .context("Failed to send command size header to IPC stream")?;
+    stream.write(&(message_bytes.len() as u32).to_be_bytes()).context("Failed to send command size header to IPC stream")?;
 
-    stream
-        .write_all(&message_bytes)
-        .context("Failed to write command to IPC stream")?;
+    stream.write_all(&message_bytes).context("Failed to write command to IPC stream")?;
 
     let mut buf = Vec::new();
-    stream
-        .set_read_timeout(Some(std::time::Duration::from_millis(100)))
-        .context("Failed to set read timeout")?;
+    stream.set_read_timeout(Some(std::time::Duration::from_millis(100))).context("Failed to set read timeout")?;
     stream.read_to_end(&mut buf).context("Error reading response from server")?;
 
     Ok(if buf.is_empty() {

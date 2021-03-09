@@ -24,10 +24,7 @@ impl AnchorAlignment {
             "l" | "left" => Ok(AnchorAlignment::START),
             "c" | "center" => Ok(AnchorAlignment::CENTER),
             "r" | "right" => Ok(AnchorAlignment::END),
-            _ => bail!(
-                r#"couldn't parse '{}' as x-alignment. Must be one of "left", "center", "right""#,
-                s
-            ),
+            _ => bail!(r#"couldn't parse '{}' as x-alignment. Must be one of "left", "center", "right""#, s),
         }
     }
 
@@ -36,10 +33,7 @@ impl AnchorAlignment {
             "t" | "top" => Ok(AnchorAlignment::START),
             "c" | "center" => Ok(AnchorAlignment::CENTER),
             "b" | "bottom" => Ok(AnchorAlignment::END),
-            _ => bail!(
-                r#"couldn't parse '{}' as y-alignment. Must be one of "top", "center", "bottom""#,
-                s
-            ),
+            _ => bail!(r#"couldn't parse '{}' as y-alignment. Must be one of "top", "center", "bottom""#, s),
         }
     }
 
@@ -86,25 +80,16 @@ impl std::str::FromStr for AnchorPoint {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s == "center" {
-            Ok(AnchorPoint {
-                x: AnchorAlignment::CENTER,
-                y: AnchorAlignment::CENTER,
-            })
+            Ok(AnchorPoint { x: AnchorAlignment::CENTER, y: AnchorAlignment::CENTER })
         } else {
             let (first, second) = s
                 .split_once(' ')
                 .context("Failed to parse anchor: Must either be \"center\" or be formatted like \"top left\"")?;
             let x_y_result: Result<_> = try {
-                AnchorPoint {
-                    x: AnchorAlignment::from_x_alignment(first)?,
-                    y: AnchorAlignment::from_y_alignment(second)?,
-                }
+                AnchorPoint { x: AnchorAlignment::from_x_alignment(first)?, y: AnchorAlignment::from_y_alignment(second)? }
             };
             x_y_result.or_else(|_| {
-                Ok(AnchorPoint {
-                    x: AnchorAlignment::from_x_alignment(second)?,
-                    y: AnchorAlignment::from_y_alignment(first)?,
-                })
+                Ok(AnchorPoint { x: AnchorAlignment::from_x_alignment(second)?, y: AnchorAlignment::from_y_alignment(first)? })
             })
         }
     }

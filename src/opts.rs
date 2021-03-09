@@ -137,16 +137,8 @@ impl Opt {
 
 impl From<RawOpt> for Opt {
     fn from(other: RawOpt) -> Self {
-        let RawOpt {
-            action,
-            log_debug,
-            config,
-        } = other;
-        Opt {
-            action,
-            log_debug,
-            config_path: config,
-        }
+        let RawOpt { action, log_debug, config } = other;
+        Opt { action, log_debug, config_path: config }
     }
 }
 
@@ -172,13 +164,7 @@ impl ActionWithServer {
             ActionWithServer::OpenMany { windows } => {
                 return with_response_channel(|sender| app::DaemonCommand::OpenMany { windows, sender });
             }
-            ActionWithServer::OpenWindow {
-                window_name,
-                pos,
-                size,
-                monitor,
-                anchor,
-            } => {
+            ActionWithServer::OpenWindow { window_name, pos, size, monitor, anchor } => {
                 return with_response_channel(|sender| app::DaemonCommand::OpenWindow {
                     window_name,
                     pos,

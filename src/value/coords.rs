@@ -69,10 +69,7 @@ impl fmt::Debug for Coords {
 
 impl Coords {
     pub fn from_pixels(x: i32, y: i32) -> Self {
-        Coords {
-            x: NumWithUnit::Pixels(x),
-            y: NumWithUnit::Pixels(y),
-        }
+        Coords { x: NumWithUnit::Pixels(x), y: NumWithUnit::Pixels(y) }
     }
 
     /// parse a string for x and a string for y into a [`Coords`] object.
@@ -104,13 +101,7 @@ mod test {
 
     #[test]
     fn test_parse_coords() {
-        assert_eq!(
-            Coords {
-                x: NumWithUnit::Pixels(50),
-                y: NumWithUnit::Pixels(60)
-            },
-            Coords::from_str("50x60").unwrap()
-        );
+        assert_eq!(Coords { x: NumWithUnit::Pixels(50), y: NumWithUnit::Pixels(60) }, Coords::from_str("50x60").unwrap());
         assert!(Coords::from_str("5060").is_err());
     }
 }
