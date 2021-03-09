@@ -1,4 +1,4 @@
-use crate::{ensure_xml_tag_is, widgets::widget_node};
+use crate::{ensure_xml_tag_is, value::NumWithUnit, widgets::widget_node};
 use anyhow::*;
 use derive_more::*;
 use serde::{Deserialize, Serialize};
