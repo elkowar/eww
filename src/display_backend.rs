@@ -37,10 +37,6 @@ mod platform {
             monitor_rect: gdk::Rectangle,
             surface: SurfaceDefinition,
         ) {
-            let win_id = window
-                .get_window()
-                .context("Couldn't get gdk window from gtk window");
-
             // Initialising a layer shell surface
             gtk_layer_shell::init_for_window(window);
             // Making the surface occupied by widget exclusive

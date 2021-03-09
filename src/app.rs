@@ -7,7 +7,7 @@ use crate::{
 };
 use anyhow::*;
 use debug_stub_derive::*;
-// use gdk::WindowAttr;
+use std::ptr;
 use gtk::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt};
 use itertools::Itertools;
 use std::{collections::HashMap, path::PathBuf};
@@ -331,7 +331,7 @@ fn initialize_window(
         gtk::Window::new(gtk::WindowType::Popup)
     };
 
-    let monitor = get_monitor(window_def.screen_number.unwrap_or_else(get_default_monitor_index));
+    let monitor_index = window_def.screen_number.unwrap_or_else(get_negative_index);
 
     #[cfg(feature = "wayland")]
     // Inititialising a layer shell surface
@@ -339,7 +339,10 @@ fn initialize_window(
     #[cfg(feature = "wayland")]
     // Sets the monitor where the surface is shown
     // Idk how to make it so this function runs only if 'screen' is defined
-    gtk_layer_shell::set_monitor(&window, &monitor);
+    if monitor_index>=0 {
+        let monitor = get_monitor(monitor_index);
+        gtk_layer_shell::set_monitor(&window, &monitor);
+    }
 
     window.set_title(&format!("Eww - {}", window_def.name));
     let wm_class_name = format!("eww-{}", window_def.name);
@@ -404,12 +407,16 @@ fn on_screen_changed(window: &gtk::Window, _old_screen: Option<&gdk::Screen>) {
     window.set_visual(visual.as_ref());
 }
 
-/// get the index of the default monitor
 fn get_default_monitor_index() -> i32 {
     gdk::Display::get_default()
         .expect("could not get default display")
         .get_default_screen()
         .get_primary_monitor()
+}
+
+// There's probably a better way to do this
+fn get_negative_index() -> i32 {
+    -1
 }
 
 fn get_monitor(n:i32) -> gdk::Monitor {
