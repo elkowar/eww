@@ -2,20 +2,20 @@ pub use platform::*;
 
 #[cfg(feature = "no-x11-wayland")]
 mod platform {
-    use crate::config::{Side, SurfaceDefinition};
+    use crate::config::{Side, StrutDefinition};
     use anyhow::*;
-    pub fn reserve_space_for(window: &gtk::Window, monitor: gdk::Rectangle, strut_def: SurfaceDefinition) -> Result<()> {
+    pub fn reserve_space_for(window: &gtk::Window, monitor: gdk::Rectangle, strut_def: StrutDefinition) -> Result<()> {
         Err(anyhow!("Cannot reserve space on non X11 or and wayland backends"))
     }
 }
 
 #[cfg(feature = "wayland")]
 mod platform {
-    use crate::config::{Side, SurfaceDefinition, WindowStacking};
+    use crate::config::{Side, StrutDefinition, WindowStacking};
     use gtk::prelude::*;
     use anyhow::*;
 
-    pub fn reserve_space_for(window: &gtk::Window, monitor: gdk::Rectangle, surface: SurfaceDefinition) -> Result<()> {
+    pub fn reserve_space_for(window: &gtk::Window, monitor: gdk::Rectangle, surface: StrutDefinition) -> Result<()> {
         // Initializing the layer surface
         let backend = LayerShellBackend::new()?;
         backend.reserve_space_for(window, monitor, surface);
@@ -35,7 +35,7 @@ mod platform {
             &self,
             window: &gtk::Window,
             monitor_rect: gdk::Rectangle,
-            surface: SurfaceDefinition,
+            surface: StrutDefinition,
         ) {
             // Initialising a layer shell surface
             gtk_layer_shell::init_for_window(window);
@@ -106,7 +106,7 @@ mod platform {
 
 #[cfg(feature = "x11")]
 mod platform {
-    use crate::config::{Side, SurfaceDefinition};
+    use crate::config::{Side, StrutDefinition};
     use anyhow::*;
     use gdkx11;
     use gtk::{self, prelude::*};
@@ -119,7 +119,7 @@ mod platform {
         rust_connection::{DefaultStream, RustConnection},
     };
 
-    pub fn reserve_space_for(window: &gtk::Window, monitor: gdk::Rectangle, strut_def: SurfaceDefinition) -> Result<()> {
+    pub fn reserve_space_for(window: &gtk::Window, monitor: gdk::Rectangle, strut_def: StrutDefinition) -> Result<()> {
         let backend = X11Backend::new()?;
         backend.reserve_space_for(window, monitor, strut_def)?;
         Ok(())
@@ -147,7 +147,7 @@ mod platform {
             &self,
             window: &gtk::Window,
             monitor_rect: gdk::Rectangle,
-            strut_def: SurfaceDefinition,
+            strut_def: StrutDefinition,
         ) -> Result<()> {
             let win_id = window
                 .get_window()

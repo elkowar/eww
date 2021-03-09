@@ -17,7 +17,7 @@ pub struct EwwWindowDefinition {
     pub stacking: WindowStacking,
     pub screen_number: Option<i32>,
     pub widget: Box<dyn widget_node::WidgetNode>,
-    pub struts: SurfaceDefinition,
+    pub struts: StrutDefinition,
     pub focusable: bool,
 }
 
@@ -43,7 +43,7 @@ pub struct RawEwwWindowDefinition {
     pub stacking: WindowStacking,
     pub screen_number: Option<i32>,
     pub widget: WidgetUse,
-    pub struts: SurfaceDefinition,
+    pub struts: StrutDefinition,
     pub focusable: bool,
 }
 
@@ -57,10 +57,10 @@ impl RawEwwWindowDefinition {
         let focusable = xml.parse_optional_attr("focusable")?;
         let screen_number = xml.parse_optional_attr("screen")?;
 
-        let struts: Option<SurfaceDefinition> = xml
+        let struts: Option<StrutDefinition> = xml
             .child("reserve")
             .ok()
-            .map(SurfaceDefinition::from_xml_element)
+            .map(StrutDefinition::from_xml_element)
             .transpose()
             .context("Failed to parse <reserve>")?;
 
@@ -118,15 +118,15 @@ impl std::str::FromStr for Side {
 // Surface definition if the backend for X11 is enable
 #[cfg(feature = "x11")]
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
-pub struct SurfaceDefinition {
+pub struct StrutDefinition {
     pub side: Side,
     pub dist: NumWithUnit,
 }
 
 #[cfg(feature = "x11")]
-impl SurfaceDefinition {
+impl StrutDefinition {
     pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
-        Ok(SurfaceDefinition {
+        Ok(StrutDefinition {
             side: xml.attr("side")?.parse()?,
             dist: xml.attr("distance")?.parse()?,
         })
@@ -136,7 +136,7 @@ impl SurfaceDefinition {
 // Surface definition if the backend for Wayland is enable
 #[cfg(feature = "wayland")]
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
-pub struct SurfaceDefinition {
+pub struct StrutDefinition {
     pub layer: WindowStacking,
     pub exclusive: bool,
     pub side: Side,
@@ -144,9 +144,9 @@ pub struct SurfaceDefinition {
 }
 
 #[cfg(feature = "wayland")]
-impl SurfaceDefinition {
+impl StrutDefinition {
     pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
-        Ok(SurfaceDefinition {
+        Ok(StrutDefinition {
             side: xml.attr("side")?.parse()?,
             layer: xml.attr("stacking")?.parse()?,
             exclusive: xml.attr("exclusive")?.parse()?,
