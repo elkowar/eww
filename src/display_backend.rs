@@ -2,9 +2,9 @@ pub use platform::*;
 
 #[cfg(feature = "no-x11-wayland")]
 mod platform {
-    use crate::config::{Side, SurfaceDefinition};
+    use crate::config::{Side, StrutDefinition};
     use anyhow::*;
-    pub fn reserve_space_for(window: &gtk::Window, monitor: gdk::Rectangle, strut_def: SurfaceDefinition) -> Result<()> {
+    pub fn reserve_space_for(window: &gtk::Window, monitor: gdk::Rectangle, strut_def: StrutDefinition) -> Result<()> {
         Err(anyhow!("Cannot reserve space on non X11 or and wayland backends"))
     }
 }
@@ -170,7 +170,7 @@ mod platform {
             &self,
             window: &gtk::Window,
             monitor_rect: gdk::Rectangle,
-            strut_def: SurfaceDefinition,
+            strut_def: StrutDefinition,
         ) -> Result<()> {
             let win_id = window
                 .get_window()

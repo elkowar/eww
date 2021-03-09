@@ -43,7 +43,6 @@ impl FromStr for NumWithUnit {
     }
 }
 
-// Margins for X
 #[derive(Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Display, Default)]
 #[display(fmt = "{}*{}", x, y)]
 pub struct Coords {

@@ -21,7 +21,7 @@ pub struct EwwWindowDefinition {
     pub stacking: WindowStacking,
     pub screen_number: Option<i32>,
     pub widget: Box<dyn widget_node::WidgetNode>,
-    pub struts: SurfaceDefinition,
+    pub struts: StrutDefinition,
     pub focusable: bool,
 }
 
@@ -47,7 +47,7 @@ pub struct RawEwwWindowDefinition {
     pub stacking: WindowStacking,
     pub screen_number: Option<i32>,
     pub widget: WidgetUse,
-    pub struts: SurfaceDefinition,
+    pub struts: StrutDefinition,
     pub focusable: bool,
 }
 
@@ -138,7 +138,7 @@ impl std::str::FromStr for Side {
 // Surface definition if the backend for X11 is enable
 #[cfg(feature = "x11")]
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
-pub struct SurfaceDefinition {
+pub struct StrutDefinition {
     pub side: Side,
     pub dist: NumWithUnit,
 }
@@ -162,7 +162,7 @@ pub struct StrutDefinition {
 #[cfg(feature = "wayland")]
 impl StrutDefinition {
     pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
-        Ok(SurfaceDefinition {
+        Ok(StrutDefinition {
             side: xml.attr("side")?.parse()?,
             exclusive: xml.attr("exclusive")?.parse()?,
             coords: Coords {
