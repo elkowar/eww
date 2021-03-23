@@ -1,12 +1,10 @@
 #![feature(trace_macros)]
 #![feature(box_syntax)]
-#![feature(or_patterns)]
 #![feature(box_patterns)]
 #![feature(slice_concat_trait)]
 #![feature(result_cloned)]
-#![feature(iterator_fold_self)]
 #![feature(try_blocks)]
-#![feature(str_split_once)]
+#![feature(nll)]
 
 extern crate gio;
 extern crate gtk;
@@ -41,7 +39,7 @@ fn main() {
 
     pretty_env_logger::formatted_builder().filter(Some("eww"), log_level_filter).init();
 
-    let result: Result<_> = try {
+    let result: Result<()> = try {
         let paths = opts
             .config_path
             .map(EwwPaths::from_config_dir)
