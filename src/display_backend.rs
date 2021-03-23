@@ -80,7 +80,7 @@ mod platform {
 
             self.conn
                 .change_property(
-                    PropMode::Replace,
+                    PropMode::REPLACE,
                     win_id,
                     self.atoms._NET_WM_STRUT,
                     self.atoms.CARDINAL,
@@ -91,7 +91,7 @@ mod platform {
                 .check()?;
             self.conn
                 .change_property(
-                    PropMode::Replace,
+                    PropMode::REPLACE,
                     win_id,
                     self.atoms._NET_WM_STRUT_PARTIAL,
                     self.atoms.CARDINAL,
