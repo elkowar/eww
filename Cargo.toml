@@ -66,9 +66,7 @@ dyn-clone = "1.0"
 base64 = "0.13"
 wait-timeout = "0.2"
 
-[target.'cfg(target_os="linux")'.dependencies]
-inotify = "0.9"
-
+notify = "4.0.15"
 
 [dev-dependencies]
 pretty_assertions = "0.7.1"
