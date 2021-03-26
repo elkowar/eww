@@ -1,8 +1,11 @@
 use crate::{app, config, eww_state::*, ipc_server, script_var_handler, try_logging_errors, util, EwwPaths};
 use anyhow::*;
+use app::DaemonResponse;
 use futures_util::StreamExt;
 use std::{collections::HashMap, os::unix::io::AsRawFd, path::Path};
 use tokio::sync::mpsc::*;
+
+use notify::Watcher;
 
 pub fn initialize_server(paths: EwwPaths) -> Result<()> {
     do_detach(&paths.get_log_file())?;
@@ -70,12 +73,15 @@ pub fn initialize_server(paths: EwwPaths) -> Result<()> {
 
 fn init_async_part(paths: EwwPaths, ui_send: UnboundedSender<app::DaemonCommand>) {
     std::thread::spawn(move || {
-        let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().expect("Failed to initialize tokio runtime");
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .expect("Failed to initialize tokio runtime");
         rt.block_on(async {
             let filewatch_join_handle = {
                 let ui_send = ui_send.clone();
                 let paths = paths.clone();
-                tokio::spawn(async move { run_filewatch(paths.get_eww_xml_path(), paths.get_eww_scss_path(), ui_send).await })
+                tokio::spawn(async move { run_filewatch(paths.config_dir, ui_send).await })
             };
 
             let ipc_server_join_handle = {
@@ -103,52 +109,35 @@ fn init_async_part(paths: EwwPaths, ui_send: UnboundedSender<app::DaemonCommand>
     });
 }
 
-#[cfg(not(target_os = "linux"))]
-async fn run_filewatch<P: AsRef<Path>>(
-    config_file_path: P,
-    scss_file_path: P,
-    evt_send: UnboundedSender<app::DaemonCommand>,
-) -> Result<()> {
-    Ok(())
-}
-
 /// Watch configuration files for changes, sending reload events to the eww app when the files change.
-#[cfg(target_os = "linux")]
-async fn run_filewatch<P: AsRef<Path>>(
-    config_file_path: P,
-    scss_file_path: P,
-    evt_send: UnboundedSender<app::DaemonCommand>,
-) -> Result<()> {
-    let mut inotify = inotify::Inotify::init().context("Failed to initialize inotify")?;
-    let config_file_descriptor = inotify
-        .add_watch(config_file_path.as_ref(), inotify::WatchMask::MODIFY)
-        .context("Failed to add inotify watch for config file")?;
-    let scss_file_descriptor = inotify
-        .add_watch(scss_file_path.as_ref(), inotify::WatchMask::MODIFY)
-        .context("Failed to add inotify watch for scss file")?;
+async fn run_filewatch<P: AsRef<Path>>(config_dir: P, evt_send: UnboundedSender<app::DaemonCommand>) -> Result<()> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    let mut watcher = notify::watcher(tx, std::time::Duration::from_secs(0))?;
+    watcher.watch(&config_dir, notify::RecursiveMode::Recursive)?;
 
-    let mut buffer = [0; 1024];
-    let mut event_stream = inotify.event_stream(&mut buffer)?;
-
-    crate::loop_select_exiting! {
-        Some(Ok(event)) = event_stream.next() => {
-            try_logging_errors!("handling change of config file" => {
-                if event.wd == config_file_descriptor {
-                        log::info!("Reloading eww configuration");
-                        let new_eww_config = config::EwwConfig::read_from_file(config_file_path.as_ref())?;
-                        evt_send.send(app::DaemonCommand::UpdateConfig(new_eww_config))?;
-                } else if event.wd == scss_file_descriptor {
-                        log::info!("reloading eww css file");
-                        let eww_css = crate::util::parse_scss_from_file(scss_file_path.as_ref())?;
-                        evt_send.send(app::DaemonCommand::UpdateCss(eww_css))?;
-                } else {
-                    eprintln!("Got inotify event for unknown thing: {:?}", event);
+    loop {
+        match rx.recv() {
+            Ok(event) => match event {
+                notify::DebouncedEvent::Create(p) | notify::DebouncedEvent::Remove(p) | notify::DebouncedEvent::Write(p) => {
+                    let extension = p.extension().unwrap_or_else(|| std::ffi::OsStr::new(""));
+                    if extension == "xml" || extension == "scss" {
+                        let (daemon_resp_sender, mut daemon_resp_response) = tokio::sync::mpsc::unbounded_channel();
+                        evt_send.send(app::DaemonCommand::ReloadConfigAndCss(daemon_resp_sender))?;
+                        tokio::spawn(async move {
+                            if let Some(rsp) = daemon_resp_response.recv().await {
+                                match rsp {
+                                    app::DaemonResponse::Success(_) => println!("Reloaded config successfully"),
+                                    app::DaemonResponse::Failure(e) => println!("Failed to reload config: {:#?}", e)
+                                }
+                            }
+                        });
+                    }
                 }
-            });
+                _ => {}
+            },
+            Err(e) => eprintln!("watch error: {:?}", e),
         }
-        else => break,
     }
-    Ok(())
 }
 
 /// detach the process from the terminal, also redirecting stdout and stderr to LOG_FILE
@@ -165,7 +154,10 @@ fn do_detach(log_file_path: impl AsRef<Path>) -> Result<()> {
         .create(true)
         .append(true)
         .open(&log_file_path)
-        .expect(&format!("Error opening log file ({}), for writing", log_file_path.as_ref().to_string_lossy()));
+        .expect(&format!(
+            "Error opening log file ({}), for writing",
+            log_file_path.as_ref().to_string_lossy()
+        ));
     let fd = file.as_raw_fd();
 
     if nix::unistd::isatty(1)? {
