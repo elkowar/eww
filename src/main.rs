@@ -5,6 +5,8 @@
 #![feature(result_cloned)]
 #![feature(try_blocks)]
 #![feature(nll)]
+#![feature(str_split_once)]
+#![feature(or_patterns)]
 
 extern crate gio;
 extern crate gtk;
