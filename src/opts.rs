@@ -6,10 +6,14 @@ use crate::{
     app,
     config::{AnchorPoint, WindowName},
 <<<<<<< HEAD
+<<<<<<< HEAD
     value::{Coords, PrimVal, VarName},
 =======
     value::{Coords,PrimitiveValue, VarName},
 >>>>>>> 782db39 (gtk-layer-shell-rs imported)
+=======
+    value::{Coords, PrimitiveValue, VarName},
+>>>>>>> 9c6cded (cargo fmt)
 };
 // use crate::value::coords;
 

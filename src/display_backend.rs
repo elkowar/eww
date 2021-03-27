@@ -66,7 +66,6 @@ mod platform {
             if surface.exclusive {
                 gtk_layer_shell::auto_exclusive_zone_enable(window);
             }
-
             let mut top = false;
             let mut left = false;
             let mut right = false;

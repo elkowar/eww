@@ -6,7 +6,6 @@ use crate::{
 use anyhow::*;
 use derive_more::*;
 use serde::{Deserialize, Serialize};
-use crate::value::Coords;
 use smart_default::SmartDefault;
 use std::collections::HashMap;
 
@@ -109,7 +108,8 @@ impl std::str::FromStr for Side {
             "bl" | "bottom-left" => Ok(Side::BottomLeft),
             "br" | "bottom-right" => Ok(Side::BottomRight),
             _ => Err(anyhow!(
-                "Failed to parse {} as valid side. Must be one of \"left\", \"right\", \"top\", \"bottom\", \"top-right\", \"top-left\", \"bottom-left\", \"bottom-right\"",
+                "Failed to parse {} as valid side. Must be one of \"left\", \"right\", \"top\", \"bottom\", \"top-right\", \
+                 \"top-left\", \"bottom-left\", \"bottom-right\"",
                 s
             )),
         }
@@ -200,7 +200,8 @@ impl std::str::FromStr for WindowStacking {
             )),
             #[cfg(feature = "wayland")]
             _ => Err(anyhow!(
-                "Couldn't parse '{}' as window stacking, must be either foreground, fg, background, bg, bottom, bt, overlay or ov",
+                "Couldn't parse '{}' as window stacking, must be either foreground, fg, background, bg, bottom, bt, overlay or \
+                 ov",
                 s
             )),
         }

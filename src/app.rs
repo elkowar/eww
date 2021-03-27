@@ -10,7 +10,11 @@ use anyhow::*;
 use debug_stub_derive::*;
 use gtk::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt};
 use itertools::Itertools;
+<<<<<<< HEAD
 use std::collections::HashMap;
+=======
+use std::{collections::HashMap, path::PathBuf, ptr};
+>>>>>>> 9c6cded (cargo fmt)
 use tokio::sync::mpsc::UnboundedSender;
 
 /// Response that the app may send as a response to a event.
@@ -312,7 +316,7 @@ fn initialize_window(
     #[cfg(feature = "wayland")]
     // Sets the monitor where the surface is shown
     // Idk how to make it so this function runs only if 'screen' is defined
-    if monitor_index>=0 {
+    if monitor_index >= 0 {
         let monitor = get_monitor(monitor_index);
         gtk_layer_shell::set_monitor(&window, &monitor);
     }
@@ -367,7 +371,7 @@ fn get_negative_index() -> i32 {
     -1
 }
 
-fn get_monitor(n:i32) -> gdk::Monitor {
+fn get_monitor(n: i32) -> gdk::Monitor {
     gdk::Display::get_default()
         .expect("could not get default display")
         .get_monitor(n)
