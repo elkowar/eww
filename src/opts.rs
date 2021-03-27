@@ -5,7 +5,7 @@ use structopt::StructOpt;
 use crate::{
     app,
     config::{AnchorPoint, WindowName},
-    value::{Coords,PrimitiveValue, VarName},
+    value::{Coords, PrimitiveValue, VarName},
 };
 // use crate::value::coords;
 

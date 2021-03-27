@@ -12,8 +12,8 @@ mod platform {
 #[cfg(feature = "wayland")]
 mod platform {
     use crate::config::{Side, StrutDefinition, WindowStacking};
-    use gtk::prelude::*;
     use anyhow::*;
+    use gtk::prelude::*;
 
     pub fn reserve_space_for(window: &gtk::Window, monitor: gdk::Rectangle, surface: StrutDefinition) -> Result<()> {
         // Initializing the layer surface
@@ -22,21 +22,14 @@ mod platform {
         Ok(())
     }
 
-    struct LayerShellBackend {
-    }
+    struct LayerShellBackend {}
 
     impl LayerShellBackend {
         fn new() -> Result<Self> {
-            Ok(LayerShellBackend {
-            })
+            Ok(LayerShellBackend {})
         }
 
-        fn reserve_space_for(
-            &self,
-            window: &gtk::Window,
-            monitor_rect: gdk::Rectangle,
-            surface: StrutDefinition,
-        ) {
+        fn reserve_space_for(&self, window: &gtk::Window, monitor_rect: gdk::Rectangle, surface: StrutDefinition) {
             // Initialising a layer shell surface
             gtk_layer_shell::init_for_window(window);
             // Making the surface occupied by widget exclusive
@@ -46,38 +39,38 @@ mod platform {
 
             // Set the layer where the layer shell surface will spawn
             match surface.layer {
-                WindowStacking::Foreground=>gtk_layer_shell::set_layer(window, gtk_layer_shell::Layer::Top),
-                WindowStacking::Background=>gtk_layer_shell::set_layer(window, gtk_layer_shell::Layer::Background),
-                WindowStacking::Bottom=>gtk_layer_shell::set_layer(window, gtk_layer_shell::Layer::Bottom),
-                WindowStacking::Overlay=>gtk_layer_shell::set_layer(window, gtk_layer_shell::Layer::Overlay)
+                WindowStacking::Foreground => gtk_layer_shell::set_layer(window, gtk_layer_shell::Layer::Top),
+                WindowStacking::Background => gtk_layer_shell::set_layer(window, gtk_layer_shell::Layer::Background),
+                WindowStacking::Bottom => gtk_layer_shell::set_layer(window, gtk_layer_shell::Layer::Bottom),
+                WindowStacking::Overlay => gtk_layer_shell::set_layer(window, gtk_layer_shell::Layer::Overlay),
             }
 
-            let mut top=false;
-            let mut left=false;
-            let mut right=false;
-            let mut bottom=false;
+            let mut top = false;
+            let mut left = false;
+            let mut right = false;
+            let mut bottom = false;
 
             match surface.side {
-                Side::Top=>top=true,
-                Side::Left=>left=true,
-                Side::Right=>right=true,
-                Side::Bottom=>bottom=true,
-                Side::Center=>{},
-                Side::TopLeft=>{
-                    top=true;
-                    left=true;
+                Side::Top => top = true,
+                Side::Left => left = true,
+                Side::Right => right = true,
+                Side::Bottom => bottom = true,
+                Side::Center => {}
+                Side::TopLeft => {
+                    top = true;
+                    left = true;
                 }
-                Side::TopRight=>{
-                    top=true;
-                    right=true;
+                Side::TopRight => {
+                    top = true;
+                    right = true;
                 }
-                Side::BottomRight=>{
-                    bottom=true;
-                    right=true;
+                Side::BottomRight => {
+                    bottom = true;
+                    right = true;
                 }
-                Side::BottomLeft=>{
-                    left=true;
-                    bottom=true;
+                Side::BottomLeft => {
+                    left = true;
+                    bottom = true;
                 }
             }
 
@@ -164,7 +157,7 @@ mod platform {
             let dist = match strut_def.side {
                 Side::Left | Side::Right => strut_def.dist.relative_to(monitor_rect.width) as u32,
                 Side::Top | Side::Bottom => strut_def.dist.relative_to(monitor_rect.height) as u32,
-                _ => (monitor_rect.height/2) as u32
+                _ => (monitor_rect.height / 2) as u32,
             };
 
             // don't question it,.....
