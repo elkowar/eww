@@ -377,8 +377,13 @@ fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
         // @prop width - width of the image
         // @prop height - height of the image
         prop(path: as_string, width: as_i32 = 10000, height: as_i32 = 10000) {
-            let pixbuf = gdk_pixbuf::Pixbuf::from_file_at_size(std::path::PathBuf::from(path), width, height)?;
-            gtk_widget.set_from_pixbuf(Some(&pixbuf));
+            if path.ends_with(".gif") { 
+                let pixbuf_animation = gdk_pixbuf::PixbufAnimation::from_file(std::path::PathBuf::from(path))?;
+                gtk_widget.set_from_animation(&pixbuf_animation);
+            } else {
+                let pixbuf = gdk_pixbuf::Pixbuf::from_file_at_size(std::path::PathBuf::from(path), width, height)?;
+                gtk_widget.set_from_pixbuf(Some(&pixbuf));
+            }
         }
     });
     Ok(gtk_widget)
