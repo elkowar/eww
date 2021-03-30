@@ -330,26 +330,28 @@ fn initialize_window(
         gtk::Window::new(gtk::WindowType::Popup)
     };
 
-
     #[cfg(feature = "wayland")]
-    // Inititialising a layer shell surface
-    gtk_layer_shell::init_for_window(&window);
-    #[cfg(feature = "wayland")]
-    // Sets the monitor where the surface is shown
-    match window_def.screen_number {
-        Some(index)=>{
-            let monitor = get_monitor(index);
-            gtk_layer_shell::set_monitor(&window, &monitor);
-        },
-        None=>{}
-    };
+    {
+        // Inititialising a layer shell surface
+        gtk_layer_shell::init_for_window(&window);
+        // Sets the monitor where the surface is shown
+        match window_def.screen_number {
+            Some(index)=>{
+                let monitor = get_monitor(index);
+                gtk_layer_shell::set_monitor(&window, &monitor);
+            },
+            None=>{}
+        };
+        gtk_layer_shell::set_keyboard_interactivity(&window, window_def.focusable);
+    }
+    #[cfg(feature = "x11")]
+    if !window_def.focusable {
+        window.set_type_hint(gdk::WindowTypeHint::Dock);
+    }
 
     window.set_title(&format!("Eww - {}", window_def.name));
     let wm_class_name = format!("eww-{}", window_def.name);
     window.set_wmclass(&wm_class_name, &wm_class_name);
-    if !window_def.focusable {
-        window.set_type_hint(gdk::WindowTypeHint::Dock);
-    }
     window.set_position(gtk::WindowPosition::Center);
     window.set_default_size(actual_window_rect.width, actual_window_rect.height);
     window.set_size_request(actual_window_rect.width, actual_window_rect.height);
