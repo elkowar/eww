@@ -15,7 +15,6 @@ use crate::{
     value::{Coords, PrimitiveValue, VarName},
 >>>>>>> 9c6cded (cargo fmt)
 };
-// use crate::value::coords;
 
 /// Struct that gets generated from `RawOpt`.
 #[derive(Debug, Serialize, Deserialize, PartialEq)]

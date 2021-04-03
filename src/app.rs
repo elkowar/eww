@@ -10,11 +10,7 @@ use anyhow::*;
 use debug_stub_derive::*;
 use gtk::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt};
 use itertools::Itertools;
-<<<<<<< HEAD
 use std::collections::HashMap;
-=======
-use std::{collections::HashMap, path::PathBuf, ptr};
->>>>>>> 9c6cded (cargo fmt)
 use tokio::sync::mpsc::UnboundedSender;
 
 /// Response that the app may send as a response to a event.
@@ -307,6 +303,7 @@ fn initialize_window(
     let actual_window_rect = window_def.geometry.get_window_rectangle(monitor_geometry);
 
     let window = display_backend::initialize_window(&mut window_def);
+<<<<<<< HEAD
 
     #[cfg(feature = "wayland")]
     {
@@ -326,6 +323,8 @@ fn initialize_window(
     if !window_def.focusable {
         window.set_type_hint(gdk::WindowTypeHint::Dock);
     }
+=======
+>>>>>>> c76422e (revision #2)
 
     window.set_title(&format!("Eww - {}", window_def.name));
     let wm_class_name = format!("eww-{}", window_def.name);
@@ -352,11 +351,15 @@ fn initialize_window(
 
     display_backend::reserve_space_for(&window, monitor_geometry, window_def.struts)?;
 
+<<<<<<< HEAD
     if window_def.stacking == WindowStacking::Foreground {
         window.set_keep_above(true);
     } else {
         window.set_keep_below(true);
     }
+=======
+    display_backend::reserve_space_for(&window, monitor_geometry, window_def.struts)?;
+>>>>>>> c76422e (revision #2)
 
     Ok(EwwWindow { name: window_def.name.clone(), definition: window_def, gtk_window: window })
 }
@@ -372,7 +375,7 @@ fn get_default_monitor_index() -> i32 {
     gdk::Display::get_default().expect("could not get default display").get_default_screen().get_primary_monitor()
 }
 
-fn get_monitor(n: i32) -> gdk::Monitor {
+pub fn get_monitor(n: i32) -> gdk::Monitor {
     gdk::Display::get_default()
         .expect("could not get default display")
         .get_monitor(n)
