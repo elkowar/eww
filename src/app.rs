@@ -324,30 +324,7 @@ fn initialize_window(
 ) -> Result<EwwWindow> {
     let actual_window_rect = window_def.geometry.get_window_rectangle(monitor_geometry);
 
-    let window = if window_def.focusable {
-        gtk::Window::new(gtk::WindowType::Toplevel)
-    } else {
-        gtk::Window::new(gtk::WindowType::Popup)
-    };
-
-    #[cfg(feature = "wayland")]
-    {
-        // Inititialising a layer shell surface
-        gtk_layer_shell::init_for_window(&window);
-        // Sets the monitor where the surface is shown
-        match window_def.screen_number {
-            Some(index)=>{
-                let monitor = get_monitor(index);
-                gtk_layer_shell::set_monitor(&window, &monitor);
-            },
-            None=>{}
-        };
-        gtk_layer_shell::set_keyboard_interactivity(&window, window_def.focusable);
-    }
-    #[cfg(feature = "x11")]
-    if !window_def.focusable {
-        window.set_type_hint(gdk::WindowTypeHint::Dock);
-    }
+    let window = display_backend::initialize_window(&mut window_def);
 
     window.set_title(&format!("Eww - {}", window_def.name));
     let wm_class_name = format!("eww-{}", window_def.name);
@@ -380,16 +357,6 @@ fn initialize_window(
     gdk_window.set_override_redirect(!window_def.focusable);
     gdk_window.move_(actual_window_rect.x, actual_window_rect.y);
 
-    #[cfg(feature = "x11")]
-    // I realy think this should go in the backend
-    if window_def.stacking == WindowStacking::Foreground {
-        gdk_window.raise();
-        window.set_keep_above(true);
-    } else {
-        gdk_window.lower();
-        window.set_keep_below(true);
-    }
-
     display_backend::reserve_space_for(&window, monitor_geometry, window_def.struts)?;
 
     Ok(EwwWindow {
@@ -416,7 +383,7 @@ fn get_default_monitor_index() -> i32 {
         .get_primary_monitor()
 }
 
-fn get_monitor(n: i32) -> gdk::Monitor {
+pub fn get_monitor(n: i32) -> gdk::Monitor {
     gdk::Display::get_default()
         .expect("could not get default display")
         .get_monitor(n)

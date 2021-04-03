@@ -56,7 +56,6 @@ impl RawEwwWindowDefinition {
         let stacking: WindowStacking = xml.parse_optional_attr("stacking")?.unwrap_or_default();
 
         // TODO maybe rename this to monitor?
-        // Yes, you should
         let focusable = xml.parse_optional_attr("focusable")?;
         let screen_number = xml.parse_optional_attr("screen")?;
 
@@ -83,7 +82,7 @@ impl RawEwwWindowDefinition {
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, smart_default::SmartDefault)]
-pub enum Side {
+pub enum Anchor {
     #[default]
     Top,
     Left,
@@ -96,23 +95,37 @@ pub enum Side {
     BottomRight,
 }
 
-impl std::str::FromStr for Side {
+impl std::str::FromStr for Anchor {
     type Err = anyhow::Error;
 
-    fn from_str(s: &str) -> Result<Side> {
+    #[cfg(feature = "x11")]
+    fn from_str(s: &str) -> Result<Anchor> {
         match s {
-            "l" | "left" => Ok(Side::Left),
-            "r" | "right" => Ok(Side::Right),
-            "t" | "top" => Ok(Side::Top),
-            "b" | "bottom" => Ok(Side::Bottom),
-            "c" | "center" => Ok(Side::Center),
-            "tl" | "top-left" => Ok(Side::TopLeft),
-            "tr" | "top-right" => Ok(Side::TopRight),
-            "bl" | "bottom-left" => Ok(Side::BottomLeft),
-            "br" | "bottom-right" => Ok(Side::BottomRight),
+            "l" | "left" => Ok(Anchor::Left),
+            "r" | "right" => Ok(Anchor::Right),
+            "t" | "top" => Ok(Anchor::Top),
+            "b" | "bottom" => Ok(Anchor::Bottom),
             _ => Err(anyhow!(
-                "Failed to parse {} as valid side. Must be one of \"left\", \"right\", \"top\", \"bottom\", \"top-right\", \
-                 \"top-left\", \"bottom-left\", \"bottom-right\"",
+                "Failed to parse {} as valid side. Must be one of \"left\", \"right\", \"top\", \"bottom\"",
+                s
+            )),
+        }
+    }
+
+    #[cfg(feature = "wayland")]
+    fn from_str(s: &str) -> Result<Anchor> {
+        match s {
+            "l" | "left" => Ok(Anchor::Left),
+            "r" | "right" => Ok(Anchor::Right),
+            "t" | "top" => Ok(Anchor::Top),
+            "b" | "bottom" => Ok(Anchor::Bottom),
+            "c" | "center" => Ok(Anchor::Center),
+            "tl" | "top-left" => Ok(Anchor::TopLeft),
+            "tr" | "top-right" => Ok(Anchor::TopRight),
+            "bl" | "bottom-left" => Ok(Anchor::BottomLeft),
+            "br" | "bottom-right" => Ok(Anchor::BottomRight),
+            _ => Err(anyhow!(
+                r#"Failed to parse {} as valid side. Must be one of "left", "right", "top", "bottom", "top-right", "top-left", "bottom-left", "bottom-right""#,
                 s
             )),
         }
@@ -123,7 +136,7 @@ impl std::str::FromStr for Side {
 #[cfg(feature = "x11")]
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct StrutDefinition {
-    pub side: Side,
+    pub side: Anchor,
     pub dist: NumWithUnit,
 }
 
@@ -141,9 +154,8 @@ impl StrutDefinition {
 #[cfg(feature = "wayland")]
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct StrutDefinition {
-    pub layer: WindowStacking,
     pub exclusive: bool,
-    pub side: Side,
+    pub side: Anchor,
     pub coords: Coords,
 }
 
@@ -152,7 +164,6 @@ impl StrutDefinition {
     pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
         Ok(StrutDefinition {
             side: xml.attr("side")?.parse()?,
-            layer: xml.attr("stacking")?.parse()?,
             exclusive: xml.attr("exclusive")?.parse()?,
             coords: Coords {
                 x: xml.attr("x")?.parse()?,
@@ -174,6 +185,20 @@ pub enum WindowStacking {
 impl std::str::FromStr for WindowStacking {
     type Err = anyhow::Error;
 
+    #[cfg(feature = "x11")]
+    fn from_str(s: &str) -> Result<Self> {
+        let s = s.to_lowercase();
+        match s.as_str() {
+            "foreground" | "fg" => Ok(WindowStacking::Foreground),
+            "background" | "bg" => Ok(WindowStacking::Background),
+            _ => Err(anyhow!(
+                "Couldn't parse '{}' as window stacking, must be either foreground, fg, background or bg",
+                s
+            )),
+        }
+    }
+
+    #[cfg(feature = "wayland")]
     fn from_str(s: &str) -> Result<Self> {
         let s = s.to_lowercase();
         match s.as_str() {
@@ -181,12 +206,6 @@ impl std::str::FromStr for WindowStacking {
             "background" | "bg" => Ok(WindowStacking::Background),
             "bottom" | "bt" => Ok(WindowStacking::Bottom),
             "overlay" | "ov" => Ok(WindowStacking::Overlay),
-            #[cfg(feature = "x11")]
-            _ => Err(anyhow!(
-                "Couldn't parse '{}' as window stacking, must be either foreground, fg, background or bg",
-                s
-            )),
-            #[cfg(feature = "wayland")]
             _ => Err(anyhow!(
                 "Couldn't parse '{}' as window stacking, must be either foreground, fg, background, bg, bottom, bt, overlay or \
                  ov",

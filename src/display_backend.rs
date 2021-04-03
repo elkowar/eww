@@ -2,7 +2,7 @@ pub use platform::*;
 
 #[cfg(feature = "no-x11-wayland")]
 mod platform {
-    use crate::config::{Side, StrutDefinition};
+    use crate::config::{Anchor, StrutDefinition};
     use anyhow::*;
     pub fn reserve_space_for(window: &gtk::Window, monitor: gdk::Rectangle, strut_def: StrutDefinition) -> Result<()> {
         Err(anyhow!("Cannot reserve space on non X11 or and wayland backends"))
@@ -11,7 +11,10 @@ mod platform {
 
 #[cfg(feature = "wayland")]
 mod platform {
-    use crate::config::{Side, StrutDefinition, WindowStacking};
+    use crate::{
+        app::get_monitor,
+        config::{EwwWindowDefinition, Anchor, StrutDefinition, WindowStacking},
+    };
     use anyhow::*;
     use gtk::prelude::*;
 
@@ -20,6 +23,32 @@ mod platform {
         let backend = LayerShellBackend::new()?;
         backend.reserve_space_for(window, monitor, surface);
         Ok(())
+    }
+
+    pub fn initialize_window(window_def: &mut EwwWindowDefinition) -> gtk::Window {
+        let mut window = gtk::Window::new(gtk::WindowType::Toplevel);
+        // Inititialising a layer shell surface
+        gtk_layer_shell::init_for_window(&window);
+        // Sets the monitor where the surface is shown
+        match window_def.screen_number {
+            Some(index) => {
+                let monitor = get_monitor(index);
+                gtk_layer_shell::set_monitor(&window, &monitor);
+            }
+            None => {}
+        };
+
+        // Sets the layer where the layer shell surface will spawn
+        match window_def.stacking {
+            WindowStacking::Foreground => gtk_layer_shell::set_layer(&window, gtk_layer_shell::Layer::Top),
+            WindowStacking::Background => gtk_layer_shell::set_layer(&window, gtk_layer_shell::Layer::Background),
+            WindowStacking::Bottom => gtk_layer_shell::set_layer(&window, gtk_layer_shell::Layer::Bottom),
+            WindowStacking::Overlay => gtk_layer_shell::set_layer(&window, gtk_layer_shell::Layer::Overlay),
+        }
+
+        // Sets the keyboard interactivity
+        gtk_layer_shell::set_keyboard_interactivity(&window, window_def.focusable);
+        window
     }
 
     struct LayerShellBackend {}
@@ -37,38 +66,30 @@ mod platform {
                 gtk_layer_shell::auto_exclusive_zone_enable(window);
             }
 
-            // Set the layer where the layer shell surface will spawn
-            match surface.layer {
-                WindowStacking::Foreground => gtk_layer_shell::set_layer(window, gtk_layer_shell::Layer::Top),
-                WindowStacking::Background => gtk_layer_shell::set_layer(window, gtk_layer_shell::Layer::Background),
-                WindowStacking::Bottom => gtk_layer_shell::set_layer(window, gtk_layer_shell::Layer::Bottom),
-                WindowStacking::Overlay => gtk_layer_shell::set_layer(window, gtk_layer_shell::Layer::Overlay),
-            }
-
             let mut top = false;
             let mut left = false;
             let mut right = false;
             let mut bottom = false;
 
             match surface.side {
-                Side::Top => top = true,
-                Side::Left => left = true,
-                Side::Right => right = true,
-                Side::Bottom => bottom = true,
-                Side::Center => {}
-                Side::TopLeft => {
+                Anchor::Top => top = true,
+                Anchor::Left => left = true,
+                Anchor::Right => right = true,
+                Anchor::Bottom => bottom = true,
+                Anchor::Center => {}
+                Anchor::TopLeft => {
                     top = true;
                     left = true;
                 }
-                Side::TopRight => {
+                Anchor::TopRight => {
                     top = true;
                     right = true;
                 }
-                Side::BottomRight => {
+                Anchor::BottomRight => {
                     bottom = true;
                     right = true;
                 }
-                Side::BottomLeft => {
+                Anchor::BottomLeft => {
                     left = true;
                     bottom = true;
                 }
@@ -99,7 +120,7 @@ mod platform {
 
 #[cfg(feature = "x11")]
 mod platform {
-    use crate::config::{Side, StrutDefinition};
+    use crate::config::{Anchor, StrutDefinition};
     use anyhow::*;
     use gdkx11;
     use gtk::{self, prelude::*};
@@ -111,6 +132,25 @@ mod platform {
         protocol::xproto::*,
         rust_connection::{DefaultStream, RustConnection},
     };
+
+    pub fn initialize_window(window_def: &mut config::EwwWindowDefinition) -> gtk::Window {
+        let window = if window_def.focusable {
+            gtk::Window::new(gtk::WindowType::Toplevel)
+        } else {
+            gtk::Window::new(gtk::WindowType::Popup)
+        };
+        if !window_def.focusable {
+            window.set_type_hint(gdk::WindowTypeHint::Dock);
+        }
+        if window_def.stacking == WindowStacking::Foreground {
+            gdk_window.raise();
+            window.set_keep_above(true);
+        } else {
+            gdk_window.lower();
+            window.set_keep_below(true);
+        }
+        window
+    }
 
     pub fn reserve_space_for(window: &gtk::Window, monitor: gdk::Rectangle, strut_def: StrutDefinition) -> Result<()> {
         let backend = X11Backend::new()?;
@@ -155,8 +195,8 @@ mod platform {
             let mon_end_y = (monitor_rect.y + monitor_rect.height) as u32 - 1u32;
 
             let dist = match strut_def.side {
-                Side::Left | Side::Right => strut_def.dist.relative_to(monitor_rect.width) as u32,
-                Side::Top | Side::Bottom => strut_def.dist.relative_to(monitor_rect.height) as u32,
+                Anchor::Left | Anchor::Right => strut_def.dist.relative_to(monitor_rect.width) as u32,
+                Anchor::Top | Anchor::Bottom => strut_def.dist.relative_to(monitor_rect.height) as u32,
                 _ => (monitor_rect.height / 2) as u32,
             };
 
@@ -165,11 +205,13 @@ mod platform {
             // left, right, top, bottom, left_start_y, left_end_y, right_start_y, right_end_y, top_start_x, top_end_x, bottom_start_x, bottom_end_x
             #[rustfmt::skip]
             let strut_list: Vec<u8> = match strut_def.side {
-                Side::Left   => vec![dist + monitor_rect.x as u32,  0,                                                     0,                             0,                                                      monitor_rect.y as u32,  mon_end_y,  0,                      0,          0,                      0,          0,                      0],
-                Side::Right  => vec![0,                             root_window_geometry.width as u32 - mon_end_x + dist,  0,                             0,                                                      0,                      0,          monitor_rect.y as u32,  mon_end_y,  0,                      0,          0,                      0],
-                Side::Top    => vec![0,                             0,                                                     dist + monitor_rect.y as u32,  0,                                                      0,                      0,          0,                      0,          monitor_rect.x as u32,  mon_end_x,  0,                      0],
-                Side::Bottom => vec![0,                             0,                                                     0,                             root_window_geometry.height as u32 - mon_end_y + dist,  0,                      0,          0,                      0,          0,                      0,          monitor_rect.x as u32,  mon_end_x],
-                _  => vec![0,0,0,0,0,0,0,0,0,0,0]
+                Anchor::Left   => vec![dist + monitor_rect.x as u32,  0,                                                     0,                             0,                                                      monitor_rect.y as u32,  mon_end_y,  0,                      0,          0,                      0,          0,                      0],
+                Anchor::Right  => vec![0,                             root_window_geometry.width as u32 - mon_end_x + dist,  0,                             0,                                                      0,                      0,          monitor_rect.y as u32,  mon_end_y,  0,                      0,          0,                      0],
+                Anchor::Top    => vec![0,                             0,                                                     dist + monitor_rect.y as u32,  0,                                                      0,                      0,          0,                      0,          monitor_rect.x as u32,  mon_end_x,  0,                      0],
+                Anchor::Bottom => vec![0,                             0,                                                     0,                             root_window_geometry.height as u32 - mon_end_y + dist,  0,                      0,          0,                      0,          0,                      0,          monitor_rect.x as u32,  mon_end_x],
+                // This should never happen but if it does the window will be anchored on the
+                // right of the screen
+                _  => vec![0,                             root_window_geometry.width as u32 - mon_end_x + dist,  0,                             0,                                                      0,                      0,          monitor_rect.y as u32,  mon_end_y,  0,                      0,          0,                      0],
             }.iter().flat_map(|x| x.to_le_bytes().to_vec()).collect();
 
             self.conn
