@@ -51,7 +51,7 @@ impl std::fmt::Display for UnaryOp {
     }
 }
 
-#[derive(Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize, Debug)]
 pub enum AttrValueExpr {
     Literal(AttrValue),
     VarRef(VarName),
@@ -72,11 +72,10 @@ impl std::fmt::Display for AttrValueExpr {
     }
 }
 
-impl std::fmt::Debug for AttrValueExpr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self)
-    }
-}
+// impl std::fmt::Debug for AttrValueExpr {
+// fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+// write!(f, "{:?}", self)
+//}
 
 impl AttrValueExpr {
     pub fn map_terminals_into(self, f: impl Fn(Self) -> Self) -> Self {
@@ -92,7 +91,8 @@ impl AttrValueExpr {
     pub fn resolve_refs(self, variables: &HashMap<VarName, PrimitiveValue>) -> Result<Self> {
         use AttrValueExpr::*;
         match self {
-            Literal(x) => Ok(AttrValueExpr::Literal(x)),
+            // Literal(x) => Ok(Literal(AttrValue::from_primitive(x.resolve_fully(&variables)?))),
+            Literal(x) => Ok(Literal(x)),
             VarRef(ref name) => Ok(Literal(AttrValue::from_primitive(
                 variables.get(name).with_context(|| format!("Unknown variable {} referenced in {:?}", &name, &self))?.clone(),
             ))),
@@ -107,7 +107,7 @@ impl AttrValueExpr {
     pub fn var_refs(&self) -> Vec<&VarName> {
         use AttrValueExpr::*;
         match self {
-            Literal(_) => vec![],
+            Literal(s) => s.var_refs().collect(),
             VarRef(name) => vec![name],
             BinOp(box a, _, box b) => {
                 let mut refs = a.var_refs();
