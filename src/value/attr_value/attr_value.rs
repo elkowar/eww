@@ -43,6 +43,10 @@ impl AttrValue {
         AttrValue(vec![AttrValueElement::Primitive(v.into())])
     }
 
+    pub fn from_var_ref<T: Into<VarName>>(v: T) -> Self {
+        AttrValue(vec![AttrValueElement::Expr(AttrValueExpr::VarRef(v.into()))])
+    }
+
     pub fn iter(&self) -> std::slice::Iter<AttrValueElement> {
         self.0.iter()
     }
