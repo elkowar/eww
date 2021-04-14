@@ -1,20 +1,17 @@
-use crate::{
-    config::{
+use crate::{config::{
         element::{WidgetDefinition, WidgetUse},
         xml_ext::TextPos,
         WindowName,
-    },
-    eww_state::EwwState,
-    value::{AttrName, AttrVal, VarName},
-};
+    }, eww_state::EwwState, value::{AttrName, AttrVal, PrimVal, VarName}};
 use anyhow::*;
 use dyn_clone;
 use std::collections::HashMap;
+
 pub trait WidgetNode: std::fmt::Debug + dyn_clone::DynClone + Send + Sync {
     fn get_name(&self) -> &str;
     fn get_text_pos(&self) -> Option<TextPos>;
 
-    /// Generate a [gtk::Widget] from a [element::WidgetUse].
+    /// Generate a [gtk::Widget] from a [WidgetNode].
     ///
     /// Also registers all the necessary state-change handlers in the eww_state.
     ///
@@ -26,6 +23,17 @@ pub trait WidgetNode: std::fmt::Debug + dyn_clone::DynClone + Send + Sync {
         eww_state: &mut EwwState,
         window_name: &WindowName,
         widget_definitions: &HashMap<String, WidgetDefinition>,
+        // TODO overrides must now be local-context again,..... REEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+        // i fucking hate my life. why is everything so shit
+        // WHY WHY WHY WHY WHY WHY WHY WHY WHY WHY WHY WHY WHY WHY WHY WHY
+        // PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN
+        // PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN
+        // PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN
+        // PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN
+        // PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN
+        // PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN
+        // PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN PAIN
+        overrides: &HashMap<VarName, PrimVal>,
     ) -> Result<gtk::Widget>;
 }
 
@@ -36,6 +44,26 @@ pub struct UserDefined {
     name: String,
     text_pos: Option<TextPos>,
     content: Box<dyn WidgetNode>,
+}
+
+impl UserDefined {
+    fn new(
+        def: &WidgetDefinition,
+        defs: &HashMap<String, WidgetDefinition>,
+        local_env: &HashMap<VarName, AttrVal>,
+        w: WidgetUse,
+    ) -> Result<Self> {
+        ensure!(w.children.is_empty(), "User-defined widgets cannot be given children.");
+
+        let new_local_env = w
+            .attrs
+            .into_iter()
+            .map(|(name, value)| (VarName(name.0), value.resolve_one_level(local_env)))
+            .collect::<HashMap<_, _>>();
+
+        let content = generate_generic_widget_node(defs, &new_local_env, def.structure.clone())?;
+        Ok(UserDefined { name: w.name, text_pos: w.text_pos, content })
+    }
 }
 
 impl WidgetNode for UserDefined {
@@ -52,8 +80,81 @@ impl WidgetNode for UserDefined {
         eww_state: &mut EwwState,
         window_name: &WindowName,
         widget_definitions: &HashMap<String, WidgetDefinition>,
+        overrides: &HashMap<VarName, PrimVal>,
     ) -> Result<gtk::Widget> {
-        self.content.render(eww_state, window_name, widget_definitions)
+        self.content.render(eww_state, window_name, widget_definitions, overrides)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ForEach {
+    pub text_pos: Option<TextPos>,
+    pub child: Box<dyn WidgetNode>,
+    pub elem_var_name_attr: VarName,
+    pub iterable_attr: AttrVal,
+}
+
+impl ForEach {
+    fn new(defs: &HashMap<String, WidgetDefinition>, local_env: &HashMap<VarName, AttrVal>, w: WidgetUse) -> Result<Self> {
+        ensure!(
+            w.children.len() == 1,
+            "{}for widget needs to have exactly one child element",
+            w.text_pos.map_or_else(Default::default, |x| format!("at {}: ", x))
+        );
+        let child = w.children[0];
+        let elem_var_name_attr = VarName(w.attrs.get("each").context("<for> missing atribute \"each\"")?.to_string());
+        let iterable_attr = w.attrs.get("in").context("<for> missing attribute \"in\"")?.resolve_one_level(local_env);
+        let child_node = generate_generic_widget_node(defs, local_env, child)?;
+        Ok(ForEach { text_pos: w.text_pos, child: child_node, elem_var_name_attr, iterable_attr })
+    }
+}
+
+impl WidgetNode for ForEach {
+    fn get_name(&self) -> &str {
+        "for"
+    }
+
+    fn get_text_pos(&self) -> Option<TextPos> {
+        self.text_pos
+    }
+
+    fn render(
+        &self,
+        eww_state: &mut EwwState,
+        window_name: &WindowName,
+        widget_definitions: &HashMap<String, WidgetDefinition>,
+        overrides: &HashMap<VarName, PrimVal>,
+    ) -> Result<gtk::Widget> {
+        use gtk::ContainerExt;
+        let outer_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
+
+        eww_state.resolve(
+            window_name,
+            maplit::hashmap! {
+                "__for_iterable".into() => self.iterable_attr,
+            },
+            move |x| {
+                let iterable_values = x
+                    .get("__for_iterable")
+                    .context("Missing __for_iterable, this is impossible!")?
+                    .as_json_value()?
+                    .as_array()
+                    .context("<for> needs to be given an array")?;
+                outer_box.get_children().iter().for_each(|w| gtk_widget.remove(w));
+
+                for value in iterable_values {
+                    self.child
+                    let child = self.child.render()
+                }
+                outer_box.add()
+                // reee
+                Ok(())
+            },
+        );
+        unimplemented!();
+
+        // Ok(crate::widgets::build_builtin_gtk_widget(eww_state, window_name, widget_definitions, &self)?
+        //.with_context(|| format!("Unknown widget '{}'", self.get_name()))?)
     }
 }
 
@@ -66,6 +167,19 @@ pub struct Generic {
 }
 
 impl Generic {
+    pub fn new(defs: &HashMap<String, WidgetDefinition>, local_env: &HashMap<VarName, AttrVal>, w: WidgetUse) -> Result<Self> {
+        Ok(Generic {
+            name: w.name,
+            text_pos: w.text_pos,
+            attrs: w.attrs.into_iter().map(|(name, value)| (name, value.resolve_one_level(local_env))).collect(),
+            children: w
+                .children
+                .into_iter()
+                .map(|child| generate_generic_widget_node(defs, local_env, child))
+                .collect::<Result<Vec<_>>>()?,
+        })
+    }
+
     pub fn get_attr(&self, key: &str) -> Result<&AttrVal> {
         self.attrs.get(key).context(format!("attribute '{}' missing from use of '{}'", key, &self.name))
     }
@@ -90,6 +204,7 @@ impl WidgetNode for Generic {
         eww_state: &mut EwwState,
         window_name: &WindowName,
         widget_definitions: &HashMap<String, WidgetDefinition>,
+        overrides: &HashMap<VarName, PrimVal>,
     ) -> Result<gtk::Widget> {
         Ok(crate::widgets::build_builtin_gtk_widget(eww_state, window_name, widget_definitions, &self)?
             .with_context(|| format!("Unknown widget '{}'", self.get_name()))?)
@@ -102,27 +217,11 @@ pub fn generate_generic_widget_node(
     w: WidgetUse,
 ) -> Result<Box<dyn WidgetNode>> {
     if let Some(def) = defs.get(&w.name) {
-        ensure!(w.children.is_empty(), "User-defined widgets cannot be given children.");
-
-        let new_local_env = w
-            .attrs
-            .into_iter()
-            .map(|(name, value)| (VarName(name.0), value.resolve_one_level(local_env)))
-            .collect::<HashMap<_, _>>();
-
-        let content = generate_generic_widget_node(defs, &new_local_env, def.structure.clone())?;
-        Ok(Box::new(UserDefined { name: w.name, text_pos: w.text_pos, content }))
+        Ok(Box::new(UserDefined::new(def, defs, local_env, w)?))
+    } else if w.name == "for" {
+        Ok(Box::new(ForEach::new(defs, local_env, w)?))
     } else {
-        Ok(Box::new(Generic {
-            name: w.name,
-            text_pos: w.text_pos,
-            attrs: w.attrs.into_iter().map(|(name, value)| (name, value.resolve_one_level(local_env))).collect(),
-            children: w
-                .children
-                .into_iter()
-                .map(|child| generate_generic_widget_node(defs, local_env, child))
-                .collect::<Result<Vec<_>>>()?,
-        }))
+        Ok(Box::new(Generic::new(defs, local_env, w)?))
     }
 }
 

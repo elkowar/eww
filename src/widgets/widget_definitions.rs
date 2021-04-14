@@ -185,6 +185,21 @@ fn build_if_else(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
     Ok(gtk_widget)
 }
 
+fn build_for_each(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
+    let loop_child =
+        bargs.widget.children.first().with_context(|| {
+            format!("for-each needs to have exactly one child widget, but had {}", bargs.widget.children.len())
+        })?;
+
+
+
+
+
+    loop_child.render(bargs.eww_state, bargs.window_name, bargs.widget_definitions)
+
+    unimplemented!();
+}
+
 /// @widget combo-box-text
 /// @desc A combo box allowing the user to choose between several items.
 fn build_gtk_combo_box_text(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText> {
