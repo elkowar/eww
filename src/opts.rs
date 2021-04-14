@@ -5,7 +5,7 @@ use structopt::StructOpt;
 use crate::{
     app,
     config::{AnchorPoint, WindowName},
-    value::{Coords, PrimitiveValue, VarName},
+    value::{Coords, PrimVal, VarName},
 };
 
 /// Struct that gets generated from `RawOpt`.
@@ -61,7 +61,7 @@ pub enum ActionWithServer {
     Update {
         /// variable_name="new_value"-pairs that will be updated
         #[structopt(parse(try_from_str = parse_var_update_arg))]
-        mappings: Vec<(VarName, PrimitiveValue)>,
+        mappings: Vec<(VarName, PrimVal)>,
     },
 
     /// open a window
@@ -138,11 +138,11 @@ impl From<RawOpt> for Opt {
     }
 }
 
-fn parse_var_update_arg(s: &str) -> Result<(VarName, PrimitiveValue)> {
+fn parse_var_update_arg(s: &str) -> Result<(VarName, PrimVal)> {
     let (name, value) = s
         .split_once('=')
         .with_context(|| format!("arguments must be in the shape `variable_name=\"new_value\"`, but got: {}", s))?;
-    Ok((name.into(), PrimitiveValue::from_string(value.to_owned())))
+    Ok((name.into(), PrimVal::from_string(value.to_owned())))
 }
 
 impl ActionWithServer {

@@ -1,5 +1,5 @@
 use super::{run_command, BuilderArgs};
-use crate::{config, eww_state, resolve_block, value::AttrValue, widgets::widget_node};
+use crate::{config, eww_state, resolve_block, value::AttrVal, widgets::widget_node};
 use anyhow::*;
 use glib;
 use gtk::{self, prelude::*, ImageExt};
@@ -378,7 +378,7 @@ fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
         // @prop width - width of the image
         // @prop height - height of the image
         prop(path: as_string, width: as_i32 = 10000, height: as_i32 = 10000) {
-            if path.ends_with(".gif") { 
+            if path.ends_with(".gif") {
                 let pixbuf_animation = gdk_pixbuf::PixbufAnimation::from_file(std::path::PathBuf::from(path))?;
                 gtk_widget.set_from_animation(&pixbuf_animation);
             } else {

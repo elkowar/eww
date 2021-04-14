@@ -154,7 +154,7 @@ macro_rules! resolve_block {
     };
 
     (@get_value $args:ident, $name:expr, = $default:expr) => {
-        $args.widget.get_attr($name).cloned().unwrap_or(AttrValue::from_primitive($default))
+        $args.widget.get_attr($name).cloned().unwrap_or(AttrVal::from_primitive($default))
     };
 
     (@get_value $args:ident, $name:expr,) => {

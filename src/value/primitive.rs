@@ -6,21 +6,21 @@ use std::{convert::TryFrom, fmt, iter::FromIterator};
 use crate::impl_try_from;
 
 #[derive(Clone, Deserialize, Serialize, derive_more::From, Default)]
-pub struct PrimitiveValue(pub String);
+pub struct PrimVal(pub String);
 
-impl fmt::Display for PrimitiveValue {
+impl fmt::Display for PrimVal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0)
     }
 }
-impl fmt::Debug for PrimitiveValue {
+impl fmt::Debug for PrimVal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "\"{}\"", self.0)
     }
 }
 
 /// Manually implement equality, to allow for values in different formats (i.e. "1" and "1.0") to still be considered as equal.
-impl std::cmp::PartialEq<Self> for PrimitiveValue {
+impl std::cmp::PartialEq<Self> for PrimVal {
     fn eq(&self, other: &Self) -> bool {
         if let (Ok(a), Ok(b)) = (self.as_f64(), other.as_f64()) {
             a == b
@@ -30,56 +30,56 @@ impl std::cmp::PartialEq<Self> for PrimitiveValue {
     }
 }
 
-impl FromIterator<PrimitiveValue> for PrimitiveValue {
-    fn from_iter<T: IntoIterator<Item = PrimitiveValue>>(iter: T) -> Self {
-        PrimitiveValue(iter.into_iter().join(""))
+impl FromIterator<PrimVal> for PrimVal {
+    fn from_iter<T: IntoIterator<Item = PrimVal>>(iter: T) -> Self {
+        PrimVal(iter.into_iter().join(""))
     }
 }
 
-impl std::str::FromStr for PrimitiveValue {
+impl std::str::FromStr for PrimVal {
     type Err = anyhow::Error;
 
     /// parses the value, trying to turn it into a number and a boolean first,
     /// before deciding that it is a string.
     fn from_str(s: &str) -> Result<Self> {
-        Ok(PrimitiveValue::from_string(s.to_string()))
+        Ok(PrimVal::from_string(s.to_string()))
     }
 }
 
-impl_try_from!(PrimitiveValue {
+impl_try_from!(PrimVal {
     for String => |x| x.as_string();
     for f64 => |x| x.as_f64();
     for bool => |x| x.as_bool();
     for Vec<String> => |x| x.as_vec();
 });
 
-impl From<bool> for PrimitiveValue {
+impl From<bool> for PrimVal {
     fn from(x: bool) -> Self {
-        PrimitiveValue(x.to_string())
+        PrimVal(x.to_string())
     }
 }
 
-impl From<i32> for PrimitiveValue {
+impl From<i32> for PrimVal {
     fn from(s: i32) -> Self {
-        PrimitiveValue(s.to_string())
+        PrimVal(s.to_string())
     }
 }
 
-impl From<f64> for PrimitiveValue {
+impl From<f64> for PrimVal {
     fn from(s: f64) -> Self {
-        PrimitiveValue(s.to_string())
+        PrimVal(s.to_string())
     }
 }
 
-impl From<&str> for PrimitiveValue {
+impl From<&str> for PrimVal {
     fn from(s: &str) -> Self {
-        PrimitiveValue(s.to_string())
+        PrimVal(s.to_string())
     }
 }
 
-impl From<&serde_json::Value> for PrimitiveValue {
+impl From<&serde_json::Value> for PrimVal {
     fn from(v: &serde_json::Value) -> Self {
-        PrimitiveValue(
+        PrimVal(
             v.as_str()
                 .map(|x| x.to_string())
                 .or_else(|| serde_json::to_string(v).ok())
@@ -88,9 +88,9 @@ impl From<&serde_json::Value> for PrimitiveValue {
     }
 }
 
-impl PrimitiveValue {
+impl PrimVal {
     pub fn from_string(s: String) -> Self {
-        PrimitiveValue(s)
+        PrimVal(s)
     }
 
     pub fn into_inner(self) -> String {

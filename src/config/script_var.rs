@@ -14,7 +14,7 @@ pub struct PollScriptVar {
 }
 
 impl PollScriptVar {
-    pub fn run_once(&self) -> Result<PrimitiveValue> {
+    pub fn run_once(&self) -> Result<PrimVal> {
         run_command(&self.command)
     }
 }
@@ -39,12 +39,12 @@ impl ScriptVar {
         }
     }
 
-    pub fn initial_value(&self) -> Result<PrimitiveValue> {
+    pub fn initial_value(&self) -> Result<PrimVal> {
         match self {
             ScriptVar::Poll(x) => {
                 run_command(&x.command).with_context(|| format!("Failed to compute initial value for {}", &self.name()))
             }
-            ScriptVar::Tail(_) => Ok(PrimitiveValue::from_string(String::new())),
+            ScriptVar::Tail(_) => Ok(PrimVal::from_string(String::new())),
         }
     }
 
@@ -63,9 +63,9 @@ impl ScriptVar {
 }
 
 /// Run a command and get the output
-fn run_command(cmd: &str) -> Result<PrimitiveValue> {
+fn run_command(cmd: &str) -> Result<PrimVal> {
     log::debug!("Running command: {}", cmd);
     let output = String::from_utf8(Command::new("/bin/sh").arg("-c").arg(cmd).output()?.stdout)?;
     let output = output.trim_matches('\n');
-    Ok(PrimitiveValue::from(output))
+    Ok(PrimVal::from(output))
 }

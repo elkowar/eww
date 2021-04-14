@@ -53,34 +53,34 @@ fn parse_unary_op(i: &str) -> IResult<&str, UnaryOp, VerboseError<&str>> {
 // actual tree //
 /////////////////
 
-fn parse_factor(i: &str) -> IResult<&str, AttrValueExpr, VerboseError<&str>> {
+fn parse_factor(i: &str) -> IResult<&str, AttrValExpr, VerboseError<&str>> {
     let (i, unary_op) = opt(parse_unary_op)(i)?;
     let (i, factor) = alt((
         context("expression", ws(delimited(tag("("), parse_expr, tag(")")))),
         context("if-expression", ws(parse_ifelse)),
-        context("literal", map(ws(parse_literal), |x| AttrValueExpr::Literal(AttrValue::parse_string(x)))),
-        context("identifier", map(ws(parse_identifier), |x| AttrValueExpr::VarRef(VarName(x.to_string())))),
+        context("literal", map(ws(parse_literal), |x| AttrValExpr::Literal(AttrVal::parse_string(x)))),
+        context("identifier", map(ws(parse_identifier), |x| AttrValExpr::VarRef(VarName(x.to_string())))),
     ))(i)?;
     Ok((
         i,
         match unary_op {
-            Some(op) => AttrValueExpr::UnaryOp(op, box factor),
+            Some(op) => AttrValExpr::UnaryOp(op, box factor),
             None => factor,
         },
     ))
 }
 
-fn parse_object_index(i: &str) -> IResult<&str, AttrValueExpr, VerboseError<&str>> {
+fn parse_object_index(i: &str) -> IResult<&str, AttrValExpr, VerboseError<&str>> {
     let (i, initial) = parse_factor(i)?;
     let (i, remainder) = many0(alt((
         delimited(tag("["), ws(parse_expr), tag("]")),
-        map(preceded(tag("."), parse_identifier), |x| AttrValueExpr::Literal(AttrValue::from_primitive(x))),
+        map(preceded(tag("."), parse_identifier), |x| AttrValExpr::Literal(AttrVal::from_primitive(x))),
     )))(i)?;
-    let indexes = remainder.into_iter().fold(initial, |acc, index| AttrValueExpr::JsonAccessIndex(box acc, box index));
+    let indexes = remainder.into_iter().fold(initial, |acc, index| AttrValExpr::JsonAccess(box acc, box index));
     Ok((i, indexes))
 }
 
-fn parse_term3(i: &str) -> IResult<&str, AttrValueExpr, VerboseError<&str>> {
+fn parse_term3(i: &str) -> IResult<&str, AttrValExpr, VerboseError<&str>> {
     let (i, initial) = parse_object_index(i)?;
     let (i, remainder) = many0(alt((
         map(preceded(tag("*"), parse_object_index), |x| (BinOp::Times, x)),
@@ -88,23 +88,23 @@ fn parse_term3(i: &str) -> IResult<&str, AttrValueExpr, VerboseError<&str>> {
         map(preceded(tag("%"), parse_object_index), |x| (BinOp::Mod, x)),
     )))(i)?;
 
-    let exprs = remainder.into_iter().fold(initial, |acc, (op, expr)| AttrValueExpr::BinOp(box acc, op, box expr));
+    let exprs = remainder.into_iter().fold(initial, |acc, (op, expr)| AttrValExpr::BinOp(box acc, op, box expr));
 
     Ok((i, exprs))
 }
-fn parse_term2(i: &str) -> IResult<&str, AttrValueExpr, VerboseError<&str>> {
+fn parse_term2(i: &str) -> IResult<&str, AttrValExpr, VerboseError<&str>> {
     let (i, initial) = parse_term3(i)?;
     let (i, remainder) = many0(alt((
         map(preceded(tag("+"), parse_term3), |x| (BinOp::Plus, x)),
         map(preceded(tag("-"), parse_term3), |x| (BinOp::Minus, x)),
     )))(i)?;
 
-    let exprs = remainder.into_iter().fold(initial, |acc, (op, expr)| AttrValueExpr::BinOp(box acc, op, box expr));
+    let exprs = remainder.into_iter().fold(initial, |acc, (op, expr)| AttrValExpr::BinOp(box acc, op, box expr));
 
     Ok((i, exprs))
 }
 
-fn parse_term1(i: &str) -> IResult<&str, AttrValueExpr, VerboseError<&str>> {
+fn parse_term1(i: &str) -> IResult<&str, AttrValExpr, VerboseError<&str>> {
     let (i, initial) = parse_term2(i)?;
     let (i, remainder) = many0(alt((
         map(preceded(tag("=="), parse_term2), |x| (BinOp::Equals, x)),
@@ -113,11 +113,11 @@ fn parse_term1(i: &str) -> IResult<&str, AttrValueExpr, VerboseError<&str>> {
         map(preceded(tag("<"), parse_term2), |x| (BinOp::LT, x)),
     )))(i)?;
 
-    let exprs = remainder.into_iter().fold(initial, |acc, (op, expr)| AttrValueExpr::BinOp(box acc, op, box expr));
+    let exprs = remainder.into_iter().fold(initial, |acc, (op, expr)| AttrValExpr::BinOp(box acc, op, box expr));
 
     Ok((i, exprs))
 }
-pub fn parse_expr(i: &str) -> IResult<&str, AttrValueExpr, VerboseError<&str>> {
+pub fn parse_expr(i: &str) -> IResult<&str, AttrValExpr, VerboseError<&str>> {
     let (i, initial) = parse_term1(i)?;
     let (i, remainder) = many0(alt((
         map(preceded(tag("&&"), parse_term1), |x| (BinOp::And, x)),
@@ -125,22 +125,22 @@ pub fn parse_expr(i: &str) -> IResult<&str, AttrValueExpr, VerboseError<&str>> {
         map(preceded(tag("?:"), parse_term1), |x| (BinOp::Elvis, x)),
     )))(i)?;
 
-    let exprs = remainder.into_iter().fold(initial, |acc, (op, expr)| AttrValueExpr::BinOp(box acc, op, box expr));
+    let exprs = remainder.into_iter().fold(initial, |acc, (op, expr)| AttrValExpr::BinOp(box acc, op, box expr));
 
     Ok((i, exprs))
 }
 
-fn parse_ifelse(i: &str) -> IResult<&str, AttrValueExpr, VerboseError<&str>> {
+fn parse_ifelse(i: &str) -> IResult<&str, AttrValExpr, VerboseError<&str>> {
     let (i, _) = tag("if")(i)?;
     let (i, a) = context("condition", ws(parse_expr))(i)?;
     let (i, _) = tag("then")(i)?;
     let (i, b) = context("true-case", ws(parse_expr))(i)?;
     let (i, _) = tag("else")(i)?;
     let (i, c) = context("false-case", ws(parse_expr))(i)?;
-    Ok((i, AttrValueExpr::IfElse(box a, box b, box c)))
+    Ok((i, AttrValExpr::IfElse(box a, box b, box c)))
 }
 
-pub fn parse<'a>(i: &'a str) -> IResult<&'a str, AttrValueExpr, VerboseError<&'a str>> {
+pub fn parse<'a>(i: &'a str) -> IResult<&'a str, AttrValExpr, VerboseError<&'a str>> {
     complete(parse_expr)(i)
 }
 
@@ -150,64 +150,64 @@ mod test {
     use pretty_assertions::assert_eq;
     #[test]
     fn test_parser() {
-        assert_eq!(AttrValueExpr::Literal(AttrValue::from_primitive("12")), AttrValueExpr::parse("12").unwrap());
+        assert_eq!(AttrValExpr::Literal(AttrVal::from_primitive("12")), AttrValExpr::parse("12").unwrap());
         assert_eq!(
-            AttrValueExpr::UnaryOp(UnaryOp::Not, box AttrValueExpr::Literal(AttrValue::from_primitive("false"))),
-            AttrValueExpr::parse("!false").unwrap()
+            AttrValExpr::UnaryOp(UnaryOp::Not, box AttrValExpr::Literal(AttrVal::from_primitive("false"))),
+            AttrValExpr::parse("!false").unwrap()
         );
         assert_eq!(
-            AttrValueExpr::BinOp(
-                box AttrValueExpr::Literal(AttrValue::from_primitive("12")),
+            AttrValExpr::BinOp(
+                box AttrValExpr::Literal(AttrVal::from_primitive("12")),
                 BinOp::Plus,
-                box AttrValueExpr::Literal(AttrValue::from_primitive("2"))
+                box AttrValExpr::Literal(AttrVal::from_primitive("2"))
             ),
-            AttrValueExpr::parse("12 + 2").unwrap()
+            AttrValExpr::parse("12 + 2").unwrap()
         );
         assert_eq!(
-            AttrValueExpr::UnaryOp(
+            AttrValExpr::UnaryOp(
                 UnaryOp::Not,
-                box AttrValueExpr::BinOp(
-                    box AttrValueExpr::Literal(AttrValue::from_primitive("1")),
+                box AttrValExpr::BinOp(
+                    box AttrValExpr::Literal(AttrVal::from_primitive("1")),
                     BinOp::Equals,
-                    box AttrValueExpr::Literal(AttrValue::from_primitive("2"))
+                    box AttrValExpr::Literal(AttrVal::from_primitive("2"))
                 )
             ),
-            AttrValueExpr::parse("!(1 == 2)").unwrap()
+            AttrValExpr::parse("!(1 == 2)").unwrap()
         );
         assert_eq!(
-            AttrValueExpr::IfElse(
-                box AttrValueExpr::VarRef(VarName("a".to_string())),
-                box AttrValueExpr::VarRef(VarName("b".to_string())),
-                box AttrValueExpr::VarRef(VarName("c".to_string())),
+            AttrValExpr::IfElse(
+                box AttrValExpr::VarRef(VarName("a".to_string())),
+                box AttrValExpr::VarRef(VarName("b".to_string())),
+                box AttrValExpr::VarRef(VarName("c".to_string())),
             ),
-            AttrValueExpr::parse("if a then b else c").unwrap()
+            AttrValExpr::parse("if a then b else c").unwrap()
         );
         assert_eq!(
-            AttrValueExpr::JsonAccessIndex(
-                box AttrValueExpr::VarRef(VarName("array".to_string())),
-                box AttrValueExpr::BinOp(
-                    box AttrValueExpr::Literal(AttrValue::from_primitive("1")),
+            AttrValExpr::JsonAccess(
+                box AttrValExpr::VarRef(VarName("array".to_string())),
+                box AttrValExpr::BinOp(
+                    box AttrValExpr::Literal(AttrVal::from_primitive("1")),
                     BinOp::Plus,
-                    box AttrValueExpr::Literal(AttrValue::from_primitive("2"))
+                    box AttrValExpr::Literal(AttrVal::from_primitive("2"))
                 )
             ),
-            AttrValueExpr::parse(r#"(array)[1+2]"#).unwrap()
+            AttrValExpr::parse(r#"(array)[1+2]"#).unwrap()
         );
         assert_eq!(
-            AttrValueExpr::JsonAccessIndex(
-                box AttrValueExpr::JsonAccessIndex(
-                    box AttrValueExpr::VarRef(VarName("object".to_string())),
-                    box AttrValueExpr::Literal(AttrValue::from_primitive("field".to_string())),
+            AttrValExpr::JsonAccess(
+                box AttrValExpr::JsonAccess(
+                    box AttrValExpr::VarRef(VarName("object".to_string())),
+                    box AttrValExpr::Literal(AttrVal::from_primitive("field".to_string())),
                 ),
-                box AttrValueExpr::Literal(AttrValue::from_primitive("field2".to_string())),
+                box AttrValExpr::Literal(AttrVal::from_primitive("field2".to_string())),
             ),
-            AttrValueExpr::parse(r#"object.field.field2"#).unwrap()
+            AttrValExpr::parse(r#"object.field.field2"#).unwrap()
         );
     }
     #[test]
     fn test_complex() {
         let parsed =
-            AttrValueExpr::parse(r#"if hi > 12 + 2 * 2 && 12 == 15 then "foo" else if !true then 'hi' else "{{bruh}}""#).unwrap();
+            AttrValExpr::parse(r#"if hi > 12 + 2 * 2 && 12 == 15 then "foo" else if !true then 'hi' else "{{bruh}}""#).unwrap();
 
         assert_eq!(
             r#"(if ((hi > ("12" + ("2" * "2"))) && ("12" == "15")) then "foo" else (if !"true" then "hi" else "{{bruh}}"))"#,

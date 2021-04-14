@@ -5,7 +5,7 @@ use crate::{
         WindowName,
     },
     eww_state::EwwState,
-    value::{AttrName, AttrValue, VarName},
+    value::{AttrName, AttrVal, VarName},
 };
 use anyhow::*;
 use dyn_clone;
@@ -62,11 +62,11 @@ pub struct Generic {
     pub name: String,
     pub text_pos: Option<TextPos>,
     pub children: Vec<Box<dyn WidgetNode>>,
-    pub attrs: HashMap<AttrName, AttrValue>,
+    pub attrs: HashMap<AttrName, AttrVal>,
 }
 
 impl Generic {
-    pub fn get_attr(&self, key: &str) -> Result<&AttrValue> {
+    pub fn get_attr(&self, key: &str) -> Result<&AttrVal> {
         self.attrs.get(key).context(format!("attribute '{}' missing from use of '{}'", key, &self.name))
     }
 
@@ -98,7 +98,7 @@ impl WidgetNode for Generic {
 
 pub fn generate_generic_widget_node(
     defs: &HashMap<String, WidgetDefinition>,
-    local_env: &HashMap<VarName, AttrValue>,
+    local_env: &HashMap<VarName, AttrVal>,
     w: WidgetUse,
 ) -> Result<Box<dyn WidgetNode>> {
     if let Some(def) = defs.get(&w.name) {
