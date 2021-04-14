@@ -54,7 +54,7 @@ impl ScriptVar {
         let name = VarName(xml.attr("name")?.to_owned());
         let command = xml.only_child()?.as_text()?.text();
         if let Ok(interval) = xml.attr("interval") {
-            let interval = util::parse_duration(interval)?;
+            let interval = util::parse_duration(&interval)?;
             Ok(ScriptVar::Poll(PollScriptVar { name, command, interval }))
         } else {
             Ok(ScriptVar::Tail(TailScriptVar { name, command }))

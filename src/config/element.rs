@@ -74,7 +74,12 @@ impl WidgetUse {
                 attrs: elem
                     .attributes()
                     .iter()
-                    .map(|attr| (AttrName(attr.name().to_owned()), AttrValue::parse_string(attr.value())))
+                    .map(|attr| {
+                        (
+                            AttrName(attr.name().to_owned()),
+                            AttrValue::parse_string(&xml_ext::resolve_escaped_symbols(&attr.value())),
+                        )
+                    })
                     .collect::<HashMap<_, _>>(),
                 ..WidgetUse::default()
             },
