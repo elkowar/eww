@@ -330,10 +330,9 @@ fn initialize_window(
     let wm_class_name = format!("eww-{}", window_def.name);
     window.set_wmclass(&wm_class_name, &wm_class_name);
     window.set_position(gtk::WindowPosition::Center);
-    window.set_default_size(actual_window_rect.width, actual_window_rect.height);
     window.set_size_request(actual_window_rect.width, actual_window_rect.height);
+    window.set_default_size(actual_window_rect.width, actual_window_rect.height);
     window.set_decorated(false);
-    window.set_resizable(false);
 
     // run on_screen_changed to set the visual correctly initially.
     on_screen_changed(&window, None);
@@ -353,11 +352,19 @@ fn initialize_window(
 
     window.show_all();
 
+    display_backend::reserve_space_for(&window, monitor_geometry, window_def.struts)?;
+
     let gdk_window = window.get_window().context("couldn't get gdk window from gtk window")?;
     gdk_window.set_override_redirect(!window_def.focusable);
     gdk_window.move_(actual_window_rect.x, actual_window_rect.y);
 
-    display_backend::reserve_space_for(&window, monitor_geometry, window_def.struts)?;
+    if window_def.stacking == WindowStacking::Foreground {
+        gdk_window.raise();
+        window.set_keep_above(true);
+    } else {
+        gdk_window.lower();
+        window.set_keep_below(true);
+    }
 
     Ok(EwwWindow {
         name: window_def.name.clone(),

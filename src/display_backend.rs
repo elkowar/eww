@@ -27,6 +27,7 @@ mod platform {
 
     pub fn initialize_window(window_def: &mut EwwWindowDefinition) -> gtk::Window {
         let mut window = gtk::Window::new(gtk::WindowType::Toplevel);
+        window.set_resizable(true);
         // Inititialising a layer shell surface
         gtk_layer_shell::init_for_window(&window);
         // Sets the monitor where the surface is shown
@@ -120,7 +121,7 @@ mod platform {
 
 #[cfg(feature = "x11")]
 mod platform {
-    use crate::config::{Anchor, StrutDefinition};
+    use crate::config::{Anchor, StrutDefinition, EwwWindowDefinition, WindowStacking};
     use anyhow::*;
     use gdkx11;
     use gtk::{self, prelude::*};
@@ -133,21 +134,15 @@ mod platform {
         rust_connection::{DefaultStream, RustConnection},
     };
 
-    pub fn initialize_window(window_def: &mut config::EwwWindowDefinition) -> gtk::Window {
+    pub fn initialize_window(window_def: &mut EwwWindowDefinition) -> gtk::Window {
         let window = if window_def.focusable {
             gtk::Window::new(gtk::WindowType::Toplevel)
         } else {
             gtk::Window::new(gtk::WindowType::Popup)
         };
+        window.set_resizable(true);
         if !window_def.focusable {
             window.set_type_hint(gdk::WindowTypeHint::Dock);
-        }
-        if window_def.stacking == WindowStacking::Foreground {
-            gdk_window.raise();
-            window.set_keep_above(true);
-        } else {
-            gdk_window.lower();
-            window.set_keep_below(true);
         }
         window
     }

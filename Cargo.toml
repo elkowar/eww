@@ -10,23 +10,23 @@ homepage = "https://github.com/elkowar/eww"
 
 
 [features]
-default = ["wayland"]
+default = ["x11"]
 x11 = ["gdkx11", "x11rb"]
 wayland = ["gtk-layer-shell-rs"]
 no-x11-wayland = []
 
 [dependencies]
-gtk = { git = "https://github.com/gtk-rs/gtk-rs" }
-gdk = { git = "https://github.com/gtk-rs/gtk-rs", features = ["v3_22"] }
-gdk-sys = { git = "https://github.com/gtk-rs/gtk-rs" }
-gio = { git = "https://github.com/gtk-rs/gtk-rs" }
+gtk = { git = "https://github.com/gtk-rs/gtk-rs", rev="abd4ce6f" }
+gdk = { git = "https://github.com/gtk-rs/gtk-rs", rev="abd4ce6f", features = ["v3_22"] }
+gdk-sys = { git = "https://github.com/gtk-rs/gtk-rs", rev="abd4ce6f" }
+gio = { git = "https://github.com/gtk-rs/gtk-rs", rev="abd4ce6f" }
 glib = { version = "", features = ["v2_44"] }
 
 gdk-pixbuf = "0.9"
 
-gdkx11 = { git = "https://github.com/gtk-rs/gtk-rs", optional = true }
+gdkx11 = { git = "https://github.com/gtk-rs/gtk-rs", rev="abd4ce6f", optional = true }
 x11rb = { version = "0.7", features = ["randr"], optional = true }
-gtk-layer-shell-rs = { git = "https://github.com/subgraph/gtk-layer-shell-rs", optional = true }
+gtk-layer-shell-rs = { git = "https://github.com/subgraph/gtk-layer-shell-rs", rev="bf097e83", optional = true }
 regex = "1"
 bincode = "1.3"
 anyhow = "1.0"
