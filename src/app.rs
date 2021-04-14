@@ -303,7 +303,6 @@ fn initialize_window(
     let actual_window_rect = window_def.geometry.get_window_rectangle(monitor_geometry);
 
     let window = display_backend::initialize_window(&mut window_def);
-<<<<<<< HEAD
 
     #[cfg(feature = "wayland")]
     {
@@ -323,8 +322,6 @@ fn initialize_window(
     if !window_def.focusable {
         window.set_type_hint(gdk::WindowTypeHint::Dock);
     }
-=======
->>>>>>> c76422e (revision #2)
 
     window.set_title(&format!("Eww - {}", window_def.name));
     let wm_class_name = format!("eww-{}", window_def.name);
@@ -351,15 +348,11 @@ fn initialize_window(
 
     display_backend::reserve_space_for(&window, monitor_geometry, window_def.struts)?;
 
-<<<<<<< HEAD
     if window_def.stacking == WindowStacking::Foreground {
         window.set_keep_above(true);
     } else {
         window.set_keep_below(true);
     }
-=======
-    display_backend::reserve_space_for(&window, monitor_geometry, window_def.struts)?;
->>>>>>> c76422e (revision #2)
 
     Ok(EwwWindow { name: window_def.name.clone(), definition: window_def, gtk_window: window })
 }

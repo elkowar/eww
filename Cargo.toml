@@ -10,7 +10,7 @@ homepage = "https://github.com/elkowar/eww"
 
 
 [features]
-default = ["wayland"]
+default = ["x11"]
 x11 = ["gdkx11", "x11rb"]
 wayland = ["gtk-layer-shell", "gtk-layer-shell-sys"]
 no-x11-wayland = []
@@ -18,10 +18,10 @@ no-x11-wayland = []
 version = "0.10.0"
 
 [dependencies]
-gtk = { git = "https://github.com/gtk-rs/gtk-rs" }
-gdk = { git = "https://github.com/gtk-rs/gtk-rs", features = ["v3_22"] }
-gdk-sys = { git = "https://github.com/gtk-rs/gtk-rs" }
-gio = { git = "https://github.com/gtk-rs/gtk-rs" }
+gtk = { git = "https://github.com/gtk-rs/gtk-rs", rev="abd4ce6f" }
+gdk = { git = "https://github.com/gtk-rs/gtk-rs", rev="abd4ce6f", features = ["v3_22"] }
+gdk-sys = { git = "https://github.com/gtk-rs/gtk-rs", rev="abd4ce6f" }
+gio = { git = "https://github.com/gtk-rs/gtk-rs", rev="abd4ce6f" }
 glib = { version = "", features = ["v2_44"] }
 
 gdk-pixbuf = "0.9"
