@@ -58,6 +58,7 @@ pub enum AttrValueExpr {
     BinOp(Box<AttrValueExpr>, BinOp, Box<AttrValueExpr>),
     UnaryOp(UnaryOp, Box<AttrValueExpr>),
     IfElse(Box<AttrValueExpr>, Box<AttrValueExpr>, Box<AttrValueExpr>),
+    JsonAccessIndex(Box<AttrValueExpr>, Box<AttrValueExpr>),
 }
 
 impl std::fmt::Display for AttrValueExpr {
@@ -68,6 +69,7 @@ impl std::fmt::Display for AttrValueExpr {
             AttrValueExpr::BinOp(l, op, r) => write!(f, "({} {} {})", l, op, r),
             AttrValueExpr::UnaryOp(op, x) => write!(f, "{}{}", op, x),
             AttrValueExpr::IfElse(a, b, c) => write!(f, "(if {} then {} else {})", a, b, c),
+            AttrValueExpr::JsonAccessIndex(value, index) => write!(f, "{}[{}]", value, index),
         }
     }
 }
@@ -101,6 +103,7 @@ impl AttrValueExpr {
             IfElse(box a, box b, box c) => {
                 Ok(IfElse(box a.resolve_refs(variables)?, box b.resolve_refs(variables)?, box c.resolve_refs(variables)?))
             }
+            JsonAccessIndex(box a, box b) => Ok(JsonAccessIndex(box a.resolve_refs(variables)?, box b.resolve_refs(variables)?)),
         }
     }
 
@@ -119,6 +122,11 @@ impl AttrValueExpr {
                 let mut refs = a.var_refs();
                 refs.append(&mut b.var_refs());
                 refs.append(&mut c.var_refs());
+                refs
+            }
+            JsonAccessIndex(box a, box b) => {
+                let mut refs = a.var_refs();
+                refs.append(&mut b.var_refs());
                 refs
             }
         }
@@ -161,6 +169,25 @@ impl AttrValueExpr {
                     yes.eval(values)
                 } else {
                     no.eval(values)
+                }
+            }
+            AttrValueExpr::JsonAccessIndex(val, index) => {
+                let val = val.eval(values)?;
+                let index = index.eval(values)?;
+                match val.as_json_value()? {
+                    serde_json::Value::Array(val) => {
+                        let index = index.as_i32()?;
+                        let indexed_value = val.get(index as usize).unwrap_or(&serde_json::Value::Null);
+                        Ok(PrimitiveValue::from(indexed_value))
+                    }
+                    serde_json::Value::Object(val) => {
+                        let indexed_value = val
+                            .get(&index.as_string()?)
+                            .or_else(|| val.get(&format!("{}", index.as_i32().ok()?)))
+                            .unwrap_or(&serde_json::Value::Null);
+                        Ok(PrimitiveValue::from(indexed_value))
+                    }
+                    _ => bail!("Unable to index into value {}", val),
                 }
             }
         }

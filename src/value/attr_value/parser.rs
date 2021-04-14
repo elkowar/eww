@@ -70,12 +70,22 @@ fn parse_factor(i: &str) -> IResult<&str, AttrValueExpr, VerboseError<&str>> {
     ))
 }
 
-fn parse_term3(i: &str) -> IResult<&str, AttrValueExpr, VerboseError<&str>> {
+fn parse_object_index(i: &str) -> IResult<&str, AttrValueExpr, VerboseError<&str>> {
     let (i, initial) = parse_factor(i)?;
     let (i, remainder) = many0(alt((
-        map(preceded(tag("*"), parse_factor), |x| (BinOp::Times, x)),
-        map(preceded(tag("/"), parse_factor), |x| (BinOp::Div, x)),
-        map(preceded(tag("%"), parse_factor), |x| (BinOp::Mod, x)),
+        delimited(tag("["), ws(parse_expr), tag("]")),
+        map(preceded(tag("."), parse_identifier), |x| AttrValueExpr::Literal(AttrValue::from_primitive(x))),
+    )))(i)?;
+    let indexes = remainder.into_iter().fold(initial, |acc, index| AttrValueExpr::JsonAccessIndex(box acc, box index));
+    Ok((i, indexes))
+}
+
+fn parse_term3(i: &str) -> IResult<&str, AttrValueExpr, VerboseError<&str>> {
+    let (i, initial) = parse_object_index(i)?;
+    let (i, remainder) = many0(alt((
+        map(preceded(tag("*"), parse_object_index), |x| (BinOp::Times, x)),
+        map(preceded(tag("/"), parse_object_index), |x| (BinOp::Div, x)),
+        map(preceded(tag("%"), parse_object_index), |x| (BinOp::Mod, x)),
     )))(i)?;
 
     let exprs = remainder.into_iter().fold(initial, |acc, (op, expr)| AttrValueExpr::BinOp(box acc, op, box expr));
@@ -171,6 +181,27 @@ mod test {
                 box AttrValueExpr::VarRef(VarName("c".to_string())),
             ),
             AttrValueExpr::parse("if a then b else c").unwrap()
+        );
+        assert_eq!(
+            AttrValueExpr::JsonAccessIndex(
+                box AttrValueExpr::VarRef(VarName("array".to_string())),
+                box AttrValueExpr::BinOp(
+                    box AttrValueExpr::Literal(AttrValue::from_primitive("1")),
+                    BinOp::Plus,
+                    box AttrValueExpr::Literal(AttrValue::from_primitive("2"))
+                )
+            ),
+            AttrValueExpr::parse(r#"(array)[1+2]"#).unwrap()
+        );
+        assert_eq!(
+            AttrValueExpr::JsonAccessIndex(
+                box AttrValueExpr::JsonAccessIndex(
+                    box AttrValueExpr::VarRef(VarName("object".to_string())),
+                    box AttrValueExpr::Literal(AttrValue::from_primitive("field".to_string())),
+                ),
+                box AttrValueExpr::Literal(AttrValue::from_primitive("field2".to_string())),
+            ),
+            AttrValueExpr::parse(r#"object.field.field2"#).unwrap()
         );
     }
     #[test]

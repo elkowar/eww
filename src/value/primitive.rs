@@ -77,6 +77,17 @@ impl From<&str> for PrimitiveValue {
     }
 }
 
+impl From<&serde_json::Value> for PrimitiveValue {
+    fn from(v: &serde_json::Value) -> Self {
+        PrimitiveValue(
+            v.as_str()
+                .map(|x| x.to_string())
+                .or_else(|| serde_json::to_string(v).ok())
+                .unwrap_or_else(|| "<invalid json value>".to_string()),
+        )
+    }
+}
+
 impl PrimitiveValue {
     pub fn from_string(s: String) -> Self {
         PrimitiveValue(s)
@@ -105,6 +116,11 @@ impl PrimitiveValue {
 
     pub fn as_vec(&self) -> Result<Vec<String>> {
         parse_vec(self.0.to_owned()).map_err(|e| anyhow!("Couldn't convert {:#?} to a vec: {}", &self, e))
+    }
+
+    pub fn as_json_value(&self) -> Result<serde_json::Value> {
+        serde_json::from_str::<serde_json::Value>(&self.0)
+            .with_context(|| format!("Couldn't convert {:#?} to a json object", &self))
     }
 }
 
