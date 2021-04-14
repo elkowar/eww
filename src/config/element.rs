@@ -42,7 +42,7 @@ pub struct WidgetUse {
     pub name: String,
     pub children: Vec<WidgetUse>,
     pub attrs: HashMap<AttrName, AttrValue>,
-    pub text_pos: Option<roxmltree::TextPos>,
+    pub text_pos: Option<TextPos>,
 }
 
 #[derive(Debug, Clone)]
@@ -92,7 +92,7 @@ impl WidgetUse {
         }
     }
 
-    pub fn at_pos(mut self, text_pos: roxmltree::TextPos) -> Self {
+    pub fn at_pos(mut self, text_pos: TextPos) -> Self {
         self.text_pos = Some(text_pos);
         self
     }
