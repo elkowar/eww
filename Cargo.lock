@@ -326,6 +326,7 @@ dependencies = [
  "regex",
  "roxmltree",
  "serde",
+ "serde_json",
  "simple-signal",
  "smart-default",
  "structopt",
@@ -829,6 +830,12 @@ checksum = "37d572918e350e82412fe766d24b15e6682fb2ed2bbe018280caa810397cb319"
 dependencies = [
  "either",
 ]
+
+[[package]]
+name = "itoa"
+version = "0.4.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd25036021b0de88a0aff6b850051563c6516d0bf53f8638938edbb9de732736"
 
 [[package]]
 name = "lasso"
@@ -1422,6 +1429,17 @@ dependencies = [
  "proc-macro2",
  "quote 1.0.9",
  "syn 1.0.64",
+]
+
+[[package]]
+name = "serde_json"
+version = "1.0.64"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "799e97dc9fdae36a5c8b8f2cae9ce2ee9fdce2058c57a93e6099d919fd982f79"
+dependencies = [
+ "itoa",
+ "ryu",
+ "serde",
 ]
 
 [[package]]
