@@ -28,9 +28,28 @@ impl<'a, 'b> fmt::Display for XmlNode<'a, 'b> {
     }
 }
 
+#[derive(PartialEq, Eq, Clone, Copy, derive_more::Display)]
+#[display(fmt = "{}:{}", row, col)]
+pub struct TextPos {
+    pub row: u32,
+    pub col: u32,
+}
+
+impl std::fmt::Debug for TextPos {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
+impl From<roxmltree::TextPos> for TextPos {
+    fn from(x: roxmltree::TextPos) -> Self {
+        TextPos { row: x.row, col: x.col }
+    }
+}
+
 /// Get the part of a string that is selected by the start and end TextPos.
 /// Will panic if the range is out of bounds in any way.
-fn get_text_from_text_range(s: &str, (start_pos, end_pos): (roxmltree::TextPos, roxmltree::TextPos)) -> String {
+fn get_text_from_text_range(s: &str, (start_pos, end_pos): (TextPos, TextPos)) -> String {
     let mut code_text =
         s.lines().dropping(start_pos.row as usize - 1).take(end_pos.row as usize - (start_pos.row as usize - 1)).collect_vec();
     if let Some(first_line) = code_text.first_mut() {
@@ -46,8 +65,8 @@ impl<'a, 'b> XmlNode<'a, 'b> {
     pub fn get_sourcecode(&self) -> String {
         let input_text = self.node().document().input_text();
         let range = self.node().range();
-        let start_pos = self.node().document().text_pos_at(range.start);
-        let end_pos = self.node().document().text_pos_at(range.end);
+        let start_pos = self.node().document().text_pos_at(range.start).into();
+        let end_pos = self.node().document().text_pos_at(range.end).into();
         get_text_from_text_range(input_text, (start_pos, end_pos))
     }
 
@@ -73,10 +92,10 @@ impl<'a, 'b> XmlNode<'a, 'b> {
         self.node().range()
     }
 
-    pub fn text_pos(&self) -> roxmltree::TextPos {
+    pub fn text_pos(&self) -> TextPos {
         let document = self.node().document();
         let range = self.node().range();
-        document.text_pos_at(range.start)
+        document.text_pos_at(range.start).into()
     }
 
     fn node(&self) -> roxmltree::Node<'a, 'b> {
@@ -102,10 +121,10 @@ impl<'a, 'b> XmlText<'a, 'b> {
         self.0.text().unwrap_or_default().trim_lines().trim_matches('\n').to_owned()
     }
 
-    pub fn text_pos(&self) -> roxmltree::TextPos {
+    pub fn text_pos(&self) -> TextPos {
         let document = self.0.document();
         let range = self.0.range();
-        document.text_pos_at(range.start)
+        document.text_pos_at(range.start).into()
     }
 }
 
@@ -209,10 +228,10 @@ impl<'a, 'b> XmlElement<'a, 'b> {
         }
     }
 
-    pub fn text_pos(&self) -> roxmltree::TextPos {
+    pub fn text_pos(&self) -> TextPos {
         let document = self.0.document();
         let range = self.0.range();
-        document.text_pos_at(range.start)
+        document.text_pos_at(range.start).into()
     }
 }
 
