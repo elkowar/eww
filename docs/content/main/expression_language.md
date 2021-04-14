@@ -32,4 +32,6 @@ The expression language supports:
 - conditionals (`if condition then 'value' else 'other value'`)
 - numbers, strings, booleans and variable references (`12`, `'hi'`, `true`, `some_variable`)
     - strings can contain other expressions again: `'foo {{some_variable}} bar'`
+- json access (`object.field`, `array[12]`, `object["field"]`)
+    - for this, the object/array value needs to refer to a variable that contains a valid json string.
 

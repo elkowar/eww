@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use crate::{
     util,
-    value::{PrimitiveValue, VarName},
+    value::{PrimVal, VarName},
 };
 
 use super::{
@@ -18,7 +18,7 @@ use std::path::PathBuf;
 pub struct EwwConfig {
     widgets: HashMap<String, WidgetDefinition>,
     windows: HashMap<WindowName, EwwWindowDefinition>,
-    initial_variables: HashMap<VarName, PrimitiveValue>,
+    initial_variables: HashMap<VarName, PrimVal>,
     script_vars: HashMap<VarName, ScriptVar>,
     pub filepath: PathBuf,
 }
@@ -44,7 +44,7 @@ impl EwwConfig {
     }
 
     // TODO this is kinda ugly
-    pub fn generate_initial_state(&self) -> Result<HashMap<VarName, PrimitiveValue>> {
+    pub fn generate_initial_state(&self) -> Result<HashMap<VarName, PrimVal>> {
         let mut vars =
             self.script_vars.iter().map(|var| Ok((var.0.clone(), var.1.initial_value()?))).collect::<Result<HashMap<_, _>>>()?;
         vars.extend(self.initial_variables.clone());
@@ -73,7 +73,7 @@ impl EwwConfig {
 pub struct RawEwwConfig {
     widgets: HashMap<String, WidgetDefinition>,
     windows: HashMap<WindowName, RawEwwWindowDefinition>,
-    initial_variables: HashMap<VarName, PrimitiveValue>,
+    initial_variables: HashMap<VarName, PrimVal>,
     script_vars: HashMap<VarName, ScriptVar>,
     pub filepath: PathBuf,
 }
@@ -181,14 +181,14 @@ impl RawEwwConfig {
     }
 }
 
-fn parse_variables_block(xml: XmlElement) -> Result<(HashMap<VarName, PrimitiveValue>, HashMap<VarName, ScriptVar>)> {
+fn parse_variables_block(xml: XmlElement) -> Result<(HashMap<VarName, PrimVal>, HashMap<VarName, ScriptVar>)> {
     let mut normal_vars = HashMap::new();
     let mut script_vars = HashMap::new();
     for node in xml.child_elements() {
         match node.tag_name() {
             "var" => {
                 let value = node.only_child().map(|c| c.as_text_or_sourcecode()).unwrap_or_else(|_| String::new());
-                normal_vars.insert(VarName(node.attr("name")?.to_owned()), PrimitiveValue::from_string(value));
+                normal_vars.insert(VarName(node.attr("name")?.to_owned()), PrimVal::from_string(value));
             }
             "script-var" => {
                 let script_var = ScriptVar::from_xml_element(node)?;
