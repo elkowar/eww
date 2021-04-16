@@ -165,7 +165,6 @@ impl App {
                 }
                 DaemonCommand::PrintState { all, sender } => {
                     let vars = self.eww_state.get_variables().iter();
-                    // duplicate code (the map) but whatever. because of difference of Filter and Iter ??
                     let output = if all {
                         vars.map(|(key, value)| format!("{}: {}", key, value)).join("\n")
                     } else {
