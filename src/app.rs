@@ -368,13 +368,6 @@ fn get_default_monitor_index() -> i32 {
     gdk::Display::get_default().expect("could not get default display").get_default_screen().get_primary_monitor()
 }
 
-pub fn get_monitor(n: i32) -> gdk::Monitor {
-    gdk::Display::get_default()
-        .expect("could not get default display")
-        .get_monitor(n)
-        .unwrap()
-}
-
 /// Get the monitor geometry of a given monitor number
 fn get_monitor_geometry(n: i32) -> gdk::Rectangle {
     gdk::Display::get_default().expect("could not get default display").get_default_screen().get_monitor_geometry(n)
