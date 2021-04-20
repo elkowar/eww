@@ -354,15 +354,9 @@ fn initialize_window(
 
     display_backend::reserve_space_for(&window, monitor_geometry, window_def.struts)?;
 
-    let gdk_window = window.get_window().context("couldn't get gdk window from gtk window")?;
-    gdk_window.set_override_redirect(!window_def.focusable);
-    gdk_window.move_(actual_window_rect.x, actual_window_rect.y);
-
     if window_def.stacking == WindowStacking::Foreground {
-        gdk_window.raise();
         window.set_keep_above(true);
     } else {
-        gdk_window.lower();
         window.set_keep_below(true);
     }
 
@@ -388,13 +382,6 @@ fn get_default_monitor_index() -> i32 {
         .expect("could not get default display")
         .get_default_screen()
         .get_primary_monitor()
-}
-
-pub fn get_monitor(n: i32) -> gdk::Monitor {
-    gdk::Display::get_default()
-        .expect("could not get default display")
-        .get_monitor(n)
-        .unwrap()
 }
 
 /// Get the monitor geometry of a given monitor number
