@@ -53,12 +53,12 @@ impl AnchorAlignment {
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default, Serialize, Deserialize)]
-pub struct SidePoint {
+pub struct AnchorPoint {
     x: AnchorAlignment,
     y: AnchorAlignment,
 }
 
-impl std::fmt::Display for SidePoint {
+impl std::fmt::Display for AnchorPoint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use AnchorAlignment::*;
         match (self.x, self.y) {
@@ -81,12 +81,12 @@ impl std::fmt::Display for SidePoint {
     }
 }
 
-impl std::str::FromStr for SidePoint {
+impl std::str::FromStr for AnchorPoint {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s == "center" {
-            Ok(SidePoint {
+            Ok(AnchorPoint {
                 x: AnchorAlignment::CENTER,
                 y: AnchorAlignment::CENTER,
             })
@@ -95,13 +95,13 @@ impl std::str::FromStr for SidePoint {
                 .split_once(' ')
                 .context("Failed to parse anchor: Must either be \"center\" or be formatted like \"top left\"")?;
             let x_y_result: Result<_> = try {
-                SidePoint {
+                AnchorPoint {
                     x: AnchorAlignment::from_x_alignment(first)?,
                     y: AnchorAlignment::from_y_alignment(second)?,
                 }
             };
             x_y_result.or_else(|_| {
-                Ok(SidePoint {
+                Ok(AnchorPoint {
                     x: AnchorAlignment::from_x_alignment(second)?,
                     y: AnchorAlignment::from_y_alignment(first)?,
                 })
@@ -112,7 +112,7 @@ impl std::str::FromStr for SidePoint {
 
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct EwwWindowGeometry {
-    pub anchor_point: SidePoint,
+    pub anchor_point: AnchorPoint,
     pub offset: Coords,
     pub size: Coords,
 }
@@ -132,7 +132,7 @@ impl EwwWindowGeometry {
         })
     }
 
-    pub fn override_if_given(&mut self, anchor_point: Option<SidePoint>, offset: Option<Coords>, size: Option<Coords>) -> Self {
+    pub fn override_if_given(&mut self, anchor_point: Option<AnchorPoint>, offset: Option<Coords>, size: Option<Coords>) -> Self {
         EwwWindowGeometry {
             anchor_point: anchor_point.unwrap_or(self.anchor_point),
             offset: offset.unwrap_or(self.offset),

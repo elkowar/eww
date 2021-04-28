@@ -1,6 +1,6 @@
 use crate::{
     config,
-    config::{window_definition::WindowName, SidePoint, WindowStacking},
+    config::{window_definition::WindowName, AnchorPoint, WindowStacking},
     display_backend, eww_state,
     script_var_handler::*,
     value::{Coords, NumWithUnit, PrimitiveValue, VarName},
@@ -51,7 +51,7 @@ pub enum DaemonCommand {
         window_name: WindowName,
         pos: Option<Coords>,
         size: Option<Coords>,
-        anchor: Option<SidePoint>,
+        anchor: Option<AnchorPoint>,
         sender: DaemonResponseSender,
     },
     CloseWindow {
@@ -236,7 +236,7 @@ impl App {
         window_name: &WindowName,
         pos: Option<Coords>,
         size: Option<Coords>,
-        anchor: Option<config::SidePoint>,
+        anchor: Option<config::AnchorPoint>,
     ) -> Result<()> {
         // remove and close existing window with the same name
         let _ = self.close_window(window_name);

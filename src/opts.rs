@@ -4,7 +4,7 @@ use structopt::StructOpt;
 
 use crate::{
     app,
-    config::{SidePoint, WindowName},
+    config::{AnchorPoint, WindowName},
     value::{Coords, PrimitiveValue, VarName},
 };
 
@@ -79,7 +79,7 @@ pub enum ActionWithServer {
 
         /// Sidepoint of the window, formatted like "top right"
         #[structopt(short, long)]
-        anchor: Option<SidePoint>,
+        anchor: Option<AnchorPoint>,
     },
 
     /// Open multiple windows at once.
