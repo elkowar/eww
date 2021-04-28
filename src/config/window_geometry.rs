@@ -8,7 +8,7 @@ use std::fmt;
 use super::xml_ext::XmlElement;
 
 #[derive(Debug, derive_more::Display, Clone, Copy, Eq, PartialEq, SmartDefault, Serialize, Deserialize)]
-pub enum SideAlignment {
+pub enum AnchorAlignment {
     #[display("start")]
     #[default]
     START,
@@ -18,12 +18,12 @@ pub enum SideAlignment {
     END,
 }
 
-impl SideAlignment {
-    pub fn from_x_alignment(s: &str) -> Result<SideAlignment> {
+impl AnchorAlignment {
+    pub fn from_x_alignment(s: &str) -> Result<AnchorAlignment> {
         match s {
-            "l" | "left" => Ok(SideAlignment::START),
-            "c" | "center" => Ok(SideAlignment::CENTER),
-            "r" | "right" => Ok(SideAlignment::END),
+            "l" | "left" => Ok(AnchorAlignment::START),
+            "c" | "center" => Ok(AnchorAlignment::CENTER),
+            "r" | "right" => Ok(AnchorAlignment::END),
             _ => bail!(
                 r#"couldn't parse '{}' as x-alignment. Must be one of "left", "center", "right""#,
                 s
@@ -31,11 +31,11 @@ impl SideAlignment {
         }
     }
 
-    pub fn from_y_alignment(s: &str) -> Result<SideAlignment> {
+    pub fn from_y_alignment(s: &str) -> Result<AnchorAlignment> {
         match s {
-            "t" | "top" => Ok(SideAlignment::START),
-            "c" | "center" => Ok(SideAlignment::CENTER),
-            "b" | "bottom" => Ok(SideAlignment::END),
+            "t" | "top" => Ok(AnchorAlignment::START),
+            "c" | "center" => Ok(AnchorAlignment::CENTER),
+            "b" | "bottom" => Ok(AnchorAlignment::END),
             _ => bail!(
                 r#"couldn't parse '{}' as y-alignment. Must be one of "top", "center", "bottom""#,
                 s
@@ -45,22 +45,22 @@ impl SideAlignment {
 
     pub fn alignment_to_coordinate(&self, size_inner: i32, size_container: i32) -> i32 {
         match self {
-            SideAlignment::START => 0,
-            SideAlignment::CENTER => (size_container / 2) - (size_inner / 2),
-            SideAlignment::END => size_container - size_inner,
+            AnchorAlignment::START => 0,
+            AnchorAlignment::CENTER => (size_container / 2) - (size_inner / 2),
+            AnchorAlignment::END => size_container - size_inner,
         }
     }
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default, Serialize, Deserialize)]
 pub struct SidePoint {
-    x: SideAlignment,
-    y: SideAlignment,
+    x: AnchorAlignment,
+    y: AnchorAlignment,
 }
 
 impl std::fmt::Display for SidePoint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use SideAlignment::*;
+        use AnchorAlignment::*;
         match (self.x, self.y) {
             (CENTER, CENTER) => write!(f, "center"),
             (x, y) => write!(
@@ -87,8 +87,8 @@ impl std::str::FromStr for SidePoint {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s == "center" {
             Ok(SidePoint {
-                x: SideAlignment::CENTER,
-                y: SideAlignment::CENTER,
+                x: AnchorAlignment::CENTER,
+                y: AnchorAlignment::CENTER,
             })
         } else {
             let (first, second) = s
@@ -96,14 +96,14 @@ impl std::str::FromStr for SidePoint {
                 .context("Failed to parse anchor: Must either be \"center\" or be formatted like \"top left\"")?;
             let x_y_result: Result<_> = try {
                 SidePoint {
-                    x: SideAlignment::from_x_alignment(first)?,
-                    y: SideAlignment::from_y_alignment(second)?,
+                    x: AnchorAlignment::from_x_alignment(first)?,
+                    y: AnchorAlignment::from_y_alignment(second)?,
                 }
             };
             x_y_result.or_else(|_| {
                 Ok(SidePoint {
-                    x: SideAlignment::from_x_alignment(second)?,
-                    y: SideAlignment::from_y_alignment(first)?,
+                    x: AnchorAlignment::from_x_alignment(second)?,
+                    y: AnchorAlignment::from_y_alignment(first)?,
                 })
             })
         }

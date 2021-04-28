@@ -190,7 +190,7 @@ impl std::str::FromStr for WindowStacking {
         let s = s.to_lowercase();
         match s.as_str() {
             "foreground" | "fg" | "f" => Ok(WindowStacking::Foreground),
-            "background" | "bg" | "g" => Ok(WindowStacking::Background),
+            "background" | "bg" | "b" => Ok(WindowStacking::Background),
             _ => Err(anyhow!(
                 "Couldn't parse '{}' as window stacking, must be either foreground, fg, background or bg",
                 s
