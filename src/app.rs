@@ -10,7 +10,7 @@ use anyhow::*;
 use debug_stub_derive::*;
 use gtk::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt};
 use itertools::Itertools;
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 use tokio::sync::mpsc::UnboundedSender;
 
 /// Response that the app may send as a response to a event.
