@@ -215,16 +215,7 @@ impl App {
         window_name: &WindowName,
         pos: Option<Coords>,
         size: Option<Coords>,
-<<<<<<< HEAD
-<<<<<<< HEAD
-        monitor: Option<i32>,
         anchor: Option<config::AnchorPoint>,
-=======
-        anchor: Option<config::SidePoint>,
->>>>>>> 09d6a8c (fix conflics and cargo fmt)
-=======
-        anchor: Option<config::AnchorPoint>,
->>>>>>> 49219e1 (conflicts: a never ending loop...)
     ) -> Result<()> {
         // remove and close existing window with the same name
         let _ = self.close_window(window_name);
