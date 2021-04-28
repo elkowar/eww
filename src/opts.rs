@@ -5,6 +5,7 @@ use structopt::StructOpt;
 use crate::{
     app,
 <<<<<<< HEAD
+<<<<<<< HEAD
     config::{AnchorPoint, WindowName},
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -16,6 +17,9 @@ use crate::{
 =======
     config::{SidePoint, WindowName},
 >>>>>>> 09d6a8c (fix conflics and cargo fmt)
+=======
+    config::{AnchorPoint, WindowName},
+>>>>>>> 49219e1 (conflicts: a never ending loop...)
     value::{Coords, PrimitiveValue, VarName},
 >>>>>>> 9c6cded (cargo fmt)
 };
@@ -96,7 +100,7 @@ pub enum ActionWithServer {
 
         /// Sidepoint of the window, formatted like "top right"
         #[structopt(short, long)]
-        anchor: Option<SidePoint>,
+        anchor: Option<AnchorPoint>,
     },
 
     /// Open multiple windows at once.
