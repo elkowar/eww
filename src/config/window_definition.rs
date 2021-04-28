@@ -82,7 +82,7 @@ impl RawEwwWindowDefinition {
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, smart_default::SmartDefault)]
-pub enum Anchor {
+pub enum Side {
     #[default]
     Top,
     Left,
@@ -95,16 +95,16 @@ pub enum Anchor {
     BottomRight,
 }
 
-impl std::str::FromStr for Anchor {
+impl std::str::FromStr for Side {
     type Err = anyhow::Error;
 
     #[cfg(feature = "x11")]
-    fn from_str(s: &str) -> Result<Anchor> {
+    fn from_str(s: &str) -> Result<Side> {
         match s {
-            "l" | "left" => Ok(Anchor::Left),
-            "r" | "right" => Ok(Anchor::Right),
-            "t" | "top" => Ok(Anchor::Top),
-            "b" | "bottom" => Ok(Anchor::Bottom),
+            "l" | "left" => Ok(Side::Left),
+            "r" | "right" => Ok(Side::Right),
+            "t" | "top" => Ok(Side::Top),
+            "b" | "bottom" => Ok(Side::Bottom),
             _ => Err(anyhow!(
                 "Failed to parse {} as valid side. Must be one of \"left\", \"right\", \"top\", \"bottom\"",
                 s
@@ -113,17 +113,17 @@ impl std::str::FromStr for Anchor {
     }
 
     #[cfg(feature = "wayland")]
-    fn from_str(s: &str) -> Result<Anchor> {
+    fn from_str(s: &str) -> Result<Side> {
         match s {
-            "l" | "left" => Ok(Anchor::Left),
-            "r" | "right" => Ok(Anchor::Right),
-            "t" | "top" => Ok(Anchor::Top),
-            "b" | "bottom" => Ok(Anchor::Bottom),
-            "c" | "center" => Ok(Anchor::Center),
-            "tl" | "top-left" => Ok(Anchor::TopLeft),
-            "tr" | "top-right" => Ok(Anchor::TopRight),
-            "bl" | "bottom-left" => Ok(Anchor::BottomLeft),
-            "br" | "bottom-right" => Ok(Anchor::BottomRight),
+            "l" | "left" => Ok(Side::Left),
+            "r" | "right" => Ok(Side::Right),
+            "t" | "top" => Ok(Side::Top),
+            "b" | "bottom" => Ok(Side::Bottom),
+            "c" | "center" => Ok(Side::Center),
+            "tl" | "top-left" => Ok(Side::TopLeft),
+            "tr" | "top-right" => Ok(Side::TopRight),
+            "bl" | "bottom-left" => Ok(Side::BottomLeft),
+            "br" | "bottom-right" => Ok(Side::BottomRight),
             _ => Err(anyhow!(
                 r#"Failed to parse {} as valid side. Must be one of "left", "right", "top", "bottom", "top-right", "top-left", "bottom-left", "bottom-right""#,
                 s
@@ -136,7 +136,7 @@ impl std::str::FromStr for Anchor {
 #[cfg(feature = "x11")]
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct StrutDefinition {
-    pub side: Anchor,
+    pub side: Side,
     pub dist: NumWithUnit,
 }
 
@@ -155,7 +155,7 @@ impl StrutDefinition {
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct StrutDefinition {
     pub exclusive: bool,
-    pub side: Anchor,
+    pub side: Side,
     pub coords: Coords,
 }
 
@@ -189,8 +189,8 @@ impl std::str::FromStr for WindowStacking {
     fn from_str(s: &str) -> Result<Self> {
         let s = s.to_lowercase();
         match s.as_str() {
-            "foreground" | "fg" => Ok(WindowStacking::Foreground),
-            "background" | "bg" => Ok(WindowStacking::Background),
+            "foreground" | "fg" | "f" => Ok(WindowStacking::Foreground),
+            "background" | "bg" | "g" => Ok(WindowStacking::Background),
             _ => Err(anyhow!(
                 "Couldn't parse '{}' as window stacking, must be either foreground, fg, background or bg",
                 s

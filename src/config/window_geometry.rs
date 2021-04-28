@@ -8,7 +8,7 @@ use std::fmt;
 use super::xml_ext::XmlElement;
 
 #[derive(Debug, derive_more::Display, Clone, Copy, Eq, PartialEq, SmartDefault, Serialize, Deserialize)]
-pub enum AnchorAlignment {
+pub enum SideAlignment {
     #[display("start")]
     #[default]
     START,
@@ -18,12 +18,12 @@ pub enum AnchorAlignment {
     END,
 }
 
-impl AnchorAlignment {
-    pub fn from_x_alignment(s: &str) -> Result<AnchorAlignment> {
+impl SideAlignment {
+    pub fn from_x_alignment(s: &str) -> Result<SideAlignment> {
         match s {
-            "l" | "left" => Ok(AnchorAlignment::START),
-            "c" | "center" => Ok(AnchorAlignment::CENTER),
-            "r" | "right" => Ok(AnchorAlignment::END),
+            "l" | "left" => Ok(SideAlignment::START),
+            "c" | "center" => Ok(SideAlignment::CENTER),
+            "r" | "right" => Ok(SideAlignment::END),
             _ => bail!(
                 r#"couldn't parse '{}' as x-alignment. Must be one of "left", "center", "right""#,
                 s
@@ -31,11 +31,11 @@ impl AnchorAlignment {
         }
     }
 
-    pub fn from_y_alignment(s: &str) -> Result<AnchorAlignment> {
+    pub fn from_y_alignment(s: &str) -> Result<SideAlignment> {
         match s {
-            "t" | "top" => Ok(AnchorAlignment::START),
-            "c" | "center" => Ok(AnchorAlignment::CENTER),
-            "b" | "bottom" => Ok(AnchorAlignment::END),
+            "t" | "top" => Ok(SideAlignment::START),
+            "c" | "center" => Ok(SideAlignment::CENTER),
+            "b" | "bottom" => Ok(SideAlignment::END),
             _ => bail!(
                 r#"couldn't parse '{}' as y-alignment. Must be one of "top", "center", "bottom""#,
                 s
@@ -45,22 +45,22 @@ impl AnchorAlignment {
 
     pub fn alignment_to_coordinate(&self, size_inner: i32, size_container: i32) -> i32 {
         match self {
-            AnchorAlignment::START => 0,
-            AnchorAlignment::CENTER => (size_container / 2) - (size_inner / 2),
-            AnchorAlignment::END => size_container - size_inner,
+            SideAlignment::START => 0,
+            SideAlignment::CENTER => (size_container / 2) - (size_inner / 2),
+            SideAlignment::END => size_container - size_inner,
         }
     }
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default, Serialize, Deserialize)]
-pub struct AnchorPoint {
-    x: AnchorAlignment,
-    y: AnchorAlignment,
+pub struct SidePoint {
+    x: SideAlignment,
+    y: SideAlignment,
 }
 
-impl std::fmt::Display for AnchorPoint {
+impl std::fmt::Display for SidePoint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use AnchorAlignment::*;
+        use SideAlignment::*;
         match (self.x, self.y) {
             (CENTER, CENTER) => write!(f, "center"),
             (x, y) => write!(
@@ -81,29 +81,29 @@ impl std::fmt::Display for AnchorPoint {
     }
 }
 
-impl std::str::FromStr for AnchorPoint {
+impl std::str::FromStr for SidePoint {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s == "center" {
-            Ok(AnchorPoint {
-                x: AnchorAlignment::CENTER,
-                y: AnchorAlignment::CENTER,
+            Ok(SidePoint {
+                x: SideAlignment::CENTER,
+                y: SideAlignment::CENTER,
             })
         } else {
             let (first, second) = s
                 .split_once(' ')
                 .context("Failed to parse anchor: Must either be \"center\" or be formatted like \"top left\"")?;
             let x_y_result: Result<_> = try {
-                AnchorPoint {
-                    x: AnchorAlignment::from_x_alignment(first)?,
-                    y: AnchorAlignment::from_y_alignment(second)?,
+                SidePoint {
+                    x: SideAlignment::from_x_alignment(first)?,
+                    y: SideAlignment::from_y_alignment(second)?,
                 }
             };
             x_y_result.or_else(|_| {
-                Ok(AnchorPoint {
-                    x: AnchorAlignment::from_x_alignment(second)?,
-                    y: AnchorAlignment::from_y_alignment(first)?,
+                Ok(SidePoint {
+                    x: SideAlignment::from_x_alignment(second)?,
+                    y: SideAlignment::from_y_alignment(first)?,
                 })
             })
         }
@@ -112,7 +112,7 @@ impl std::str::FromStr for AnchorPoint {
 
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct EwwWindowGeometry {
-    pub anchor_point: AnchorPoint,
+    pub anchor_point: SidePoint,
     pub offset: Coords,
     pub size: Coords,
 }
@@ -132,7 +132,7 @@ impl EwwWindowGeometry {
         })
     }
 
-    pub fn override_if_given(&mut self, anchor_point: Option<AnchorPoint>, offset: Option<Coords>, size: Option<Coords>) -> Self {
+    pub fn override_if_given(&mut self, anchor_point: Option<SidePoint>, offset: Option<Coords>, size: Option<Coords>) -> Self {
         EwwWindowGeometry {
             anchor_point: anchor_point.unwrap_or(self.anchor_point),
             offset: offset.unwrap_or(self.offset),

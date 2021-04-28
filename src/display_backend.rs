@@ -2,7 +2,7 @@ pub use platform::*;
 
 #[cfg(feature = "no-x11-wayland")]
 mod platform {
-    use crate::config::{Anchor, StrutDefinition};
+    use crate::config::{Side, StrutDefinition};
     use anyhow::*;
     pub fn reserve_space_for(window: &gtk::Window, monitor: gdk::Rectangle, strut_def: StrutDefinition) -> Result<()> {
         Err(anyhow!("Cannot reserve space on non X11 or and wayland backends"))
@@ -13,7 +13,7 @@ mod platform {
 mod platform {
     use crate::{
         app::get_monitor,
-        config::{EwwWindowDefinition, Anchor, StrutDefinition, WindowStacking},
+        config::{EwwWindowDefinition, Side, StrutDefinition, WindowStacking},
     };
     use anyhow::*;
     use gtk::prelude::*;
@@ -73,30 +73,30 @@ mod platform {
             let mut bottom = false;
 
             match surface.side {
-                Anchor::Top => top = true,
-                Anchor::Left => left = true,
-                Anchor::Right => right = true,
-                Anchor::Bottom => bottom = true,
-                Anchor::Center => {}
-                Anchor::TopLeft => {
+                Side::Top => top = true,
+                Side::Left => left = true,
+                Side::Right => right = true,
+                Side::Bottom => bottom = true,
+                Side::Center => {}
+                Side::TopLeft => {
                     top = true;
                     left = true;
                 }
-                Anchor::TopRight => {
+                Side::TopRight => {
                     top = true;
                     right = true;
                 }
-                Anchor::BottomRight => {
+                Side::BottomRight => {
                     bottom = true;
                     right = true;
                 }
-                Anchor::BottomLeft => {
+                Side::BottomLeft => {
                     left = true;
                     bottom = true;
                 }
             }
 
-            // Anchors are if the window is pinned to each edge of the output
+            // Sides are if the window is pinned to each edge of the output
             gtk_layer_shell::set_anchor(window, gtk_layer_shell::Edge::Left, left);
             gtk_layer_shell::set_anchor(window, gtk_layer_shell::Edge::Right, right);
             gtk_layer_shell::set_anchor(window, gtk_layer_shell::Edge::Top, top);
@@ -121,7 +121,7 @@ mod platform {
 
 #[cfg(feature = "x11")]
 mod platform {
-    use crate::config::{Anchor, StrutDefinition, EwwWindowDefinition, WindowStacking};
+    use crate::config::{EwwWindowDefinition, Side, StrutDefinition, WindowStacking};
     use anyhow::*;
     use gdkx11;
     use gtk::{self, prelude::*};
@@ -190,8 +190,8 @@ mod platform {
             let mon_end_y = (monitor_rect.y + monitor_rect.height) as u32 - 1u32;
 
             let dist = match strut_def.side {
-                Anchor::Left | Anchor::Right => strut_def.dist.relative_to(monitor_rect.width) as u32,
-                Anchor::Top | Anchor::Bottom => strut_def.dist.relative_to(monitor_rect.height) as u32,
+                Side::Left | Side::Right => strut_def.dist.relative_to(monitor_rect.width) as u32,
+                Side::Top | Side::Bottom => strut_def.dist.relative_to(monitor_rect.height) as u32,
                 _ => (monitor_rect.height / 2) as u32,
             };
 
@@ -200,10 +200,10 @@ mod platform {
             // left, right, top, bottom, left_start_y, left_end_y, right_start_y, right_end_y, top_start_x, top_end_x, bottom_start_x, bottom_end_x
             #[rustfmt::skip]
             let strut_list: Vec<u8> = match strut_def.side {
-                Anchor::Left   => vec![dist + monitor_rect.x as u32,  0,                                                     0,                             0,                                                      monitor_rect.y as u32,  mon_end_y,  0,                      0,          0,                      0,          0,                      0],
-                Anchor::Right  => vec![0,                             root_window_geometry.width as u32 - mon_end_x + dist,  0,                             0,                                                      0,                      0,          monitor_rect.y as u32,  mon_end_y,  0,                      0,          0,                      0],
-                Anchor::Top    => vec![0,                             0,                                                     dist + monitor_rect.y as u32,  0,                                                      0,                      0,          0,                      0,          monitor_rect.x as u32,  mon_end_x,  0,                      0],
-                Anchor::Bottom => vec![0,                             0,                                                     0,                             root_window_geometry.height as u32 - mon_end_y + dist,  0,                      0,          0,                      0,          0,                      0,          monitor_rect.x as u32,  mon_end_x],
+                Side::Left   => vec![dist + monitor_rect.x as u32,  0,                                                     0,                             0,                                                      monitor_rect.y as u32,  mon_end_y,  0,                      0,          0,                      0,          0,                      0],
+                Side::Right  => vec![0,                             root_window_geometry.width as u32 - mon_end_x + dist,  0,                             0,                                                      0,                      0,          monitor_rect.y as u32,  mon_end_y,  0,                      0,          0,                      0],
+                Side::Top    => vec![0,                             0,                                                     dist + monitor_rect.y as u32,  0,                                                      0,                      0,          0,                      0,          monitor_rect.x as u32,  mon_end_x,  0,                      0],
+                Side::Bottom => vec![0,                             0,                                                     0,                             root_window_geometry.height as u32 - mon_end_y + dist,  0,                      0,          0,                      0,          0,                      0,          monitor_rect.x as u32,  mon_end_x],
                 // This should never happen but if it does the window will be anchored on the
                 // right of the screen
                 _  => vec![0,                             root_window_geometry.width as u32 - mon_end_x + dist,  0,                             0,                                                      0,                      0,          monitor_rect.y as u32,  mon_end_y,  0,                      0,          0,                      0],
