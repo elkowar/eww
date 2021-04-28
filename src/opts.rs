@@ -4,6 +4,7 @@ use structopt::StructOpt;
 
 use crate::{
     app,
+<<<<<<< HEAD
     config::{AnchorPoint, WindowName},
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -12,6 +13,9 @@ use crate::{
     value::{Coords,PrimitiveValue, VarName},
 >>>>>>> 782db39 (gtk-layer-shell-rs imported)
 =======
+=======
+    config::{SidePoint, WindowName},
+>>>>>>> 09d6a8c (fix conflics and cargo fmt)
     value::{Coords, PrimitiveValue, VarName},
 >>>>>>> 9c6cded (cargo fmt)
 };
@@ -92,7 +96,7 @@ pub enum ActionWithServer {
 
         /// Sidepoint of the window, formatted like "top right"
         #[structopt(short, long)]
-        anchor: Option<AnchorPoint>,
+        anchor: Option<SidePoint>,
     },
 
     /// Open multiple windows at once.
