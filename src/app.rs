@@ -3,7 +3,7 @@ use crate::{
     config::{window_definition::WindowName, AnchorPoint, WindowStacking},
     display_backend, eww_state,
     script_var_handler::*,
-    value::{Coords, NumWithUnit, PrimitiveValue, VarName},
+    value::{Coords, NumWithUnit, PrimVal, VarName},
     EwwPaths,
 };
 use anyhow::*;
@@ -41,7 +41,7 @@ pub type DaemonResponseReceiver = tokio::sync::mpsc::UnboundedReceiver<DaemonRes
 #[derive(Debug)]
 pub enum DaemonCommand {
     NoOp,
-    UpdateVars(Vec<(VarName, PrimitiveValue)>),
+    UpdateVars(Vec<(VarName, PrimVal)>),
     ReloadConfigAndCss(DaemonResponseSender),
     UpdateConfig(config::EwwConfig),
     UpdateCss(String),
@@ -202,7 +202,7 @@ impl App {
         gtk::main_quit();
     }
 
-    fn update_state(&mut self, fieldname: VarName, value: PrimitiveValue) {
+    fn update_state(&mut self, fieldname: VarName, value: PrimVal) {
         self.eww_state.update_variable(fieldname, value)
     }
 

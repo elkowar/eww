@@ -1,6 +1,6 @@
 use crate::{
     config::{system_stats::*, PollScriptVar, ScriptVar, VarSource},
-    value::{PrimitiveValue, VarName},
+    value::{PrimVal as PrimitiveValue, VarName},
 };
 use std::{collections::HashMap, time::Duration};
 

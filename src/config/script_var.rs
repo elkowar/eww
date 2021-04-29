@@ -9,7 +9,7 @@ use super::*;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum VarSource {
     Shell(String),
-    Function(fn() -> Result<PrimitiveValue>),
+    Function(fn() -> Result<PrimVal>),
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PollScriptVar {
@@ -19,7 +19,7 @@ pub struct PollScriptVar {
 }
 
 impl PollScriptVar {
-    pub fn run_once(&self) -> Result<PrimitiveValue> {
+    pub fn run_once(&self) -> Result<PrimVal> {
         match &self.command {
             VarSource::Shell(x) => run_command(x),
             VarSource::Function(x) => x(),
@@ -47,7 +47,7 @@ impl ScriptVar {
         }
     }
 
-    pub fn initial_value(&self) -> Result<PrimitiveValue> {
+    pub fn initial_value(&self) -> Result<PrimVal> {
         match self {
             ScriptVar::Poll(x) => match &x.command {
                 VarSource::Function(f) => f().with_context(|| format!("Failed to compute initial value for {}", &self.name())),
@@ -55,7 +55,7 @@ impl ScriptVar {
                     run_command(&f).with_context(|| format!("Failed to compute initial value for {}", &self.name()))
                 }
             },
-            ScriptVar::Tail(_) => Ok(PrimitiveValue::from_string(String::new())),
+            ScriptVar::Tail(_) => Ok(PrimVal::from_string(String::new())),
         }
     }
 
@@ -65,7 +65,7 @@ impl ScriptVar {
         let name = VarName(xml.attr("name")?.to_owned());
         let command = xml.only_child()?.as_text()?.text();
         if let Ok(interval) = xml.attr("interval") {
-            let interval = util::parse_duration(interval)?;
+            let interval = util::parse_duration(&interval)?;
             Ok(ScriptVar::Poll(PollScriptVar {
                 name,
                 command: crate::config::VarSource::Shell(command),
@@ -78,9 +78,9 @@ impl ScriptVar {
 }
 
 /// Run a command and get the output
-fn run_command(cmd: &str) -> Result<PrimitiveValue> {
+fn run_command(cmd: &str) -> Result<PrimVal> {
     log::debug!("Running command: {}", cmd);
     let output = String::from_utf8(Command::new("/bin/sh").arg("-c").arg(cmd).output()?.stdout)?;
     let output = output.trim_matches('\n');
-    Ok(PrimitiveValue::from(output))
+    Ok(PrimVal::from(output))
 }

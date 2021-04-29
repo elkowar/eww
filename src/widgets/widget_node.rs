@@ -1,17 +1,18 @@
 use crate::{
     config::{
         element::{WidgetDefinition, WidgetUse},
+        xml_ext::TextPos,
         WindowName,
     },
     eww_state::EwwState,
-    value::{AttrName, AttrValue, VarName},
+    value::{AttrName, AttrVal, VarName},
 };
 use anyhow::*;
 use dyn_clone;
 use std::collections::HashMap;
 pub trait WidgetNode: std::fmt::Debug + dyn_clone::DynClone + Send + Sync {
     fn get_name(&self) -> &str;
-    fn get_text_pos(&self) -> Option<&roxmltree::TextPos>;
+    fn get_text_pos(&self) -> Option<TextPos>;
 
     /// Generate a [gtk::Widget] from a [element::WidgetUse].
     ///
@@ -33,7 +34,7 @@ dyn_clone::clone_trait_object!(WidgetNode);
 #[derive(Debug, Clone)]
 pub struct UserDefined {
     name: String,
-    text_pos: Option<roxmltree::TextPos>,
+    text_pos: Option<TextPos>,
     content: Box<dyn WidgetNode>,
 }
 
@@ -42,8 +43,8 @@ impl WidgetNode for UserDefined {
         &self.name
     }
 
-    fn get_text_pos(&self) -> Option<&roxmltree::TextPos> {
-        self.text_pos.as_ref()
+    fn get_text_pos(&self) -> Option<TextPos> {
+        self.text_pos
     }
 
     fn render(
@@ -59,13 +60,13 @@ impl WidgetNode for UserDefined {
 #[derive(Debug, Clone)]
 pub struct Generic {
     pub name: String,
-    pub text_pos: Option<roxmltree::TextPos>,
+    pub text_pos: Option<TextPos>,
     pub children: Vec<Box<dyn WidgetNode>>,
-    pub attrs: HashMap<AttrName, AttrValue>,
+    pub attrs: HashMap<AttrName, AttrVal>,
 }
 
 impl Generic {
-    pub fn get_attr(&self, key: &str) -> Result<&AttrValue> {
+    pub fn get_attr(&self, key: &str) -> Result<&AttrVal> {
         self.attrs.get(key).context(format!("attribute '{}' missing from use of '{}'", key, &self.name))
     }
 
@@ -80,8 +81,8 @@ impl WidgetNode for Generic {
         &self.name
     }
 
-    fn get_text_pos(&self) -> Option<&roxmltree::TextPos> {
-        self.text_pos.as_ref()
+    fn get_text_pos(&self) -> Option<TextPos> {
+        self.text_pos
     }
 
     fn render(
@@ -97,7 +98,7 @@ impl WidgetNode for Generic {
 
 pub fn generate_generic_widget_node(
     defs: &HashMap<String, WidgetDefinition>,
-    local_env: &HashMap<VarName, AttrValue>,
+    local_env: &HashMap<VarName, AttrVal>,
     w: WidgetUse,
 ) -> Result<Box<dyn WidgetNode>> {
     if let Some(def) = defs.get(&w.name) {

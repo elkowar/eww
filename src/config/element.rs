@@ -4,7 +4,7 @@ use regex::Regex;
 use std::ops::Range;
 
 use crate::{
-    value::{AttrName, AttrValue},
+    value::{AttrName, AttrVal},
     with_text_pos_context,
 };
 use maplit::hashmap;
@@ -41,8 +41,8 @@ impl WidgetDefinition {
 pub struct WidgetUse {
     pub name: String,
     pub children: Vec<WidgetUse>,
-    pub attrs: HashMap<AttrName, AttrValue>,
-    pub text_pos: Option<roxmltree::TextPos>,
+    pub attrs: HashMap<AttrName, AttrVal>,
+    pub text_pos: Option<TextPos>,
 }
 
 #[derive(Debug, Clone)]
@@ -67,14 +67,19 @@ impl WidgetUse {
         };
         let text_pos = xml.text_pos();
         let widget_use = match xml {
-            XmlNode::Text(text) => WidgetUse::simple_text(AttrValue::parse_string(&text.text())),
+            XmlNode::Text(text) => WidgetUse::simple_text(AttrVal::parse_string(&text.text())),
             XmlNode::Element(elem) => WidgetUse {
                 name: elem.tag_name().to_owned(),
                 children: with_text_pos_context! { elem => elem.children().map(WidgetUse::from_xml_node).collect::<Result<_>>()?}?,
                 attrs: elem
                     .attributes()
                     .iter()
-                    .map(|attr| (AttrName(attr.name().to_owned()), AttrValue::parse_string(attr.value())))
+                    .map(|attr| {
+                        (
+                            AttrName(attr.name().to_owned()),
+                            AttrVal::parse_string(&xml_ext::resolve_escaped_symbols(&attr.value())),
+                        )
+                    })
                     .collect::<HashMap<_, _>>(),
                 ..WidgetUse::default()
             },
@@ -83,7 +88,7 @@ impl WidgetUse {
         Ok(widget_use.at_pos(text_pos))
     }
 
-    pub fn simple_text(text: AttrValue) -> Self {
+    pub fn simple_text(text: AttrVal) -> Self {
         WidgetUse {
             name: "label".to_owned(),
             children: vec![],
@@ -92,7 +97,7 @@ impl WidgetUse {
         }
     }
 
-    pub fn at_pos(mut self, text_pos: roxmltree::TextPos) -> Self {
+    pub fn at_pos(mut self, text_pos: TextPos) -> Self {
         self.text_pos = Some(text_pos);
         self
     }
@@ -106,7 +111,7 @@ mod test {
 
     #[test]
     fn test_simple_text() {
-        let expected_attr_value = AttrValue::from_primitive("my text");
+        let expected_attr_value = AttrVal::from_primitive("my text");
         let widget = WidgetUse::simple_text(expected_attr_value.clone());
         assert_eq!(
             widget,
@@ -133,12 +138,12 @@ mod test {
         let expected = WidgetUse {
             name: "widget_name".to_owned(),
             attrs: hashmap! {
-                 AttrName("attr1".to_owned()) => AttrValue::from_primitive("hi"),
-                 AttrName("attr2".to_owned()) => AttrValue::from_primitive("12"),
+                 AttrName("attr1".to_owned()) => AttrVal::from_primitive("hi"),
+                 AttrName("attr2".to_owned()) => AttrVal::from_primitive("12"),
             },
             children: vec![
                 WidgetUse::new("child_widget".to_owned(), Vec::new()),
-                WidgetUse::simple_text(AttrValue::from_primitive("foo".to_owned())),
+                WidgetUse::simple_text(AttrVal::from_primitive("foo".to_owned())),
             ],
             ..WidgetUse::default()
         };
@@ -160,7 +165,7 @@ mod test {
             size: Some((12, 20)),
             structure: WidgetUse {
                 name: "layout".to_owned(),
-                children: vec![WidgetUse::simple_text(AttrValue::from_primitive("test"))],
+                children: vec![WidgetUse::simple_text(AttrVal::from_primitive("test"))],
                 attrs: HashMap::new(),
                 ..WidgetUse::default()
             },

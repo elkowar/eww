@@ -1,6 +1,6 @@
 use crate::{
     util,
-    value::{PrimitiveValue, VarName},
+    value::{PrimVal, VarName},
 };
 
 use anyhow::*;
