@@ -28,7 +28,10 @@ pub fn get_inbuilt_vars() -> HashMap<VarName, ScriptVar> {
         // @desc EWW_DISK - Used space on / in GB (Might report inaccurately on some filesystems, like btrfs)
         "EWW_DISK" => || Ok(PrimitiveValue::from(format!("{:.1}",
             match disk() {
-                Err(e) => {log::error!("Couldn't get disk usage on `/`: {:?}", e); f32::NAN}
+                Err(e) => {
+                    log::error!("Couldn't get disk usage on `/`: {:?}", e);
+                    f32::NAN
+                }
                 Ok(o) => o
             }
         ))),
@@ -36,10 +39,14 @@ pub fn get_inbuilt_vars() -> HashMap<VarName, ScriptVar> {
         // @desc EWW_BATTERY - Battery capacity in procent of the main battery
         "EWW_BATTERY" => || Ok(PrimitiveValue::from(
             match get_battery_capacity() {
-                Err(e) => {log::error!("Couldn't get the battery capacity: {:?}", e); f32::NAN }
+                Err(e) => {
+                    log::error!("Couldn't get the battery capacity: {:?}", e);
+                    f32::NAN
+                }
                 Ok(o) => o as f32,
             }
         )),
+
 
         // @desc EWW_CPU - Average CPU usage (all cores) in the last two seconds (No MacOS support)
         "EWW_CPU" => || Ok(PrimitiveValue::from(format!("{:.2}", get_avg_cpu_usage()))),
