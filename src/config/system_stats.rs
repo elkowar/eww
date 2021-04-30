@@ -19,7 +19,7 @@ pub fn disk() -> Result<f32> {
         .get_disks()
         .iter()
         .find(|&x| x.get_mount_point() == std::path::Path::new("/"))
-        .ok_or_else(|| anyhow!("Couldn't find a drive mounted at /"))?;
+        .context("Couldn't find a drive mounted at /")?;
     Ok((root.get_total_space() as f32 - root.get_available_space() as f32) / 1_000_000_000f32)
 }
 
@@ -89,7 +89,7 @@ pub fn get_down() -> f32 {
         .map(|a| a.1.get_received())
         .sum();
     c.refresh_networks_list();
-    interfaces as f32 / 1000000 as f32
+    interfaces as f32 / 1000000f32
 }
 
 pub fn get_up() -> f32 {
@@ -102,25 +102,19 @@ pub fn get_up() -> f32 {
         .map(|a| a.1.get_transmitted())
         .sum();
     c.refresh_networks_list();
-    interfaces as f32 / 1000000 as f32
+    interfaces as f32 / 1000000f32
 }
 
 // function to get interfaces, that are connected
 #[cfg(target_os = "linux")]
 fn get_interfaces() -> Result<Vec<String>> {
-    let fs = std::fs::read_to_string("/proc/self/net/route")
-        .context("Couldn't open file `/proc/self/net/route`. Super old linux kernel? Disabled procfs?")?;
-    let mut interfaces: Vec<String> = Vec::new();
-    for i in fs.lines().skip(1) {
-        interfaces.push(
-            i.split_whitespace()
-                .nth(0)
-                .ok_or_else(|| anyhow!("Couldn't parse the content of /proc/self/net/route"))?
-                .to_string(),
-        );
-    }
+    std::fs::read_to_string("/proc/self/net/route")
+        .context("Couldn't open file `/proc/self/net/route`. Super old linux kernel? Disabled procfs?")?
+        .lines()
+        .skip(1)
+        .map(|i| Ok(i.split_whitespace().next().context("Couldn't parse the content of /proc/self/net/route")?.to_string()))
+        .collect::<Result<_>>()
 
-    Ok(interfaces)
 }
 
 #[cfg(not(target_os = "linux"))]
