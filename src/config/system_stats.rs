@@ -1,15 +1,17 @@
 use lazy_static::lazy_static;
-#[cfg(target_os = "macos")]
-use regex::Regex;
-use std::sync::{Arc, Mutex};
-use sysinfo::{Component, ComponentExt, DiskExt, NetworkExt, NetworksExt, ProcessorExt, RefreshKind, System, SystemExt};
-lazy_static! {
-    static ref SYSTEM: Arc<Mutex<System>> = Arc::new(Mutex::new(System::new()));
-    static ref SYSTEM_NET_UP: Arc<Mutex<System>> = Arc::new(Mutex::new(System::new_with_specifics(
-        RefreshKind::new().with_networks_list()
-    )));
-}
+use std::sync::{Mutex};
+use crate::util::IterAverage;
+use sysinfo::{ComponentExt, DiskExt, NetworkExt, NetworksExt, ProcessorExt, RefreshKind, System, SystemExt};
 use anyhow::*;
+
+lazy_static! {
+    static ref SYSTEM: Mutex<System> = Mutex::new(System::new());
+    // different pub mods, because if they were reading from the same data, they'd both refresh at the same time,
+    // and a system to give the data you want, without refreshing constantly would be way out of the scope of this
+    static ref SYSTEM_NET_UP: Mutex<System> = Mutex::new(System::new_with_specifics(
+        RefreshKind::new().with_networks_list()
+    ));
+}
 
 pub fn disk() -> Result<f32> {
     let mut c = SYSTEM.lock().unwrap();
@@ -32,18 +34,18 @@ pub fn ram() -> f32 {
 pub fn cores() -> f32 {
     let mut c = SYSTEM.lock().unwrap();
     c.refresh_components();
-    let comp = c.get_components().iter().filter(|&x| x.get_label().starts_with("Core "));
-    comp.clone().map(|x| x.get_temperature()).sum::<f32>() / comp.collect::<Vec<&Component>>().len() as f32
+    c.get_components().iter().filter(|&x| x.get_label().starts_with("Core ")).map(|x| x.get_temperature()).avg()
 }
 
 pub fn get_avg_cpu_usage() -> f32 {
     let mut c = SYSTEM.lock().unwrap();
     c.refresh_cpu();
-    c.get_processors().iter().map(|a| a.get_cpu_usage()).sum::<f32>() / c.get_processors().len() as f32
+    c.get_processors().iter().map(|a| a.get_cpu_usage()).avg()
 }
 
 #[cfg(target_os = "macos")]
 pub fn get_battery_capacity() -> Result<u8> {
+    use regex::Regex;
     let capacity = String::from_utf8(
         std::process::Command::new("pmset")
             .args(&["-g", "batt"])
@@ -52,7 +54,7 @@ pub fn get_battery_capacity() -> Result<u8> {
             .stdout,
     )?;
 
-    // Sample output of that command:
+    // Example output of that command:
     // Now drawing from 'Battery Power'
     //-InternalBattery-0 (id=11403363)	100%; discharging; (no estimate) present: true
     let regex = Regex::new(r"[0-9]*%")?;
@@ -64,11 +66,11 @@ pub fn get_battery_capacity() -> Result<u8> {
 
 #[cfg(target_os = "linux")]
 pub fn get_battery_capacity() -> Result<u8> {
-    Ok(std::fs::read_to_string("/sys/class/power_supply/BAT0/capacity")
+    std::fs::read_to_string("/sys/class/power_supply/BAT0/capacity")
         .context("Couldn't get battery info from /sys/class/power_supply/BAT0/capacity")?
         .trim()
         .parse()
-        .context("Couldn't parse the number in /sys/class/power_supply/BAT0/capacity")?)
+        .context("Couldn't parse the number in /sys/class/power_supply/BAT0/capacity")
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -77,8 +79,6 @@ pub fn get_battery_capacity() -> Result<u8> {
     anyhow!("eww doesn't support your OS for getting the battery capacity")
 }
 
-// different pub mods, because if they were reading from the same data, they'd both refresh at the same time,
-// and a system to give the data you want, without refreshing constantly would be way out of the scope of this
 pub fn get_down() -> f32 {
     let mut c = SYSTEM.lock().unwrap();
     let conn_interfaces = get_interfaces().unwrap_or_else(|_| vec!["docker".to_string(), "lo".to_string()]);
