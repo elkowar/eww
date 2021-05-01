@@ -302,25 +302,6 @@ fn initialize_window(
 
     let window = display_backend::initialize_window(&mut window_def);
 
-    #[cfg(feature = "wayland")]
-    {
-        // Inititialising a layer shell surface
-        gtk_layer_shell::init_for_window(&window);
-        // Sets the monitor where the surface is shown
-        match window_def.screen_number {
-            Some(index)=>{
-                let monitor = get_monitor(index);
-                gtk_layer_shell::set_monitor(&window, &monitor);
-            },
-            None=>{}
-        };
-        gtk_layer_shell::set_keyboard_interactivity(&window, window_def.focusable);
-    }
-    #[cfg(feature = "x11")]
-    if !window_def.focusable {
-        window.set_type_hint(gdk::WindowTypeHint::Dock);
-    }
-
     window.set_title(&format!("Eww - {}", window_def.name));
     let wm_class_name = format!("eww-{}", window_def.name);
     window.set_wmclass(&wm_class_name, &wm_class_name);
