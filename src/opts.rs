@@ -4,24 +4,8 @@ use structopt::StructOpt;
 
 use crate::{
     app,
-<<<<<<< HEAD
-<<<<<<< HEAD
     config::{AnchorPoint, WindowName},
-<<<<<<< HEAD
-<<<<<<< HEAD
     value::{Coords, PrimVal, VarName},
-=======
-    value::{Coords,PrimitiveValue, VarName},
->>>>>>> 782db39 (gtk-layer-shell-rs imported)
-=======
-=======
-    config::{SidePoint, WindowName},
->>>>>>> 09d6a8c (fix conflics and cargo fmt)
-=======
-    config::{AnchorPoint, WindowName},
->>>>>>> 49219e1 (conflicts: a never ending loop...)
-    value::{Coords, PrimitiveValue, VarName},
->>>>>>> 9c6cded (cargo fmt)
 };
 
 /// Struct that gets generated from `RawOpt`.

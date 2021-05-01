@@ -1,24 +1,7 @@
 use super::{run_command, BuilderArgs};
-<<<<<<< HEAD
-<<<<<<< HEAD
 use crate::{config, eww_state, resolve_block, value::AttrVal, widgets::widget_node};
-=======
-use gio::glib;
-use gtk;
-=======
->>>>>>> 9c6cded (cargo fmt)
-use crate::{config, eww_state, resolve_block, value::AttrValue, widgets::widget_node};
->>>>>>> fbc1557 (Eww compiles with wayland backend)
 use anyhow::*;
-<<<<<<< HEAD
-<<<<<<< HEAD
 use glib;
-=======
-use gio::glib;
->>>>>>> 5a4f1db (cargo fmt)
-=======
-use glib;
->>>>>>> fd07a98 (feat: I fixed the deps)
 use gtk::{self, prelude::*, ImageExt};
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
