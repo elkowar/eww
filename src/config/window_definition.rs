@@ -101,10 +101,7 @@ impl std::str::FromStr for Side {
             "r" | "right" => Ok(Side::Right),
             "t" | "top" => Ok(Side::Top),
             "b" | "bottom" => Ok(Side::Bottom),
-            _ => Err(anyhow!(
-                "Failed to parse {} as valid side. Must be one of \"left\", \"right\", \"top\", \"bottom\"",
-                s
-            )),
+            _ => Err(anyhow!("Failed to parse {} as valid side. Must be one of \"left\", \"right\", \"top\", \"bottom\"", s)),
         }
     }
 
@@ -203,10 +200,7 @@ impl std::str::FromStr for WindowStacking {
         match s.as_str() {
             "foreground" | "fg" | "f" => Ok(WindowStacking::Foreground),
             "background" | "bg" | "b" => Ok(WindowStacking::Background),
-            _ => Err(anyhow!(
-                "Couldn't parse '{}' as window stacking, must be either foreground, fg, background or bg",
-                s
-            )),
+            _ => Err(anyhow!("Couldn't parse '{}' as window stacking, must be either foreground, fg, background or bg", s)),
         }
     }
 

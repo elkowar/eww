@@ -10,7 +10,7 @@ use anyhow::*;
 use debug_stub_derive::*;
 use gtk::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt};
 use itertools::Itertools;
-use std::{collections::HashMap, path::PathBuf};
+use std::collections::HashMap;
 use tokio::sync::mpsc::UnboundedSender;
 
 /// Response that the app may send as a response to a event.
@@ -53,6 +53,7 @@ pub enum DaemonCommand {
         pos: Option<Coords>,
         size: Option<Coords>,
         anchor: Option<AnchorPoint>,
+        monitor: Option<i32>,
         sender: DaemonResponseSender,
     },
     CloseWindow {
@@ -215,6 +216,7 @@ impl App {
         window_name: &WindowName,
         pos: Option<Coords>,
         size: Option<Coords>,
+        monitor: Option<i32>,
         anchor: Option<config::AnchorPoint>,
     ) -> Result<()> {
         // remove and close existing window with the same name
