@@ -1,0 +1,7 @@
+#!/bin/sh
+
+if pgrep river; then
+  riverctl set-focused-tags $((1 << ($@ - 1)))
+else
+  swaymsg workspace $@
+fi

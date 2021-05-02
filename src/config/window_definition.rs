@@ -145,20 +145,13 @@ impl StrutDefinition {
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct StrutDefinition {
     pub exclusive: bool,
-    pub side: Side,
-    pub coords: Coords,
 }
 
 #[cfg(feature = "wayland")]
 impl StrutDefinition {
     pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
         Ok(StrutDefinition {
-            side: xml.attr("side")?.parse()?,
-            exclusive: xml.attr("exclusive")?.parse()?,
-            coords: Coords {
-                x: xml.attr("x")?.parse()?,
-                y: xml.attr("y")?.parse()?,
-            },
+            exclusive: xml.parse_optional_attr("exclusive")?.unwrap_or_default(),
         })
     }
 }

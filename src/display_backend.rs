@@ -13,7 +13,7 @@ mod platform {
 mod platform {
     use gdk;
     use crate::{
-        config::{EwwWindowDefinition, Side, StrutDefinition, WindowStacking},
+        config::{EwwWindowDefinition, AnchorAlignment, Side, StrutDefinition, WindowStacking},
     };
     use anyhow::*;
     use gtk::prelude::*;
@@ -25,10 +25,9 @@ mod platform {
         Ok(())
     }
 
-    pub fn initialize_window(window_def: &mut EwwWindowDefinition) -> gtk::Window {
+    pub fn initialize_window(window_def: &mut EwwWindowDefinition, monitor: gdk::Rectangle) -> gtk::Window {
         let window = gtk::Window::new(gtk::WindowType::Toplevel);
-        window.set_resizable(true);
-        // Inititialising a layer shell surface
+        // Initialising a layer shell surface
         gtk_layer_shell::init_for_window(&window);
         // Sets the monitor where the surface is shown
         match window_def.screen_number {
@@ -41,6 +40,7 @@ mod platform {
             }
             None => {}
         };
+        window.set_resizable(true);
 
         // Sets the layer where the layer shell surface will spawn
         match window_def.stacking {
@@ -52,6 +52,41 @@ mod platform {
 
         // Sets the keyboard interactivity
         gtk_layer_shell::set_keyboard_interactivity(&window, window_def.focusable);
+        // Positioning surface
+        let mut top = false;
+        let mut left = false;
+        let mut right = false;
+        let mut bottom = false;
+
+        match window_def.geometry.anchor_point.x {
+            AnchorAlignment::START => left = true,
+            AnchorAlignment::CENTER => {}
+            AnchorAlignment::END => right = true,
+        }
+        match window_def.geometry.anchor_point.y {
+            AnchorAlignment::START => top = true,
+            AnchorAlignment::CENTER => {}
+            AnchorAlignment::END => bottom = true,
+        }
+
+        gtk_layer_shell::set_anchor(&window, gtk_layer_shell::Edge::Left, left);
+        gtk_layer_shell::set_anchor(&window, gtk_layer_shell::Edge::Right, right);
+        gtk_layer_shell::set_anchor(&window, gtk_layer_shell::Edge::Top, top);
+        gtk_layer_shell::set_anchor(&window, gtk_layer_shell::Edge::Bottom, bottom);
+
+        let xoffset = window_def.geometry.offset.x.relative_to(monitor.width);
+        let yoffset = window_def.geometry.offset.y.relative_to(monitor.height);
+
+        if left {
+            gtk_layer_shell::set_margin(&window, gtk_layer_shell::Edge::Left, xoffset);
+        } else {
+            gtk_layer_shell::set_margin(&window, gtk_layer_shell::Edge::Right, xoffset);
+        }
+        if bottom {
+            gtk_layer_shell::set_margin(&window, gtk_layer_shell::Edge::Bottom, yoffset);
+        } else {
+            gtk_layer_shell::set_margin(&window, gtk_layer_shell::Edge::Top, yoffset);
+        }
         window
     }
 
@@ -63,58 +98,9 @@ mod platform {
         }
 
         fn reserve_space_for(&self, window: &gtk::Window, monitor_rect: gdk::Rectangle, surface: StrutDefinition) {
-            // Initialising a layer shell surface
-            gtk_layer_shell::init_for_window(window);
             // Making the surface occupied by widget exclusive
             if surface.exclusive {
                 gtk_layer_shell::auto_exclusive_zone_enable(window);
-            }
-            let mut top = false;
-            let mut left = false;
-            let mut right = false;
-            let mut bottom = false;
-
-            match surface.side {
-                Side::Top => top = true,
-                Side::Left => left = true,
-                Side::Right => right = true,
-                Side::Bottom => bottom = true,
-                Side::Center => {}
-                Side::TopLeft => {
-                    top = true;
-                    left = true;
-                }
-                Side::TopRight => {
-                    top = true;
-                    right = true;
-                }
-                Side::BottomRight => {
-                    bottom = true;
-                    right = true;
-                }
-                Side::BottomLeft => {
-                    left = true;
-                    bottom = true;
-                }
-            }
-
-            gtk_layer_shell::set_anchor(window, gtk_layer_shell::Edge::Left, left);
-            gtk_layer_shell::set_anchor(window, gtk_layer_shell::Edge::Right, right);
-            gtk_layer_shell::set_anchor(window, gtk_layer_shell::Edge::Top, top);
-            gtk_layer_shell::set_anchor(window, gtk_layer_shell::Edge::Bottom, bottom);
-
-            let xoffset = surface.coords.x.relative_to(monitor_rect.width);
-            let yoffset = surface.coords.y.relative_to(monitor_rect.height);
-
-            if left {
-                gtk_layer_shell::set_margin(window, gtk_layer_shell::Edge::Left, xoffset);
-            } else {
-                gtk_layer_shell::set_margin(window, gtk_layer_shell::Edge::Right, xoffset);
-            }
-            if bottom {
-                gtk_layer_shell::set_margin(window, gtk_layer_shell::Edge::Bottom, yoffset);
-            } else {
-                gtk_layer_shell::set_margin(window, gtk_layer_shell::Edge::Top, yoffset);
             }
         }
     }
@@ -135,7 +121,7 @@ mod platform {
         rust_connection::{DefaultStream, RustConnection},
     };
 
-    pub fn initialize_window(window_def: &mut EwwWindowDefinition) -> gtk::Window {
+    pub fn initialize_window(window_def: &mut EwwWindowDefinition, _monitor: gdk::Rectangle) -> gtk::Window {
         let window = if window_def.focusable {
             gtk::Window::new(gtk::WindowType::Toplevel)
         } else {
@@ -144,6 +130,11 @@ mod platform {
         window.set_resizable(true);
         if !window_def.focusable {
             window.set_type_hint(gdk::WindowTypeHint::Dock);
+        }
+        if window_def.stacking == WindowStacking::Foreground {
+            window.set_keep_above(true);
+        } else {
+            window.set_keep_below(true);
         }
         window
     }

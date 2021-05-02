@@ -222,6 +222,19 @@ The `<windows>` config should look something like this:
 </windows>
 ```
 
+For Wayland users the `<reserve>` block only take one field being "exclusive".
+The previous `<window>` block would look like this.
+
+```xml
+    <window name="main_window" stacking="fg" focusable="false" screen="1">
+        <geometry anchor="top left" x="300px" y="50%" width="25%" height="20px"/>
+        <reserve exclusive="true"/>
+        <widget>
+            <main/>
+        </widget>
+    </window>
+```
+
 The window block contains multiple elements to configure the window.
 - `<geometry>` is used to specify the position and size of the window.
 - `<reserve>` is used to have eww reserve space at a given side of the screen the widget is on.
@@ -236,5 +249,5 @@ There are a couple things you can optionally configure on the window itself:
   Possible values: `"true"`, `"false"`. Default: `"false"`
 - `screen`: Specifies on which display to show the window in a multi-monitor setup.
   This can be any number, representing the index of your monitor.
-- `exclusive`: specifies if a surface can be occupied on another. This option is only valid on wayland.
-  Possible values: `"true"`, `"false"`.
+- `exclusive`: Specifies whether or not a surface can be occupied on another. A surface can be a window, another Eww widget or any layershell surface. The details on how it is actually implemented are left to the compositor. This option is only valid on Wayland.
+  Possible values: `"true"`, `"false"`. Default: `"false"`

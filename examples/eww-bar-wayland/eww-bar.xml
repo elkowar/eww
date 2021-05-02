@@ -1,0 +1,65 @@
+<eww>
+  <definitions>
+    <def name="bar">
+      <box class="bar">
+        <left/>
+        <workspaces/>
+        <tray/>
+      </box>
+    </def>
+    <def name="left">
+      <box class="left" orientation="h" space-evenly="false" spacing="20" halign="start">
+        <button class="{{mpris-status}}" halign="start" onclick="playerctl play-pause">
+          <label text="{{mpris}}" limit-width="70"></label>
+        </button>
+      </box>
+    </def>
+    <def name="workspaces">
+      <box class="{{tag}}" spacing="20" halign="center">
+        <button class="tag_1" onclick="~/.config/eww/scripts/workspaces 1">一</button>
+        <button class="tag_2" onclick="~/.config/eww/scripts/workspaces 2">二</button>
+        <button class="tag_3" onclick="~/.config/eww/scripts/workspaces 3">三</button>
+        <button class="tag_4" onclick="~/.config/eww/scripts/workspaces 4">四</button>
+        <button class="tag_5" onclick="~/.config/eww/scripts/workspaces 5">五</button>
+        <button class="tag_6" onclick="~/.config/eww/scripts/workspaces 6">六</button>
+        <button class="tag_7" onclick="~/.config/eww/scripts/workspaces 7">七</button>
+        <button class="tag_8" onclick="~/.config/eww/scripts/workspaces 8">八</button>
+        <button class="tag_9" onclick="~/.config/eww/scripts/workspaces 9">九</button>
+      </box>
+    </def>
+    <def name="volume">
+      <box class="volume" orientation="h" space-evenly="false" spacing="15" halign="end">
+        <label text=""></label>
+        <scale width="180" valign="center" min="0" max="101" value="{{volume}}" onchange="pamixer --set-volume $(echo {} | sed 's/\..*//')"/>
+      </box>
+    </def>
+    <def name="tray">
+      <box class="tray" orientation="h" space-evenly="false" spacing="15" halign="end">
+        <recorder/>
+        <volume/>
+        <button class="time" onclick="~/.local/bin/eww open hub" halign="end">{{time}}</button>
+      </box>
+    </def>
+    <def name="info">
+      <box class="tray-info" orientation="h" space-evenly="false" spacing="15" halign="fill">
+        <button class="pacman" halign="fill" onclick="foot paru">{{pacman}} </button>
+        <button class="network" halign="fill" onclick="nmconnection-editor">直 {{network}}</button>
+      </box>
+    </def>
+    <def name="recorder">
+      <box class="tray-info" orientation="h" space-evenly="false" spacing="15" halign="end">
+        <button class="pacman" halign="fill" onclick=" ~/.local/bin/eww update recorder='';kill -INT $(pgrep wf-recorder)">
+          <label text="{{recorder}}"></label>
+        </button>
+      </box>
+    </def>
+  </definitions>
+  <variables>
+    <script-var name="tag">~/.config/eww/scripts/status</script-var>
+    <script-var interval="3600s" name="pacman">checkupdates | wc -l</script-var>
+    <script-var name="recorder">if $(pgrep wf-recorder); then echo 壘;fi</script-var>
+    <script-var name="mpris-status">playerctl status -F</script-var>
+    <script-var name="mpris">playerctl metadata --format '{{title}}' -F</script-var>
+    <script-var interval="60s" name="network">nmcli -p -g {connection} | grep -e 'connected to' | sed -e 's/ .* //' -e 's/.*://'</script-var>
+  </variables>
+</eww>

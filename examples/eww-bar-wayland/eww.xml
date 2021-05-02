@@ -1,0 +1,17 @@
+<!-- The main eww configuration file. This is where your widgets and how they appear on the screen and what they
+contain are defined. -->
+
+<eww>
+  <includes>
+    <file path="./eww-bar.xml"/>
+  </includes>
+  <windows>
+    <window name="bar" screen="0" stacking="bt">
+      <geometry anchor="top center" x="0" y="0" width="100%" height="35"/> <!--Specifies geometry-->
+      <reserve exclusive="true"/>
+      <widget>
+        <bar/> <!--This is the def we created earlier-->
+      </widget>
+    </window>
+  </windows>
+</eww>

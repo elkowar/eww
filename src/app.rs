@@ -8,6 +8,7 @@ use crate::{
 };
 use anyhow::*;
 use debug_stub_derive::*;
+use gdk::WindowExt;
 use gtk::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt};
 use itertools::Itertools;
 use std::collections::HashMap;
@@ -302,7 +303,7 @@ fn initialize_window(
 ) -> Result<EwwWindow> {
     let actual_window_rect = window_def.geometry.get_window_rectangle(monitor_geometry);
 
-    let window = display_backend::initialize_window(&mut window_def);
+    let window = display_backend::initialize_window(&mut window_def, monitor_geometry);
 
     window.set_title(&format!("Eww - {}", window_def.name));
     let wm_class_name = format!("eww-{}", window_def.name);
@@ -327,13 +328,11 @@ fn initialize_window(
 
     window.show_all();
 
-    display_backend::reserve_space_for(&window, monitor_geometry, window_def.struts)?;
+    let gdk_window = window.get_window().context("couldn't get gdk window from gtk window")?;
+    gdk_window.set_override_redirect(!window_def.focusable);
+    gdk_window.move_(actual_window_rect.x, actual_window_rect.y);
 
-    if window_def.stacking == WindowStacking::Foreground {
-        window.set_keep_above(true);
-    } else {
-        window.set_keep_below(true);
-    }
+    display_backend::reserve_space_for(&window, monitor_geometry, window_def.struts)?;
 
     Ok(EwwWindow { name: window_def.name.clone(), definition: window_def, gtk_window: window })
 }
