@@ -123,25 +123,6 @@ impl std::str::FromStr for Side {
             )),
         }
     }
-
-    #[cfg(feature = "wayland")]
-    fn from_str(s: &str) -> Result<Side> {
-        match s {
-            "l" | "left" => Ok(Side::Left),
-            "r" | "right" => Ok(Side::Right),
-            "t" | "top" => Ok(Side::Top),
-            "b" | "bottom" => Ok(Side::Bottom),
-            "c" | "center" => Ok(Side::Center),
-            "tl" | "top-left" => Ok(Side::TopLeft),
-            "tr" | "top-right" => Ok(Side::TopRight),
-            "bl" | "bottom-left" => Ok(Side::BottomLeft),
-            "br" | "bottom-right" => Ok(Side::BottomRight),
-            _ => Err(anyhow!(
-                r#"Failed to parse {} as valid side. Must be one of "left", "right", "top", "bottom", "top-right", "top-left", "bottom-left", "bottom-right""#,
-                s
-            )),
-        }
-    }
 }
 
 // Surface definition if the backend for X11 is enable
@@ -201,22 +182,6 @@ impl std::str::FromStr for WindowStacking {
             "foreground" | "fg" | "f" => Ok(WindowStacking::Foreground),
             "background" | "bg" | "b" => Ok(WindowStacking::Background),
             _ => Err(anyhow!("Couldn't parse '{}' as window stacking, must be either foreground, fg, background or bg", s)),
-        }
-    }
-
-    #[cfg(feature = "wayland")]
-    fn from_str(s: &str) -> Result<Self> {
-        let s = s.to_lowercase();
-        match s.as_str() {
-            "foreground" | "fg" => Ok(WindowStacking::Foreground),
-            "background" | "bg" => Ok(WindowStacking::Background),
-            "bottom" | "bt" => Ok(WindowStacking::Bottom),
-            "overlay" | "ov" => Ok(WindowStacking::Overlay),
-            _ => Err(anyhow!(
-                "Couldn't parse '{}' as window stacking, must be either foreground, fg, background, bg, bottom, bt, overlay or \
-                 ov",
-                s
-            )),
         }
     }
 

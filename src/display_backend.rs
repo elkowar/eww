@@ -11,8 +11,8 @@ mod platform {
 
 #[cfg(feature = "wayland")]
 mod platform {
+    use gdk;
     use crate::{
-        app::get_monitor,
         config::{EwwWindowDefinition, Side, StrutDefinition, WindowStacking},
     };
     use anyhow::*;
@@ -26,15 +26,18 @@ mod platform {
     }
 
     pub fn initialize_window(window_def: &mut EwwWindowDefinition) -> gtk::Window {
-        let mut window = gtk::Window::new(gtk::WindowType::Toplevel);
+        let window = gtk::Window::new(gtk::WindowType::Toplevel);
         window.set_resizable(true);
         // Inititialising a layer shell surface
         gtk_layer_shell::init_for_window(&window);
         // Sets the monitor where the surface is shown
         match window_def.screen_number {
             Some(index) => {
-                let monitor = get_monitor(index);
-                gtk_layer_shell::set_monitor(&window, &monitor);
+                if let Some(monitor) = gdk::Display::get_default()
+                    .expect("could not get default display")
+                    .get_monitor(index) {
+                    gtk_layer_shell::set_monitor(&window, &monitor);
+                };
             }
             None => {}
         };
