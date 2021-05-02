@@ -222,7 +222,7 @@ The `<windows>` config should look something like this:
 </windows>
 ```
 
-For Wayland users the `<reserve>` block only take one field being "exclusive".
+For Wayland users the `<reserve/>` block only take one field being "exclusive".
 The previous `<window>` block would look like this.
 
 ```xml
@@ -234,6 +234,8 @@ The previous `<window>` block would look like this.
         </widget>
     </window>
 ```
+
+If `<reserve/>` is ommited, the area occupied by the window will be, by default, non exclusive.
 
 The window block contains multiple elements to configure the window.
 - `<geometry>` is used to specify the position and size of the window.
@@ -249,5 +251,8 @@ There are a couple things you can optionally configure on the window itself:
   Possible values: `"true"`, `"false"`. Default: `"false"`
 - `screen`: Specifies on which display to show the window in a multi-monitor setup.
   This can be any number, representing the index of your monitor.
-- `exclusive`: Specifies whether or not a surface can be occupied on another. A surface can be a window, another Eww widget or any layershell surface. The details on how it is actually implemented are left to the compositor. This option is only valid on Wayland.
+- `exclusive`: Specifies whether or not a surface can be occupied by another. 
+  A surface can be a window, an Eww widget or any layershell surface.
+  The details on how it is actually implemented are left to the compositor.
+  This option is only valid on Wayland.
   Possible values: `"true"`, `"false"`. Default: `"false"`
