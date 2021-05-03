@@ -117,11 +117,6 @@ pub enum Side {
     Left,
     Right,
     Bottom,
-    Center,
-    TopLeft,
-    TopRight,
-    BottomLeft,
-    BottomRight,
 }
 
 impl std::str::FromStr for Side {
@@ -135,25 +130,6 @@ impl std::str::FromStr for Side {
             "t" | "top" => Ok(Side::Top),
             "b" | "bottom" => Ok(Side::Bottom),
             _ => Err(anyhow!("Failed to parse {} as valid side. Must be one of \"left\", \"right\", \"top\", \"bottom\"", s)),
-        }
-    }
-
-    #[cfg(feature = "wayland")]
-    fn from_str(s: &str) -> Result<Side> {
-        match s {
-            "l" | "left" => Ok(Side::Left),
-            "r" | "right" => Ok(Side::Right),
-            "t" | "top" => Ok(Side::Top),
-            "b" | "bottom" => Ok(Side::Bottom),
-            "c" | "center" => Ok(Side::Center),
-            "tl" | "top-left" => Ok(Side::TopLeft),
-            "tr" | "top-right" => Ok(Side::TopRight),
-            "bl" | "bottom-left" => Ok(Side::BottomLeft),
-            "br" | "bottom-right" => Ok(Side::BottomRight),
-            _ => Err(anyhow!(
-                r#"Failed to parse {} as valid side. Must be one of "left", "right", "top", "bottom", "top-right", "top-left", "bottom-left", "bottom-right""#,
-                s
-            )),
         }
     }
 }

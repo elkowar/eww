@@ -226,8 +226,8 @@ For Wayland users the `<reserve/>` block is replaced by the exclusive field in `
 The previous `<window>` block would look like this.
 
 ```xml
-    <window name="main_window" stacking="fg" focusable="false" screen="1">
-        <geometry anchor="top left" x="300px" y="50%" width="25%" height="20px" exclusive="true"/>
+    <window name="main_window" stacking="fg" focusable="false" screen="1" exclusive="true">
+        <geometry anchor="top left" x="300px" y="50%" width="25%" height="20px"/>
         <widget>
             <main/>
         </widget>
