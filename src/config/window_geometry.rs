@@ -48,8 +48,8 @@ impl AnchorAlignment {
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default, Serialize, Deserialize)]
 pub struct AnchorPoint {
-    x: AnchorAlignment,
-    y: AnchorAlignment,
+    pub x: AnchorAlignment,
+    pub y: AnchorAlignment,
 }
 
 impl std::fmt::Display for AnchorPoint {

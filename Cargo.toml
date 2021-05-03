@@ -12,8 +12,10 @@ homepage = "https://github.com/elkowar/eww"
 [features]
 default = ["x11"]
 x11 = ["gdkx11", "x11rb"]
-no-x11 = []
-
+wayland = ["gtk-layer-shell", "gtk-layer-shell-sys"]
+no-x11-wayland = []
+[dependencies.cairo-sys-rs]
+version = "0.10.0"
 
 [dependencies]
 gtk = { version = "0.9", features = [ "v3_16" ] }
@@ -23,6 +25,8 @@ glib = { version = "", features = ["v2_44"] }
 
 gdk-pixbuf = "0.9"
 
+gtk-layer-shell = { version="0.2.0", optional=true }
+gtk-layer-shell-sys = { version="0.2.0", optional=true }
 gdkx11 = { version = "0.9", optional = true }
 x11rb = { version = "0.8", features = ["randr"], optional = true }
 
