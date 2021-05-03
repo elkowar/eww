@@ -31,10 +31,17 @@ pub fn ram() -> f32 {
     (c.get_used_memory() as f32 + c.get_used_swap() as f32) / 1_000_000f32
 }
 
-pub fn cores() -> f32 {
+pub fn cores() -> String {
     let mut c = SYSTEM.lock().unwrap();
+    c.refresh_components_list();
     c.refresh_components();
-    c.get_components().iter().filter(|&x| x.get_label().starts_with("Core ")).map(|x| x.get_temperature()).avg()
+    let mut components = String::from("{");
+    for c in c.get_components() {
+        components.push_str(&format!("\"{}\": \"{}\",", c.get_label().to_lowercase().replace(" ", "_"), c.get_temperature()));
+    }
+    components.pop();
+    components.push('}');
+    components
 }
 
 pub fn get_avg_cpu_usage() -> f32 {
