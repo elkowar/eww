@@ -1,0 +1,79 @@
+// @import "/home/bryan/.config/waybar/material.css";
+
+* {
+  all: unset; //Unsets everything so you can style everything from scratch
+}
+
+@keyframes fadeIn {
+  from {opacity: 0;}
+  to {opacity: 1;}
+}
+
+@keyframes fadeOut {
+  from {opacity: 1;}
+  to {opacity: 0;}
+}
+
+//Global Styles
+window {
+	color: #b8b8ac;
+  font-family: CascadiaCode;
+}
+
+scale trough {
+  all: unset;
+  background-color: #6f6f6f;
+  border-radius: 50px;
+  min-height: 4px;
+}
+scale trough highlight {
+  border-radius: 50px;
+  background-color: #dcbb8c;
+}
+
+.seperator trough  {
+  all: unset;
+  min-height: 1px;
+  margin: 0px 15px 0px 15px;
+  background-color: #474747;
+}
+/*
+ * Config for eww bar
+*/
+.bar {
+  background-color: transparent;
+}
+.tray {
+  margin-right: 15px;
+}
+.tray .time {
+  all: unset;
+  font-size: 11px;
+  font-weight: 600;
+}
+.left {
+  margin-left: 5px;
+}
+.left button {
+  all: unset;
+	color: #b0b4bc;
+  font-size: 11px;
+  font-weight: bold;
+  margin-left: 10px;
+}
+.bar .Paused {
+  color: #a78e6a;
+}
+.bar .Playing {
+  color: #dcbb8c;
+}
+.bar button {
+  all: unset;
+  padding: 5px;
+  min-height: 6px;
+  font-size: 12px;
+  font-weight: bold;
+}
+.tags .active {
+  color: #dcbb8c;
+}

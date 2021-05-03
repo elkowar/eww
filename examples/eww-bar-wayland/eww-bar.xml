@@ -15,21 +15,20 @@
       </box>
     </def>
     <def name="workspaces">
-      <box class="{{tag}}" spacing="20" halign="center">
-        <button class="tag_1" onclick="~/.config/eww/scripts/workspaces 1">一</button>
-        <button class="tag_2" onclick="~/.config/eww/scripts/workspaces 2">二</button>
-        <button class="tag_3" onclick="~/.config/eww/scripts/workspaces 3">三</button>
-        <button class="tag_4" onclick="~/.config/eww/scripts/workspaces 4">四</button>
-        <button class="tag_5" onclick="~/.config/eww/scripts/workspaces 5">五</button>
-        <button class="tag_6" onclick="~/.config/eww/scripts/workspaces 6">六</button>
-        <button class="tag_7" onclick="~/.config/eww/scripts/workspaces 7">七</button>
-        <button class="tag_8" onclick="~/.config/eww/scripts/workspaces 8">八</button>
-        <button class="tag_9" onclick="~/.config/eww/scripts/workspaces 9">九</button>
+      <box class="tags" spacing="20" halign="center">
+        <button class="{{if tag == 1 then 'active' else 'inactive'}}" onclick="~/.config/eww/scripts/workspaces 1">一</button>
+        <button class="{{if tag == 2 then 'active' else 'inactive'}}" onclick="~/.config/eww/scripts/workspaces 2">二</button>
+        <button class="{{if tag == 3 then 'active' else 'inactive'}}" onclick="~/.config/eww/scripts/workspaces 3">三</button>
+        <button class="{{if tag == 4 then 'active' else 'inactive'}}" onclick="~/.config/eww/scripts/workspaces 4">四</button>
+        <button class="{{if tag == 5 then 'active' else 'inactive'}}" onclick="~/.config/eww/scripts/workspaces 5">五</button>
+        <button class="{{if tag == 6 then 'active' else 'inactive'}}" onclick="~/.config/eww/scripts/workspaces 6">六</button>
+        <button class="{{if tag == 7 then 'active' else 'inactive'}}" onclick="~/.config/eww/scripts/workspaces 7">七</button>
+        <button class="{{if tag == 8 then 'active' else 'inactive'}}" onclick="~/.config/eww/scripts/workspaces 8">八</button>
+        <button class="{{if tag == 9 then 'active' else 'inactive'}}" onclick="~/.config/eww/scripts/workspaces 9">九</button>
       </box>
     </def>
     <def name="volume">
       <box class="volume" orientation="h" space-evenly="false" spacing="15" halign="end">
-        <label text=""></label>
         <scale width="180" valign="center" min="0" max="101" value="{{volume}}" onchange="pamixer --set-volume $(echo {} | sed 's/\..*//')"/>
       </box>
     </def>
@@ -37,7 +36,7 @@
       <box class="tray" orientation="h" space-evenly="false" spacing="15" halign="end">
         <recorder/>
         <volume/>
-        <button class="time" onclick="~/.local/bin/eww open hub" halign="end">{{time}}</button>
+        <button class="time" halign="end">{{time}}</button>
       </box>
     </def>
     <def name="info">
