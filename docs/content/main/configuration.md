@@ -222,17 +222,34 @@ The `<windows>` config should look something like this:
 </windows>
 ```
 
+For Wayland users the `<reserve/>` block is replaced by the exclusive field in `<window>`.
+The previous `<window>` block would look like this.
+
+```xml
+    <window name="main_window" stacking="fg" focusable="false" screen="1">
+        <geometry anchor="top left" x="300px" y="50%" width="25%" height="20px" exclusive="true"/>
+        <widget>
+            <main/>
+        </widget>
+    </window>
+```
+
 The window block contains multiple elements to configure the window.
 - `<geometry>` is used to specify the position and size of the window.
 - `<reserve>` is used to have eww reserve space at a given side of the screen the widget is on.
 - `<widget>` will contain the widget that is shown in the window.
 
 There are a couple things you can optionally configure on the window itself:
-- `stacking`: stacking describes if the window will be shown in the foreground (in front of other windows)
-  or in the background (behind other windows).
-  Possible values: `"fg"`, `"bg"`. Default: `"fg"`
+- `stacking`: stacking describes on what "layer" of the screen the window is shown.
+  Possible values on the X11 backend: `foreground "fg"`, `background "bg"`. Default: `"fg"`
+  Possible values on the Wayland backend: `foreground "fg"`, `bottom "bt"`, `background "bg"`, `overlay "ov"`. Default: `"fg"`
 - `focusable`: whether the window should be focusable by the windowmanager.
   This is necessary for things like text-input-fields to work properly.
   Possible values: `"true"`, `"false"`. Default: `"false"`
 - `screen`: Specifies on which display to show the window in a multi-monitor setup.
   This can be any number, representing the index of your monitor.
+- `exclusive`: Specifies whether or not a surface can be occupied by another. 
+  A surface can be a window, an Eww widget or any layershell surface.
+  The details on how it is actually implemented are left to the compositor.
+  This option is only valid on Wayland.
+  Possible values: `"true"`, `"false"`. Default: `"false"`

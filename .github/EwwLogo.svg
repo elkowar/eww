@@ -1,20 +1,47 @@
-<svg width="544" height="544" viewBox="0 0 544 544" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg id="logo"  viewBox="0 0 600 600" width="800" height="400" xmlns="http://www.w3.org/2000/svg">
+<defs>
+    <style>
+        #logo .flicksw {
+          animation: flick 4s infinite;
+        }
+
+        @keyframes flick {
+          0% {
+            transform: translateX(0%);
+          }
+          20%{
+              transform: translateX(0%);
+          }
+          50% {
+            transform: translateX(10.5%);
+          }
+          70% {
+            transform: translateX(10.5%);
+          }
+          100% {
+            transform: translateX(0%);
+          }
+    </style>
+</defs>
+
+<g filter="url(#filter0_i)">
+<rect x="22" y="22" width="336" height="139" rx="69.5" fill="#455A64"/>
+</g>
 <rect width="544" height="544" rx="81" fill="#292E31"/>
 <g filter="url(#filter0_i)">
 <rect x="22" y="22" width="336" height="139" rx="69.5" fill="#455A64"/>
 </g>
-<g filter="url(#filter1_d)">
-<rect x="38" y="35" width="240" height="113" rx="56.5" fill="url(#paint0_linear)"/>
-</g>
-<g filter="url(#filter2_i)">
+<g >
 <rect x="383" y="522" width="500" height="139" rx="69.5" transform="rotate(-90 383 522)" fill="#455A64"/>
 </g>
-<g filter="url(#filter3_d)">
-<path d="M452.5 522C414.392 522 383 491.108 383 453L383 178.554C383 178.554 414 218.05 452.5 178.554C491 139.058 522 178.554 522 178.554L522 453C522 491.108 490.608 522 452.5 522Z" fill="#E64A19"/>
+<g filter="url(#filter1_d)">
+<rect class="flicksw" x="38" y="35" width="240" height="113" rx="56.5" fill="url(#paint0_linear)"/>
 </g>
+
 <g filter="url(#filter4_i)">
 <circle cx="190" cy="354" r="168" fill="#455A64"/>
 </g>
+
 <path d="M208 204.5C208 214.717 199.717 223 189.5 223C179.283 223 171 214.717 171 204.5C171 194.283 179.283 186 189.5 186C199.717 186 208 194.283 208 204.5Z" fill="#E64A19"/>
 <path d="M208 204.5C208 214.717 199.717 223 189.5 223C179.283 223 171 214.717 171 204.5C171 194.283 179.283 186 189.5 186C199.717 186 208 194.283 208 204.5Z" fill="#E64A19"/>
 <path d="M313.5 460.5C313.5 470.717 305.217 479 295 479C284.783 479 276.5 470.717 276.5 460.5C276.5 450.283 284.783 442 295 442C305.217 442 313.5 450.283 313.5 460.5Z" fill="#E64A19"/>
@@ -23,10 +50,12 @@
 <g filter="url(#filter5_d)">
 <circle cx="190" cy="354" r="131" fill="#90A4AE"/>
 </g>
+
 <g filter="url(#filter6_i)">
 <path d="M130.586 358.988H134.48C150.233 358.988 160.145 367.661 160.145 380.936C160.145 393.503 151.472 402.707 139.613 402.707C128.108 402.707 119.966 394.742 118.373 382.352H94.655C96.071 406.955 114.656 424.301 139.79 424.301C165.101 424.301 183.686 405.716 183.686 380.405C183.686 363.944 176.96 352.793 163.331 346.598C170.942 341.111 174.305 334.208 174.305 324.119C174.305 303.941 159.26 288.896 139.082 288.896C128.816 288.896 119.435 292.967 112.886 300.047C107.399 306.065 105.275 311.729 104.39 322.349H128.285C129.347 314.03 132.71 310.49 139.259 310.49C145.985 310.49 150.764 315.623 150.764 322.88C150.764 328.544 148.109 332.615 143.153 334.562C140.144 335.801 136.958 336.155 130.586 336.332V358.988Z" fill="#ECEFF1"/>
 <path d="M283.969 332.615C283.969 306.065 266.8 288.896 240.25 288.896C213.346 288.896 196.354 306.242 196.354 333.677V378.281C196.354 390.848 198.832 399.698 204.673 407.663C212.815 418.46 225.382 424.301 241.312 424.301C256.357 424.301 268.039 418.814 275.65 408.371C281.491 400.052 283.969 391.379 283.969 378.281V332.615ZM219.895 333.677C219.895 319.34 227.683 310.49 240.427 310.49C253.171 310.49 260.428 318.809 260.428 333.677V378.104C260.428 394.565 253.879 402.707 240.604 402.707C227.152 402.707 219.895 393.857 219.895 377.573V333.677Z" fill="#ECEFF1"/>
 </g>
+
 <defs>
 <filter id="filter0_i" x="20" y="22" width="338" height="143" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
 <feFlood flood-opacity="0" result="BackgroundImageFix"/>
@@ -38,7 +67,7 @@
 <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.25 0"/>
 <feBlend mode="normal" in2="shape" result="effect1_innerShadow"/>
 </filter>
-<filter id="filter1_d" x="21" y="22" width="274" height="147" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<filter id="filter1_d" x="21" y="22" width="400" height="147" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
 <feFlood flood-opacity="0" result="BackgroundImageFix"/>
 <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"/>
 <feMorphology radius="1" operator="dilate" in="SourceAlpha" result="effect1_dropShadow"/>
@@ -103,4 +132,53 @@
 <stop offset="1" stop-color="#D84315"/>
 </linearGradient>
 </defs>
+	<foreignObject width="100%" height="100%">
+		<div xmlns="http://www.w3.org/1999/xhtml">
+			<style>
+				.dot{
+					height: 139px;
+					width: 139px;
+					background-color: #D84315;
+					border-radius:50%;
+					display:flex;
+					position:relative;
+					left:383px;
+					top: 384px;
+				}
+				.liquid{
+					display:flex;
+					position:relative;
+					overflow: hidden;
+					height: 300px;
+					width: 139px;
+					left:383px;
+					top: 10px;
+					background: #D84315;
+				}
+				.liquid:before{
+					content:'';
+					position: absolute;
+					top: -88%;
+					left: -50%;
+					width: 200%;
+					height: 100%;
+					border-radius: 40%;
+					background:#455A64;
+					animation: liqanim 6s linear infinite;	
+				}
+					@keyframes liqanim {
+					0%{
+						transform: rotate(0deg);
+					}
+					100%{
+						transform: rotate(360deg);
+					}
+					}
+			</style>
+			<div class="dot">
+			</div>
+			<div class="liquid">
+			</div>
+		</div>
+	</foreignObject>
 </svg>

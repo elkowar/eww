@@ -1,7 +1,8 @@
 use super::{run_command, BuilderArgs};
 use crate::{config, eww_state, resolve_block, value::AttrVal, widgets::widget_node};
 use anyhow::*;
-use gtk::{prelude::*, ImageExt};
+use glib;
+use gtk::{self, prelude::*, ImageExt};
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 // TODO figure out how to
