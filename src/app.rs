@@ -1,6 +1,6 @@
 use crate::{
     config,
-    config::{window_definition::WindowName, AnchorPoint, WindowStacking},
+    config::{window_definition::WindowName, AnchorPoint},
     display_backend, eww_state,
     script_var_handler::*,
     value::{Coords, NumWithUnit, PrimVal, VarName},
@@ -24,10 +24,7 @@ pub enum DaemonResponse {
 
 impl DaemonResponse {
     pub fn is_success(&self) -> bool {
-        match self {
-            DaemonResponse::Success(_) => true,
-            _ => false,
-        }
+        matches!(self, DaemonResponse::Success(_))
     }
 
     pub fn is_failure(&self) -> bool {
@@ -149,7 +146,7 @@ impl App {
                     }
                 }
                 DaemonCommand::OpenMany { windows, sender } => {
-                    let result = windows.iter().map(|w| self.open_window(w, None, None, None, None)).collect::<Result<()>>();
+                    let result = windows.iter().try_for_each(|w| self.open_window(w, None, None, None, None));
                     respond_with_error(sender, result)?;
                 }
                 DaemonCommand::OpenWindow { window_name, pos, size, anchor, monitor, sender } => {

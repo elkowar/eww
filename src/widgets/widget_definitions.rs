@@ -1,3 +1,4 @@
+#![allow(clippy::option_map_unit_fn)]
 use super::{run_command, BuilderArgs};
 use crate::{config, eww_state, resolve_block, value::AttrVal, widgets::widget_node};
 use anyhow::*;
@@ -203,7 +204,7 @@ fn build_gtk_combo_box_text(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText
         prop(onchange: as_string) {
             let old_id = on_change_handler_id.replace(Some(
                 gtk_widget.connect_changed(move |gtk_widget| {
-                    run_command(&onchange, gtk_widget.get_active_text().unwrap_or("".into()));
+                    run_command(&onchange, gtk_widget.get_active_text().unwrap_or_else(|| "".into()));
                 })
             ));
             old_id.map(|id| gtk_widget.disconnect(id));
@@ -285,7 +286,7 @@ fn build_gtk_color_chooser(bargs: &mut BuilderArgs) -> Result<gtk::ColorChooserW
         prop(onchange: as_string) {
             let old_id = on_change_handler_id.replace(Some(
                 gtk_widget.connect_color_activated(move |_a, color| {
-                    run_command(&onchange, color.clone());
+                    run_command(&onchange, *color);
                 })
             ));
             old_id.map(|id| gtk_widget.disconnect(id));

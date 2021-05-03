@@ -193,7 +193,7 @@ impl AttrValExpr {
         }
     }
 
-    pub fn parse<'a>(s: &'a str) -> Result<Self> {
+    pub fn parse(s: &str) -> Result<Self> {
         let parsed = match parser::parse(s) {
             Ok((_, x)) => Ok(x),
             Err(nom::Err::Error(e) | nom::Err::Failure(e)) => Err(anyhow!(nom::error::convert_error(s, e))),

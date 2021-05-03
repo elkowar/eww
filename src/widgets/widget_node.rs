@@ -91,8 +91,8 @@ impl WidgetNode for Generic {
         window_name: &WindowName,
         widget_definitions: &HashMap<String, WidgetDefinition>,
     ) -> Result<gtk::Widget> {
-        Ok(crate::widgets::build_builtin_gtk_widget(eww_state, window_name, widget_definitions, &self)?
-            .with_context(|| format!("Unknown widget '{}'", self.get_name()))?)
+        crate::widgets::build_builtin_gtk_widget(eww_state, window_name, widget_definitions, &self)?
+            .with_context(|| format!("Unknown widget '{}'", self.get_name()))
     }
 }
 

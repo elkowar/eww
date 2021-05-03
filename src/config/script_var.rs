@@ -51,7 +51,7 @@ impl ScriptVar {
     pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
         ensure_xml_tag_is!(xml, "script-var");
 
-        let name = VarName(xml.attr("name")?.to_owned());
+        let name = VarName(xml.attr("name")?);
         let command = xml.only_child()?.as_text()?.text();
         if let Ok(interval) = xml.attr("interval") {
             let interval = util::parse_duration(&interval)?;

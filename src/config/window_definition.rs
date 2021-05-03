@@ -1,8 +1,4 @@
-use crate::{
-    ensure_xml_tag_is,
-    value::{Coords, NumWithUnit},
-    widgets::widget_node,
-};
+use crate::{ensure_xml_tag_is, value::NumWithUnit, widgets::widget_node};
 use anyhow::*;
 use derive_more::*;
 use serde::{Deserialize, Serialize};
@@ -93,7 +89,7 @@ impl RawEwwWindowDefinition {
             xml.child("reserve").ok().map(StrutDefinition::from_xml_element).transpose().context("Failed to parse <reserve>")?;
 
         Ok(RawEwwWindowDefinition {
-            name: WindowName(xml.attr("name")?.to_owned()),
+            name: WindowName(xml.attr("name")?),
             geometry: match xml.child("geometry") {
                 Ok(node) => EwwWindowGeometry::from_xml_element(node)?,
                 Err(_) => EwwWindowGeometry::default(),

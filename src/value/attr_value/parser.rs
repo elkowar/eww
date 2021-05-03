@@ -23,7 +23,7 @@ where
 fn parse_num(i: &str) -> IResult<&str, i32, VerboseError<&str>> {
     alt((
         map_res(digit1, |s: &str| s.parse::<i32>()),
-        map_res(preceded(tag("-"), digit1), |s: &str| s.parse::<i32>().map(|x| x * -1)),
+        map_res(preceded(tag("-"), digit1), |s: &str| s.parse::<i32>().map(|x| -x)),
     ))(i)
 }
 
@@ -140,7 +140,7 @@ fn parse_ifelse(i: &str) -> IResult<&str, AttrValExpr, VerboseError<&str>> {
     Ok((i, AttrValExpr::IfElse(box a, box b, box c)))
 }
 
-pub fn parse<'a>(i: &'a str) -> IResult<&'a str, AttrValExpr, VerboseError<&'a str>> {
+pub fn parse(i: &str) -> IResult<&str, AttrValExpr, VerboseError<&str>> {
     complete(parse_expr)(i)
 }
 
