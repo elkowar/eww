@@ -226,8 +226,8 @@ For Wayland users the `<reserve/>` block is replaced by the exclusive field in `
 The previous `<window>` block would look like this.
 
 ```xml
-    <window name="main_window" stacking="fg" focusable="false" screen="1">
-        <geometry anchor="top left" x="300px" y="50%" width="25%" height="20px" exclusive="true"/>
+    <window name="main_window" stacking="fg" focusable="false" screen="1" exclusive="true">
+        <geometry anchor="top left" x="300px" y="50%" width="25%" height="20px"/>
         <widget>
             <main/>
         </widget>
@@ -248,7 +248,7 @@ There are a couple things you can optionally configure on the window itself:
   Possible values: `"true"`, `"false"`. Default: `"false"`
 - `screen`: Specifies on which display to show the window in a multi-monitor setup.
   This can be any number, representing the index of your monitor.
-- `exclusive`: Specifies whether or not a surface can be occupied by another. 
+- `exclusive`: Specifies whether or not a surface can be occupied by another.
   A surface can be a window, an Eww widget or any layershell surface.
   The details on how it is actually implemented are left to the compositor.
   This option is only valid on Wayland.
