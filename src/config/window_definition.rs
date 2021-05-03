@@ -13,6 +13,7 @@ use super::*;
 
 /// Full window-definition containing the fully expanded widget tree.
 /// **Use this** rather than `[RawEwwWindowDefinition]`.
+#[cfg(feature = "x11")]
 #[derive(Debug, Clone)]
 pub struct EwwWindowDefinition {
     pub name: WindowName,
@@ -24,6 +25,18 @@ pub struct EwwWindowDefinition {
     pub focusable: bool,
 }
 
+#[cfg(feature = "wayland")]
+#[derive(Debug, Clone)]
+pub struct EwwWindowDefinition {
+    pub name: WindowName,
+    pub geometry: EwwWindowGeometry,
+    pub stacking: WindowStacking,
+    pub screen_number: Option<i32>,
+    pub widget: Box<dyn widget_node::WidgetNode>,
+    pub exclusive: bool,
+    pub focusable: bool,
+}
+
 impl EwwWindowDefinition {
     pub fn generate(defs: &HashMap<String, WidgetDefinition>, window: RawEwwWindowDefinition) -> Result<Self> {
         Ok(EwwWindowDefinition {
@@ -32,13 +45,17 @@ impl EwwWindowDefinition {
             stacking: window.stacking,
             screen_number: window.screen_number,
             widget: widget_node::generate_generic_widget_node(defs, &HashMap::new(), window.widget)?,
-            struts: window.struts,
             focusable: window.focusable,
+            #[cfg(feature = "x11")]
+            struts: window.struts,
+            #[cfg(feature = "wayland")]
+            exclusive: window.exclusive,
         })
     }
 }
 
 /// Window-definition storing the raw WidgetUse, as received directly from parsing.
+#[cfg(feature = "x11")]
 #[derive(Debug, Clone, PartialEq)]
 pub struct RawEwwWindowDefinition {
     pub name: WindowName,
@@ -47,6 +64,18 @@ pub struct RawEwwWindowDefinition {
     pub screen_number: Option<i32>,
     pub widget: WidgetUse,
     pub struts: StrutDefinition,
+    pub focusable: bool,
+}
+
+#[cfg(feature = "wayland")]
+#[derive(Debug, Clone, PartialEq)]
+pub struct RawEwwWindowDefinition {
+    pub name: WindowName,
+    pub exclusive: bool,
+    pub geometry: EwwWindowGeometry,
+    pub stacking: WindowStacking,
+    pub screen_number: Option<i32>,
+    pub widget: WidgetUse,
     pub focusable: bool,
 }
 
@@ -59,6 +88,7 @@ impl RawEwwWindowDefinition {
         let focusable = xml.parse_optional_attr("focusable")?;
         let screen_number = xml.parse_optional_attr("screen")?;
 
+        #[cfg(feature = "x11")]
         let struts: Option<StrutDefinition> =
             xml.child("reserve").ok().map(StrutDefinition::from_xml_element).transpose().context("Failed to parse <reserve>")?;
 
@@ -72,7 +102,10 @@ impl RawEwwWindowDefinition {
             stacking,
             screen_number,
             focusable: focusable.unwrap_or(false),
+            #[cfg(feature = "x11")]
             struts: struts.unwrap_or_default(),
+            #[cfg(feature = "wayland")]
+            exclusive: xml.parse_optional_attr("exclusive")?.unwrap_or_default(),
         })
     }
 }
@@ -137,22 +170,6 @@ pub struct StrutDefinition {
 impl StrutDefinition {
     pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
         Ok(StrutDefinition { side: xml.attr("side")?.parse()?, dist: xml.attr("distance")?.parse()? })
-    }
-}
-
-// Surface definition if the backend for Wayland is enable
-#[cfg(feature = "wayland")]
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
-pub struct StrutDefinition {
-    pub exclusive: bool,
-}
-
-#[cfg(feature = "wayland")]
-impl StrutDefinition {
-    pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
-        Ok(StrutDefinition {
-            exclusive: xml.parse_optional_attr("exclusive")?.unwrap_or_default(),
-        })
     }
 }
 

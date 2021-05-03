@@ -332,6 +332,7 @@ fn initialize_window(
     gdk_window.set_override_redirect(!window_def.focusable);
     gdk_window.move_(actual_window_rect.x, actual_window_rect.y);
 
+    #[cfg(feature = "x11")]
     display_backend::reserve_space_for(&window, monitor_geometry, window_def.struts)?;
 
     Ok(EwwWindow { name: window_def.name.clone(), definition: window_def, gtk_window: window })

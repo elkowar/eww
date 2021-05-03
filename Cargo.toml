@@ -10,7 +10,7 @@ homepage = "https://github.com/elkowar/eww"
 
 
 [features]
-default = ["wayland"]
+default = ["x11"]
 x11 = ["gdkx11", "x11rb"]
 wayland = ["gtk-layer-shell", "gtk-layer-shell-sys"]
 no-x11-wayland = []

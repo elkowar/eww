@@ -13,17 +13,10 @@ mod platform {
 mod platform {
     use gdk;
     use crate::{
-        config::{EwwWindowDefinition, AnchorAlignment, Side, StrutDefinition, WindowStacking},
+        config::{EwwWindowDefinition, AnchorAlignment, Side, WindowStacking},
     };
     use anyhow::*;
     use gtk::prelude::*;
-
-    pub fn reserve_space_for(window: &gtk::Window, monitor: gdk::Rectangle, surface: StrutDefinition) -> Result<()> {
-        // Initializing the layer surface
-        let backend = LayerShellBackend::new()?;
-        backend.reserve_space_for(window, monitor, surface);
-        Ok(())
-    }
 
     pub fn initialize_window(window_def: &mut EwwWindowDefinition, monitor: gdk::Rectangle) -> gtk::Window {
         let window = gtk::Window::new(gtk::WindowType::Toplevel);
@@ -87,22 +80,11 @@ mod platform {
         } else {
             gtk_layer_shell::set_margin(&window, gtk_layer_shell::Edge::Top, yoffset);
         }
+
+        if window_def.exclusive {
+            gtk_layer_shell::auto_exclusive_zone_enable(&window);
+        }
         window
-    }
-
-    struct LayerShellBackend {}
-
-    impl LayerShellBackend {
-        fn new() -> Result<Self> {
-            Ok(LayerShellBackend {})
-        }
-
-        fn reserve_space_for(&self, window: &gtk::Window, monitor_rect: gdk::Rectangle, surface: StrutDefinition) {
-            // Making the surface occupied by widget exclusive
-            if surface.exclusive {
-                gtk_layer_shell::auto_exclusive_zone_enable(window);
-            }
-        }
     }
 }
 

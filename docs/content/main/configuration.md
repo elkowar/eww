@@ -222,20 +222,17 @@ The `<windows>` config should look something like this:
 </windows>
 ```
 
-For Wayland users the `<reserve/>` block only take one field being "exclusive".
+For Wayland users the `<reserve/>` block is replaced by the exclusive field in `<window>`.
 The previous `<window>` block would look like this.
 
 ```xml
     <window name="main_window" stacking="fg" focusable="false" screen="1">
-        <geometry anchor="top left" x="300px" y="50%" width="25%" height="20px"/>
-        <reserve exclusive="true"/>
+        <geometry anchor="top left" x="300px" y="50%" width="25%" height="20px" exclusive="true"/>
         <widget>
             <main/>
         </widget>
     </window>
 ```
-
-If `<reserve/>` is ommited, the area occupied by the window will be, by default, non exclusive.
 
 The window block contains multiple elements to configure the window.
 - `<geometry>` is used to specify the position and size of the window.

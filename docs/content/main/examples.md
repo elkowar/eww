@@ -10,5 +10,3 @@ These configurations of eww are available in the `examples/` directory of the [r
 
 An eww bar configuration:
 ![Example 1](./examples/eww-bar/eww-bar.png)
-
-![Example 2](./examples/eww-bar-wayland/eww-bar.png)
