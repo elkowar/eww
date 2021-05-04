@@ -28,6 +28,21 @@ function parseVars(code: string): Record<string, string> {
     return vars;
 }
 
+function replaceTypeNames(type: string) {
+
+    switch (type) {
+        case "f64":
+        case "f32":
+            return "float"
+        case "i32":
+        case "i64":
+            return "int"
+        default:
+            return type
+    }
+
+}
+
 function parseDocs(code: string) {
     const NEW_WIDGET_PATTERN = /^.*\/\/+ *@widget +(!?)(.*?)(?: +extends +(.*))?$/;
     const DESC_PATTERN = /^.*\/\/+ *@desc +(.*)$/;
@@ -71,23 +86,22 @@ function parseDocs(code: string) {
         if (propMatch && propMatch.length == 3) {
             let no = lineIndex + 1
            
-            while (/\s+\/\//.test(lines[no])) {
+            while (/\s*\/\//.test(lines[no])) {
                 no += 1
             } // continue till you find the line with actual code
             
             const matches = [...lines[no].matchAll(ARG_TYPE_PATTERN)].map(z => { z.shift(); return z }).flat() // try to use the iterator directly
-            let type = null
             
             const possibleMatch = matches.findIndex(x => x == propMatch[1].replaceAll("-", "_"))
             if (possibleMatch == -1) {
                 console.log(`Failed to find a match for "${propMatch[1].replace("-", "_")}" ~ ${JSON.stringify(matches, null, 2)} ~ ${lines[no]}`)
             }
-            type = matches[possibleMatch + 1]
+            const type = replaceTypeNames(matches[possibleMatch + 1])
 
             widgets[currentWidget].props.push({
                 name: propMatch[1],
                 desc: propMatch[2],
-                type: type || "no-type-found"
+                type: type ?? "no-type-found"
             });
         }
     }
@@ -115,7 +129,7 @@ function printWidget(widget: Widget) {
 ## \`${widget.name}\` ${widget.desc ? `\n${widget.desc}` : ""}
 
 **Properties**
-${widget.props.map((prop) => `- [${prop.type}] **\`${prop.name}\`**: ${prop.desc}`).join("\n")}
+${widget.props.map((prop) => `- **\`${prop.name}\`**: *\`${prop.type}\`* ${prop.desc}`).join("\n")}
 `;
 }
 
