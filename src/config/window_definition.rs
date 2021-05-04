@@ -118,7 +118,6 @@ pub enum Side {
 impl std::str::FromStr for Side {
     type Err = anyhow::Error;
 
-    #[cfg(feature = "x11")]
     fn from_str(s: &str) -> Result<Side> {
         match s {
             "l" | "left" => Ok(Side::Left),
