@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use lazy_static::lazy_static;
 use std::sync::{Mutex};
 use crate::util::IterAverage;
@@ -6,11 +7,6 @@ use anyhow::*;
 
 lazy_static! {
     static ref SYSTEM: Mutex<System> = Mutex::new(System::new());
-    // different pub mods, because if they were reading from the same data, they'd both refresh at the same time,
-    // and a system to give the data you want, without refreshing constantly would be way out of the scope of this
-    static ref SYSTEM_NET_UP: Mutex<System> = Mutex::new(System::new_with_specifics(
-        RefreshKind::new().with_networks_list()
-    ));
 }
 
 pub fn disk() -> Result<f32> {
@@ -37,7 +33,7 @@ pub fn cores() -> String {
     c.refresh_components();
     let mut components = String::from("{");
     for c in c.get_components() {
-        components.push_str(&format!("\"{}\": \"{}\",", c.get_label().to_lowercase().replace(" ", "_"), c.get_temperature()));
+        components.push_str(&format!("\"{}\":\"{}\",", c.get_label().to_uppercase().replace(" ", "_"), c.get_temperature()));
     }
     components.pop();
     components.push('}');
@@ -86,45 +82,23 @@ pub fn get_battery_capacity() -> Result<u8> {
     anyhow!("eww doesn't support your OS for getting the battery capacity")
 }
 
-pub fn get_down() -> f32 {
+pub fn net() -> String {
     let mut c = SYSTEM.lock().unwrap();
-    let conn_interfaces = get_interfaces().unwrap_or_else(|_| vec!["docker".to_string(), "lo".to_string()]);
-    let interfaces: u64 = c
+    let mut interfaces = String::from("{ \"NET_DOWN\": {");
+    interfaces.push_str(&c
         .get_networks()
         .iter()
-        .filter(|a| conn_interfaces.contains(a.0))
-        .map(|a| a.1.get_received())
-        .sum();
-    c.refresh_networks_list();
-    interfaces as f32 / 1000000f32
-}
+        .map(|a| format!("\"{}\":\"{}\"", a.0, a.1.get_received()))
+        .join(","));
 
-pub fn get_up() -> f32 {
-    let mut c = SYSTEM_NET_UP.lock().unwrap();
-    let conn_interfaces = get_interfaces().unwrap_or_else(|_| vec!["docker0".to_string(), "lo".to_string()]);
-    let interfaces: u64 = c
+    interfaces.push_str("}, \"NET_UP\": {");
+    interfaces.push_str(&c
         .get_networks()
         .iter()
-        .filter(|a| conn_interfaces.contains(a.0))
-        .map(|a| a.1.get_transmitted())
-        .sum();
+        .map(|a| format!("\"{}\":\"{}\"", a.0, a.1.get_transmitted()))
+        .join(","));
+    interfaces.push_str("}}");
+    dbg!(&interfaces);
     c.refresh_networks_list();
-    interfaces as f32 / 1000000f32
-}
-
-// function to get interfaces, that are connected
-#[cfg(target_os = "linux")]
-fn get_interfaces() -> Result<Vec<String>> {
-    std::fs::read_to_string("/proc/self/net/route")
-        .context("Couldn't open file `/proc/self/net/route`. Super old linux kernel? Disabled procfs?")?
-        .lines()
-        .skip(1)
-        .map(|i| Ok(i.split_whitespace().next().context("Couldn't parse the content of /proc/self/net/route")?.to_string()))
-        .collect::<Result<_>>()
-
-}
-
-#[cfg(not(target_os = "linux"))]
-fn get_interfaces() -> Result<Vec<String>> {
-    anyhow!("eww doesn't support getting the interfaces on your OS")
+    interfaces
 }

@@ -20,7 +20,7 @@ macro_rules! builtin_vars {
 pub fn get_inbuilt_vars() -> HashMap<VarName, ScriptVar> {
     builtin_vars! {Duration::new(2, 0),
         // @desc EWW_HEAT - The average core heat in Celcius. Since it's a JSON value you have to pick the value you want with .core_0, all lowercase and spaces replaced with _. Average core heat can be built with eww expressions: `{{(CPU_TEMPS.core_1 + CPU_TEMPS.core_2) / 2}}`
-        "EWW_HEAT" => || Ok(PrimitiveValue::from(cores())),
+        "EWW_TEMPS" => || Ok(PrimitiveValue::from(cores())),
 
         // @desc EWW_RAM - The current RAM + Swap usage
         "EWW_RAM" => || Ok(PrimitiveValue::from(format!("{:.2}", ram()))),
@@ -51,10 +51,7 @@ pub fn get_inbuilt_vars() -> HashMap<VarName, ScriptVar> {
         // @desc EWW_CPU - Average CPU usage (all cores) in the last two seconds (No MacOS support)
         "EWW_CPU" => || Ok(PrimitiveValue::from(format!("{:.2}", get_avg_cpu_usage()))),
 
-        // @desc EWW_NET_UP - Megabyte uploaded on all interfaces that have a routing table since last update
-        "EWW_NET_UP" => || Ok(PrimitiveValue::from(format!("{:.2}", get_up()))),
-
-        // @desc EWW_NET_DOWN - Megabyte downloaded on all interfaces that have a routing table since last update
-        "EWW_NET_DOWN" => || Ok(PrimitiveValue::from(format!("{:.2}", get_down())))
+        // @desc EWW_NET - Bytes up/down on all interfaces
+        "EWW_NET" => || Ok(PrimitiveValue::from(net())),
     }
 }

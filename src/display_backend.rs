@@ -2,20 +2,38 @@ pub use platform::*;
 
 #[cfg(feature = "no-x11-wayland")]
 mod platform {
-    use crate::config::{Side, StrutDefinition};
+    use crate::config::{EwwWindowDefinition, StrutDefinition, WindowStacking};
     use anyhow::*;
-    pub fn reserve_space_for(window: &gtk::Window, monitor: gdk::Rectangle, strut_def: StrutDefinition) -> Result<()> {
+    use gtk::{self, prelude::*};
+
+    pub fn initialize_window(window_def: &mut EwwWindowDefinition, _monitor: gdk::Rectangle) -> gtk::Window {
+        let window = if window_def.focusable {
+            gtk::Window::new(gtk::WindowType::Toplevel)
+        } else {
+            gtk::Window::new(gtk::WindowType::Popup)
+        };
+        window.set_resizable(true);
+        if !window_def.focusable {
+            window.set_type_hint(gdk::WindowTypeHint::Dock);
+        }
+        if window_def.stacking == WindowStacking::Foreground {
+            window.set_keep_above(true);
+        } else {
+            window.set_keep_below(true);
+        }
+        window
+    }
+
+    pub fn reserve_space_for(_window: &gtk::Window, _monitor: gdk::Rectangle, _strut_def: StrutDefinition) -> Result<()> {
         Err(anyhow!("Cannot reserve space on non X11 or and wayland backends"))
     }
 }
 
 #[cfg(feature = "wayland")]
 mod platform {
-    use gdk;
-    use crate::{
-        config::{EwwWindowDefinition, AnchorAlignment, Side, WindowStacking},
-    };
+    use crate::config::{AnchorAlignment, EwwWindowDefinition, Side, WindowStacking};
     use anyhow::*;
+    use gdk;
     use gtk::prelude::*;
 
     pub fn initialize_window(window_def: &mut EwwWindowDefinition, monitor: gdk::Rectangle) -> gtk::Window {
@@ -25,9 +43,7 @@ mod platform {
         // Sets the monitor where the surface is shown
         match window_def.screen_number {
             Some(index) => {
-                if let Some(monitor) = gdk::Display::get_default()
-                    .expect("could not get default display")
-                    .get_monitor(index) {
+                if let Some(monitor) = gdk::Display::get_default().expect("could not get default display").get_monitor(index) {
                     gtk_layer_shell::set_monitor(&window, &monitor);
                 };
             }
@@ -162,7 +178,6 @@ mod platform {
             let dist = match strut_def.side {
                 Side::Left | Side::Right => strut_def.dist.relative_to(monitor_rect.width) as u32,
                 Side::Top | Side::Bottom => strut_def.dist.relative_to(monitor_rect.height) as u32,
-                _ => (monitor_rect.height / 2) as u32,
             };
 
             // don't question it,.....
@@ -176,7 +191,6 @@ mod platform {
                 Side::Bottom => vec![0,                             0,                                                     0,                             root_window_geometry.height as u32 - mon_end_y + dist,  0,                      0,          0,                      0,          0,                      0,          monitor_rect.x as u32,  mon_end_x],
                 // This should never happen but if it does the window will be anchored on the
                 // right of the screen
-                _  => vec![0,                             root_window_geometry.width as u32 - mon_end_x + dist,  0,                             0,                                                      0,                      0,          monitor_rect.y as u32,  mon_end_y,  0,                      0,          0,                      0],
             }.iter().flat_map(|x| x.to_le_bytes().to_vec()).collect();
 
             self.conn

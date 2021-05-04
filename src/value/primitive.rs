@@ -148,7 +148,7 @@ fn parse_vec(a: String) -> Result<Vec<String>> {
             let mut removed = 0;
             for times_ran in 0..items.len() {
                 // escapes `,` if there's a `\` before em
-                if items[times_ran - removed].ends_with("\\") {
+                if items[times_ran - removed].ends_with('\\') {
                     items[times_ran - removed].pop();
                     let it = items.remove((times_ran + 1) - removed);
                     items[times_ran - removed] += ",";

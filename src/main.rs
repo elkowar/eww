@@ -6,6 +6,7 @@
 #![feature(try_blocks)]
 #![feature(nll)]
 
+
 extern crate gio;
 extern crate gtk;
 #[cfg(feature = "wayland")]
@@ -126,7 +127,7 @@ impl EwwPaths {
         let daemon_id = base64::encode(format!("{}", config_dir.display()));
 
         Ok(EwwPaths {
-            config_dir: config_dir.to_path_buf(),
+            config_dir,
             log_file: std::env::var("XDG_CACHE_HOME")
                 .map(PathBuf::from)
                 .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap()).join(".cache"))

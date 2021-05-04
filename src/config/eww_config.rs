@@ -24,7 +24,7 @@ pub struct EwwConfig {
 }
 impl EwwConfig {
     pub fn read_from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self> {
-        Ok(Self::generate(RawEwwConfig::read_from_file(path)?)?)
+        Self::generate(RawEwwConfig::read_from_file(path)?)
     }
 
     pub fn generate(conf: RawEwwConfig) -> Result<Self> {
@@ -120,7 +120,7 @@ impl RawEwwConfig {
 
             let parsed_includes = included_paths
                 .into_iter()
-                .map(|included_path| Self::read_from_file(included_path))
+                .map(Self::read_from_file)
                 .collect::<Result<Vec<_>>>()
                 .with_context(|| format!("Included in {}", path.as_ref().display()))?;
 

@@ -14,15 +14,19 @@ jobs:
       runs-on: ubuntu-latest
       steps:
          - name: Install dependencies
-           run: sudo apt-get update && sudo apt-get install libgtk-3-dev
+           run: sudo apt-get update && sudo apt-get install libgtk-3-dev libgtk-layer-shell-dev
          - name: Set up
            uses: actions-rs/toolchain@v1
            with:
               toolchain: nightly
               override: true
               components: rustfmt
-
          - uses: actions/checkout@v2
-         - name: Build
-           run: cargo build
+         - uses: Swatinem/rust-cache@v1
+         - name: Build x11
+           run: cargo check --no-default-features --features=x11
+         - name: Build wayland
+           run: cargo check --no-default-features --features=wayland
+         - name: Build no-x11-wayland
+           run: cargo check --no-default-features --features=no-x11-wayland
 

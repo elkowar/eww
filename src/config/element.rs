@@ -29,7 +29,7 @@ impl WidgetDefinition {
             }
 
             WidgetDefinition {
-                name: xml.attr("name")?.to_owned(),
+                name: xml.attr("name")?,
                 size: Option::zip(xml.parse_optional_attr("width")?, xml.parse_optional_attr("height")?),
                 structure: WidgetUse::from_xml_node(xml.only_child()?)?,
             }

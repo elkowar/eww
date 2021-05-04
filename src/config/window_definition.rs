@@ -1,8 +1,4 @@
-use crate::{
-    ensure_xml_tag_is,
-    value::{Coords, NumWithUnit},
-    widgets::widget_node,
-};
+use crate::{ensure_xml_tag_is, value::NumWithUnit, widgets::widget_node};
 use anyhow::*;
 use derive_more::*;
 use serde::{Deserialize, Serialize};
@@ -13,7 +9,6 @@ use super::*;
 
 /// Full window-definition containing the fully expanded widget tree.
 /// **Use this** rather than `[RawEwwWindowDefinition]`.
-#[cfg(feature = "x11")]
 #[derive(Debug, Clone)]
 pub struct EwwWindowDefinition {
     pub name: WindowName,
@@ -21,20 +16,13 @@ pub struct EwwWindowDefinition {
     pub stacking: WindowStacking,
     pub screen_number: Option<i32>,
     pub widget: Box<dyn widget_node::WidgetNode>,
-    pub struts: StrutDefinition,
     pub focusable: bool,
-}
 
-#[cfg(feature = "wayland")]
-#[derive(Debug, Clone)]
-pub struct EwwWindowDefinition {
-    pub name: WindowName,
-    pub geometry: EwwWindowGeometry,
-    pub stacking: WindowStacking,
-    pub screen_number: Option<i32>,
-    pub widget: Box<dyn widget_node::WidgetNode>,
+    #[cfg(feature = "x11")]
+    pub struts: StrutDefinition,
+
+    #[cfg(feature = "wayland")]
     pub exclusive: bool,
-    pub focusable: bool,
 }
 
 impl EwwWindowDefinition {
@@ -55,7 +43,6 @@ impl EwwWindowDefinition {
 }
 
 /// Window-definition storing the raw WidgetUse, as received directly from parsing.
-#[cfg(feature = "x11")]
 #[derive(Debug, Clone, PartialEq)]
 pub struct RawEwwWindowDefinition {
     pub name: WindowName,
@@ -63,20 +50,13 @@ pub struct RawEwwWindowDefinition {
     pub stacking: WindowStacking,
     pub screen_number: Option<i32>,
     pub widget: WidgetUse,
-    pub struts: StrutDefinition,
     pub focusable: bool,
-}
 
-#[cfg(feature = "wayland")]
-#[derive(Debug, Clone, PartialEq)]
-pub struct RawEwwWindowDefinition {
-    pub name: WindowName,
+    #[cfg(feature = "x11")]
+    pub struts: StrutDefinition,
+
+    #[cfg(feature = "wayland")]
     pub exclusive: bool,
-    pub geometry: EwwWindowGeometry,
-    pub stacking: WindowStacking,
-    pub screen_number: Option<i32>,
-    pub widget: WidgetUse,
-    pub focusable: bool,
 }
 
 impl RawEwwWindowDefinition {
@@ -93,7 +73,7 @@ impl RawEwwWindowDefinition {
             xml.child("reserve").ok().map(StrutDefinition::from_xml_element).transpose().context("Failed to parse <reserve>")?;
 
         Ok(RawEwwWindowDefinition {
-            name: WindowName(xml.attr("name")?.to_owned()),
+            name: WindowName(xml.attr("name")?),
             geometry: match xml.child("geometry") {
                 Ok(node) => EwwWindowGeometry::from_xml_element(node)?,
                 Err(_) => EwwWindowGeometry::default(),
@@ -117,17 +97,11 @@ pub enum Side {
     Left,
     Right,
     Bottom,
-    Center,
-    TopLeft,
-    TopRight,
-    BottomLeft,
-    BottomRight,
 }
 
 impl std::str::FromStr for Side {
     type Err = anyhow::Error;
 
-    #[cfg(feature = "x11")]
     fn from_str(s: &str) -> Result<Side> {
         match s {
             "l" | "left" => Ok(Side::Left),
@@ -137,36 +111,15 @@ impl std::str::FromStr for Side {
             _ => Err(anyhow!("Failed to parse {} as valid side. Must be one of \"left\", \"right\", \"top\", \"bottom\"", s)),
         }
     }
-
-    #[cfg(feature = "wayland")]
-    fn from_str(s: &str) -> Result<Side> {
-        match s {
-            "l" | "left" => Ok(Side::Left),
-            "r" | "right" => Ok(Side::Right),
-            "t" | "top" => Ok(Side::Top),
-            "b" | "bottom" => Ok(Side::Bottom),
-            "c" | "center" => Ok(Side::Center),
-            "tl" | "top-left" => Ok(Side::TopLeft),
-            "tr" | "top-right" => Ok(Side::TopRight),
-            "bl" | "bottom-left" => Ok(Side::BottomLeft),
-            "br" | "bottom-right" => Ok(Side::BottomRight),
-            _ => Err(anyhow!(
-                r#"Failed to parse {} as valid side. Must be one of "left", "right", "top", "bottom", "top-right", "top-left", "bottom-left", "bottom-right""#,
-                s
-            )),
-        }
-    }
 }
 
 // Surface definition if the backend for X11 is enable
-#[cfg(feature = "x11")]
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct StrutDefinition {
     pub side: Side,
     pub dist: NumWithUnit,
 }
 
-#[cfg(feature = "x11")]
 impl StrutDefinition {
     pub fn from_xml_element(xml: XmlElement) -> Result<Self> {
         Ok(StrutDefinition { side: xml.attr("side")?.parse()?, dist: xml.attr("distance")?.parse()? })
@@ -185,7 +138,7 @@ pub enum WindowStacking {
 impl std::str::FromStr for WindowStacking {
     type Err = anyhow::Error;
 
-    #[cfg(feature = "x11")]
+    #[cfg(not(feature = "wayland"))]
     fn from_str(s: &str) -> Result<Self> {
         let s = s.to_lowercase();
         match s.as_str() {
