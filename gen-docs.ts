@@ -1,3 +1,4 @@
+
 interface WidgetData {
     name: string;
     desc: string;
@@ -15,9 +16,9 @@ interface Widget {
 function parseVars(code: string): Record<string, string> {
     const VAR_PATTERN = /^.*\/\/+ *@var +(.*?) +- +(.*)$/;
     const vars: Record<string, string> = {};
-    
+
     for (const line of code.split("\n")) {
-        
+
         const match = line.match(VAR_PATTERN);
         if (match && match.length == 3) {
             const name = match[1];
@@ -50,12 +51,12 @@ function parseDocs(code: string) {
     const ARG_TYPE_PATTERN = /(\w+):\s+as_(\w+)/g;
 
     const widgets: Record<string, Widget> = {};
-    const lines = code.split("\n") 
-    
+    const lines = code.split("\n")
+
     let currentWidget = "";
-    
+
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-        
+
         const line = lines[lineIndex]
         const newWidgetMatch = NEW_WIDGET_PATTERN.exec(line);
 
@@ -85,13 +86,13 @@ function parseDocs(code: string) {
         const propMatch = line.match(PROP_PATTERN);
         if (propMatch && propMatch.length == 3) {
             let no = lineIndex + 1
-           
+
             while (/\s*\/\//.test(lines[no])) {
                 no += 1
             } // continue till you find the line with actual code
-            
+
             const matches = [...lines[no].matchAll(ARG_TYPE_PATTERN)].map(z => { z.shift(); return z }).flat() // try to use the iterator directly
-            
+
             const possibleMatch = matches.findIndex(x => x == propMatch[1].replaceAll("-", "_"))
             if (possibleMatch == -1) {
                 console.log(`Failed to find a match for "${propMatch[1].replace("-", "_")}" ~ ${JSON.stringify(matches, null, 2)} ~ ${lines[no]}`)
