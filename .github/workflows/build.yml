@@ -21,8 +21,8 @@ jobs:
               toolchain: nightly
               override: true
               components: rustfmt
-
          - uses: actions/checkout@v2
+         - uses: Swatinem/rust-cache@v1
          - name: Build x11
            run: cargo check --no-default-features --features=x11
          - name: Build wayland

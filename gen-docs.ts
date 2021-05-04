@@ -1,4 +1,3 @@
-
 interface WidgetData {
     name: string;
     desc: string;
