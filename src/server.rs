@@ -71,10 +71,7 @@ pub fn initialize_server(paths: EwwPaths) -> Result<()> {
 
 fn init_async_part(paths: EwwPaths, ui_send: UnboundedSender<app::DaemonCommand>) {
     std::thread::spawn(move || {
-        let rt = tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .build()
-            .expect("Failed to initialize tokio runtime");
+        let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().expect("Failed to initialize tokio runtime");
         rt.block_on(async {
             let filewatch_join_handle = {
                 let ui_send = ui_send.clone();
@@ -109,14 +106,13 @@ fn init_async_part(paths: EwwPaths, ui_send: UnboundedSender<app::DaemonCommand>
 
 /// Watch configuration files for changes, sending reload events to the eww app when the files change.
 async fn run_filewatch<P: AsRef<Path>>(config_dir: P, evt_send: UnboundedSender<app::DaemonCommand>) -> Result<()> {
-
     use notify::*;
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-    let mut watcher: RecommendedWatcher = Watcher::new_immediate(move |res: Result<Event>| {
-       match res {
-           Ok(event) => { tx.send(event.paths).unwrap(); },
-           Err(e) => eprintln!("Encountered Error While Watching Files: {}", e)
-       }
+    let mut watcher: RecommendedWatcher = Watcher::new_immediate(move |res: Result<Event>| match res {
+        Ok(event) => {
+            tx.send(event.paths).unwrap();
+        }
+        Err(e) => eprintln!("Encountered Error While Watching Files: {}", e),
     })?;
     watcher.watch(&config_dir, RecursiveMode::Recursive)?;
 
@@ -124,17 +120,19 @@ async fn run_filewatch<P: AsRef<Path>>(config_dir: P, evt_send: UnboundedSender<
         if let Some(paths) = rx.recv().await {
             for path in paths {
                 let extension = path.extension().unwrap_or_default();
-                if extension != "xml" && extension != "scss" { continue; }
-                
-                 let (daemon_resp_sender, mut daemon_resp_response) = tokio::sync::mpsc::unbounded_channel();
-                 evt_send.send(app::DaemonCommand::ReloadConfigAndCss(daemon_resp_sender))?;
-                 tokio::spawn(async move {
-                     match daemon_resp_response.recv().await {
-                            Some(app::DaemonResponse::Success(_)) => println!("Reloaded config successfully"),
-                            Some(app::DaemonResponse::Failure(e)) => eprintln!("Failed to reload config: {}", e),
-                            None => eprintln!("No response to reload configuration-reload request"),
-                        }
-                 });
+                if extension != "xml" && extension != "scss" {
+                    continue;
+                }
+
+                let (daemon_resp_sender, mut daemon_resp_response) = tokio::sync::mpsc::unbounded_channel();
+                evt_send.send(app::DaemonCommand::ReloadConfigAndCss(daemon_resp_sender))?;
+                tokio::spawn(async move {
+                    match daemon_resp_response.recv().await {
+                        Some(app::DaemonResponse::Success(_)) => println!("Reloaded config successfully"),
+                        Some(app::DaemonResponse::Failure(e)) => eprintln!("Failed to reload config: {}", e),
+                        None => eprintln!("No response to reload configuration-reload request"),
+                    }
+                });
             }
         }
     }
@@ -154,10 +152,7 @@ fn do_detach(log_file_path: impl AsRef<Path>) -> Result<()> {
         .create(true)
         .append(true)
         .open(&log_file_path)
-        .expect(&format!(
-            "Error opening log file ({}), for writing",
-            log_file_path.as_ref().to_string_lossy()
-        ));
+        .expect(&format!("Error opening log file ({}), for writing", log_file_path.as_ref().to_string_lossy()));
     let fd = file.as_raw_fd();
 
     if nix::unistd::isatty(1)? {
