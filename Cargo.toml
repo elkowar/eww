@@ -61,7 +61,7 @@ dyn-clone = "1.0"
 base64 = "0.13"
 wait-timeout = "0.2"
 
-notify = "4.0.15"
+notify = "5.0.0-pre.7"
 
 [dev-dependencies]
 pretty_assertions = "0.7.1"
