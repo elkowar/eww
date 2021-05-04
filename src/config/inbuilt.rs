@@ -19,7 +19,7 @@ macro_rules! builtin_vars {
 
 pub fn get_inbuilt_vars() -> HashMap<VarName, ScriptVar> {
     builtin_vars! {Duration::new(2, 0),
-        // @desc EWW_HEAT - The average core heat in Celcius. Since it's a JSON value you have to pick the value you want with .core_0, all lowercase and spaces replaced with _. Average core heat can be built with eww expressions: `{{(CPU_TEMPS.core_1 + CPU_TEMPS.core_2) / 2}}`
+        // @desc EWW_HEAT - The average core heat in Celcius.\nSince it's a JSON value you have to pick the value you want with .core_0, all lowercase and spaces replaced with _.\nAverage core heat can be built with eww expressions: `{{(CPU_TEMPS.core_1 + CPU_TEMPS.core_2) / 2}}`
         "EWW_TEMPS" => || Ok(PrimitiveValue::from(cores())),
 
         // @desc EWW_RAM - The current RAM + Swap usage

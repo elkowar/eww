@@ -20,7 +20,8 @@ function parseMagicVariables(data: string) {
         if (match) {
             let split = match[1].split("-");
             let name = split[0].trim();
-            let desc = split[1].trim();
+            let desc = split[1].trim().replaceAll("\\n", "\n\n");
+            console.log(desc)
             output = output + `### \`${name}\`\n${desc}\n`;
         }
     }
