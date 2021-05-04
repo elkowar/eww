@@ -24,9 +24,9 @@ jobs:
 
          - uses: actions/checkout@v2
          - name: Build x11
-           run: cargo --no-default-features --features=x11 check
+           run: cargo check --no-default-features --features=x11
          - name: Build wayland
-           run: cargo --no-default-features --features=wayland check
+           run: cargo check --no-default-features --features=wayland
          - name: Build no-x11-wayland
-           run: cargo --no-default-features --features=no-x11-wayland check
+           run: cargo check --no-default-features --features=no-x11-wayland
 
