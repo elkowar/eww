@@ -5,8 +5,6 @@ use futures_util::StreamExt;
 use std::{collections::HashMap, os::unix::io::AsRawFd, path::Path};
 use tokio::sync::mpsc::*;
 
-use notify::Watcher;
-
 pub fn initialize_server(paths: EwwPaths) -> Result<()> {
     do_detach(&paths.get_log_file())?;
 
@@ -111,31 +109,33 @@ fn init_async_part(paths: EwwPaths, ui_send: UnboundedSender<app::DaemonCommand>
 
 /// Watch configuration files for changes, sending reload events to the eww app when the files change.
 async fn run_filewatch<P: AsRef<Path>>(config_dir: P, evt_send: UnboundedSender<app::DaemonCommand>) -> Result<()> {
-    let (tx, rx) = std::sync::mpsc::channel();
-    let mut watcher = notify::watcher(tx, std::time::Duration::from_secs(0))?;
-    watcher.watch(&config_dir, notify::RecursiveMode::Recursive)?;
+
+    use notify::*;
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+    let mut watcher: RecommendedWatcher = Watcher::new_immediate(move |res: Result<Event>| {
+       match res {
+           Ok(event) => { tx.send(event.paths).unwrap(); },
+           Err(e) => eprintln!("Encountered Error While Watching Files: {}", e)
+       }
+    })?;
+    watcher.watch(&config_dir, RecursiveMode::Recursive)?;
 
     loop {
-        match rx.recv() {
-            Ok(event) => match event {
-                notify::DebouncedEvent::Create(p) | notify::DebouncedEvent::Remove(p) | notify::DebouncedEvent::Write(p) => {
-                    let extension = p.extension().unwrap_or_else(|| std::ffi::OsStr::new(""));
-                    if extension == "xml" || extension == "scss" {
-                        let (daemon_resp_sender, mut daemon_resp_response) = tokio::sync::mpsc::unbounded_channel();
-                        evt_send.send(app::DaemonCommand::ReloadConfigAndCss(daemon_resp_sender))?;
-                        tokio::spawn(async move {
-                            if let Some(rsp) = daemon_resp_response.recv().await {
-                                match rsp {
-                                    app::DaemonResponse::Success(_) => println!("Reloaded config successfully"),
-                                    app::DaemonResponse::Failure(e) => println!("Failed to reload config: {:#?}", e)
-                                }
-                            }
-                        });
-                    }
-                }
-                _ => {}
-            },
-            Err(e) => eprintln!("watch error: {:?}", e),
+        if let Some(paths) = rx.recv().await {
+            for path in paths {
+                let extension = path.extension().unwrap_or_default();
+                if extension != "xml" && extension != "scss" { continue; }
+                
+                 let (daemon_resp_sender, mut daemon_resp_response) = tokio::sync::mpsc::unbounded_channel();
+                 evt_send.send(app::DaemonCommand::ReloadConfigAndCss(daemon_resp_sender))?;
+                 tokio::spawn(async move {
+                     match daemon_resp_response.recv().await {
+                            Some(app::DaemonResponse::Success(_)) => println!("Reloaded config successfully"),
+                            Some(app::DaemonResponse::Failure(e)) => eprintln!("Failed to reload config: {}", e),
+                            None => eprintln!("No response to reload configuration-reload request"),
+                        }
+                 });
+            }
         }
     }
 }
