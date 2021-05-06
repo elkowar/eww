@@ -19,13 +19,13 @@ macro_rules! builtin_vars {
 
 pub fn get_inbuilt_vars() -> HashMap<VarName, ScriptVar> {
     builtin_vars! {Duration::new(2, 0),
-        // @desc EWW_HEAT - Core heat in Celcius\nExample: `{{(CPU_TEMPS.core_1 + CPU_TEMPS.core_2) / 2}}`
+        // @desc EWW_TEMPS - Heat of the components in Celcius\nExample: `{{(CPU_TEMPS.core_1 + CPU_TEMPS.core_2) / 2}}`
         "EWW_TEMPS" => || Ok(PrimitiveValue::from(cores())),
 
         // @desc EWW_RAM - The current RAM + Swap usage
         "EWW_RAM" => || Ok(PrimitiveValue::from(format!("{:.2}", ram()))),
 
-        // @desc EWW_DISK - Used space on / in GB (Might report inaccurately on some filesystems, like btrfs)\nExample: `{{EWW_DISK["/"]}}`
+        // @desc EWW_DISK - Information on on all mounted partitions (Might report inaccurately on some filesystems, like btrfs)\nExample: `{{EWW_DISK["/"]}}`
         "EWW_DISK" => || Ok(PrimitiveValue::from(disk())),
 
         // @desc EWW_BATTERY - Battery capacity in procent of the main battery
@@ -39,8 +39,8 @@ pub fn get_inbuilt_vars() -> HashMap<VarName, ScriptVar> {
             }
         )),
 
-        // @desc EWW_CPU - Average CPU usage (all cores) in the last two seconds (No MacOS support)
-        "EWW_CPU" => || Ok(PrimitiveValue::from(format!("{:.2}", get_avg_cpu_usage()))),
+        // @desc EWW_CPU_USAGE - Average CPU usage (all cores) since the last update (No MacOS support)
+        "EWW_CPU_USAGE" => || Ok(PrimitiveValue::from(get_avg_cpu_usage())),
 
         // @desc EWW_NET - Bytes up/down on all interfaces
         "EWW_NET" => || Ok(PrimitiveValue::from(net())),

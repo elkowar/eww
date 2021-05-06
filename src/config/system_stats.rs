@@ -15,13 +15,16 @@ pub fn disk() -> String {
 
     format!(
         "{{ {} }}",
-        c.get_disks().iter().map(|c| format!(
-            r#""{}": {{"name": {:?}, "total": {}, "free": {}}}"#,
-            c.get_mount_point().display(),
-            c.get_name(),
-            c.get_total_space(),
-            c.get_available_space(),
-        )).join(",")
+        c.get_disks()
+            .iter()
+            .map(|c| format!(
+                r#""{}": {{"name": {:?}, "total": {}, "free": {}}}"#,
+                c.get_mount_point().display(),
+                c.get_name(),
+                c.get_total_space(),
+                c.get_available_space(),
+            ))
+            .join(",")
     )
 }
 
@@ -44,10 +47,23 @@ pub fn cores() -> String {
     )
 }
 
-pub fn get_avg_cpu_usage() -> f32 {
+pub fn get_avg_cpu_usage() -> String {
     let mut c = SYSTEM.lock().unwrap();
     c.refresh_cpu();
-    c.get_processors().iter().map(|a| a.get_cpu_usage()).avg()
+    let processors = c.get_processors();
+    format!(
+        r#"{{ "cores": [{}], "avg": {} }}"#,
+        processors
+            .iter()
+            .map(|a| format!(
+                r#"{{"core": "{}", "freq": {}, "usage": {}}}"#,
+                a.get_name(),
+                a.get_frequency(),
+                a.get_cpu_usage()
+            ))
+            .join(","),
+        processors.iter().map(|a| a.get_cpu_usage()).avg()
+    )
 }
 
 #[cfg(target_os = "macos")]
@@ -66,6 +82,7 @@ pub fn get_battery_capacity() -> Result<u8> {
     //-InternalBattery-0 (id=11403363)	100%; discharging; (no estimate) present: true
     let regex = Regex::new(r"[0-9]*%")?;
     let mut number = regex.captures(&capacity).unwrap().get(0).unwrap().as_str().to_string();
+
     // Removes the % at the end
     number.pop();
     Ok(number.parse().context("Couldn't make a number from the parsed text")?)
