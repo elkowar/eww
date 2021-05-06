@@ -66,11 +66,7 @@ impl ScriptVar {
         let command = xml.only_child()?.as_text()?.text();
         if let Ok(interval) = xml.attr("interval") {
             let interval = util::parse_duration(&interval)?;
-            Ok(ScriptVar::Poll(PollScriptVar {
-                name,
-                command: crate::config::VarSource::Shell(command),
-                interval,
-            }))
+            Ok(ScriptVar::Poll(PollScriptVar { name, command: crate::config::VarSource::Shell(command), interval }))
         } else {
             Ok(ScriptVar::Tail(TailScriptVar { name, command }))
         }

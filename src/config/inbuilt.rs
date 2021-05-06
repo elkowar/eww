@@ -19,22 +19,14 @@ macro_rules! builtin_vars {
 
 pub fn get_inbuilt_vars() -> HashMap<VarName, ScriptVar> {
     builtin_vars! {Duration::new(2, 0),
-        // @desc EWW_HEAT - The average core heat in Celcius.\nSince it's a JSON value you have to pick the value you want with .core_0, all lowercase and spaces replaced with _.\nAverage core heat can be built with eww expressions: `{{(CPU_TEMPS.core_1 + CPU_TEMPS.core_2) / 2}}`
+        // @desc EWW_HEAT - Core heat in Celcius\nExample: `{{(CPU_TEMPS.core_1 + CPU_TEMPS.core_2) / 2}}`
         "EWW_TEMPS" => || Ok(PrimitiveValue::from(cores())),
 
         // @desc EWW_RAM - The current RAM + Swap usage
         "EWW_RAM" => || Ok(PrimitiveValue::from(format!("{:.2}", ram()))),
 
-        // @desc EWW_DISK - Used space on / in GB (Might report inaccurately on some filesystems, like btrfs)
-        "EWW_DISK" => || Ok(PrimitiveValue::from(format!("{:.1}",
-            match disk() {
-                Err(e) => {
-                    log::error!("Couldn't get disk usage on `/`: {:?}", e);
-                    f32::NAN
-                }
-                Ok(o) => o
-            }
-        ))),
+        // @desc EWW_DISK - Used space on / in GB (Might report inaccurately on some filesystems, like btrfs)\nExample: `{{EWW_DISK["/"]}}`
+        "EWW_DISK" => || Ok(PrimitiveValue::from(disk())),
 
         // @desc EWW_BATTERY - Battery capacity in procent of the main battery
         "EWW_BATTERY" => || Ok(PrimitiveValue::from(
@@ -46,7 +38,6 @@ pub fn get_inbuilt_vars() -> HashMap<VarName, ScriptVar> {
                 Ok(o) => o as f32,
             }
         )),
-
 
         // @desc EWW_CPU - Average CPU usage (all cores) in the last two seconds (No MacOS support)
         "EWW_CPU" => || Ok(PrimitiveValue::from(format!("{:.2}", get_avg_cpu_usage()))),

@@ -21,7 +21,6 @@ function parseMagicVariables(data: string) {
             let split = match[1].split("-");
             let name = split[0].trim();
             let desc = split[1].trim().replaceAll("\\n", "\n\n");
-            console.log(desc)
             output = output + `### \`${name}\`\n${desc}\n`;
         }
     }
@@ -137,7 +136,7 @@ function printDocs(vars: Record<string, string>, docs: Record<string, Widget>) {
         .map((x) => printWidget(x))
         .map((x) => x.replace(/\$\w+/g, (x) => vars[x.replace("$", "")]))
         .join("\n\n");
-    console.log(output);
+    return output;
 }
 
 function printWidget(widget: Widget) {
@@ -154,11 +153,13 @@ ${widget.props.map((prop) => `- **\`${prop.name}\`**: *\`${prop.type}\`* ${prop.
 // deno run --allow-read gen-docs.ts ./src/widgets/widget_definitions.ts 2> /dev/null
 Deno.readTextFile(Deno.args[0]).then(data => {
     const vars = parseVars(data);
-    printDocs(vars, parseDocs(data));
+    Deno.writeTextFile("docs/content/main/widgets.md", printDocs(vars, parseDocs(data)), {"append": true});
 }).catch(err => {
     return console.error(err);
 })
 
-let magic = Deno.readTextFile("src/config/inbuilt.rs").then(data => {
-    Deno.writeTextFile("docs/content/main/magic-vars.md", parseMagicVariables(data), {"append": true})
+let magic = Deno.readTextFile(Deno.args[1]).then(data => {
+    Deno.writeTextFile("docs/content/main/magic-vars.md", parseMagicVariables(data), {"append": true});
+}).catch(err => {
+    return console.error(err);
 })

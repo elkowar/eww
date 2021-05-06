@@ -1,24 +1,28 @@
+use crate::util::IterAverage;
+use anyhow::*;
 use itertools::Itertools;
 use lazy_static::lazy_static;
-use std::sync::{Mutex};
-use crate::util::IterAverage;
-use sysinfo::{ComponentExt, DiskExt, NetworkExt, NetworksExt, ProcessorExt, RefreshKind, System, SystemExt};
-use anyhow::*;
+use std::sync::Mutex;
+use sysinfo::{ComponentExt, DiskExt, NetworkExt, NetworksExt, ProcessorExt, System, SystemExt};
 
 lazy_static! {
     static ref SYSTEM: Mutex<System> = Mutex::new(System::new());
 }
 
-pub fn disk() -> Result<f32> {
+pub fn disk() -> String {
     let mut c = SYSTEM.lock().unwrap();
     c.refresh_disks_list();
 
-    let root = c
-        .get_disks()
-        .iter()
-        .find(|&x| x.get_mount_point() == std::path::Path::new("/"))
-        .context("Couldn't find a drive mounted at /")?;
-    Ok((root.get_total_space() as f32 - root.get_available_space() as f32) / 1_000_000_000f32)
+    format!(
+        "{{ {} }}",
+        c.get_disks().iter().map(|c| format!(
+            r#""{}": {{"name": {:?}, "total": {}, "free": {}}}"#,
+            c.get_mount_point().display(),
+            c.get_name(),
+            c.get_total_space(),
+            c.get_available_space(),
+        )).join(",")
+    )
 }
 
 pub fn ram() -> f32 {
@@ -31,13 +35,13 @@ pub fn cores() -> String {
     let mut c = SYSTEM.lock().unwrap();
     c.refresh_components_list();
     c.refresh_components();
-    let mut components = String::from("{");
-    for c in c.get_components() {
-        components.push_str(&format!("\"{}\":\"{}\",", c.get_label().to_uppercase().replace(" ", "_"), c.get_temperature()));
-    }
-    components.pop();
-    components.push('}');
-    components
+    format!(
+        "{{ {} }}",
+        c.get_components()
+            .iter()
+            .map(|c| format!(r#""{}": {}"#, c.get_label().to_uppercase().replace(" ", "_"), c.get_temperature()))
+            .join(",")
+    )
 }
 
 pub fn get_avg_cpu_usage() -> f32 {
@@ -84,21 +88,13 @@ pub fn get_battery_capacity() -> Result<u8> {
 
 pub fn net() -> String {
     let mut c = SYSTEM.lock().unwrap();
-    let mut interfaces = String::from("{ \"NET_DOWN\": {");
-    interfaces.push_str(&c
-        .get_networks()
-        .iter()
-        .map(|a| format!("\"{}\":\"{}\"", a.0, a.1.get_received()))
-        .join(","));
-
-    interfaces.push_str("}, \"NET_UP\": {");
-    interfaces.push_str(&c
-        .get_networks()
-        .iter()
-        .map(|a| format!("\"{}\":\"{}\"", a.0, a.1.get_transmitted()))
-        .join(","));
-    interfaces.push_str("}}");
-    dbg!(&interfaces);
+    let interfaces = format!(
+        "{{ {} }}",
+        &c.get_networks()
+            .iter()
+            .map(|a| format!(r#""{}": {{ "NET_UP": {}, "NET_DOWN": {} }}"#, a.0, a.1.get_transmitted(), a.1.get_received()))
+            .join(","),
+    );
     c.refresh_networks_list();
     interfaces
 }
