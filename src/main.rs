@@ -6,7 +6,6 @@
 #![feature(try_blocks)]
 #![feature(nll)]
 
-
 extern crate gio;
 extern crate gtk;
 #[cfg(feature = "wayland")]

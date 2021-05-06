@@ -106,16 +106,18 @@ fn init_async_part(paths: EwwPaths, ui_send: UnboundedSender<app::DaemonCommand>
 
 /// Watch configuration files for changes, sending reload events to the eww app when the files change.
 async fn run_filewatch<P: AsRef<Path>>(config_dir: P, evt_send: UnboundedSender<app::DaemonCommand>) -> Result<()> {
-
     use notify::Watcher;
 
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-    let mut watcher: notify::RecommendedWatcher = notify::Watcher::new_immediate(move |res: notify::Result<notify::Event>| match res {
-        Ok(event) => {
-            tx.send(event.paths).unwrap();
-        }
-        Err(e) => eprintln!("Encountered Error While Watching Files: {}", e),
-    })?;
+    let mut watcher: notify::RecommendedWatcher =
+        notify::Watcher::new_immediate(move |res: notify::Result<notify::Event>| match res {
+            Ok(event) => {
+                if let Err(err) = tx.send(event.paths) {
+                    log::warn!("Error forwarding file update event: {:?}", err);
+                }
+            }
+            Err(e) => eprintln!("Encountered Error While Watching Files: {}", e),
+        })?;
     watcher.watch(&config_dir, notify::RecursiveMode::Recursive)?;
 
     crate::loop_select_exiting! {
@@ -139,7 +141,7 @@ async fn run_filewatch<P: AsRef<Path>>(config_dir: P, evt_send: UnboundedSender<
         },
         else => break
     };
-    return Ok(())
+    return Ok(());
 }
 
 /// detach the process from the terminal, also redirecting stdout and stderr to LOG_FILE
