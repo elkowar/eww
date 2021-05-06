@@ -13,18 +13,15 @@ interface Widget {
 }
 
 function parseMagicVariables(data: string) {
-    const pattern = /^.*\/\/ @desc +(.*)$/;
-    let output = "";
-    for (let line of data.split("\n")) {
-        let match = line.match(pattern);
-        if (match) {
-            let split = match[1].split("-");
-            let name = split[0].trim();
-            let desc = split[1].trim().replaceAll("\\n", "\n\n");
-            output = output + `### \`${name}\`\n${desc}\n`;
-        }
+    const pattern = /^.*\/\/\s*@desc\s*(\w+)\s*-\s*(.*)$/gm;
+    let output = [];
+    for (const [_, name, desc] of data.matchAll(pattern)) {
+        output.push(
+`### \`${name}\`
+${desc.replaceAll("\\n", "\n\n")}
+`);
     }
-    return output;
+    return output.join("\n");
 }
 
 function parseVars(code: string): Record<string, string> {
