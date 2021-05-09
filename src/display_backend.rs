@@ -6,7 +6,7 @@ mod platform {
     use anyhow::*;
     use gtk::{self, prelude::*};
 
-    pub fn initialize_window(window_def: &mut EwwWindowDefinition, _monitor: gdk::Rectangle) -> gtk::Window {
+    pub fn initialize_window(window_def: &EwwWindowDefinition, _monitor: gdk::Rectangle) -> gtk::Window {
         let window = if window_def.focusable {
             gtk::Window::new(gtk::WindowType::Toplevel)
         } else {
@@ -36,7 +36,7 @@ mod platform {
     use gdk;
     use gtk::prelude::*;
 
-    pub fn initialize_window(window_def: &mut EwwWindowDefinition, monitor: gdk::Rectangle) -> gtk::Window {
+    pub fn initialize_window(window_def: &EwwWindowDefinition, monitor: gdk::Rectangle) -> gtk::Window {
         let window = gtk::Window::new(gtk::WindowType::Toplevel);
         // Initialising a layer shell surface
         gtk_layer_shell::init_for_window(&window);
@@ -119,7 +119,7 @@ mod platform {
         rust_connection::{DefaultStream, RustConnection},
     };
 
-    pub fn initialize_window(window_def: &mut EwwWindowDefinition, _monitor: gdk::Rectangle) -> gtk::Window {
+    pub fn initialize_window(window_def: &EwwWindowDefinition, _monitor: gdk::Rectangle) -> gtk::Window {
         let window = if window_def.focusable {
             gtk::Window::new(gtk::WindowType::Toplevel)
         } else {
