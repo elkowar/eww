@@ -1,7 +1,5 @@
-use crate::{app, config, eww_state::*, ipc_server, script_var_handler, try_logging_errors, util, EwwPaths};
+use crate::{app, config, eww_state::*, ipc_server, script_var_handler, util, EwwPaths};
 use anyhow::*;
-use app::DaemonResponse;
-use futures_util::StreamExt;
 use std::{collections::HashMap, os::unix::io::AsRawFd, path::Path};
 use tokio::sync::mpsc::*;
 
