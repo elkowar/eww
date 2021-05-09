@@ -356,16 +356,27 @@ fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
 fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
     let gtk_widget = gtk::Button::new();
     let on_click_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
+
     resolve_block!(bargs, gtk_widget, {
         // @prop onclick - a command that get's run when the button is clicked
-        prop(onclick: as_string) {
+        // @prop onmiddleclick - a command that get's run when the button is middleclicked
+        // @prop onrightclick - a command that get's run when the button is rightclicked
+        prop(onclick: as_string = "", onmiddleclick: as_string = "", onrightclick: as_string = "") {
             gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
             let old_id = on_click_handler_id.replace(Some(
-                gtk_widget.connect_clicked(move |_| run_command(&onclick, ""))
+                gtk_widget.connect_button_press_event(move |_, evt| {
+                    match evt.get_button() {
+                        1 => run_command(&onclick, ""),
+                        2 => run_command(&onmiddleclick, ""),
+                        3 => run_command(&onrightclick, ""),
+                        _ => {},
+                    }
+                    gtk::Inhibit(false)
+                })
             ));
             old_id.map(|id| gtk_widget.disconnect(id));
-
         }
+
     });
     Ok(gtk_widget)
 }
