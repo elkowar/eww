@@ -111,6 +111,7 @@ fn parse_term1(i: &str) -> IResult<&str, AttrValExpr, VerboseError<&str>> {
         map(preceded(tag("!="), parse_term2), |x| (BinOp::NotEquals, x)),
         map(preceded(tag(">"), parse_term2), |x| (BinOp::GT, x)),
         map(preceded(tag("<"), parse_term2), |x| (BinOp::LT, x)),
+        map(preceded(tag("=~"), parse_term2), |x| (BinOp::RegexMatch, x)),
     )))(i)?;
 
     let exprs = remainder.into_iter().fold(initial, |acc, (op, expr)| AttrValExpr::BinOp(box acc, op, box expr));

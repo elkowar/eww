@@ -17,6 +17,7 @@ pub enum BinOp {
     GT,
     LT,
     Elvis,
+    RegexMatch,
 }
 
 impl std::fmt::Display for BinOp {
@@ -34,6 +35,7 @@ impl std::fmt::Display for BinOp {
             BinOp::GT => write!(f, ">"),
             BinOp::LT => write!(f, "<"),
             BinOp::Elvis => write!(f, "?:"),
+            BinOp::RegexMatch => write!(f, "=~"),
         }
     }
 }
@@ -156,6 +158,10 @@ impl AttrValExpr {
                     BinOp::GT => PrimVal::from(a.as_f64()? > b.as_f64()?),
                     BinOp::LT => PrimVal::from(a.as_f64()? < b.as_f64()?),
                     BinOp::Elvis => PrimVal::from(if a.0.is_empty() { b } else { a }),
+                    BinOp::RegexMatch => {
+                        let regex = regex::Regex::new(&b.as_string()?)?;
+                        PrimVal::from(regex.is_match(&a.as_string()?))
+                    }
                 })
             }
             AttrValExpr::UnaryOp(op, a) => {
