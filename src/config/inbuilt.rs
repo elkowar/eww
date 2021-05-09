@@ -33,9 +33,9 @@ pub fn get_inbuilt_vars() -> HashMap<VarName, ScriptVar> {
             match get_battery_capacity() {
                 Err(e) => {
                     log::error!("Couldn't get the battery capacity: {:?}", e);
-                    f32::NAN
+                    "Error: Check `eww log` for more details".to_string()
                 }
-                Ok(o) => o as f32,
+                Ok(o) => o,
             }
         )),
 

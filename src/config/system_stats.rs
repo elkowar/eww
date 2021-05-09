@@ -1,5 +1,6 @@
 use crate::util::IterAverage;
 use anyhow::*;
+use std::fs::read_to_string;
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use std::sync::Mutex;
@@ -55,19 +56,14 @@ pub fn get_avg_cpu_usage() -> String {
         r#"{{ "cores": [{}], "avg": {} }}"#,
         processors
             .iter()
-            .map(|a| format!(
-                r#"{{"core": "{}", "freq": {}, "usage": {}}}"#,
-                a.get_name(),
-                a.get_frequency(),
-                a.get_cpu_usage()
-            ))
+            .map(|a| format!(r#"{{"core": "{}", "freq": {}, "usage": {}}}"#, a.get_name(), a.get_frequency(), a.get_cpu_usage()))
             .join(","),
         processors.iter().map(|a| a.get_cpu_usage()).avg()
     )
 }
 
 #[cfg(target_os = "macos")]
-pub fn get_battery_capacity() -> Result<u8> {
+pub fn get_battery_capacity() -> Result<String> {
     use regex::Regex;
     let capacity = String::from_utf8(
         std::process::Command::new("pmset")
@@ -85,16 +81,44 @@ pub fn get_battery_capacity() -> Result<u8> {
 
     // Removes the % at the end
     number.pop();
-    Ok(number.parse().context("Couldn't make a number from the parsed text")?)
+    Ok(format!("{{ \"BAT0\": {{ \"capacity\": \"{}\", \"status\": \"{}\" }}}}", number, capacity.split(";").collect::<Vec<&str>>()[1]))
 }
 
 #[cfg(target_os = "linux")]
-pub fn get_battery_capacity() -> Result<u8> {
-    std::fs::read_to_string("/sys/class/power_supply/BAT0/capacity")
-        .context("Couldn't get battery info from /sys/class/power_supply/BAT0/capacity")?
-        .trim()
-        .parse()
-        .context("Couldn't parse the number in /sys/class/power_supply/BAT0/capacity")
+pub fn get_battery_capacity() -> Result<String> {
+    let mut current = 0_f64;
+    let mut total = 0_f64;
+    let mut json = String::from('{');
+    for i in
+        std::path::Path::new("/sys/class/power_supply").read_dir().context("Couldn't read /sys/class/power_supply directory")?
+    {
+        let i = i?.path();
+        if i.is_dir() {
+            // some ugly hack because if let Some(a) = a && Some(b) = b doesn't work yet
+            if let (Ok(o), Ok(s) ) = (read_to_string(i.join("capacity")), read_to_string(i.join("status"))) {
+                json.push_str(&format!(
+                    r#"{:?}: {{ "status": "{}", "capacity": {} }},"#,
+                    i.file_name().context("couldn't convert file name to rust string")?,
+                    s.replace("\n", ""),
+                    o.replace("\n", "")
+                ));
+                if let (Ok(t), Ok(c), Ok(v)) = (read_to_string(i.join("charge_full")), read_to_string(i.join("charge_now")), read_to_string(i.join("voltage_now"))) {
+                    // (uAh / 1000000) * U = p and that / one million so that we have microwatt
+                    current += ((c.replace("\n", "").parse::<f64>()? / 1000000_f64) * v.replace("\n", "").parse::<f64>()?) / 1000000_f64;
+                    total += ((t.replace("\n", "").parse::<f64>()? / 1000000_f64) * v.replace("\n", "").parse::<f64>()?) / 1000000_f64;
+                } else if let (Ok(t), Ok(c)) = (read_to_string(i.join("energy_full")), read_to_string(i.join("energy_now"))) {
+                    current += c.replace("\n", "").parse::<f64>()?;
+                    total += t.replace("\n", "").parse::<f64>()?;
+                } else {
+                    log::warn!("Failed to get/calculate uWh: the total_avg value of the battery magic var will probably be a garbage value that can not be trusted.");
+                }
+            }
+        }
+    }
+    json.pop();
+    json.push_str(&format!(r#", "total_avg": {:.1}}}"#, (current / total) * 100_f64));
+
+    Ok(json)
 }
 
 #[cfg(not(target_os = "macos"))]
