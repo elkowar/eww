@@ -304,11 +304,11 @@ impl App {
 fn initialize_window(
     monitor_geometry: gdk::Rectangle,
     root_widget: gtk::Widget,
-    mut window_def: config::EwwWindowDefinition,
+    window_def: config::EwwWindowDefinition,
 ) -> Result<EwwWindow> {
     let actual_window_rect = window_def.geometry.get_window_rectangle(monitor_geometry);
 
-    let window = display_backend::initialize_window(&mut window_def, monitor_geometry);
+    let window = display_backend::initialize_window(&window_def, monitor_geometry);
 
     window.set_title(&format!("Eww - {}", window_def.name));
     let wm_class_name = format!("eww-{}", window_def.name);
@@ -317,30 +317,46 @@ fn initialize_window(
     window.set_size_request(actual_window_rect.width, actual_window_rect.height);
     window.set_default_size(actual_window_rect.width, actual_window_rect.height);
     window.set_decorated(false);
-
     // run on_screen_changed to set the visual correctly initially.
     on_screen_changed(&window, None);
     window.connect_screen_changed(on_screen_changed);
 
     window.add(&root_widget);
 
-    // Handle the fact that the gtk window will have a different size than specified,
-    // as it is sized according to how much space it's contents require.
-    // This is necessary to handle different anchors correctly in case the size was wrong.
-    let (gtk_window_width, gtk_window_height) = window.get_size();
-    window_def.geometry.size = Coords { x: NumWithUnit::Pixels(gtk_window_width), y: NumWithUnit::Pixels(gtk_window_height) };
-    let actual_window_rect = window_def.geometry.get_window_rectangle(monitor_geometry);
-
     window.show_all();
 
+    apply_window_position(window_def.clone(), monitor_geometry, &window)?;
     let gdk_window = window.get_window().context("couldn't get gdk window from gtk window")?;
     gdk_window.set_override_redirect(!window_def.focusable);
-    gdk_window.move_(actual_window_rect.x, actual_window_rect.y);
 
     #[cfg(feature = "x11")]
     display_backend::reserve_space_for(&window, monitor_geometry, window_def.struts)?;
 
+    // this should only be required on x11, as waylands layershell should manage the margins properly anways.
+    #[cfg(feature = "x11")]
+    window.connect_configure_event({
+        let window_def = window_def.clone();
+        move |window, _evt| {
+            let _ = apply_window_position(window_def.clone(), monitor_geometry, &window);
+            false
+        }
+    });
+
     Ok(EwwWindow { name: window_def.name.clone(), definition: window_def, gtk_window: window })
+}
+
+/// Apply the provided window-positioning rules to the window.
+fn apply_window_position(
+    mut window_def: config::EwwWindowDefinition,
+    monitor_geometry: gdk::Rectangle,
+    window: &gtk::Window,
+) -> Result<()> {
+    let (gtk_window_width, gtk_window_height) = window.get_size();
+    window_def.geometry.size = Coords { x: NumWithUnit::Pixels(gtk_window_width), y: NumWithUnit::Pixels(gtk_window_height) };
+    let gdk_window = window.get_window().context("Failed to get gdk window from gtk window")?;
+    let actual_window_rect = window_def.geometry.get_window_rectangle(monitor_geometry);
+    gdk_window.move_(actual_window_rect.x, actual_window_rect.y);
+    Ok(())
 }
 
 fn on_screen_changed(window: &gtk::Window, _old_screen: Option<&gdk::Screen>) {

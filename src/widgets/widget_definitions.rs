@@ -2,6 +2,7 @@
 use super::{run_command, BuilderArgs};
 use crate::{config, eww_state, resolve_block, value::AttrVal, widgets::widget_node};
 use anyhow::*;
+use gdk::WindowExt;
 use glib;
 use gtk::{self, prelude::*, ImageExt};
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
@@ -51,6 +52,8 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
 
     let on_scroll_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
     let on_hover_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
+    let cursor_hover_enter_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
+    let cursor_hover_leave_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
 
     resolve_block!(bargs, gtk_widget, {
         // @prop class - css class name
@@ -107,7 +110,7 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
         prop(onhover: as_string) {
             gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
             let old_id = on_hover_handler_id.replace(Some(
-                gtk_widget.connect_scroll_event(move |_, evt| {
+                gtk_widget.connect_enter_notify_event(move |_, evt| {
                     run_command(&onhover, format!("{} {}", evt.get_position().0, evt.get_position().1));
                     gtk::Inhibit(false)
                 })
@@ -115,6 +118,30 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
             old_id.map(|id| gtk_widget.disconnect(id));
         },
 
+        // @prop cursor - Cursor to show while hovering (see [gtk3-cursors](https://developer.gnome.org/gdk3/stable/gdk3-Cursors.html) for possible names)
+        prop(cursor: as_string) {
+            gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
+            cursor_hover_enter_handler_id.replace(Some(
+                gtk_widget.connect_enter_notify_event(move |widget, _evt| {
+                    let display = gdk::Display::get_default();
+                    let gdk_window = widget.get_window();
+                    if let (Some(display), Some(gdk_window)) = (display, gdk_window) {
+                        gdk_window.set_cursor(gdk::Cursor::from_name(&display, &cursor).as_ref());
+                    }
+                    gtk::Inhibit(false)
+                })
+            )).map(|id| gtk_widget.disconnect(id));
+
+            cursor_hover_leave_handler_id.replace(Some(
+                gtk_widget.connect_leave_notify_event(move |widget, _evt| {
+                    let gdk_window = widget.get_window();
+                    if let Some(gdk_window) = gdk_window {
+                        gdk_window.set_cursor(None);
+                    }
+                    gtk::Inhibit(false)
+                })
+            )).map(|id| gtk_widget.disconnect(id));
+        },
     });
 }
 
@@ -356,16 +383,27 @@ fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
 fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
     let gtk_widget = gtk::Button::new();
     let on_click_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
+
     resolve_block!(bargs, gtk_widget, {
         // @prop onclick - a command that get's run when the button is clicked
-        prop(onclick: as_string) {
+        // @prop onmiddleclick - a command that get's run when the button is middleclicked
+        // @prop onrightclick - a command that get's run when the button is rightclicked
+        prop(onclick: as_string = "", onmiddleclick: as_string = "", onrightclick: as_string = "") {
             gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
             let old_id = on_click_handler_id.replace(Some(
-                gtk_widget.connect_clicked(move |_| run_command(&onclick, ""))
+                gtk_widget.connect_button_press_event(move |_, evt| {
+                    match evt.get_button() {
+                        1 => run_command(&onclick, ""),
+                        2 => run_command(&onmiddleclick, ""),
+                        3 => run_command(&onrightclick, ""),
+                        _ => {},
+                    }
+                    gtk::Inhibit(false)
+                })
             ));
             old_id.map(|id| gtk_widget.disconnect(id));
-
         }
+
     });
     Ok(gtk_widget)
 }

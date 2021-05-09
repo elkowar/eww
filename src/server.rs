@@ -1,6 +1,5 @@
-use crate::{app, config, eww_state::*, ipc_server, script_var_handler, try_logging_errors, util, EwwPaths};
+use crate::{app, config, eww_state::*, ipc_server, script_var_handler, util, EwwPaths};
 use anyhow::*;
-use futures_util::StreamExt;
 use std::{collections::HashMap, os::unix::io::AsRawFd, path::Path};
 use tokio::sync::mpsc::*;
 
@@ -75,7 +74,7 @@ fn init_async_part(paths: EwwPaths, ui_send: UnboundedSender<app::DaemonCommand>
             let filewatch_join_handle = {
                 let ui_send = ui_send.clone();
                 let paths = paths.clone();
-                tokio::spawn(async move { run_filewatch(paths.get_eww_xml_path(), paths.get_eww_scss_path(), ui_send).await })
+                tokio::spawn(async move { run_filewatch(paths.config_dir, ui_send).await })
             };
 
             let ipc_server_join_handle = {
@@ -103,52 +102,44 @@ fn init_async_part(paths: EwwPaths, ui_send: UnboundedSender<app::DaemonCommand>
     });
 }
 
-#[cfg(not(target_os = "linux"))]
-async fn run_filewatch<P: AsRef<Path>>(
-    config_file_path: P,
-    scss_file_path: P,
-    evt_send: UnboundedSender<app::DaemonCommand>,
-) -> Result<()> {
-    Ok(())
-}
-
 /// Watch configuration files for changes, sending reload events to the eww app when the files change.
-#[cfg(target_os = "linux")]
-async fn run_filewatch<P: AsRef<Path>>(
-    config_file_path: P,
-    scss_file_path: P,
-    evt_send: UnboundedSender<app::DaemonCommand>,
-) -> Result<()> {
-    let mut inotify = inotify::Inotify::init().context("Failed to initialize inotify")?;
-    let config_file_descriptor = inotify
-        .add_watch(config_file_path.as_ref(), inotify::WatchMask::MODIFY)
-        .context("Failed to add inotify watch for config file")?;
-    let scss_file_descriptor = inotify
-        .add_watch(scss_file_path.as_ref(), inotify::WatchMask::MODIFY)
-        .context("Failed to add inotify watch for scss file")?;
+async fn run_filewatch<P: AsRef<Path>>(config_dir: P, evt_send: UnboundedSender<app::DaemonCommand>) -> Result<()> {
+    use notify::Watcher;
 
-    let mut buffer = [0; 1024];
-    let mut event_stream = inotify.event_stream(&mut buffer)?;
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+    let mut watcher: notify::RecommendedWatcher =
+        notify::Watcher::new_immediate(move |res: notify::Result<notify::Event>| match res {
+            Ok(event) => {
+                if let Err(err) = tx.send(event.paths) {
+                    log::warn!("Error forwarding file update event: {:?}", err);
+                }
+            }
+            Err(e) => eprintln!("Encountered Error While Watching Files: {}", e),
+        })?;
+    watcher.watch(&config_dir, notify::RecursiveMode::Recursive)?;
 
     crate::loop_select_exiting! {
-        Some(Ok(event)) = event_stream.next() => {
-            try_logging_errors!("handling change of config file" => {
-                if event.wd == config_file_descriptor {
-                        log::info!("Reloading eww configuration");
-                        let new_eww_config = config::EwwConfig::read_from_file(config_file_path.as_ref())?;
-                        evt_send.send(app::DaemonCommand::UpdateConfig(new_eww_config))?;
-                } else if event.wd == scss_file_descriptor {
-                        log::info!("reloading eww css file");
-                        let eww_css = crate::util::parse_scss_from_file(scss_file_path.as_ref())?;
-                        evt_send.send(app::DaemonCommand::UpdateCss(eww_css))?;
-                } else {
-                    eprintln!("Got inotify event for unknown thing: {:?}", event);
+        Some(paths) = rx.recv() => {
+            for path in paths {
+                let extension = path.extension().unwrap_or_default();
+                if extension != "xml" && extension != "scss" {
+                    continue;
                 }
-            });
-        }
-        else => break,
-    }
-    Ok(())
+
+                let (daemon_resp_sender, mut daemon_resp_response) = tokio::sync::mpsc::unbounded_channel();
+                evt_send.send(app::DaemonCommand::ReloadConfigAndCss(daemon_resp_sender))?;
+                tokio::spawn(async move {
+                    match daemon_resp_response.recv().await {
+                        Some(app::DaemonResponse::Success(_)) => println!("Reloaded config successfully"),
+                        Some(app::DaemonResponse::Failure(e)) => eprintln!("Failed to reload config: {}", e),
+                        None => eprintln!("No response to reload configuration-reload request"),
+                    }
+                });
+            }
+        },
+        else => break
+    };
+    return Ok(());
 }
 
 /// detach the process from the terminal, also redirecting stdout and stderr to LOG_FILE

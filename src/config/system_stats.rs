@@ -1,9 +1,8 @@
 use crate::util::IterAverage;
 use anyhow::*;
-use std::fs::read_to_string;
 use itertools::Itertools;
 use lazy_static::lazy_static;
-use std::sync::Mutex;
+use std::{fs::read_to_string, sync::Mutex};
 use sysinfo::{ComponentExt, DiskExt, NetworkExt, NetworksExt, ProcessorExt, System, SystemExt};
 
 lazy_static! {
@@ -81,7 +80,11 @@ pub fn get_battery_capacity() -> Result<String> {
 
     // Removes the % at the end
     number.pop();
-    Ok(format!("{{ \"BAT0\": {{ \"capacity\": \"{}\", \"status\": \"{}\" }}}}", number, capacity.split(";").collect::<Vec<&str>>()[1]))
+    Ok(format!(
+        "{{ \"BAT0\": {{ \"capacity\": \"{}\", \"status\": \"{}\" }}}}",
+        number,
+        capacity.split(";").collect::<Vec<&str>>()[1]
+    ))
 }
 
 #[cfg(target_os = "linux")]
@@ -95,22 +98,31 @@ pub fn get_battery_capacity() -> Result<String> {
         let i = i?.path();
         if i.is_dir() {
             // some ugly hack because if let Some(a) = a && Some(b) = b doesn't work yet
-            if let (Ok(o), Ok(s) ) = (read_to_string(i.join("capacity")), read_to_string(i.join("status"))) {
+            if let (Ok(o), Ok(s)) = (read_to_string(i.join("capacity")), read_to_string(i.join("status"))) {
                 json.push_str(&format!(
                     r#"{:?}: {{ "status": "{}", "capacity": {} }},"#,
                     i.file_name().context("couldn't convert file name to rust string")?,
                     s.replace("\n", ""),
                     o.replace("\n", "")
                 ));
-                if let (Ok(t), Ok(c), Ok(v)) = (read_to_string(i.join("charge_full")), read_to_string(i.join("charge_now")), read_to_string(i.join("voltage_now"))) {
+                if let (Ok(t), Ok(c), Ok(v)) = (
+                    read_to_string(i.join("charge_full")),
+                    read_to_string(i.join("charge_now")),
+                    read_to_string(i.join("voltage_now")),
+                ) {
                     // (uAh / 1000000) * U = p and that / one million so that we have microwatt
-                    current += ((c.replace("\n", "").parse::<f64>()? / 1000000_f64) * v.replace("\n", "").parse::<f64>()?) / 1000000_f64;
-                    total += ((t.replace("\n", "").parse::<f64>()? / 1000000_f64) * v.replace("\n", "").parse::<f64>()?) / 1000000_f64;
+                    current +=
+                        ((c.replace("\n", "").parse::<f64>()? / 1000000_f64) * v.replace("\n", "").parse::<f64>()?) / 1000000_f64;
+                    total +=
+                        ((t.replace("\n", "").parse::<f64>()? / 1000000_f64) * v.replace("\n", "").parse::<f64>()?) / 1000000_f64;
                 } else if let (Ok(t), Ok(c)) = (read_to_string(i.join("energy_full")), read_to_string(i.join("energy_now"))) {
                     current += c.replace("\n", "").parse::<f64>()?;
                     total += t.replace("\n", "").parse::<f64>()?;
                 } else {
-                    log::warn!("Failed to get/calculate uWh: the total_avg value of the battery magic var will probably be a garbage value that can not be trusted.");
+                    log::warn!(
+                        "Failed to get/calculate uWh: the total_avg value of the battery magic var will probably be a garbage \
+                         value that can not be trusted."
+                    );
                 }
             }
         }
