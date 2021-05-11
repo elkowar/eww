@@ -112,6 +112,23 @@ pub fn parse_duration(s: &str) -> Result<std::time::Duration> {
     }
 }
 
+
+pub trait IterAverage {
+    fn avg(self) -> f32;
+}
+
+impl<I: Iterator<Item = f32>> IterAverage for I {
+    fn avg(self) -> f32 {
+        let mut total = 0f32;
+        let mut cnt = 0f32;
+        for value in self {
+            total += value;
+            cnt += 1f32;
+        }
+        total / cnt
+    }
+}
+
 /// Replace all env-var references of the format `"something ${foo}"` in a string
 /// by the actual env-variables. If the env-var isn't found, will replace the
 /// reference with an empty string.

@@ -21,7 +21,7 @@ jobs:
               uses: denoland/setup-deno@main
               with:
                   deno-version: "v1.x"
-            - run: deno run --allow-read gen-docs.ts ./src/widgets/widget_definitions.rs >> ./docs/content/main/widgets.md
+            - run: deno run --allow-read --allow-write gen-docs.ts ./src/widgets/widget_definitions.rs ./src/config/inbuilt.rs
 
             # Build & deploy
             - name: shalzz/zola-deploy-action

@@ -65,6 +65,23 @@ impl From<i32> for PrimVal {
     }
 }
 
+impl From<u32> for PrimVal {
+    fn from(s: u32) -> Self {
+        PrimVal(s.to_string())
+    }
+}
+
+impl From<f32> for PrimVal {
+    fn from(s: f32) -> Self {
+        PrimVal(s.to_string())
+    }
+}
+
+impl From<u8> for PrimVal {
+    fn from(s: u8) -> Self {
+        PrimVal(s.to_string())
+    }
+}
 impl From<f64> for PrimVal {
     fn from(s: f64) -> Self {
         PrimVal(s.to_string())

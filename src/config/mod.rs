@@ -10,7 +10,9 @@ use xml_ext::*;
 
 pub mod element;
 pub mod eww_config;
+pub mod inbuilt;
 pub mod script_var;
+pub mod system_stats;
 pub mod window_definition;
 pub mod window_geometry;
 pub mod xml_ext;

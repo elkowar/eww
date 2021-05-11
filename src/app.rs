@@ -60,7 +60,10 @@ pub enum DaemonCommand {
     },
     KillServer,
     CloseAll,
-    PrintState(DaemonResponseSender),
+    PrintState {
+        all: bool,
+        sender: DaemonResponseSender,
+    },
     PrintDebug(DaemonResponseSender),
     PrintWindows(DaemonResponseSender),
 }
@@ -157,9 +160,15 @@ impl App {
                     let result = self.close_window(&window_name);
                     respond_with_error(sender, result)?;
                 }
-                DaemonCommand::PrintState(sender) => {
-                    let output =
-                        self.eww_state.get_variables().iter().map(|(key, value)| format!("{}: {}", key, value)).join("\n");
+                DaemonCommand::PrintState { all, sender } => {
+                    let vars = self.eww_state.get_variables().iter();
+                    let output = if all {
+                        vars.map(|(key, value)| format!("{}: {}", key, value)).join("\n")
+                    } else {
+                        vars.filter(|(x, _)| self.eww_state.referenced_vars().any(|var| x == &var))
+                            .map(|(key, value)| format!("{}: {}", key, value))
+                            .join("\n")
+                    };
                     sender.send(DaemonResponse::Success(output)).context("sending response from main thread")?
                 }
                 DaemonCommand::PrintWindows(sender) => {
@@ -219,7 +228,6 @@ impl App {
     ) -> Result<()> {
         // remove and close existing window with the same name
         let _ = self.close_window(window_name);
-
         log::info!("Opening window {}", window_name);
 
         let mut window_def = self.eww_config.get_window(window_name)?.clone();

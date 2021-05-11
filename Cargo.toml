@@ -60,6 +60,7 @@ futures-core = "0.3"
 futures-util = "0.3"
 tokio-util = "0.6"
 
+sysinfo = "0.16.1"
 
 nom = "6.1"
 dyn-clone = "1.0"

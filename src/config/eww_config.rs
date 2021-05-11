@@ -90,7 +90,6 @@ impl RawEwwConfig {
                 included_path.display()
             );
         };
-
         for included_config in includes {
             for conflict in util::extend_safe(&mut eww_config.widgets, included_config.widgets) {
                 log_conflict("widget", &conflict, &included_config.filepath)
@@ -197,6 +196,17 @@ fn parse_variables_block(xml: XmlElement) -> Result<(HashMap<VarName, PrimVal>, 
             _ => bail!("Illegal element in variables block: {}", node.as_tag_string()),
         }
     }
+
+    // Extends the variables with the predefined variables
+    let inbuilt = crate::config::inbuilt::get_inbuilt_vars();
+    for i in util::extend_safe(&mut script_vars, inbuilt) {
+        eprintln!(
+            "script-var '{}' defined twice (defined in your config and in the eww included variables)\nHint: don't define any \
+             varible like any of these: https://elkowar.github.io/eww/main/magic-variables-documenation/",
+            i,
+        );
+    }
+
     Ok((normal_vars, script_vars))
 }
 
@@ -274,6 +284,6 @@ mod test {
         assert_eq!(merged_config.widgets.len(), 2);
         assert_eq!(merged_config.windows.len(), 2);
         assert_eq!(merged_config.initial_variables.len(), 2);
-        assert_eq!(merged_config.script_vars.len(), 0);
+        assert_eq!(merged_config.script_vars.len(), 7);
     }
 }
