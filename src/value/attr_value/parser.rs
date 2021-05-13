@@ -6,7 +6,7 @@ use nom::{
     character::complete::{multispace0 as multispace, *},
     combinator::{map, map_res, *},
     error::{context, ParseError, VerboseError},
-    multi::many0,
+    multi::{many0, separated_list0},
     sequence::{delimited, preceded, *},
     IResult, Parser,
 };
@@ -49,6 +49,12 @@ fn parse_unary_op(i: &str) -> IResult<&str, UnaryOp, VerboseError<&str>> {
     value(UnaryOp::Not, tag("!"))(i)
 }
 
+fn parse_function_call(i: &str) -> IResult<&str, AttrValExpr, VerboseError<&str>> {
+    let (i, name) = take_while(|c: char| c.is_ascii_alphanumeric() || c == '_')(i)?;
+    let (i, args) = delimited(tag("("), separated_list0(tag(","), ws(parse_factor)), tag(")"))(i)?;
+    Ok((i, AttrValExpr::FunctionCall(name.to_string(), args)))
+}
+
 /////////////////
 // actual tree //
 /////////////////
@@ -58,6 +64,7 @@ fn parse_factor(i: &str) -> IResult<&str, AttrValExpr, VerboseError<&str>> {
     let (i, factor) = alt((
         context("expression", ws(delimited(tag("("), parse_expr, tag(")")))),
         context("if-expression", ws(parse_ifelse)),
+        context("function-call", ws(parse_function_call)),
         context("literal", map(ws(parse_literal), |x| AttrValExpr::Literal(AttrVal::parse_string(x)))),
         context("identifier", map(ws(parse_identifier), |x| AttrValExpr::VarRef(VarName(x.to_string())))),
     ))(i)?;

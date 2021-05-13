@@ -1,5 +1,6 @@
 use super::super::*;
 use anyhow::*;
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -61,6 +62,7 @@ pub enum AttrValExpr {
     UnaryOp(UnaryOp, Box<AttrValExpr>),
     IfElse(Box<AttrValExpr>, Box<AttrValExpr>, Box<AttrValExpr>),
     JsonAccess(Box<AttrValExpr>, Box<AttrValExpr>),
+    FunctionCall(String, Vec<AttrValExpr>),
 }
 
 impl std::fmt::Display for AttrValExpr {
@@ -72,6 +74,7 @@ impl std::fmt::Display for AttrValExpr {
             AttrValExpr::UnaryOp(op, x) => write!(f, "{}{}", op, x),
             AttrValExpr::IfElse(a, b, c) => write!(f, "(if {} then {} else {})", a, b, c),
             AttrValExpr::JsonAccess(value, index) => write!(f, "{}[{}]", value, index),
+            AttrValExpr::FunctionCall(function_name, args) => write!(f, "{}({})", function_name, args.iter().join(", ")),
         }
     }
 }
@@ -106,6 +109,9 @@ impl AttrValExpr {
                 Ok(IfElse(box a.resolve_refs(variables)?, box b.resolve_refs(variables)?, box c.resolve_refs(variables)?))
             }
             JsonAccess(box a, box b) => Ok(JsonAccess(box a.resolve_refs(variables)?, box b.resolve_refs(variables)?)),
+            FunctionCall(function_name, args) => {
+                Ok(FunctionCall(function_name, args.into_iter().map(|a| a.resolve_refs(variables)).collect::<Result<_>>()?))
+            }
         }
     }
 
@@ -131,6 +137,7 @@ impl AttrValExpr {
                 refs.append(&mut b.var_refs());
                 refs
             }
+            FunctionCall(_, args) => args.iter().flat_map(|a| a.var_refs()).collect_vec(),
         }
     }
 
@@ -196,6 +203,10 @@ impl AttrValExpr {
                     _ => bail!("Unable to index into value {}", val),
                 }
             }
+            AttrValExpr::FunctionCall(function_name, args) => {
+                let args = args.into_iter().map(|a| a.eval(values)).collect::<Result<_>>()?;
+                call_expr_function(&function_name, args)
+            }
         }
     }
 
@@ -206,5 +217,19 @@ impl AttrValExpr {
             Err(nom::Err::Incomplete(_)) => Err(anyhow!("Parsing incomplete")),
         };
         parsed.context("Failed to parse expression")
+    }
+}
+
+fn call_expr_function(name: &str, args: Vec<PrimVal>) -> Result<PrimVal> {
+    match name {
+        "round" => match args.as_slice() {
+            [num, digits] => {
+                let num = num.as_f64()?;
+                let digits = digits.as_i32()?;
+                Ok(PrimVal::from(format!("{:.1$}", num, digits as usize)))
+            }
+            _ => Err(anyhow!("Incorrect number of arguments given to {}", name)),
+        },
+        _ => Err(anyhow!("Unknown function {}", name)),
     }
 }
