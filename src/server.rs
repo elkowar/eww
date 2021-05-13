@@ -15,9 +15,9 @@ pub fn initialize_server(paths: EwwPaths) -> Result<()> {
     );
 
     simple_signal::set_handler(&[simple_signal::Signal::Int, simple_signal::Signal::Term], move |_| {
-        println!("Shutting down eww daemon...");
+        log::info!("Shutting down eww daemon...");
         if let Err(e) = crate::application_lifecycle::send_exit() {
-            eprintln!("Failed to send application shutdown event to workers: {:?}", e);
+            log::error!("Failed to send application shutdown event to workers: {:?}", e);
             std::process::exit(1);
         }
     });
@@ -96,7 +96,7 @@ fn init_async_part(paths: EwwPaths, ui_send: UnboundedSender<app::DaemonCommand>
             let result = tokio::try_join!(filewatch_join_handle, ipc_server_join_handle, forward_exit_to_app_handle);
 
             if let Err(e) = result {
-                eprintln!("Eww exiting with error: {:?}", e);
+                log::error!("Eww exiting with error: {:?}", e);
             }
         })
     });
@@ -114,7 +114,7 @@ async fn run_filewatch<P: AsRef<Path>>(config_dir: P, evt_send: UnboundedSender<
                     log::warn!("Error forwarding file update event: {:?}", err);
                 }
             }
-            Err(e) => eprintln!("Encountered Error While Watching Files: {}", e),
+            Err(e) => log::error!("Encountered Error While Watching Files: {}", e),
         })?;
     watcher.watch(&config_dir, notify::RecursiveMode::Recursive)?;
 
@@ -130,9 +130,9 @@ async fn run_filewatch<P: AsRef<Path>>(config_dir: P, evt_send: UnboundedSender<
                 evt_send.send(app::DaemonCommand::ReloadConfigAndCss(daemon_resp_sender))?;
                 tokio::spawn(async move {
                     match daemon_resp_response.recv().await {
-                        Some(app::DaemonResponse::Success(_)) => println!("Reloaded config successfully"),
-                        Some(app::DaemonResponse::Failure(e)) => eprintln!("Failed to reload config: {}", e),
-                        None => eprintln!("No response to reload configuration-reload request"),
+                        Some(app::DaemonResponse::Success(_)) => log::info!("Reloaded config successfully"),
+                        Some(app::DaemonResponse::Failure(e)) => log::error!("Failed to reload config: {}", e),
+                        None => log::error!("No response to reload configuration-reload request"),
                     }
                 });
             }

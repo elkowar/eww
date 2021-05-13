@@ -35,9 +35,9 @@ pub mod widgets;
 fn main() {
     let opts: opts::Opt = opts::Opt::from_env();
 
-    let log_level_filter = if opts.log_debug { log::LevelFilter::Debug } else { log::LevelFilter::Off };
+    let log_level_filter = if opts.log_debug { log::LevelFilter::Debug } else { log::LevelFilter::Info };
 
-    pretty_env_logger::formatted_builder().filter(Some("eww"), log_level_filter).init();
+    pretty_env_logger::formatted_timed_builder().filter(Some("eww"), log_level_filter).init();
 
     let result: Result<()> = try {
         let paths = opts
@@ -89,7 +89,7 @@ fn main() {
     };
 
     if let Err(e) = result {
-        eprintln!("{:?}", e);
+        log::error!("{:?}", e);
         std::process::exit(1);
     }
 }
