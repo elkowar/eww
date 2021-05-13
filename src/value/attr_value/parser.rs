@@ -20,15 +20,10 @@ where
     delimited(multispace, p, multispace)
 }
 
-fn parse_num(i: &str) -> IResult<&str, i32, VerboseError<&str>> {
-    alt((
-        map_res(digit1, |s: &str| s.parse::<i32>()),
-        map_res(preceded(tag("-"), digit1), |s: &str| s.parse::<i32>().map(|x| -x)),
-    ))(i)
-}
-
-fn parse_stringlit(i: &str) -> IResult<&str, &str, VerboseError<&str>> {
-    alt((delimited(tag("'"), take_while(|c| c != '\''), tag("'")), delimited(tag("\""), take_while(|c| c != '"'), tag("\""))))(i)
+fn parse_num(i: &str) -> IResult<&str, f64, VerboseError<&str>> {
+    let (i, neg) = opt(tag("-"))(i)?;
+    let (i, num): (_, f64) = map_res(take_while(|c: char| c.is_numeric() || c == '.'), |n: &str| n.parse::<f64>())(i)?;
+    Ok((i, if neg.is_some() { -num } else { num }))
 }
 
 fn parse_bool(i: &str) -> IResult<&str, &str, VerboseError<&str>> {
@@ -37,6 +32,10 @@ fn parse_bool(i: &str) -> IResult<&str, &str, VerboseError<&str>> {
 
 fn parse_literal(i: &str) -> IResult<&str, &str, VerboseError<&str>> {
     alt((parse_bool, parse_stringlit, recognize(parse_num)))(i)
+}
+
+fn parse_stringlit(i: &str) -> IResult<&str, &str, VerboseError<&str>> {
+    alt((delimited(tag("'"), take_while(|c| c != '\''), tag("'")), delimited(tag("\""), take_while(|c| c != '"'), tag("\""))))(i)
 }
 
 fn parse_identifier(i: &str) -> IResult<&str, &str, VerboseError<&str>> {
@@ -158,6 +157,7 @@ mod test {
     use pretty_assertions::assert_eq;
     #[test]
     fn test_parser() {
+        assert_eq!(("", 12.22f64), parse_num("12.22").unwrap());
         assert_eq!(AttrValExpr::Literal(AttrVal::from_primitive("12")), AttrValExpr::parse("12").unwrap());
         assert_eq!(
             AttrValExpr::UnaryOp(UnaryOp::Not, box AttrValExpr::Literal(AttrVal::from_primitive("false"))),
@@ -170,6 +170,13 @@ mod test {
                 box AttrValExpr::Literal(AttrVal::from_primitive("2"))
             ),
             AttrValExpr::parse("12 + 2").unwrap()
+        );
+        assert_eq!(
+            AttrValExpr::FunctionCall(
+                "test".to_string(),
+                vec![AttrValExpr::Literal(AttrVal::from_primitive("hi")), AttrValExpr::Literal(AttrVal::from_primitive("ho")),]
+            ),
+            AttrValExpr::parse("test(\"hi\", \"ho\")").unwrap()
         );
         assert_eq!(
             AttrValExpr::UnaryOp(
