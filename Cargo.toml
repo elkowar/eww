@@ -11,6 +11,7 @@ build = "build.rs"
 [dependencies]
 lalrpop-util = "0.19.5"
 regex = "1"
+itertools = "0.10"
 
 [build-dependencies]
 lalrpop = "0.19.5"

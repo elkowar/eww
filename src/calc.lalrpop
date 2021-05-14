@@ -1,37 +1,41 @@
 use std::str::FromStr;
-use crate::lexer;
+//use crate::lexer;
 use crate::Expr;
+use crate::Sp;
 
 grammar;
 
-extern {
-    type Location = usize;
-    type Error = lexer::LexicalError;
 
-    enum lexer::Tok {
-        "(" => lexer::Tok::LPren,
-        ")" => lexer::Tok::RPren,
-        Space => lexer::Tok::Space,
-        Int => lexer::Tok::Int(<i32>),
-    }
-}
-
-
-Sep<T, S>: Vec<T> = {
-    <mut v:(<T> S)*> <e:T?> => match e {
-        None => v,
-        Some(e) => {
-            v.push(e);
-            v
-        }
-    }
-}
-
+Span<T>: Sp<T> = {
+    <@L> <T> <@R> => Sp(<>)
+};
 
 pub Expr: Expr = {
-    "(" <elems:Sep<Expr, Space>> ")" => Expr::List(elems),
-    <n:Int> => Expr::Number(n),
+    "(" <elems:(<Span<(<Expr>)>>)+> ")" => Expr::List(elems),
+
+    "{" <elems:(<Span<(<Expr>)>> <Span<(<Expr>)>>)*> "}" => Expr::Table(elems),
+
+    <x:Keyword> => x,
+    <x:Symbol> => x,
+    <x:StrLit> => Expr::Str(x),
+    <x:Num> => Expr::Number(x),
+    Comment => Expr::Comment,
 };
+
+Keyword: Expr = <r":[^\s]+"> => Expr::Keyword(<>.to_string());
+Symbol: Expr = <r"[a-zA-Z_!\?<>/.*-+][^\s{}\(\)]*"> => Expr::Symbol(<>.to_string());
+
+StrLit: String = {
+    r#""(?:[^"\\]|\\.)*""# => {
+      let val = <>;
+      val[1..val.len() - 1].to_owned()
+    },
+}
+
+Comment: () = r";[^\n\r]*";
+
+
+Num: i32 = <r"[0-9]+"> => i32::from_str(<>).unwrap();
 
 
 
