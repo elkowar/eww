@@ -33,7 +33,7 @@ impl StateChangeHandler {
             Ok(resolved_attrs) => {
                 crate::print_result_err!("while updating UI based after state change", &(self.func)(resolved_attrs))
             }
-            Err(err) => eprintln!("Error while resolving attributes: {:?}", err),
+            Err(err) => log::error!("Error while resolving attributes: {:?}", err),
         }
     }
 }

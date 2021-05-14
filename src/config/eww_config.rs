@@ -82,7 +82,7 @@ impl RawEwwConfig {
     pub fn merge_includes(mut eww_config: RawEwwConfig, includes: Vec<RawEwwConfig>) -> Result<RawEwwConfig> {
         let config_path = eww_config.filepath.clone();
         let log_conflict = |what: &str, conflict: &str, included_path: &std::path::PathBuf| {
-            eprintln!(
+            log::error!(
                 "{} '{}' defined twice (defined in {} and in {})",
                 what,
                 conflict,
@@ -200,7 +200,7 @@ fn parse_variables_block(xml: XmlElement) -> Result<(HashMap<VarName, PrimVal>, 
     // Extends the variables with the predefined variables
     let inbuilt = crate::config::inbuilt::get_inbuilt_vars();
     for i in util::extend_safe(&mut script_vars, inbuilt) {
-        eprintln!(
+        log::error!(
             "script-var '{}' defined twice (defined in your config and in the eww included variables)\nHint: don't define any \
              varible like any of these: https://elkowar.github.io/eww/main/magic-variables-documenation/",
             i,
