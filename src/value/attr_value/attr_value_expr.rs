@@ -230,6 +230,15 @@ fn call_expr_function(name: &str, args: Vec<PrimVal>) -> Result<PrimVal> {
             }
             _ => Err(anyhow!("Incorrect number of arguments given to {}", name)),
         },
+        "replace" => match args.as_slice() {
+            [string, pattern, replacement] => {
+                let string = string.as_string()?;
+                let pattern = regex::Regex::new(&pattern.as_string()?)?;
+                let replacement = replacement.as_string()?;
+                Ok(PrimVal::from(pattern.replace_all(&string, replacement.replace("$", "$$").replace("\\", "$")).into_owned()))
+            }
+            _ => Err(anyhow!("Incorrect number of arguments given to {}", name)),
+        },
         _ => Err(anyhow!("Unknown function {}", name)),
     }
 }

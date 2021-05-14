@@ -34,4 +34,7 @@ The expression language supports:
     - strings can contain other expressions again: `'foo {{some_variable}} bar'`
 - json access (`object.field`, `array[12]`, `object["field"]`)
     - for this, the object/array value needs to refer to a variable that contains a valid json string.
+- some function calls:
+    - `round(number, decimal_digits)`: Round a number to the given amount of decimals
+    - `replace(string, regex, replacement)`: Replace matches of a given regex in a string
 
