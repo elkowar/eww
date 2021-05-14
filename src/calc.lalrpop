@@ -1,0 +1,38 @@
+use std::str::FromStr;
+use crate::lexer;
+use crate::Expr;
+
+grammar;
+
+extern {
+    type Location = usize;
+    type Error = lexer::LexicalError;
+
+    enum lexer::Tok {
+        "(" => lexer::Tok::LPren,
+        ")" => lexer::Tok::RPren,
+        Space => lexer::Tok::Space,
+        Int => lexer::Tok::Int(<i32>),
+    }
+}
+
+
+Sep<T, S>: Vec<T> = {
+    <mut v:(<T> S)*> <e:T?> => match e {
+        None => v,
+        Some(e) => {
+            v.push(e);
+            v
+        }
+    }
+}
+
+
+pub Expr: Expr = {
+    "(" <elems:Sep<Expr, Space>> ")" => Expr::List(elems),
+    <n:Int> => Expr::Number(n),
+};
+
+
+
+// vim:shiftwidth=4
