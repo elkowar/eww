@@ -8,23 +8,33 @@ weight = 4
 
 Here you will find help if something doesn't work, if the issue isn't listed here please [open an issue on the GitHub repo.](https://github.com/elkowar/eww/issues)
 
+### Eww does not compile
+
+1. Make sure that you are compiling eww using the nightly rust toolchain.
+2. Make sure you have all the necessary dependencies. If there are compile-errors, the compiler will tell you what you're missing.
+
+### Eww does not work on wayland
+
+1. Make sure you compiled eww with the `--no-default-features --feature=wayland` flags.
+2. Make sure that you're not trying to use X11-specific features (these are (hopefully) explicitly specified as such in the documentation).
+
 ### My scss isn't being loaded!
 
 1. You have not created a scss file
 2. The scss file isn't called correctly. (it should be called `eww.scss` in the `$HOME/.config/eww` folder)
 3. The scss file isn't placed in the correct location (check above)
 
-If none of these fixed your problem [open an issue on the GitHub repo.](https://github.com/elkowar/eww/issues) Or check the [GTK-Debugger](#gtk-debugger).
+If none of these fixed your problem [open an issue on the GitHub repo](https://github.com/elkowar/eww/issues), or check the [GTK-Debugger](@/main/working_with_gtk.md#gtk-debugger).
 
 ### Eww can't find my configuration file!
 
 1. It's incorrectly named or it's in the wrong place  (it should be called `eww.xml` in the `$HOME/.config/eww` folder)
-2. You haven't started eww correctly or you started it wrong. (See [Starting  Eww](starting-eww))
+2. You haven't started eww correctly or you started it wrong.
 
 ### Something isn't styled correctly!
 
 1. You have mistyped the CSS class.
-2. Check the [GTK-Debugger](#gtk-debugger)
+2. Check the [GTK-Debugger](@/main/working_with_gtk.md#gtk-debugger)
 
 ### General issues
 
