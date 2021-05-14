@@ -50,7 +50,7 @@ fn parse_unary_op(i: &str) -> IResult<&str, UnaryOp, VerboseError<&str>> {
 
 fn parse_function_call(i: &str) -> IResult<&str, AttrValExpr, VerboseError<&str>> {
     let (i, name) = take_while(|c: char| c.is_ascii_alphanumeric() || c == '_')(i)?;
-    let (i, args) = delimited(tag("("), separated_list0(tag(","), ws(parse_factor)), tag(")"))(i)?;
+    let (i, args) = delimited(tag("("), separated_list0(tag(","), ws(parse_expr)), tag(")"))(i)?;
     Ok((i, AttrValExpr::FunctionCall(name.to_string(), args)))
 }
 
@@ -157,64 +157,56 @@ mod test {
     use pretty_assertions::assert_eq;
     #[test]
     fn test_parser() {
+        use self::{BinOp::*, UnaryOp::*};
+        use AttrValExpr::*;
+
         assert_eq!(("", 12.22f64), parse_num("12.22").unwrap());
-        assert_eq!(AttrValExpr::Literal(AttrVal::from_primitive("12")), AttrValExpr::parse("12").unwrap());
+        assert_eq!(Literal(AttrVal::from_primitive("12")), AttrValExpr::parse("12").unwrap());
+        assert_eq!(UnaryOp(Not, box Literal(AttrVal::from_primitive("false"))), AttrValExpr::parse("!false").unwrap());
         assert_eq!(
-            AttrValExpr::UnaryOp(UnaryOp::Not, box AttrValExpr::Literal(AttrVal::from_primitive("false"))),
-            AttrValExpr::parse("!false").unwrap()
-        );
-        assert_eq!(
-            AttrValExpr::BinOp(
-                box AttrValExpr::Literal(AttrVal::from_primitive("12")),
-                BinOp::Plus,
-                box AttrValExpr::Literal(AttrVal::from_primitive("2"))
-            ),
+            BinOp(box Literal(AttrVal::from_primitive("12")), Plus, box Literal(AttrVal::from_primitive("2"))),
             AttrValExpr::parse("12 + 2").unwrap()
         );
         assert_eq!(
-            AttrValExpr::FunctionCall(
-                "test".to_string(),
-                vec![AttrValExpr::Literal(AttrVal::from_primitive("hi")), AttrValExpr::Literal(AttrVal::from_primitive("ho")),]
+            BinOp(
+                box FunctionCall(
+                    "test".to_string(),
+                    vec![
+                        JsonAccess(box VarRef(VarName("foo".to_string())), box Literal(AttrVal::from_primitive("hi"))),
+                        Literal(AttrVal::from_primitive("ho")),
+                    ]
+                ),
+                Times,
+                box Literal(AttrVal::from_primitive(2))
             ),
-            AttrValExpr::parse("test(\"hi\", \"ho\")").unwrap()
+            AttrValExpr::parse(r#"(test(foo["hi"], ("ho")) * 2)"#).unwrap()
         );
         assert_eq!(
-            AttrValExpr::UnaryOp(
-                UnaryOp::Not,
-                box AttrValExpr::BinOp(
-                    box AttrValExpr::Literal(AttrVal::from_primitive("1")),
-                    BinOp::Equals,
-                    box AttrValExpr::Literal(AttrVal::from_primitive("2"))
-                )
-            ),
+            UnaryOp(Not, box BinOp(box Literal(AttrVal::from_primitive("1")), Equals, box Literal(AttrVal::from_primitive("2")))),
             AttrValExpr::parse("!(1 == 2)").unwrap()
         );
         assert_eq!(
-            AttrValExpr::IfElse(
-                box AttrValExpr::VarRef(VarName("a".to_string())),
-                box AttrValExpr::VarRef(VarName("b".to_string())),
-                box AttrValExpr::VarRef(VarName("c".to_string())),
+            IfElse(
+                box VarRef(VarName("a".to_string())),
+                box VarRef(VarName("b".to_string())),
+                box VarRef(VarName("c".to_string())),
             ),
             AttrValExpr::parse("if a then b else c").unwrap()
         );
         assert_eq!(
-            AttrValExpr::JsonAccess(
-                box AttrValExpr::VarRef(VarName("array".to_string())),
-                box AttrValExpr::BinOp(
-                    box AttrValExpr::Literal(AttrVal::from_primitive("1")),
-                    BinOp::Plus,
-                    box AttrValExpr::Literal(AttrVal::from_primitive("2"))
-                )
+            JsonAccess(
+                box VarRef(VarName("array".to_string())),
+                box BinOp(box Literal(AttrVal::from_primitive("1")), Plus, box Literal(AttrVal::from_primitive("2")))
             ),
             AttrValExpr::parse(r#"(array)[1+2]"#).unwrap()
         );
         assert_eq!(
-            AttrValExpr::JsonAccess(
-                box AttrValExpr::JsonAccess(
-                    box AttrValExpr::VarRef(VarName("object".to_string())),
-                    box AttrValExpr::Literal(AttrVal::from_primitive("field".to_string())),
+            JsonAccess(
+                box JsonAccess(
+                    box VarRef(VarName("object".to_string())),
+                    box Literal(AttrVal::from_primitive("field".to_string())),
                 ),
-                box AttrValExpr::Literal(AttrVal::from_primitive("field2".to_string())),
+                box Literal(AttrVal::from_primitive("field2".to_string())),
             ),
             AttrValExpr::parse(r#"object.field.field2"#).unwrap()
         );
