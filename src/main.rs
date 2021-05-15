@@ -3,14 +3,12 @@
 use itertools::Itertools;
 
 use lalrpop_util::lalrpop_mod;
-use logos::{Lexer, Logos};
-mod lexer2;
 
 //mod lexer;
 
 lalrpop_mod!(pub calc);
 
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub struct Sp<T>(pub usize, pub T, pub usize);
 
 impl<T: std::fmt::Display> std::fmt::Display for Sp<T> {
@@ -55,9 +53,8 @@ fn main() {}
 macro_rules! test_p {
     ($e:expr) => {
         let e = $e;
-        let lex = lexer2::TokenStream::new(e);
         let p = calc::ExprParser::new();
-        match p.parse(lex) {
+        match p.parse(e) {
             Ok(res) => println!("{}\n=> {}\n", e, res),
             Err(e) => eprintln!("{}", e),
         }
@@ -78,8 +75,6 @@ fn calc() {
     test_p!(r#"(test "hi")"#);
     test_p!(r#"(test "h\"i")"#);
     test_p!(r#"(test " hi ")"#);
-
-    test_p!(r#"(+)"#);
 
     test_p!("(+ (1 2 (* 2 5)))");
 

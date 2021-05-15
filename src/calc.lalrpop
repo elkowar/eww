@@ -2,75 +2,40 @@ use std::str::FromStr;
 //use crate::lexer;
 use crate::Expr;
 use crate::Sp;
-use crate::lexer2 as lexer;
-use logos;
 
 grammar;
 
-extern {
-    type Location = usize;
-    type Error = lexer::LexicalError;
-
-    enum lexer::Token {
-        "(" => lexer::Token::LPren,
-        ")" => lexer::Token::RPren,
-        "{" => lexer::Token::LCurl,
-        "}" => lexer::Token::RCurl,
-        Comment => lexer::Token::Comment,
-        Symbol => lexer::Token::Symbol(<String>),
-        StringLit => lexer::Token::StringLit(<String>),
-        Int => lexer::Token::Int(<i32>),
-        Keyword => lexer::Token::Keyword(<String>),
-    }
-}
 
 Span<T>: Sp<T> = {
     <@L> <T> <@R> => Sp(<>)
-}
+};
 
 pub Expr: Expr = {
-    "(" <xs:(Span<(<Expr>)>)+> ")" => Expr::List(xs),
-    "{" <xs:(Span<(<Expr>)> Span<(<Expr>)>)+> "}" => Expr::Table(xs),
-    <x:Int> => Expr::Number(x),
-    <x:StringLit> => Expr::Str(x),
-    <x:Keyword> => Expr::Keyword(x),
-    <x:Symbol> => Expr::Symbol(x),
+    "(" <elems:(<Span<(<Expr>)>>)+> ")" => Expr::List(elems),
+
+    "{" <elems:(<Span<(<Expr>)>> <Span<(<Expr>)>>)*> "}" => Expr::Table(elems),
+
+    <x:Keyword> => x,
+    <x:Symbol> => x,
+    <x:StrLit> => Expr::Str(x),
+    <x:Num> => Expr::Number(x),
     Comment => Expr::Comment,
+};
+
+Keyword: Expr = <r":[^\s]+"> => Expr::Keyword(<>.to_string());
+Symbol: Expr = <r"[a-zA-Z_!\?<>/.*-+][^\s{}\(\)]*"> => Expr::Symbol(<>.to_string());
+
+StrLit: String = {
+    r#""(?:[^"\\]|\\.)*""# => {
+      let val = <>;
+      val[1..val.len() - 1].to_owned()
+    },
 }
 
+Comment: () = r";[^\n\r]*";
 
 
-
-//Span<T>: Sp<T> = {
-//    <@L> <T> <@R> => Sp(<>)
-//};
-//
-//pub Expr: Expr = {
-//    "(" <elems:(<Span<(<Expr>)>>)+> ")" => Expr::List(elems),
-//
-//    "{" <elems:(<Span<(<Expr>)>> <Span<(<Expr>)>>)*> "}" => Expr::Table(elems),
-//
-//    <x:Keyword> => x,
-//    <x:Symbol> => x,
-//    <x:StrLit> => Expr::Str(x),
-//    <x:Num> => Expr::Number(x),
-//    Comment => Expr::Comment,
-//};
-//
-//Keyword: Expr = <r":[^\s]+"> => Expr::Keyword(<>.to_string());
-//Symbol: Expr = <r"[a-zA-Z_!\?<>/.*-+][^\s{}\(\)]*"> => Expr::Symbol(<>.to_string());
-//
-//StrLit: String = {
-//    r#""(?:[^"\\]|\\.)*""# => {
-//      let val = <>;
-//      val[1..val.len() - 1].to_owned()
-//    },
-//}
-//
-//Comment: () = r";[^\n\r]*";
-//
-//
-//Num: i32 = <r"[0-9]+"> => i32::from_str(<>).unwrap();
+Num: i32 = <r"[0-9]+"> => i32::from_str(<>).unwrap();
 
 
 
