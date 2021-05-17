@@ -253,4 +253,4 @@ There are a couple things you can optionally configure on the window itself:
     - `"dock"`: indicates a dock or panel feature
     - `"toolbar"`: toolbars "torn off" from the main application
     - `"dialog"`: indicates that this is a dialog window
-Default: `"dock"` if reserve is set, else `"normal"` 
+    - Default: `"dock"` if reserve is set, else `"normal"` 
