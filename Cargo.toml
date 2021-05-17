@@ -68,6 +68,8 @@ base64 = "0.13"
 wait-timeout = "0.2"
 
 notify = "5.0.0-pre.7"
+strum_macros = "0.20.1"
+strum = "0.20.0"
 
 [dev-dependencies]
 pretty_assertions = "0.7.1"

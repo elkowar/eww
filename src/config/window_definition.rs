@@ -1,17 +1,31 @@
+use super::*;
 use crate::{ensure_xml_tag_is, value::NumWithUnit, widgets::widget_node};
-use anyhow::*;
 use derive_more::*;
 use serde::{Deserialize, Serialize};
 use smart_default::SmartDefault;
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
+use strum_macros::EnumString;
 
-use super::*;
+#[derive(Debug, Clone, PartialEq, EnumString)]
+#[strum(serialize_all = "lowercase")]
+pub enum EwwWindowType {
+    Dock,
+    Dialog,
+    Toolbar,
+    Normal,
+}
+impl Default for EwwWindowType {
+    fn default() -> Self {
+        Self::Normal
+    }
+}
 
 /// Full window-definition containing the fully expanded widget tree.
 /// **Use this** rather than `[RawEwwWindowDefinition]`.
 #[derive(Debug, Clone)]
 pub struct EwwWindowDefinition {
     pub name: WindowName,
+    pub window_type: EwwWindowType,
     pub geometry: EwwWindowGeometry,
     pub stacking: WindowStacking,
     pub screen_number: Option<i32>,
@@ -29,6 +43,7 @@ impl EwwWindowDefinition {
     pub fn generate(defs: &HashMap<String, WidgetDefinition>, window: RawEwwWindowDefinition) -> Result<Self> {
         Ok(EwwWindowDefinition {
             name: window.name,
+            window_type: window.window_type,
             geometry: window.geometry,
             stacking: window.stacking,
             screen_number: window.screen_number,
@@ -51,6 +66,9 @@ pub struct RawEwwWindowDefinition {
     pub screen_number: Option<i32>,
     pub widget: WidgetUse,
     pub focusable: bool,
+
+    #[cfg(feature = "x11")]
+    pub window_type: EwwWindowType,
 
     #[cfg(feature = "x11")]
     pub struts: StrutDefinition,
@@ -77,6 +95,14 @@ impl RawEwwWindowDefinition {
             geometry: match xml.child("geometry") {
                 Ok(node) => EwwWindowGeometry::from_xml_element(node)?,
                 Err(_) => EwwWindowGeometry::default(),
+            },
+            #[cfg(feature = "x11")]
+            window_type: match xml.attr("windowtype") {
+                Ok(v) => EwwWindowType::from_str(&v)?,
+                Err(_) => match struts {
+                    Some(_) => EwwWindowType::Dock,
+                    None => Default::default(),
+                },
             },
             widget: WidgetUse::from_xml_node(xml.child("widget")?.only_child()?)?,
             stacking,
