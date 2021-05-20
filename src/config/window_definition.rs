@@ -4,16 +4,28 @@ use derive_more::*;
 use serde::{Deserialize, Serialize};
 use smart_default::SmartDefault;
 use std::{collections::HashMap, str::FromStr};
-use strum_macros::EnumString;
 
-#[derive(Debug, Clone, PartialEq, EnumString)]
-#[strum(serialize_all = "lowercase")]
+#[derive(Debug, Clone, PartialEq)]
 pub enum EwwWindowType {
     Dock,
     Dialog,
     Toolbar,
     Normal,
 }
+impl FromStr for EwwWindowType {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "dock" => Ok(Self::Dock),
+            "toolbar" => Ok(Self::Toolbar),
+            "dialog" => Ok(Self::Dialog),
+            "normal" => Ok(Self::Normal),
+            x => Err(anyhow!("Unknown windowtype provided '{}'. Possible values are: dock, toolbar, dialog, normal", x)),
+        }
+    }
+}
+
 impl Default for EwwWindowType {
     fn default() -> Self {
         Self::Normal
