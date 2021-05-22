@@ -36,7 +36,7 @@ mod platform {
     use gdk;
     use gtk::prelude::*;
 
-    pub fn initialize_window(window_def: &EwwWindowDefinition, monitor: gdk::Rectangle) -> gtk::Window {
+    pub fn initialize_window(window_def: &EwwWindowDefinition, monitor: gdk::Rectangle) -> Option<gtk::Window> {
         let window = gtk::Window::new(gtk::WindowType::Toplevel);
         // Initialising a layer shell surface
         gtk_layer_shell::init_for_window(&window);
@@ -45,9 +45,11 @@ mod platform {
             Some(index) => {
                 if let Some(monitor) = gdk::Display::get_default().expect("could not get default display").get_monitor(index) {
                     gtk_layer_shell::set_monitor(&window, &monitor);
-                };
+                } else {
+                    return None
+                }
             }
-            None => {}
+            None => {},
         };
         window.set_resizable(true);
 
@@ -100,7 +102,7 @@ mod platform {
         if window_def.exclusive {
             gtk_layer_shell::auto_exclusive_zone_enable(&window);
         }
-        window
+        Some(window)
     }
 }
 
@@ -119,7 +121,7 @@ mod platform {
         rust_connection::{DefaultStream, RustConnection},
     };
 
-    pub fn initialize_window(window_def: &EwwWindowDefinition, _monitor: gdk::Rectangle) -> gtk::Window {
+    pub fn initialize_window(window_def: &EwwWindowDefinition, _monitor: gdk::Rectangle) -> Option<gtk::Window> {
         let window = if window_def.focusable {
             gtk::Window::new(gtk::WindowType::Toplevel)
         } else {
@@ -134,7 +136,7 @@ mod platform {
         } else {
             window.set_keep_below(true);
         }
-        window
+        Some(window)
     }
 
     pub fn reserve_space_for(window: &gtk::Window, monitor: gdk::Rectangle, strut_def: StrutDefinition) -> Result<()> {
