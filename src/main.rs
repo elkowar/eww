@@ -35,14 +35,6 @@ pub mod widgets;
 fn main() {
     let opts: opts::Opt = opts::Opt::from_env();
 
-    let log_level_filter = if opts.log_debug { log::LevelFilter::Debug } else { log::LevelFilter::Info };
-    if std::env::var("RUST_LOG").is_ok() {
-        println!("hey");
-        pretty_env_logger::init_timed();
-    } else {
-        pretty_env_logger::formatted_timed_builder().filter(Some("eww"), log_level_filter).init();
-    }
-
     let result: Result<()> = try {
         let paths = opts
             .config_path
@@ -52,9 +44,13 @@ fn main() {
 
         match opts.action {
             opts::Action::ClientOnly(action) => {
+                init_logging!(log::LevelFilter::Warn, opts);
+
                 client::handle_client_only_action(&paths, action)?;
             }
             opts::Action::WithServer(action) => {
+                init_logging!(log::LevelFilter::Warn, opts);
+
                 log::info!("Trying to find server process at socket {}", paths.get_ipc_socket_file().display());
                 match net::UnixStream::connect(&paths.get_ipc_socket_file()) {
                     Ok(stream) => {
@@ -82,10 +78,11 @@ fn main() {
                     eprintln!("Eww server already running.");
                     std::process::exit(1);
                 } else {
-                    log::info!("Initializing Eww server. ({})", paths.get_ipc_socket_file().display());
+                    init_logging!(log::LevelFilter::Warn, opts);
+
                     let _ = std::fs::remove_file(paths.get_ipc_socket_file());
 
-                    println!("Run `eww logs` to see any errors, warnings or information while editing your configuration.");
+                    println!("Initialized Eww server. ({})\nRun `eww logs` to see any errors, warnings or information while editing your configuration.", paths.get_ipc_socket_file().display());
                     server::initialize_server(paths)?;
                 }
             }

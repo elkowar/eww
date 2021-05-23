@@ -5,7 +5,7 @@ use tokio::sync::mpsc::*;
 
 pub fn initialize_server(paths: EwwPaths) -> Result<()> {
     do_detach(&paths.get_log_file())?;
-
+    log::info!("Started the eww daemon.");
     println!(
         r#"
 ┏━━━━━━━━━━━━━━━━━━━━━━━┓

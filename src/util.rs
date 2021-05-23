@@ -50,6 +50,18 @@ macro_rules! loop_select {
     }
 }
 
+#[macro_export]
+macro_rules! init_logging {
+    ($max:expr, $opts:expr) => {
+        let log_level_filter = if $opts.log_debug { log::LevelFilter::Debug } else { $max };
+        if std::env::var("RUST_LOG").is_ok() {
+            pretty_env_logger::init_timed();
+        } else {
+            pretty_env_logger::formatted_timed_builder().filter(Some("eww"), log_level_filter).init();
+        }
+    };
+}
+
 /// Joins two paths while keeping it somewhat pretty.
 /// If the second path is absolute, this will just return the second path.
 /// If it is relative, it will return the second path joined onto the first path, removing any `./` if present.
