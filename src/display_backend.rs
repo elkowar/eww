@@ -6,7 +6,7 @@ mod platform {
     use anyhow::*;
     use gtk::{self, prelude::*};
 
-    pub fn initialize_window(window_def: &EwwWindowDefinition, _monitor: gdk::Rectangle) -> gtk::Window {
+    pub fn initialize_window(window_def: &EwwWindowDefinition, _monitor: gdk::Rectangle) -> Option<gtk::Window> {
         let window = if window_def.focusable {
             gtk::Window::new(gtk::WindowType::Toplevel)
         } else {
@@ -21,7 +21,7 @@ mod platform {
         } else {
             window.set_keep_below(true);
         }
-        window
+        Some(window)
     }
 
     pub fn reserve_space_for(_window: &gtk::Window, _monitor: gdk::Rectangle, _strut_def: StrutDefinition) -> Result<()> {
