@@ -308,41 +308,43 @@ fn initialize_window(
 ) -> Result<EwwWindow> {
     let actual_window_rect = window_def.geometry.get_window_rectangle(monitor_geometry);
 
-    let window = display_backend::initialize_window(&window_def, monitor_geometry);
+    if let Some(window) = display_backend::initialize_window(&window_def, monitor_geometry) {
+        window.set_title(&format!("Eww - {}", window_def.name));
+        let wm_class_name = format!("eww-{}", window_def.name);
+        window.set_wmclass(&wm_class_name, &wm_class_name);
+        window.set_position(gtk::WindowPosition::Center);
+        window.set_size_request(actual_window_rect.width, actual_window_rect.height);
+        window.set_default_size(actual_window_rect.width, actual_window_rect.height);
+        window.set_decorated(false);
+        // run on_screen_changed to set the visual correctly initially.
+        on_screen_changed(&window, None);
+        window.connect_screen_changed(on_screen_changed);
 
-    window.set_title(&format!("Eww - {}", window_def.name));
-    let wm_class_name = format!("eww-{}", window_def.name);
-    window.set_wmclass(&wm_class_name, &wm_class_name);
-    window.set_position(gtk::WindowPosition::Center);
-    window.set_size_request(actual_window_rect.width, actual_window_rect.height);
-    window.set_default_size(actual_window_rect.width, actual_window_rect.height);
-    window.set_decorated(false);
-    // run on_screen_changed to set the visual correctly initially.
-    on_screen_changed(&window, None);
-    window.connect_screen_changed(on_screen_changed);
+        window.add(&root_widget);
 
-    window.add(&root_widget);
+        window.show_all();
 
-    window.show_all();
+        apply_window_position(window_def.clone(), monitor_geometry, &window)?;
+        let gdk_window = window.get_window().context("couldn't get gdk window from gtk window")?;
+        gdk_window.set_override_redirect(!window_def.focusable);
 
-    apply_window_position(window_def.clone(), monitor_geometry, &window)?;
-    let gdk_window = window.get_window().context("couldn't get gdk window from gtk window")?;
-    gdk_window.set_override_redirect(!window_def.focusable);
+        #[cfg(feature = "x11")]
+        display_backend::reserve_space_for(&window, monitor_geometry, window_def.struts)?;
 
-    #[cfg(feature = "x11")]
-    display_backend::reserve_space_for(&window, monitor_geometry, window_def.struts)?;
+        // this should only be required on x11, as waylands layershell should manage the margins properly anways.
+        #[cfg(feature = "x11")]
+        window.connect_configure_event({
+            let window_def = window_def.clone();
+            move |window, _evt| {
+                let _ = apply_window_position(window_def.clone(), monitor_geometry, &window);
+                false
+            }
+        });
+        Ok(EwwWindow { name: window_def.name.clone(), definition: window_def, gtk_window: window })
+    } else {
+        Err(anyhow!("monitor {} is unavailable", window_def.screen_number.unwrap()))
+    }
 
-    // this should only be required on x11, as waylands layershell should manage the margins properly anways.
-    #[cfg(feature = "x11")]
-    window.connect_configure_event({
-        let window_def = window_def.clone();
-        move |window, _evt| {
-            let _ = apply_window_position(window_def.clone(), monitor_geometry, &window);
-            false
-        }
-    });
-
-    Ok(EwwWindow { name: window_def.name.clone(), definition: window_def, gtk_window: window })
 }
 
 /// Apply the provided window-positioning rules to the window.
