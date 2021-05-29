@@ -43,7 +43,7 @@ cargo build --release
 **NOTE:**
 When you're on wayland, build with:
 ```bash
-cargo build --release --no-default-features --features=x11
+cargo build --release --no-default-features --features=wayland
 ```
 
 ### Running eww
