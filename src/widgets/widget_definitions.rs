@@ -94,7 +94,7 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
             css_provider.load_from_data(format!("* {{ {} }}", style).as_bytes())?;
             gtk_widget.get_style_context().add_provider(&css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION)
         },
-        // @prop onscroll - event to execute when the user scrolls with the mouse over the widget
+        // @prop onscroll - event to execute when the user scrolls with the mouse over the widget. The placeholder `{}` used in the command will be replaced with either `up` or `down`.
         prop(onscroll: as_string) {
             gtk_widget.add_events(gdk::EventMask::SCROLL_MASK);
             gtk_widget.add_events(gdk::EventMask::SMOOTH_SCROLL_MASK);
