@@ -23,6 +23,9 @@ Please give your opinions in the [discussion post](https://github.com/elkowar/ew
 * [Setup by Axarva](https://github.com/Axarva/dotfiles-2.0)
 ![Axarva-rice](https://raw.githubusercontent.com/Axarva/dotfiles-2.0/main/screenshots/center.png)
 
+* [Setup by adi1090x](https://github.com/adi1090x/widgets)
+![Nordic](https://raw.githubusercontent.com/adi1090x/widgets/main/previews/nordic.png)
+
 ## Contribewwting
 
 If you want to contribute anything, like adding new widgets, features or subcommands (Including sample configs), you should definitely do so.
