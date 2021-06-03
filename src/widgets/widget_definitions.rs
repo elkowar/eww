@@ -159,9 +159,25 @@ pub(super) fn resolve_container_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk:
 pub(super) fn resolve_range_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Range) {
     let on_change_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
     gtk_widget.set_sensitive(false);
+
+    // only allow changing the value via the value property if the user isn't currently dragging
+    let is_being_dragged = Rc::new(RefCell::new(false));
+    gtk_widget.connect_button_press_event(glib::clone!(@strong is_being_dragged => move |_, _| {
+        *is_being_dragged.borrow_mut() = true;
+        gtk::Inhibit(false)
+    }));
+    gtk_widget.connect_button_release_event(glib::clone!(@strong is_being_dragged => move |_, _| {
+        *is_being_dragged.borrow_mut() = false;
+        gtk::Inhibit(false)
+    }));
+
     resolve_block!(bargs, gtk_widget, {
         // @prop value - the value
-        prop(value: as_f64) { gtk_widget.set_value(value)},
+        prop(value: as_f64) {
+            if !*is_being_dragged.borrow() {
+                gtk_widget.set_value(value)
+            }
+        },
         // @prop min - the minimum value
         prop(min: as_f64) { gtk_widget.get_adjustment().set_lower(min)},
         // @prop max - the maximum value
