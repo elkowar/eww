@@ -19,9 +19,9 @@ version = "0.10.0"
 
 [dependencies]
 gtk = { version = "0.9", features = [ "v3_22" ] }
-gdk = { version = "", features = ["v3_22"] }
-gio = { version = "", features = ["v2_44"] }
-glib = { version = "", features = ["v2_44"] }
+gdk = { version = "*", features = ["v3_22"] }
+gio = { version = "*", features = ["v2_44"] }
+glib = { version = "*", features = ["v2_44"] }
 
 gdk-pixbuf = "0.9"
 
