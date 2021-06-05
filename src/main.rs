@@ -1,4 +1,9 @@
 #![allow(unused_imports)]
+#![allow(unused)]
+
+mod config;
+
+use std::ops::Deref;
 
 use itertools::Itertools;
 
@@ -17,6 +22,9 @@ impl<T: std::fmt::Display> std::fmt::Display for Sp<T> {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct WrongExprType;
+
 #[derive(Debug)]
 pub enum Expr {
     List(Vec<Sp<Expr>>),
@@ -26,6 +34,16 @@ pub enum Expr {
     Str(String),
     Number(i32),
     Comment,
+}
+
+impl Expr {
+    fn str(self) -> Result<String, WrongExprType> {
+        use Expr::*;
+        match self {
+            Str(x) => Ok(x),
+            _ => Err(WrongExprType),
+        }
+    }
 }
 
 impl std::fmt::Display for Expr {
