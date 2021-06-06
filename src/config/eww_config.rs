@@ -284,6 +284,6 @@ mod test {
         assert_eq!(merged_config.widgets.len(), 2);
         assert_eq!(merged_config.windows.len(), 2);
         assert_eq!(merged_config.initial_variables.len(), 2);
-        assert_eq!(merged_config.script_vars.len(), 7);
+        assert_eq!(merged_config.script_vars.len(), 6);
     }
 }
