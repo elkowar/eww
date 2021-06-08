@@ -1,17 +1,114 @@
 pub use platform::*;
 
-#[cfg(feature = "no-x11")]
+#[cfg(feature = "no-x11-wayland")]
 mod platform {
-    use crate::config::{Side, StrutDefinition};
+    use crate::config::{EwwWindowDefinition, StrutDefinition, WindowStacking};
     use anyhow::*;
-    pub fn reserve_space_for(window: &gtk::Window, monitor: gdk::Rectangle, strut_def: StrutDefinition) -> Result<()> {
-        Err(anyhow!("Cannot reserve space on non-X11 backends"))
+    use gtk::{self, prelude::*};
+
+    pub fn initialize_window(window_def: &EwwWindowDefinition, _monitor: gdk::Rectangle) -> Option<gtk::Window> {
+        let window = if window_def.focusable {
+            gtk::Window::new(gtk::WindowType::Toplevel)
+        } else {
+            gtk::Window::new(gtk::WindowType::Popup)
+        };
+        window.set_resizable(true);
+        if !window_def.focusable {
+            window.set_type_hint(gdk::WindowTypeHint::Dock);
+        }
+        if window_def.stacking == WindowStacking::Foreground {
+            window.set_keep_above(true);
+        } else {
+            window.set_keep_below(true);
+        }
+        Some(window)
+    }
+
+    pub fn reserve_space_for(_window: &gtk::Window, _monitor: gdk::Rectangle, _strut_def: StrutDefinition) -> Result<()> {
+        Err(anyhow!("Cannot reserve space on non X11 or and wayland backends"))
+    }
+}
+
+#[cfg(feature = "wayland")]
+mod platform {
+    use crate::config::{AnchorAlignment, EwwWindowDefinition, Side, WindowStacking};
+    use anyhow::*;
+    use gdk;
+    use gtk::prelude::*;
+
+    pub fn initialize_window(window_def: &EwwWindowDefinition, monitor: gdk::Rectangle) -> Option<gtk::Window> {
+        let window = gtk::Window::new(gtk::WindowType::Toplevel);
+        // Initialising a layer shell surface
+        gtk_layer_shell::init_for_window(&window);
+        // Sets the monitor where the surface is shown
+        match window_def.screen_number {
+            Some(index) => {
+                if let Some(monitor) = gdk::Display::get_default().expect("could not get default display").get_monitor(index) {
+                    gtk_layer_shell::set_monitor(&window, &monitor);
+                } else {
+                    return None
+                }
+            }
+            None => {},
+        };
+        window.set_resizable(true);
+
+        // Sets the layer where the layer shell surface will spawn
+        match window_def.stacking {
+            WindowStacking::Foreground => gtk_layer_shell::set_layer(&window, gtk_layer_shell::Layer::Top),
+            WindowStacking::Background => gtk_layer_shell::set_layer(&window, gtk_layer_shell::Layer::Background),
+            WindowStacking::Bottom => gtk_layer_shell::set_layer(&window, gtk_layer_shell::Layer::Bottom),
+            WindowStacking::Overlay => gtk_layer_shell::set_layer(&window, gtk_layer_shell::Layer::Overlay),
+        }
+
+        // Sets the keyboard interactivity
+        gtk_layer_shell::set_keyboard_interactivity(&window, window_def.focusable);
+        // Positioning surface
+        let mut top = false;
+        let mut left = false;
+        let mut right = false;
+        let mut bottom = false;
+
+        match window_def.geometry.anchor_point.x {
+            AnchorAlignment::START => left = true,
+            AnchorAlignment::CENTER => {}
+            AnchorAlignment::END => right = true,
+        }
+        match window_def.geometry.anchor_point.y {
+            AnchorAlignment::START => top = true,
+            AnchorAlignment::CENTER => {}
+            AnchorAlignment::END => bottom = true,
+        }
+
+        gtk_layer_shell::set_anchor(&window, gtk_layer_shell::Edge::Left, left);
+        gtk_layer_shell::set_anchor(&window, gtk_layer_shell::Edge::Right, right);
+        gtk_layer_shell::set_anchor(&window, gtk_layer_shell::Edge::Top, top);
+        gtk_layer_shell::set_anchor(&window, gtk_layer_shell::Edge::Bottom, bottom);
+
+        let xoffset = window_def.geometry.offset.x.relative_to(monitor.width);
+        let yoffset = window_def.geometry.offset.y.relative_to(monitor.height);
+
+        if left {
+            gtk_layer_shell::set_margin(&window, gtk_layer_shell::Edge::Left, xoffset);
+        } else {
+            gtk_layer_shell::set_margin(&window, gtk_layer_shell::Edge::Right, xoffset);
+        }
+        if bottom {
+            gtk_layer_shell::set_margin(&window, gtk_layer_shell::Edge::Bottom, yoffset);
+        } else {
+            gtk_layer_shell::set_margin(&window, gtk_layer_shell::Edge::Top, yoffset);
+        }
+
+        if window_def.exclusive {
+            gtk_layer_shell::auto_exclusive_zone_enable(&window);
+        }
+        Some(window)
     }
 }
 
 #[cfg(feature = "x11")]
 mod platform {
-    use crate::config::{Side, StrutDefinition};
+    use crate::config::{EwwWindowDefinition, Side, StrutDefinition, WindowStacking};
     use anyhow::*;
     use gdkx11;
     use gtk::{self, prelude::*};
@@ -23,6 +120,24 @@ mod platform {
         protocol::xproto::*,
         rust_connection::{DefaultStream, RustConnection},
     };
+
+    pub fn initialize_window(window_def: &EwwWindowDefinition, _monitor: gdk::Rectangle) -> Option<gtk::Window> {
+        let window = if window_def.focusable {
+            gtk::Window::new(gtk::WindowType::Toplevel)
+        } else {
+            gtk::Window::new(gtk::WindowType::Popup)
+        };
+        window.set_resizable(true);
+        if !window_def.focusable {
+            window.set_type_hint(gdk::WindowTypeHint::Dock);
+        }
+        if window_def.stacking == WindowStacking::Foreground {
+            window.set_keep_above(true);
+        } else {
+            window.set_keep_below(true);
+        }
+        Some(window)
+    }
 
     pub fn reserve_space_for(window: &gtk::Window, monitor: gdk::Rectangle, strut_def: StrutDefinition) -> Result<()> {
         let backend = X11Backend::new()?;
@@ -75,12 +190,14 @@ mod platform {
                 Side::Left   => vec![dist + monitor_rect.x as u32,  0,                                                     0,                             0,                                                      monitor_rect.y as u32,  mon_end_y,  0,                      0,          0,                      0,          0,                      0],
                 Side::Right  => vec![0,                             root_window_geometry.width as u32 - mon_end_x + dist,  0,                             0,                                                      0,                      0,          monitor_rect.y as u32,  mon_end_y,  0,                      0,          0,                      0],
                 Side::Top    => vec![0,                             0,                                                     dist + monitor_rect.y as u32,  0,                                                      0,                      0,          0,                      0,          monitor_rect.x as u32,  mon_end_x,  0,                      0],
-                Side::Bottom => vec![0,                             0,                                                     0,                             root_window_geometry.height as u32 - mon_end_y + dist,  0,                      0,          0,                      0,          0,                      0,          monitor_rect.x as u32,  mon_end_x]
+                Side::Bottom => vec![0,                             0,                                                     0,                             root_window_geometry.height as u32 - mon_end_y + dist,  0,                      0,          0,                      0,          0,                      0,          monitor_rect.x as u32,  mon_end_x],
+                // This should never happen but if it does the window will be anchored on the
+                // right of the screen
             }.iter().flat_map(|x| x.to_le_bytes().to_vec()).collect();
 
             self.conn
                 .change_property(
-                    PropMode::Replace,
+                    PropMode::REPLACE,
                     win_id,
                     self.atoms._NET_WM_STRUT,
                     self.atoms.CARDINAL,
@@ -91,7 +208,7 @@ mod platform {
                 .check()?;
             self.conn
                 .change_property(
-                    PropMode::Replace,
+                    PropMode::REPLACE,
                     win_id,
                     self.atoms._NET_WM_STRUT_PARTIAL,
                     self.atoms.CARDINAL,

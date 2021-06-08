@@ -16,8 +16,13 @@ pub struct EwwWindowDefinition {
     pub stacking: WindowStacking,
     pub screen_number: Option<i32>,
     pub widget: Box<dyn widget_node::WidgetNode>,
-    pub struts: StrutDefinition,
     pub focusable: bool,
+
+    #[cfg(feature = "x11")]
+    pub struts: StrutDefinition,
+
+    #[cfg(feature = "wayland")]
+    pub exclusive: bool,
 }
 
 impl EwwWindowDefinition {
@@ -28,8 +33,11 @@ impl EwwWindowDefinition {
             stacking: window.stacking,
             screen_number: window.screen_number,
             widget: widget_node::generate_generic_widget_node(defs, &HashMap::new(), window.widget)?,
-            struts: window.struts,
             focusable: window.focusable,
+            #[cfg(feature = "x11")]
+            struts: window.struts,
+            #[cfg(feature = "wayland")]
+            exclusive: window.exclusive,
         })
     }
 }
@@ -42,8 +50,13 @@ pub struct RawEwwWindowDefinition {
     pub stacking: WindowStacking,
     pub screen_number: Option<i32>,
     pub widget: WidgetUse,
-    pub struts: StrutDefinition,
     pub focusable: bool,
+
+    #[cfg(feature = "x11")]
+    pub struts: StrutDefinition,
+
+    #[cfg(feature = "wayland")]
+    pub exclusive: bool,
 }
 
 impl RawEwwWindowDefinition {
@@ -55,11 +68,12 @@ impl RawEwwWindowDefinition {
         let focusable = xml.parse_optional_attr("focusable")?;
         let screen_number = xml.parse_optional_attr("screen")?;
 
+        #[cfg(feature = "x11")]
         let struts: Option<StrutDefinition> =
             xml.child("reserve").ok().map(StrutDefinition::from_xml_element).transpose().context("Failed to parse <reserve>")?;
 
         Ok(RawEwwWindowDefinition {
-            name: WindowName(xml.attr("name")?.to_owned()),
+            name: WindowName(xml.attr("name")?),
             geometry: match xml.child("geometry") {
                 Ok(node) => EwwWindowGeometry::from_xml_element(node)?,
                 Err(_) => EwwWindowGeometry::default(),
@@ -68,7 +82,10 @@ impl RawEwwWindowDefinition {
             stacking,
             screen_number,
             focusable: focusable.unwrap_or(false),
+            #[cfg(feature = "x11")]
             struts: struts.unwrap_or_default(),
+            #[cfg(feature = "wayland")]
+            exclusive: xml.parse_optional_attr("exclusive")?.unwrap_or_default(),
         })
     }
 }
@@ -81,6 +98,7 @@ pub enum Side {
     Right,
     Bottom,
 }
+
 impl std::str::FromStr for Side {
     type Err = anyhow::Error;
 
@@ -95,6 +113,7 @@ impl std::str::FromStr for Side {
     }
 }
 
+// Surface definition if the backend for X11 is enable
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct StrutDefinition {
     pub side: Side,
@@ -112,17 +131,36 @@ pub enum WindowStacking {
     #[default]
     Foreground,
     Background,
+    Bottom,
+    Overlay,
 }
 
 impl std::str::FromStr for WindowStacking {
     type Err = anyhow::Error;
 
+    #[cfg(not(feature = "wayland"))]
     fn from_str(s: &str) -> Result<Self> {
         let s = s.to_lowercase();
         match s.as_str() {
             "foreground" | "fg" | "f" => Ok(WindowStacking::Foreground),
             "background" | "bg" | "b" => Ok(WindowStacking::Background),
             _ => Err(anyhow!("Couldn't parse '{}' as window stacking, must be either foreground, fg, background or bg", s)),
+        }
+    }
+
+    #[cfg(feature = "wayland")]
+    fn from_str(s: &str) -> Result<Self> {
+        let s = s.to_lowercase();
+        match s.as_str() {
+            "foreground" | "fg" => Ok(WindowStacking::Foreground),
+            "background" | "bg" => Ok(WindowStacking::Background),
+            "bottom" | "bt" => Ok(WindowStacking::Bottom),
+            "overlay" | "ov" => Ok(WindowStacking::Overlay),
+            _ => Err(anyhow!(
+                "Couldn't parse '{}' as window stacking, must be either foreground, fg, background, bg, bottom, bt, overlay or \
+                 ov",
+                s
+            )),
         }
     }
 }

@@ -25,7 +25,7 @@ macro_rules! try_logging_errors {
     ($context:expr => $code:block) => {{
         let result: Result<_> = try { $code };
         if let Err(err) = result {
-            eprintln!("[{}:{}] Error while {}: {:?}", ::std::file!(), ::std::line!(), $context, err);
+            log::error!("[{}:{}] Error while {}: {:?}", ::std::file!(), ::std::line!(), $context, err);
         }
     }};
 }
@@ -34,7 +34,7 @@ macro_rules! try_logging_errors {
 macro_rules! print_result_err {
     ($context:expr, $result:expr $(,)?) => {{
         if let Err(err) = $result {
-            eprintln!("[{}:{}] Error {}: {:?}", ::std::file!(), ::std::line!(), $context, err);
+            log::error!("[{}:{}] Error {}: {:?}", ::std::file!(), ::std::line!(), $context, err);
         }
     }};
 }
@@ -101,14 +101,31 @@ pub fn parse_duration(s: &str) -> Result<std::time::Duration> {
     use std::time::Duration;
     if s.ends_with("ms") {
         Ok(Duration::from_millis(s.trim_end_matches("ms").parse()?))
-    } else if s.ends_with("s") {
-        Ok(Duration::from_secs(s.trim_end_matches("s").parse()?))
-    } else if s.ends_with("m") {
-        Ok(Duration::from_secs(s.trim_end_matches("m").parse::<u64>()? * 60))
-    } else if s.ends_with("h") {
-        Ok(Duration::from_secs(s.trim_end_matches("h").parse::<u64>()? * 60 * 60))
+    } else if s.ends_with('s') {
+        Ok(Duration::from_secs(s.trim_end_matches('s').parse()?))
+    } else if s.ends_with('m') {
+        Ok(Duration::from_secs(s.trim_end_matches('m').parse::<u64>()? * 60))
+    } else if s.ends_with('h') {
+        Ok(Duration::from_secs(s.trim_end_matches('h').parse::<u64>()? * 60 * 60))
     } else {
         Err(anyhow!("unrecognized time format: {}", s))
+    }
+}
+
+
+pub trait IterAverage {
+    fn avg(self) -> f32;
+}
+
+impl<I: Iterator<Item = f32>> IterAverage for I {
+    fn avg(self) -> f32 {
+        let mut total = 0f32;
+        let mut cnt = 0f32;
+        for value in self {
+            total += value;
+            cnt += 1f32;
+        }
+        total / cnt
     }
 }
 

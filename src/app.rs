@@ -1,9 +1,9 @@
 use crate::{
     config,
-    config::{window_definition::WindowName, AnchorPoint, WindowStacking},
+    config::{window_definition::WindowName, AnchorPoint},
     display_backend, eww_state,
     script_var_handler::*,
-    value::{Coords, NumWithUnit, PrimitiveValue, VarName},
+    value::{Coords, NumWithUnit, PrimVal, VarName},
     EwwPaths,
 };
 use anyhow::*;
@@ -24,10 +24,7 @@ pub enum DaemonResponse {
 
 impl DaemonResponse {
     pub fn is_success(&self) -> bool {
-        match self {
-            DaemonResponse::Success(_) => true,
-            _ => false,
-        }
+        matches!(self, DaemonResponse::Success(_))
     }
 
     pub fn is_failure(&self) -> bool {
@@ -41,7 +38,7 @@ pub type DaemonResponseReceiver = tokio::sync::mpsc::UnboundedReceiver<DaemonRes
 #[derive(Debug)]
 pub enum DaemonCommand {
     NoOp,
-    UpdateVars(Vec<(VarName, PrimitiveValue)>),
+    UpdateVars(Vec<(VarName, PrimVal)>),
     ReloadConfigAndCss(DaemonResponseSender),
     UpdateConfig(config::EwwConfig),
     UpdateCss(String),
@@ -63,7 +60,10 @@ pub enum DaemonCommand {
     },
     KillServer,
     CloseAll,
-    PrintState(DaemonResponseSender),
+    PrintState {
+        all: bool,
+        sender: DaemonResponseSender,
+    },
     PrintDebug(DaemonResponseSender),
     PrintWindows(DaemonResponseSender),
 }
@@ -149,7 +149,7 @@ impl App {
                     }
                 }
                 DaemonCommand::OpenMany { windows, sender } => {
-                    let result = windows.iter().map(|w| self.open_window(w, None, None, None, None)).collect::<Result<()>>();
+                    let result = windows.iter().try_for_each(|w| self.open_window(w, None, None, None, None));
                     respond_with_error(sender, result)?;
                 }
                 DaemonCommand::OpenWindow { window_name, pos, size, anchor, monitor, sender } => {
@@ -160,9 +160,15 @@ impl App {
                     let result = self.close_window(&window_name);
                     respond_with_error(sender, result)?;
                 }
-                DaemonCommand::PrintState(sender) => {
-                    let output =
-                        self.eww_state.get_variables().iter().map(|(key, value)| format!("{}: {}", key, value)).join("\n");
+                DaemonCommand::PrintState { all, sender } => {
+                    let vars = self.eww_state.get_variables().iter();
+                    let output = if all {
+                        vars.map(|(key, value)| format!("{}: {}", key, value)).join("\n")
+                    } else {
+                        vars.filter(|(x, _)| self.eww_state.referenced_vars().any(|var| x == &var))
+                            .map(|(key, value)| format!("{}: {}", key, value))
+                            .join("\n")
+                    };
                     sender.send(DaemonResponse::Success(output)).context("sending response from main thread")?
                 }
                 DaemonCommand::PrintWindows(sender) => {
@@ -193,7 +199,7 @@ impl App {
         gtk::main_quit();
     }
 
-    fn update_state(&mut self, fieldname: VarName, value: PrimitiveValue) {
+    fn update_state(&mut self, fieldname: VarName, value: PrimVal) {
         self.eww_state.update_variable(fieldname, value)
     }
 
@@ -222,7 +228,6 @@ impl App {
     ) -> Result<()> {
         // remove and close existing window with the same name
         let _ = self.close_window(window_name);
-
         log::info!("Opening window {}", window_name);
 
         let mut window_def = self.eww_config.get_window(window_name)?.clone();
@@ -299,55 +304,61 @@ impl App {
 fn initialize_window(
     monitor_geometry: gdk::Rectangle,
     root_widget: gtk::Widget,
-    mut window_def: config::EwwWindowDefinition,
+    window_def: config::EwwWindowDefinition,
 ) -> Result<EwwWindow> {
     let actual_window_rect = window_def.geometry.get_window_rectangle(monitor_geometry);
 
-    let window =
-        if window_def.focusable { gtk::Window::new(gtk::WindowType::Toplevel) } else { gtk::Window::new(gtk::WindowType::Popup) };
+    if let Some(window) = display_backend::initialize_window(&window_def, monitor_geometry) {
+        window.set_title(&format!("Eww - {}", window_def.name));
+        let wm_class_name = format!("eww-{}", window_def.name);
+        window.set_wmclass(&wm_class_name, &wm_class_name);
+        window.set_position(gtk::WindowPosition::Center);
+        window.set_size_request(actual_window_rect.width, actual_window_rect.height);
+        window.set_default_size(actual_window_rect.width, actual_window_rect.height);
+        window.set_decorated(false);
+        // run on_screen_changed to set the visual correctly initially.
+        on_screen_changed(&window, None);
+        window.connect_screen_changed(on_screen_changed);
 
-    window.set_title(&format!("Eww - {}", window_def.name));
-    let wm_class_name = format!("eww-{}", window_def.name);
-    window.set_wmclass(&wm_class_name, &wm_class_name);
-    if !window_def.focusable {
-        window.set_type_hint(gdk::WindowTypeHint::Dock);
+        window.add(&root_widget);
+
+        window.show_all();
+
+        apply_window_position(window_def.clone(), monitor_geometry, &window)?;
+        let gdk_window = window.get_window().context("couldn't get gdk window from gtk window")?;
+        gdk_window.set_override_redirect(!window_def.focusable);
+
+        #[cfg(feature = "x11")]
+        display_backend::reserve_space_for(&window, monitor_geometry, window_def.struts)?;
+
+        // this should only be required on x11, as waylands layershell should manage the margins properly anways.
+        #[cfg(feature = "x11")]
+        window.connect_configure_event({
+            let window_def = window_def.clone();
+            move |window, _evt| {
+                let _ = apply_window_position(window_def.clone(), monitor_geometry, &window);
+                false
+            }
+        });
+        Ok(EwwWindow { name: window_def.name.clone(), definition: window_def, gtk_window: window })
+    } else {
+        Err(anyhow!("monitor {} is unavailable", window_def.screen_number.unwrap()))
     }
-    window.set_position(gtk::WindowPosition::Center);
-    window.set_default_size(actual_window_rect.width, actual_window_rect.height);
-    window.set_size_request(actual_window_rect.width, actual_window_rect.height);
-    window.set_decorated(false);
-    window.set_resizable(false);
 
-    // run on_screen_changed to set the visual correctly initially.
-    on_screen_changed(&window, None);
-    window.connect_screen_changed(on_screen_changed);
+}
 
-    window.add(&root_widget);
-
-    // Handle the fact that the gtk window will have a different size than specified,
-    // as it is sized according to how much space it's contents require.
-    // This is necessary to handle different anchors correctly in case the size was wrong.
+/// Apply the provided window-positioning rules to the window.
+fn apply_window_position(
+    mut window_def: config::EwwWindowDefinition,
+    monitor_geometry: gdk::Rectangle,
+    window: &gtk::Window,
+) -> Result<()> {
     let (gtk_window_width, gtk_window_height) = window.get_size();
     window_def.geometry.size = Coords { x: NumWithUnit::Pixels(gtk_window_width), y: NumWithUnit::Pixels(gtk_window_height) };
+    let gdk_window = window.get_window().context("Failed to get gdk window from gtk window")?;
     let actual_window_rect = window_def.geometry.get_window_rectangle(monitor_geometry);
-
-    window.show_all();
-
-    let gdk_window = window.get_window().context("couldn't get gdk window from gtk window")?;
-    gdk_window.set_override_redirect(!window_def.focusable);
     gdk_window.move_(actual_window_rect.x, actual_window_rect.y);
-
-    if window_def.stacking == WindowStacking::Foreground {
-        gdk_window.raise();
-        window.set_keep_above(true);
-    } else {
-        gdk_window.lower();
-        window.set_keep_below(true);
-    }
-
-    display_backend::reserve_space_for(&window, monitor_geometry, window_def.struts)?;
-
-    Ok(EwwWindow { name: window_def.name.clone(), definition: window_def, gtk_window: window })
+    Ok(())
 }
 
 fn on_screen_changed(window: &gtk::Window, _old_screen: Option<&gdk::Screen>) {
@@ -357,7 +368,6 @@ fn on_screen_changed(window: &gtk::Window, _old_screen: Option<&gdk::Screen>) {
     window.set_visual(visual.as_ref());
 }
 
-/// get the index of the default monitor
 fn get_default_monitor_index() -> i32 {
     gdk::Display::get_default().expect("could not get default display").get_default_screen().get_primary_monitor()
 }

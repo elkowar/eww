@@ -40,6 +40,11 @@ and then to build:
 ```bash
 cargo build --release
 ```
+**NOTE:**
+When you're on wayland, build with:
+```bash
+cargo build --release --no-default-features --features=wayland
+```
 
 ### Running eww
 Once you've built it you can now run it by entering:

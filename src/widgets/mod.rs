@@ -29,14 +29,14 @@ pub(self) fn run_command<T: 'static + std::fmt::Display + Send + Sync>(cmd: &str
             Ok(mut child) => match child.wait_timeout(std::time::Duration::from_millis(200)) {
                 // child timed out
                 Ok(None) => {
-                    eprintln!("WARNING: command {} timed out", &cmd);
+                    log::error!("WARNING: command {} timed out", &cmd);
                     let _ = child.kill();
                     let _ = child.wait();
                 }
-                Err(err) => eprintln!("Failed to execute command {}: {}", cmd, err),
+                Err(err) => log::error!("Failed to execute command {}: {}", cmd, err),
                 Ok(Some(_)) => {}
             },
-            Err(err) => eprintln!("Failed to launch child process: {}", err),
+            Err(err) => log::error!("Failed to launch child process: {}", err),
         }
     });
 }
@@ -106,8 +106,8 @@ fn build_builtin_gtk_widget(
     resolve_widget_attrs(&mut bargs, &gtk_widget);
 
     if !bargs.unhandled_attrs.is_empty() {
-        eprintln!(
-            "{}WARN: Unknown attribute used in {}: {}",
+        log::error!(
+            "{}: Unknown attribute used in {}: {}",
             widget.text_pos.map(|x| format!("{} | ", x)).unwrap_or_default(),
             widget.name,
             bargs.unhandled_attrs.iter().map(|x| x.to_string()).join(", ")
@@ -154,7 +154,7 @@ macro_rules! resolve_block {
     };
 
     (@get_value $args:ident, $name:expr, = $default:expr) => {
-        $args.widget.get_attr($name).cloned().unwrap_or(AttrValue::from_primitive($default))
+        $args.widget.get_attr($name).cloned().unwrap_or(AttrVal::from_primitive($default))
     };
 
     (@get_value $args:ident, $name:expr,) => {
@@ -167,7 +167,7 @@ macro_rules! log_errors {
     ($body:expr) => {{
         let result = try { $body };
         if let Err(e) = result {
-            eprintln!("WARN: {}", e);
+            log::warn!("{}", e);
         }
     }};
 }

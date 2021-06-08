@@ -1,7 +1,10 @@
+#![allow(clippy::option_map_unit_fn)]
 use super::{run_command, BuilderArgs};
-use crate::{config, eww_state, resolve_block, value::AttrValue, widgets::widget_node};
+use crate::{config, eww_state, resolve_block, value::AttrVal, widgets::widget_node};
 use anyhow::*;
-use gtk::{prelude::*, ImageExt};
+use gdk::WindowExt;
+use glib;
+use gtk::{self, prelude::*, ImageExt};
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 // TODO figure out how to
@@ -49,6 +52,8 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
 
     let on_scroll_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
     let on_hover_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
+    let cursor_hover_enter_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
+    let cursor_hover_leave_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
 
     resolve_block!(bargs, gtk_widget, {
         // @prop class - css class name
@@ -89,7 +94,7 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
             css_provider.load_from_data(format!("* {{ {} }}", style).as_bytes())?;
             gtk_widget.get_style_context().add_provider(&css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION)
         },
-        // @prop onscroll - event to execute when the user scrolls with the mouse over the widget
+        // @prop onscroll - event to execute when the user scrolls with the mouse over the widget. The placeholder `{}` used in the command will be replaced with either `up` or `down`.
         prop(onscroll: as_string) {
             gtk_widget.add_events(gdk::EventMask::SCROLL_MASK);
             gtk_widget.add_events(gdk::EventMask::SMOOTH_SCROLL_MASK);
@@ -105,7 +110,7 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
         prop(onhover: as_string) {
             gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
             let old_id = on_hover_handler_id.replace(Some(
-                gtk_widget.connect_scroll_event(move |_, evt| {
+                gtk_widget.connect_enter_notify_event(move |_, evt| {
                     run_command(&onhover, format!("{} {}", evt.get_position().0, evt.get_position().1));
                     gtk::Inhibit(false)
                 })
@@ -113,6 +118,30 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
             old_id.map(|id| gtk_widget.disconnect(id));
         },
 
+        // @prop cursor - Cursor to show while hovering (see [gtk3-cursors](https://developer.gnome.org/gdk3/stable/gdk3-Cursors.html) for possible names)
+        prop(cursor: as_string) {
+            gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
+            cursor_hover_enter_handler_id.replace(Some(
+                gtk_widget.connect_enter_notify_event(move |widget, _evt| {
+                    let display = gdk::Display::get_default();
+                    let gdk_window = widget.get_window();
+                    if let (Some(display), Some(gdk_window)) = (display, gdk_window) {
+                        gdk_window.set_cursor(gdk::Cursor::from_name(&display, &cursor).as_ref());
+                    }
+                    gtk::Inhibit(false)
+                })
+            )).map(|id| gtk_widget.disconnect(id));
+
+            cursor_hover_leave_handler_id.replace(Some(
+                gtk_widget.connect_leave_notify_event(move |widget, _evt| {
+                    let gdk_window = widget.get_window();
+                    if let Some(gdk_window) = gdk_window {
+                        gdk_window.set_cursor(None);
+                    }
+                    gtk::Inhibit(false)
+                })
+            )).map(|id| gtk_widget.disconnect(id));
+        },
     });
 }
 
@@ -130,9 +159,25 @@ pub(super) fn resolve_container_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk:
 pub(super) fn resolve_range_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Range) {
     let on_change_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
     gtk_widget.set_sensitive(false);
+
+    // only allow changing the value via the value property if the user isn't currently dragging
+    let is_being_dragged = Rc::new(RefCell::new(false));
+    gtk_widget.connect_button_press_event(glib::clone!(@strong is_being_dragged => move |_, _| {
+        *is_being_dragged.borrow_mut() = true;
+        gtk::Inhibit(false)
+    }));
+    gtk_widget.connect_button_release_event(glib::clone!(@strong is_being_dragged => move |_, _| {
+        *is_being_dragged.borrow_mut() = false;
+        gtk::Inhibit(false)
+    }));
+
     resolve_block!(bargs, gtk_widget, {
         // @prop value - the value
-        prop(value: as_f64) { gtk_widget.set_value(value)},
+        prop(value: as_f64) {
+            if !*is_being_dragged.borrow() {
+                gtk_widget.set_value(value)
+            }
+        },
         // @prop min - the minimum value
         prop(min: as_f64) { gtk_widget.get_adjustment().set_lower(min)},
         // @prop max - the maximum value
@@ -202,7 +247,7 @@ fn build_gtk_combo_box_text(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText
         prop(onchange: as_string) {
             let old_id = on_change_handler_id.replace(Some(
                 gtk_widget.connect_changed(move |gtk_widget| {
-                    run_command(&onchange, gtk_widget.get_active_text().unwrap_or("".into()));
+                    run_command(&onchange, gtk_widget.get_active_text().unwrap_or_else(|| "".into()));
                 })
             ));
             old_id.map(|id| gtk_widget.disconnect(id));
@@ -284,7 +329,7 @@ fn build_gtk_color_chooser(bargs: &mut BuilderArgs) -> Result<gtk::ColorChooserW
         prop(onchange: as_string) {
             let old_id = on_change_handler_id.replace(Some(
                 gtk_widget.connect_color_activated(move |_a, color| {
-                    run_command(&onchange, color.clone());
+                    run_command(&onchange, *color);
                 })
             ));
             old_id.map(|id| gtk_widget.disconnect(id));
@@ -354,16 +399,27 @@ fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
 fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
     let gtk_widget = gtk::Button::new();
     let on_click_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
+
     resolve_block!(bargs, gtk_widget, {
         // @prop onclick - a command that get's run when the button is clicked
-        prop(onclick: as_string) {
+        // @prop onmiddleclick - a command that get's run when the button is middleclicked
+        // @prop onrightclick - a command that get's run when the button is rightclicked
+        prop(onclick: as_string = "", onmiddleclick: as_string = "", onrightclick: as_string = "") {
             gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
             let old_id = on_click_handler_id.replace(Some(
-                gtk_widget.connect_clicked(move |_| run_command(&onclick, ""))
+                gtk_widget.connect_button_press_event(move |_, evt| {
+                    match evt.get_button() {
+                        1 => run_command(&onclick, ""),
+                        2 => run_command(&onmiddleclick, ""),
+                        3 => run_command(&onrightclick, ""),
+                        _ => {},
+                    }
+                    gtk::Inhibit(false)
+                })
             ));
             old_id.map(|id| gtk_widget.disconnect(id));
-
         }
+
     });
     Ok(gtk_widget)
 }
@@ -377,8 +433,13 @@ fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
         // @prop width - width of the image
         // @prop height - height of the image
         prop(path: as_string, width: as_i32 = 10000, height: as_i32 = 10000) {
-            let pixbuf = gdk_pixbuf::Pixbuf::from_file_at_size(std::path::PathBuf::from(path), width, height)?;
-            gtk_widget.set_from_pixbuf(Some(&pixbuf));
+            if path.ends_with(".gif") {
+                let pixbuf_animation = gdk_pixbuf::PixbufAnimation::from_file(std::path::PathBuf::from(path))?;
+                gtk_widget.set_from_animation(&pixbuf_animation);
+            } else {
+                let pixbuf = gdk_pixbuf::Pixbuf::from_file_at_size(std::path::PathBuf::from(path), width, height)?;
+                gtk_widget.set_from_pixbuf(Some(&pixbuf));
+            }
         }
     });
     Ok(gtk_widget)

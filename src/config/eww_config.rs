@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use crate::{
     util,
-    value::{PrimitiveValue, VarName},
+    value::{PrimVal, VarName},
 };
 
 use super::{
@@ -18,13 +18,13 @@ use std::path::PathBuf;
 pub struct EwwConfig {
     widgets: HashMap<String, WidgetDefinition>,
     windows: HashMap<WindowName, EwwWindowDefinition>,
-    initial_variables: HashMap<VarName, PrimitiveValue>,
+    initial_variables: HashMap<VarName, PrimVal>,
     script_vars: HashMap<VarName, ScriptVar>,
     pub filepath: PathBuf,
 }
 impl EwwConfig {
     pub fn read_from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self> {
-        Ok(Self::generate(RawEwwConfig::read_from_file(path)?)?)
+        Self::generate(RawEwwConfig::read_from_file(path)?)
     }
 
     pub fn generate(conf: RawEwwConfig) -> Result<Self> {
@@ -44,7 +44,7 @@ impl EwwConfig {
     }
 
     // TODO this is kinda ugly
-    pub fn generate_initial_state(&self) -> Result<HashMap<VarName, PrimitiveValue>> {
+    pub fn generate_initial_state(&self) -> Result<HashMap<VarName, PrimVal>> {
         let mut vars =
             self.script_vars.iter().map(|var| Ok((var.0.clone(), var.1.initial_value()?))).collect::<Result<HashMap<_, _>>>()?;
         vars.extend(self.initial_variables.clone());
@@ -73,7 +73,7 @@ impl EwwConfig {
 pub struct RawEwwConfig {
     widgets: HashMap<String, WidgetDefinition>,
     windows: HashMap<WindowName, RawEwwWindowDefinition>,
-    initial_variables: HashMap<VarName, PrimitiveValue>,
+    initial_variables: HashMap<VarName, PrimVal>,
     script_vars: HashMap<VarName, ScriptVar>,
     pub filepath: PathBuf,
 }
@@ -82,7 +82,7 @@ impl RawEwwConfig {
     pub fn merge_includes(mut eww_config: RawEwwConfig, includes: Vec<RawEwwConfig>) -> Result<RawEwwConfig> {
         let config_path = eww_config.filepath.clone();
         let log_conflict = |what: &str, conflict: &str, included_path: &std::path::PathBuf| {
-            eprintln!(
+            log::error!(
                 "{} '{}' defined twice (defined in {} and in {})",
                 what,
                 conflict,
@@ -90,7 +90,6 @@ impl RawEwwConfig {
                 included_path.display()
             );
         };
-
         for included_config in includes {
             for conflict in util::extend_safe(&mut eww_config.widgets, included_config.widgets) {
                 log_conflict("widget", &conflict, &included_config.filepath)
@@ -121,7 +120,7 @@ impl RawEwwConfig {
 
             let parsed_includes = included_paths
                 .into_iter()
-                .map(|included_path| Self::read_from_file(included_path))
+                .map(Self::read_from_file)
                 .collect::<Result<Vec<_>>>()
                 .with_context(|| format!("Included in {}", path.as_ref().display()))?;
 
@@ -181,14 +180,14 @@ impl RawEwwConfig {
     }
 }
 
-fn parse_variables_block(xml: XmlElement) -> Result<(HashMap<VarName, PrimitiveValue>, HashMap<VarName, ScriptVar>)> {
+fn parse_variables_block(xml: XmlElement) -> Result<(HashMap<VarName, PrimVal>, HashMap<VarName, ScriptVar>)> {
     let mut normal_vars = HashMap::new();
     let mut script_vars = HashMap::new();
     for node in xml.child_elements() {
         match node.tag_name() {
             "var" => {
                 let value = node.only_child().map(|c| c.as_text_or_sourcecode()).unwrap_or_else(|_| String::new());
-                normal_vars.insert(VarName(node.attr("name")?.to_owned()), PrimitiveValue::from_string(value));
+                normal_vars.insert(VarName(node.attr("name")?.to_owned()), PrimVal::from_string(value));
             }
             "script-var" => {
                 let script_var = ScriptVar::from_xml_element(node)?;
@@ -197,6 +196,17 @@ fn parse_variables_block(xml: XmlElement) -> Result<(HashMap<VarName, PrimitiveV
             _ => bail!("Illegal element in variables block: {}", node.as_tag_string()),
         }
     }
+
+    // Extends the variables with the predefined variables
+    let inbuilt = crate::config::inbuilt::get_inbuilt_vars();
+    for i in util::extend_safe(&mut script_vars, inbuilt) {
+        log::error!(
+            "script-var '{}' defined twice (defined in your config and in the eww included variables)\nHint: don't define any \
+             varible like any of these: https://elkowar.github.io/eww/main/magic-variables-documenation/",
+            i,
+        );
+    }
+
     Ok((normal_vars, script_vars))
 }
 
@@ -274,6 +284,6 @@ mod test {
         assert_eq!(merged_config.widgets.len(), 2);
         assert_eq!(merged_config.windows.len(), 2);
         assert_eq!(merged_config.initial_variables.len(), 2);
-        assert_eq!(merged_config.script_vars.len(), 0);
+        assert_eq!(merged_config.script_vars.len(), 7);
     }
 }

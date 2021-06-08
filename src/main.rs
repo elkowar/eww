@@ -1,15 +1,15 @@
 #![feature(trace_macros)]
 #![feature(box_syntax)]
-#![feature(or_patterns)]
 #![feature(box_patterns)]
 #![feature(slice_concat_trait)]
 #![feature(result_cloned)]
-#![feature(iterator_fold_self)]
 #![feature(try_blocks)]
-#![feature(str_split_once)]
+#![feature(nll)]
 
 extern crate gio;
 extern crate gtk;
+#[cfg(feature = "wayland")]
+extern crate gtk_layer_shell as gtk_layer_shell;
 
 use anyhow::*;
 use std::{
@@ -35,11 +35,15 @@ pub mod widgets;
 fn main() {
     let opts: opts::Opt = opts::Opt::from_env();
 
-    let log_level_filter = if opts.log_debug { log::LevelFilter::Debug } else { log::LevelFilter::Off };
+    let log_level_filter = if opts.log_debug { log::LevelFilter::Debug } else { log::LevelFilter::Info };
+    if std::env::var("RUST_LOG").is_ok() {
+        println!("hey");
+        pretty_env_logger::init_timed();
+    } else {
+        pretty_env_logger::formatted_timed_builder().filter(Some("eww"), log_level_filter).init();
+    }
 
-    pretty_env_logger::formatted_builder().filter(Some("eww"), log_level_filter).init();
-
-    let result: Result<_> = try {
+    let result: Result<()> = try {
         let paths = opts
             .config_path
             .map(EwwPaths::from_config_dir)
@@ -89,7 +93,7 @@ fn main() {
     };
 
     if let Err(e) = result {
-        eprintln!("{:?}", e);
+        log::error!("{:?}", e);
         std::process::exit(1);
     }
 }
@@ -126,7 +130,7 @@ impl EwwPaths {
         let daemon_id = base64::encode(format!("{}", config_dir.display()));
 
         Ok(EwwPaths {
-            config_dir: config_dir.to_path_buf(),
+            config_dir,
             log_file: std::env::var("XDG_CACHE_HOME")
                 .map(PathBuf::from)
                 .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap()).join(".cache"))

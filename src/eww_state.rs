@@ -1,17 +1,17 @@
 use crate::{
     config::window_definition::WindowName,
-    value::{AttrName, AttrValueElement, VarName},
+    value::{AttrName, AttrValElement, VarName},
 };
 use anyhow::*;
 use std::{collections::HashMap, sync::Arc};
 
-use crate::value::{AttrValue, PrimitiveValue};
+use crate::value::{AttrVal, PrimVal};
 
 /// Handler that gets executed to apply the necessary parts of the eww state to
 /// a gtk widget. These are created and initialized in EwwState::resolve.
 pub struct StateChangeHandler {
-    func: Box<dyn Fn(HashMap<AttrName, PrimitiveValue>) -> Result<()> + 'static>,
-    unresolved_values: HashMap<AttrName, AttrValue>,
+    func: Box<dyn Fn(HashMap<AttrName, PrimVal>) -> Result<()> + 'static>,
+    unresolved_values: HashMap<AttrName, AttrVal>,
 }
 
 impl StateChangeHandler {
@@ -21,7 +21,7 @@ impl StateChangeHandler {
 
     /// Run the StateChangeHandler.
     /// [`state`] should be the global [EwwState::state].
-    fn run_with_state(&self, state: &HashMap<VarName, PrimitiveValue>) {
+    fn run_with_state(&self, state: &HashMap<VarName, PrimVal>) {
         let resolved_attrs = self
             .unresolved_values
             .clone()
@@ -33,7 +33,7 @@ impl StateChangeHandler {
             Ok(resolved_attrs) => {
                 crate::print_result_err!("while updating UI based after state change", &(self.func)(resolved_attrs))
             }
-            Err(err) => eprintln!("Error while resolving attributes: {:?}", err),
+            Err(err) => log::error!("Error while resolving attributes: {:?}", err),
         }
     }
 }
@@ -61,7 +61,7 @@ impl EwwWindowState {
 #[derive(Default)]
 pub struct EwwState {
     windows: HashMap<WindowName, EwwWindowState>,
-    variables_state: HashMap<VarName, PrimitiveValue>,
+    variables_state: HashMap<VarName, PrimVal>,
 }
 
 impl std::fmt::Debug for EwwState {
@@ -71,11 +71,11 @@ impl std::fmt::Debug for EwwState {
 }
 
 impl EwwState {
-    pub fn from_default_vars(defaults: HashMap<VarName, PrimitiveValue>) -> Self {
+    pub fn from_default_vars(defaults: HashMap<VarName, PrimVal>) -> Self {
         EwwState { variables_state: defaults, ..EwwState::default() }
     }
 
-    pub fn get_variables(&self) -> &HashMap<VarName, PrimitiveValue> {
+    pub fn get_variables(&self) -> &HashMap<VarName, PrimVal> {
         &self.variables_state
     }
 
@@ -91,7 +91,7 @@ impl EwwState {
 
     /// Update the value of a variable, running all registered
     /// [StateChangeHandler]s.
-    pub fn update_variable(&mut self, key: VarName, value: PrimitiveValue) {
+    pub fn update_variable(&mut self, key: VarName, value: PrimVal) {
         self.variables_state.insert(key.clone(), value);
 
         // run all of the handlers
@@ -103,27 +103,27 @@ impl EwwState {
     }
 
     /// Look up a single variable in the eww state, returning an `Err` when the value is not found.
-    pub fn lookup(&self, var_name: &VarName) -> Result<&PrimitiveValue> {
+    pub fn lookup(&self, var_name: &VarName) -> Result<&PrimVal> {
         self.variables_state.get(var_name).with_context(|| format!("Unknown variable '{}' referenced", var_name))
     }
 
     /// resolves a value if possible, using the current eww_state.
-    pub fn resolve_once<'a>(&'a self, value: &'a AttrValue) -> Result<PrimitiveValue> {
+    pub fn resolve_once<'a>(&'a self, value: &'a AttrVal) -> Result<PrimVal> {
         value
             .iter()
             .map(|element| match element {
-                AttrValueElement::Primitive(primitive) => Ok(primitive.clone()),
-                AttrValueElement::Expr(expr) => expr.clone().eval(&self.variables_state),
+                AttrValElement::Primitive(primitive) => Ok(primitive.clone()),
+                AttrValElement::Expr(expr) => expr.clone().eval(&self.variables_state),
             })
             .collect()
     }
 
     /// Resolve takes a function that applies a set of fully resolved attribute
     /// values to it's gtk widget.
-    pub fn resolve<F: Fn(HashMap<AttrName, PrimitiveValue>) -> Result<()> + 'static + Clone>(
+    pub fn resolve<F: Fn(HashMap<AttrName, PrimVal>) -> Result<()> + 'static + Clone>(
         &mut self,
         window_name: &WindowName,
-        required_attributes: HashMap<AttrName, AttrValue>,
+        required_attributes: HashMap<AttrName, AttrVal>,
         set_value: F,
     ) {
         let handler = StateChangeHandler { func: Box::new(set_value), unresolved_values: required_attributes };

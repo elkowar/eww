@@ -18,7 +18,7 @@ If you have **NO** clue about how to do CSS, check out some online guides or tut
 
 SCSS is _very_ close to CSS so if you know CSS you'll have no problem learning SCSS.
 
-### GTK-Debugger
+### GTK-Debugger {#gtk-debugger}
 
 The debugger can be used for **a lot** of things. Especially if something doesn't work or isn't styled right. to enable it launch your eww daemon with
 

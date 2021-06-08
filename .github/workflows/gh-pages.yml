@@ -17,11 +17,11 @@ jobs:
             - uses: actions/checkout@master
 
             # Build widget documentation
-            - name: Use nodejs to build widget documentation
-              uses: actions/setup-node@v1
+            - name: Use deno to build widget documentation
+              uses: denoland/setup-deno@main
               with:
-                  node-version: "12.x"
-            - run: node gen-docs.js ./src/widgets/widget_definitions.rs >> ./docs/content/main/widgets.md
+                  deno-version: "v1.x"
+            - run: deno run --allow-read --allow-write gen-docs.ts ./src/widgets/widget_definitions.rs ./src/config/inbuilt.rs
 
             # Build & deploy
             - name: shalzz/zola-deploy-action

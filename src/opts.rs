@@ -5,7 +5,7 @@ use structopt::StructOpt;
 use crate::{
     app,
     config::{AnchorPoint, WindowName},
-    value::{Coords, PrimitiveValue, VarName},
+    value::{Coords, PrimVal, VarName},
 };
 
 /// Struct that gets generated from `RawOpt`.
@@ -61,7 +61,7 @@ pub enum ActionWithServer {
     Update {
         /// variable_name="new_value"-pairs that will be updated
         #[structopt(parse(try_from_str = parse_var_update_arg))]
-        mappings: Vec<(VarName, PrimitiveValue)>,
+        mappings: Vec<(VarName, PrimVal)>,
     },
 
     /// open a window
@@ -82,7 +82,7 @@ pub enum ActionWithServer {
         #[structopt(short, long)]
         size: Option<Coords>,
 
-        /// Anchorpoint of the window, formatted like "top right"
+        /// Sidepoint of the window, formatted like "top right"
         #[structopt(short, long)]
         anchor: Option<AnchorPoint>,
     },
@@ -108,9 +108,13 @@ pub enum ActionWithServer {
     #[structopt(name = "close-all", alias = "ca")]
     CloseAll,
 
-    /// Print the current eww-state
+    /// Prints the variables used in all currently open window
     #[structopt(name = "state")]
-    ShowState,
+    ShowState {
+        /// Shows all variables, including not currently used ones
+        #[structopt(short, long)]
+        all: bool,
+    },
 
     /// Print the names of all configured windows. Windows with a * in front of them are currently opened.
     #[structopt(name = "windows")]
@@ -138,11 +142,11 @@ impl From<RawOpt> for Opt {
     }
 }
 
-fn parse_var_update_arg(s: &str) -> Result<(VarName, PrimitiveValue)> {
+fn parse_var_update_arg(s: &str) -> Result<(VarName, PrimVal)> {
     let (name, value) = s
         .split_once('=')
         .with_context(|| format!("arguments must be in the shape `variable_name=\"new_value\"`, but got: {}", s))?;
-    Ok((name.into(), PrimitiveValue::from_string(value.to_owned())))
+    Ok((name.into(), PrimVal::from_string(value.to_owned())))
 }
 
 impl ActionWithServer {
@@ -175,7 +179,9 @@ impl ActionWithServer {
             }
             ActionWithServer::Reload => return with_response_channel(app::DaemonCommand::ReloadConfigAndCss),
             ActionWithServer::ShowWindows => return with_response_channel(app::DaemonCommand::PrintWindows),
-            ActionWithServer::ShowState => return with_response_channel(app::DaemonCommand::PrintState),
+            ActionWithServer::ShowState { all } => {
+                return with_response_channel(|sender| app::DaemonCommand::PrintState { all, sender })
+            }
             ActionWithServer::ShowDebug => return with_response_channel(app::DaemonCommand::PrintDebug),
         };
         (command, None)
