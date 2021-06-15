@@ -14,10 +14,11 @@ in mkShell rec {
     gdk-pixbuf
     pango
     gtk3
-    (nixpkgs.rustChannelOf {
-      date = "2021-03-16";
-      channel = "nightly";
-    }).rust
+    nixpkgs.latest.rustChannels.nightly.rust
+    zola
+    nodejs
   ];
   nativeBuildInputs = [ pkgconfig wrapGAppsHook ];
+
+  RUST_SRC_PATH = "${nixpkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
 }
