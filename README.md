@@ -7,11 +7,11 @@
 Elkowar&rsquo;s Wacky Widgets is a standalone widget system made in Rust that allows you to implement
 your own, custom widgets in any window manager.
 
-Documentation **and instructions on how to install** can be found [here](https://elkowar.github.io/eww/main).
+Documentation **and instructions on how to install** can be found [here](https://elkowar.github.io/eww).
 
 ## Configuration Rework - USER OPINIONS NEEDED
 
-Currently, a rework of the configuration language is planned. 
+Currently, a rework of the configuration language is planned.
 Please give your opinions in the [discussion post](https://github.com/elkowar/eww/discussions/171).
 
 
