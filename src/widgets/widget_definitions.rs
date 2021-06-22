@@ -1,6 +1,6 @@
 #![allow(clippy::option_map_unit_fn)]
 use super::{run_command, BuilderArgs};
-use crate::{config, eww_state, resolve_block, value::AttrVal, widgets::widget_node};
+use crate::{config, eww_state, resolve_block, value::AttrVal, widgets::widget_node, util::parse_duration};
 use anyhow::*;
 use gdk::WindowExt;
 use glib;
@@ -279,7 +279,7 @@ fn build_gtk_revealer(bargs: &mut BuilderArgs) -> Result<gtk::Revealer> {
     // @prop reveal - sets if the child is revealed or not
     prop(reveal: as_bool) { gtk_widget.set_reveal_child(reveal); },
     // @prop duration - the duration of the reveal transition
-    prop(duration: as_i32) { gtk_widget.set_transition_duration(parse_duration(duration)?); },
+    prop(duration: as_string) { gtk_widget.set_transition_duration(parse_duration(&duration)?.as_millis() as u32); },
     });
     Ok(gtk_widget)
 }
@@ -598,15 +598,6 @@ fn parse_align(o: &str) -> Result<gtk::Align> {
         "end" => gtk::Align::End,
         _ => bail!(r#"Couldn't parse alignment: '{}'. Possible values are "fill", "baseline", "center", "start", "end""#, o),
     })
-}
-
-/// @var duration - positive integer
-fn parse_duration(d: i32) -> Result<u32> {
-    Ok( if d.is_positive() {
-        d as u32
-    } else {
-        bail!(r#"Couldn't parse duration: '{}'. The duration must be a positive integer"#, d)
-    } )
 }
 
 fn connect_first_map<W: IsA<gtk::Widget>, F: Fn(&W) + 'static>(widget: &W, func: F) {
