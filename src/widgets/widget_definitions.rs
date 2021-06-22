@@ -1,6 +1,6 @@
 #![allow(clippy::option_map_unit_fn)]
 use super::{run_command, BuilderArgs};
-use crate::{config, eww_state, resolve_block, value::AttrVal, widgets::widget_node};
+use crate::{config, eww_state, resolve_block, value::AttrVal, widgets::widget_node, util::parse_duration};
 use anyhow::*;
 use gdk::WindowExt;
 use glib;
@@ -28,6 +28,7 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<Option<gtk
         "color-chooser" => build_gtk_color_chooser(bargs)?.upcast(),
         "combo-box-text" => build_gtk_combo_box_text(bargs)?.upcast(),
         "checkbox" => build_gtk_checkbox(bargs)?.upcast(),
+        "revealer" => build_gtk_revealer(bargs)?.upcast(),
         "if-else" => build_if_else(bargs)?.upcast(),
         _ => return Ok(None),
     };
@@ -260,10 +261,25 @@ fn build_gtk_combo_box_text(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText
 fn build_gtk_expander(bargs: &mut BuilderArgs) -> Result<gtk::Expander> {
     let gtk_widget = gtk::Expander::new(None);
     resolve_block!(bargs, gtk_widget, {
-    // @prop name - name of the expander
-    prop(name: as_string) {gtk_widget.set_label(Some(&name));},
-    // @prop expanded - sets if the tree is expanded
-    prop(expanded: as_bool) { gtk_widget.set_expanded(expanded); }
+        // @prop name - name of the expander
+        prop(name: as_string) {gtk_widget.set_label(Some(&name));},
+        // @prop expanded - sets if the tree is expanded
+        prop(expanded: as_bool) { gtk_widget.set_expanded(expanded); }
+    });
+    Ok(gtk_widget)
+}
+
+/// @widget revealer extends container
+/// @desc A widget that can reveal a child with an animation.
+fn build_gtk_revealer(bargs: &mut BuilderArgs) -> Result<gtk::Revealer> {
+    let gtk_widget = gtk::Revealer::new();
+    resolve_block!(bargs, gtk_widget, {
+        // @prop transition - the name of the transition. Possible values: $transition
+        prop(transition: as_string) { gtk_widget.set_transition_type(parse_transition(&transition)?); },
+        // @prop reveal - sets if the child is revealed or not
+        prop(reveal: as_bool) { gtk_widget.set_reveal_child(reveal); },
+        // @prop duration - the duration of the reveal transition
+        prop(duration: as_string) { gtk_widget.set_transition_duration(parse_duration(&duration)?.as_millis() as u32); },
     });
     Ok(gtk_widget)
 }
@@ -556,6 +572,19 @@ fn parse_orientation(o: &str) -> Result<gtk::Orientation> {
         "vertical" | "v" => gtk::Orientation::Vertical,
         "horizontal" | "h" => gtk::Orientation::Horizontal,
         _ => bail!(r#"Couldn't parse orientation: '{}'. Possible values are "vertical", "v", "horizontal", "h""#, o),
+    })
+}
+
+/// @var transition - "slideright", "slideleft", "slideup", "slidedown", "crossfade", "none"
+fn parse_transition(t: &str) -> Result<gtk::RevealerTransitionType> {
+    Ok(match t {
+        "slideright" => gtk::RevealerTransitionType::SlideRight,
+        "slideleft" => gtk::RevealerTransitionType::SlideLeft,
+        "slideup" => gtk::RevealerTransitionType::SlideUp,
+        "slidedown" => gtk::RevealerTransitionType::SlideDown,
+        "crossfade" => gtk::RevealerTransitionType::Crossfade,
+        "none" => gtk::RevealerTransitionType::None,
+        _ => bail!(r#"Couldn't parse transition: '{}'. Possible values are "slideright", "slideleft", "slideup", "slidedown", "crossfade" and "none" "#, t),
     })
 }
 
