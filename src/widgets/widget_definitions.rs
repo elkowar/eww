@@ -28,6 +28,7 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<Option<gtk
         "color-chooser" => build_gtk_color_chooser(bargs)?.upcast(),
         "combo-box-text" => build_gtk_combo_box_text(bargs)?.upcast(),
         "checkbox" => build_gtk_checkbox(bargs)?.upcast(),
+        "revealer" => build_gtk_revealer(bargs)?.upcast(),
         "if-else" => build_if_else(bargs)?.upcast(),
         _ => return Ok(None),
     };
@@ -264,6 +265,32 @@ fn build_gtk_expander(bargs: &mut BuilderArgs) -> Result<gtk::Expander> {
     prop(name: as_string) {gtk_widget.set_label(Some(&name));},
     // @prop expanded - sets if the tree is expanded
     prop(expanded: as_bool) { gtk_widget.set_expanded(expanded); }
+    });
+    Ok(gtk_widget)
+}
+
+/// @widget expander extends container
+/// @desc A widget that can expand and collapse, showing/hiding it's children.
+fn build_gtk_revealer(bargs: &mut BuilderArgs) -> Result<gtk::Revealer> {
+    let gtk_widget = gtk::Revealer::new();
+    resolve_block!(bargs, gtk_widget, {
+    // @prop name - name of the expander
+    prop(transition: as_string) {
+        match transition.as_str() {
+            "slideright" => gtk_widget.set_transition_type(gtk::RevealerTransitionType::SlideRight),
+            "slideleft" => gtk_widget.set_transition_type(gtk::RevealerTransitionType::SlideLeft),
+            "slideup" => gtk_widget.set_transition_type(gtk::RevealerTransitionType::SlideUp),
+            "slidedown" => gtk_widget.set_transition_type(gtk::RevealerTransitionType::SlideDown),
+            "crossfade" => gtk_widget.set_transition_type(gtk::RevealerTransitionType::Crossfade),
+            _ => gtk_widget.set_transition_type(gtk::RevealerTransitionType::None),
+        }
+    },
+    prop(reveal: as_bool) { gtk_widget.set_reveal_child(reveal); },
+    prop(duration: as_string) {
+        if let Ok(duration) = duration.parse::<u32>() {
+            gtk_widget.set_transition_duration(duration);
+        }
+    },
     });
     Ok(gtk_widget)
 }
