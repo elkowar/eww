@@ -261,10 +261,10 @@ fn build_gtk_combo_box_text(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText
 fn build_gtk_expander(bargs: &mut BuilderArgs) -> Result<gtk::Expander> {
     let gtk_widget = gtk::Expander::new(None);
     resolve_block!(bargs, gtk_widget, {
-    // @prop name - name of the expander
-    prop(name: as_string) {gtk_widget.set_label(Some(&name));},
-    // @prop expanded - sets if the tree is expanded
-    prop(expanded: as_bool) { gtk_widget.set_expanded(expanded); }
+        // @prop name - name of the expander
+        prop(name: as_string) {gtk_widget.set_label(Some(&name));},
+        // @prop expanded - sets if the tree is expanded
+        prop(expanded: as_bool) { gtk_widget.set_expanded(expanded); }
     });
     Ok(gtk_widget)
 }
@@ -274,12 +274,12 @@ fn build_gtk_expander(bargs: &mut BuilderArgs) -> Result<gtk::Expander> {
 fn build_gtk_revealer(bargs: &mut BuilderArgs) -> Result<gtk::Revealer> {
     let gtk_widget = gtk::Revealer::new();
     resolve_block!(bargs, gtk_widget, {
-    // @prop transition - the name of the transition. Possible values: $transition
-    prop(transition: as_string) { gtk_widget.set_transition_type(parse_transition(&transition)?); },
-    // @prop reveal - sets if the child is revealed or not
-    prop(reveal: as_bool) { gtk_widget.set_reveal_child(reveal); },
-    // @prop duration - the duration of the reveal transition
-    prop(duration: as_string) { gtk_widget.set_transition_duration(parse_duration(&duration)?.as_millis() as u32); },
+        // @prop transition - the name of the transition. Possible values: $transition
+        prop(transition: as_string) { gtk_widget.set_transition_type(parse_transition(&transition)?); },
+        // @prop reveal - sets if the child is revealed or not
+        prop(reveal: as_bool) { gtk_widget.set_reveal_child(reveal); },
+        // @prop duration - the duration of the reveal transition
+        prop(duration: as_string) { gtk_widget.set_transition_duration(parse_duration(&duration)?.as_millis() as u32); },
     });
     Ok(gtk_widget)
 }
