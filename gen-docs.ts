@@ -150,13 +150,13 @@ ${widget.props.map((prop) => `- **\`${prop.name}\`**: *\`${prop.type}\`* ${prop.
 // deno run --allow-read gen-docs.ts ./src/widgets/widget_definitions.ts 2> /dev/null
 Deno.readTextFile(Deno.args[0]).then(data => {
     const vars = parseVars(data);
-    Deno.writeTextFile("docs/content/main/widgets.md", printDocs(vars, parseDocs(data)), {"append": true});
+    Deno.writeTextFile("./docs/src/widgets.md", printDocs(vars, parseDocs(data)), {"append": true});
 }).catch(err => {
     return console.error(err);
 })
 
 let magic = Deno.readTextFile(Deno.args[1]).then(data => {
-    Deno.writeTextFile("docs/content/main/magic-vars.md", parseMagicVariables(data), {"append": true});
+    Deno.writeTextFile("./docs/src/magic-vars.md", parseMagicVariables(data), {"append": true});
 }).catch(err => {
     return console.error(err);
 })

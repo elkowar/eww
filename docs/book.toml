@@ -1,0 +1,12 @@
+[book]
+authors = ["elkowar"]
+language = "en"
+multilingual = false
+src = "src"
+title = "eww documentation"
+
+
+[output.html]
+default-theme = "ayu"
+no-section-label = true
+git-repository-url = "https://github.com/elkowar/eww/tree/master/docs"
