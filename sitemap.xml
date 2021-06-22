@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+        <loc>https://elkowar.github.io/eww/</loc>
+    </url>
+    <url>
+        <loc>https://elkowar.github.io/eww/main/</loc>
+    </url>
+    <url>
+        <loc>https://elkowar.github.io/eww/main/embedded-eww-expression-language/</loc>
+    </url>
+    <url>
+        <loc>https://elkowar.github.io/eww/main/how-to-use-gtk-theming-in-eww/</loc>
+    </url>
+    <url>
+        <loc>https://elkowar.github.io/eww/main/magic-variables-documenation/</loc>
+    </url>
+    <url>
+        <loc>https://elkowar.github.io/eww/main/sample-configs/</loc>
+    </url>
+    <url>
+        <loc>https://elkowar.github.io/eww/main/the-basics-of-how-to-configure-eww/</loc>
+    </url>
+    <url>
+        <loc>https://elkowar.github.io/eww/main/troubleshooting/</loc>
+    </url>
+    <url>
+        <loc>https://elkowar.github.io/eww/main/widget-documentation/</loc>
+    </url>
+</urlset>

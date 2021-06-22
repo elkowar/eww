@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+      <meta http-equiv="X-UA-Compatible" content="IE=edge">
+      <meta http-equiv="content-type" content="text/html; charset=utf-8">
+
+      <!-- Enable responsiveness on mobile devices-->
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+
+      <title></title>
+
+      
+      
+
+      <!-- CSS -->
+      
+<link rel="stylesheet" href="https://elkowar.github.io/eww/book.css">
+<link rel="stylesheet" href="https://elkowar.github.io/eww/style.css">
+
+
+      
+      
+    </head>
+
+    <body>
+        <div class="menu">
+            
+            
+            <nav role="navigation">
+                <ul>
+                    
+                        
+                        
+                            
+                            <li >
+                                
+                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;">
+                                    <strong>1.</strong>
+                                    Eww - Widgets for everyone!
+                                </a>
+                                
+                                    <ul>
+                                        
+                                            <li >
+                                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;the-basics-of-how-to-configure-eww&#x2F;">
+                                                    <strong>1.1.</strong>
+                                                    Configuration
+                                                </a>
+                                            </li>
+                                        
+                                            <li >
+                                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;how-to-use-gtk-theming-in-eww&#x2F;">
+                                                    <strong>1.2.</strong>
+                                                    Theming with GTK
+                                                </a>
+                                            </li>
+                                        
+                                            <li class="active">
+                                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;magic-variables-documenation&#x2F;">
+                                                    <strong>1.3.</strong>
+                                                    Magic Variables
+                                                </a>
+                                            </li>
+                                        
+                                            <li >
+                                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;widget-documentation&#x2F;">
+                                                    <strong>1.4.</strong>
+                                                    Widgets
+                                                </a>
+                                            </li>
+                                        
+                                            <li >
+                                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;troubleshooting&#x2F;">
+                                                    <strong>1.5.</strong>
+                                                    Troubleshooting
+                                                </a>
+                                            </li>
+                                        
+                                            <li >
+                                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;embedded-eww-expression-language&#x2F;">
+                                                    <strong>1.6.</strong>
+                                                    Eww expressions
+                                                </a>
+                                            </li>
+                                        
+                                            <li >
+                                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;sample-configs&#x2F;">
+                                                    <strong>1.7.</strong>
+                                                    Examples
+                                                </a>
+                                            </li>
+                                        
+                                    </ul>
+                                
+                            </li>
+                        
+                    
+                </ul>
+            </nav>
+            
+            
+        </div>
+
+        <div class="page">
+            <div class="page__header">
+                <div class="menu-icon">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+                
+                <span class="search-icon">🔎</span>
+                
+            </div>
+
+            <div class="page__content">
+                
+                <div class="search-container">
+                    <input id="search" type="search" placeholder="Search..">
+                    <div class="search-results">
+                        <div class="search-results__header"></div>
+                        <ul class="search-results__items"></ul>
+                    </div>
+                </div>
+                
+                <div class="book-content">
+                    
+    <h1>Magic Variables</h1>
+    <p>These are variables that are always there, without you having to import them.</p>
+<p>The delay between the updating variables is always 2s.</p>
+<h2 id="updating-magic-variables">Updating magic variables</h2>
+<h3 id="eww-temps"><code>EWW_TEMPS</code></h3>
+<p>Heat of the components in Celcius</p>
+<p>Example: <code>{{(CPU_TEMPS.core_1 + CPU_TEMPS.core_2) / 2}}</code></p>
+<h3 id="eww-ram"><code>EWW_RAM</code></h3>
+<p>The current RAM + Swap usage</p>
+<h3 id="eww-disk"><code>EWW_DISK</code></h3>
+<p>Information on on all mounted partitions (Might report inaccurately on some filesystems, like btrfs)</p>
+<p>Example: <code>{{EWW_DISK[&quot;/&quot;]}}</code></p>
+<h3 id="eww-battery"><code>EWW_BATTERY</code></h3>
+<p>Battery capacity in procent of the main battery</p>
+<h3 id="eww-cpu-usage"><code>EWW_CPU_USAGE</code></h3>
+<p>Average CPU usage (all cores) since the last update (No MacOS support)</p>
+<h3 id="eww-net"><code>EWW_NET</code></h3>
+<p>Bytes up/down on all interfaces</p>
+
+
+                </div>
+            </div>
+
+            <div class="prev-link">
+                
+    
+        <a class="previous" href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;how-to-use-gtk-theming-in-eww&#x2F;"><</a>
+    
+
+            </div>
+
+            <div class="next-link">
+                
+    
+        <a class="next" href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;widget-documentation&#x2F;">></a>
+    
+
+            </div>
+        </div>
+
+        
+            
+            <script type="text/javascript" src="https://elkowar.github.io/eww/elasticlunr.min.js"></script>
+            <script type="text/javascript" src="https://elkowar.github.io/eww/search_index.en.js"></script>
+            
+            <script type="text/javascript" src="https://elkowar.github.io/eww/book.js"></script>
+        
+    </body>
+
+</html>

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+      <meta http-equiv="X-UA-Compatible" content="IE=edge">
+      <meta http-equiv="content-type" content="text/html; charset=utf-8">
+
+      <!-- Enable responsiveness on mobile devices-->
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+
+      <title></title>
+
+      
+      
+
+      <!-- CSS -->
+      
+<link rel="stylesheet" href="https://elkowar.github.io/eww/book.css">
+<link rel="stylesheet" href="https://elkowar.github.io/eww/style.css">
+
+
+      
+      
+    </head>
+
+    <body>
+        <div class="menu">
+            
+            
+            <nav role="navigation">
+                <ul>
+                    
+                        
+                        
+                            
+                            <li >
+                                
+                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;">
+                                    <strong>1.</strong>
+                                    Eww - Widgets for everyone!
+                                </a>
+                                
+                                    <ul>
+                                        
+                                            <li >
+                                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;the-basics-of-how-to-configure-eww&#x2F;">
+                                                    <strong>1.1.</strong>
+                                                    Configuration
+                                                </a>
+                                            </li>
+                                        
+                                            <li >
+                                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;how-to-use-gtk-theming-in-eww&#x2F;">
+                                                    <strong>1.2.</strong>
+                                                    Theming with GTK
+                                                </a>
+                                            </li>
+                                        
+                                            <li >
+                                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;magic-variables-documenation&#x2F;">
+                                                    <strong>1.3.</strong>
+                                                    Magic Variables
+                                                </a>
+                                            </li>
+                                        
+                                            <li >
+                                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;widget-documentation&#x2F;">
+                                                    <strong>1.4.</strong>
+                                                    Widgets
+                                                </a>
+                                            </li>
+                                        
+                                            <li class="active">
+                                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;troubleshooting&#x2F;">
+                                                    <strong>1.5.</strong>
+                                                    Troubleshooting
+                                                </a>
+                                            </li>
+                                        
+                                            <li >
+                                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;embedded-eww-expression-language&#x2F;">
+                                                    <strong>1.6.</strong>
+                                                    Eww expressions
+                                                </a>
+                                            </li>
+                                        
+                                            <li >
+                                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;sample-configs&#x2F;">
+                                                    <strong>1.7.</strong>
+                                                    Examples
+                                                </a>
+                                            </li>
+                                        
+                                    </ul>
+                                
+                            </li>
+                        
+                    
+                </ul>
+            </nav>
+            
+            
+        </div>
+
+        <div class="page">
+            <div class="page__header">
+                <div class="menu-icon">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+                
+                <span class="search-icon">🔎</span>
+                
+            </div>
+
+            <div class="page__content">
+                
+                <div class="search-container">
+                    <input id="search" type="search" placeholder="Search..">
+                    <div class="search-results">
+                        <div class="search-results__header"></div>
+                        <ul class="search-results__items"></ul>
+                    </div>
+                </div>
+                
+                <div class="book-content">
+                    
+    <h1>Troubleshooting</h1>
+    <h2 id="troubleshooting">Troubleshooting</h2>
+<p>Here you will find help if something doesn't work, if the issue isn't listed here please <a href="https://github.com/elkowar/eww/issues">open an issue on the GitHub repo.</a></p>
+<h3 id="eww-does-not-compile">Eww does not compile</h3>
+<ol>
+<li>Make sure that you are compiling eww using the nightly rust toolchain.</li>
+<li>Make sure you have all the necessary dependencies. If there are compile-errors, the compiler will tell you what you're missing.</li>
+</ol>
+<h3 id="eww-does-not-work-on-wayland">Eww does not work on wayland</h3>
+<ol>
+<li>Make sure you compiled eww with the <code>--no-default-features --features=wayland</code> flags.</li>
+<li>Make sure that you're not trying to use X11-specific features (these are (hopefully) explicitly specified as such in the documentation).</li>
+</ol>
+<h3 id="my-scss-isn-t-being-loaded">My scss isn't being loaded!</h3>
+<ol>
+<li>You have not created a scss file</li>
+<li>The scss file isn't called correctly. (it should be called <code>eww.scss</code> in the <code>$HOME/.config/eww</code> folder)</li>
+<li>The scss file isn't placed in the correct location (check above)</li>
+</ol>
+<p>If none of these fixed your problem <a href="https://github.com/elkowar/eww/issues">open an issue on the GitHub repo</a>, or check the <a href="https://elkowar.github.io/eww/main/how-to-use-gtk-theming-in-eww/#gtk-debugger">GTK-Debugger</a>.</p>
+<h3 id="eww-can-t-find-my-configuration-file">Eww can't find my configuration file!</h3>
+<ol>
+<li>It's incorrectly named or it's in the wrong place (it should be called <code>eww.xml</code> in the <code>$HOME/.config/eww</code> folder)</li>
+<li>You haven't started eww correctly or you started it wrong.</li>
+</ol>
+<h3 id="something-isn-t-styled-correctly">Something isn't styled correctly!</h3>
+<ol>
+<li>You have mistyped the CSS class.</li>
+<li>Check the <a href="https://elkowar.github.io/eww/main/how-to-use-gtk-theming-in-eww/#gtk-debugger">GTK-Debugger</a></li>
+</ol>
+<h3 id="general-issues">General issues</h3>
+<p>You should try the following things, before opening a issue or doing more specialized troubleshooting:</p>
+<ul>
+<li>Kill the eww daemon by running <code>eww kill</code> and restart it with <code>eww --debug daemon</code> to get additional log output.</li>
+<li>Now you can take a look at the logs by running <code>eww logs</code>.</li>
+<li>use <code>eww state</code>, to see the state of all variables</li>
+<li>use <code>eww debug</code>, to see the xml of your widget and other information</li>
+<li>update to the latest eww version</li>
+<li>sometimes hot reloading doesn't work. restart the widget in that case</li>
+</ul>
+<p>If you're experiencing issues printing variables, try to print them in quotes, so e.g.</p>
+<pre style="background-color:#f5f5f5;">
+<code><span style="color:#1f1f1f;">onchange=&quot;notify-send &#39;{}&#39;&quot;
+</span></code></pre>
+<p>Remember, if your issue isn't listed here, <a href="https://github.com/elkowar/eww/issues">open an issue on the GitHub repo</a>.</p>
+
+
+                </div>
+            </div>
+
+            <div class="prev-link">
+                
+    
+        <a class="previous" href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;widget-documentation&#x2F;"><</a>
+    
+
+            </div>
+
+            <div class="next-link">
+                
+    
+        <a class="next" href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;embedded-eww-expression-language&#x2F;">></a>
+    
+
+            </div>
+        </div>
+
+        
+            
+            <script type="text/javascript" src="https://elkowar.github.io/eww/elasticlunr.min.js"></script>
+            <script type="text/javascript" src="https://elkowar.github.io/eww/search_index.en.js"></script>
+            
+            <script type="text/javascript" src="https://elkowar.github.io/eww/book.js"></script>
+        
+    </body>
+
+</html>

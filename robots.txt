@@ -1,0 +1,2 @@
+User-agent: *
+Sitemap: https://elkowar.github.io/eww/sitemap.xml

@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+      <meta http-equiv="X-UA-Compatible" content="IE=edge">
+      <meta http-equiv="content-type" content="text/html; charset=utf-8">
+
+      <!-- Enable responsiveness on mobile devices-->
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+
+      <title></title>
+
+      
+      
+
+      <!-- CSS -->
+      
+<link rel="stylesheet" href="https://elkowar.github.io/eww/book.css">
+<link rel="stylesheet" href="https://elkowar.github.io/eww/style.css">
+
+
+      
+      
+    </head>
+
+    <body>
+        <div class="menu">
+            
+            
+            <nav role="navigation">
+                <ul>
+                    
+                        
+                        
+                            
+                            <li >
+                                
+                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;">
+                                    <strong>1.</strong>
+                                    Eww - Widgets for everyone!
+                                </a>
+                                
+                                    <ul>
+                                        
+                                            <li >
+                                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;the-basics-of-how-to-configure-eww&#x2F;">
+                                                    <strong>1.1.</strong>
+                                                    Configuration
+                                                </a>
+                                            </li>
+                                        
+                                            <li >
+                                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;how-to-use-gtk-theming-in-eww&#x2F;">
+                                                    <strong>1.2.</strong>
+                                                    Theming with GTK
+                                                </a>
+                                            </li>
+                                        
+                                            <li >
+                                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;magic-variables-documenation&#x2F;">
+                                                    <strong>1.3.</strong>
+                                                    Magic Variables
+                                                </a>
+                                            </li>
+                                        
+                                            <li class="active">
+                                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;widget-documentation&#x2F;">
+                                                    <strong>1.4.</strong>
+                                                    Widgets
+                                                </a>
+                                            </li>
+                                        
+                                            <li >
+                                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;troubleshooting&#x2F;">
+                                                    <strong>1.5.</strong>
+                                                    Troubleshooting
+                                                </a>
+                                            </li>
+                                        
+                                            <li >
+                                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;embedded-eww-expression-language&#x2F;">
+                                                    <strong>1.6.</strong>
+                                                    Eww expressions
+                                                </a>
+                                            </li>
+                                        
+                                            <li >
+                                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;sample-configs&#x2F;">
+                                                    <strong>1.7.</strong>
+                                                    Examples
+                                                </a>
+                                            </li>
+                                        
+                                    </ul>
+                                
+                            </li>
+                        
+                    
+                </ul>
+            </nav>
+            
+            
+        </div>
+
+        <div class="page">
+            <div class="page__header">
+                <div class="menu-icon">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+                
+                <span class="search-icon">🔎</span>
+                
+            </div>
+
+            <div class="page__content">
+                
+                <div class="search-container">
+                    <input id="search" type="search" placeholder="Search..">
+                    <div class="search-results">
+                        <div class="search-results__header"></div>
+                        <ul class="search-results__items"></ul>
+                    </div>
+                </div>
+                
+                <div class="book-content">
+                    
+    <h1>Widgets</h1>
+    <h2 id="widget"><code>widget</code></h2>
+<p>these properties apply to <em>all</em> widgets, and can be used anywhere!</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>class</code></strong>: <em><code>string</code></em> css class name</li>
+<li><strong><code>valign</code></strong>: <em><code>string</code></em> how to align this vertically. possible values: &quot;fill&quot;, &quot;baseline&quot;, &quot;center&quot;, &quot;start&quot;, &quot;end&quot;</li>
+<li><strong><code>halign</code></strong>: <em><code>string</code></em> how to align this horizontally. possible values: &quot;fill&quot;, &quot;baseline&quot;, &quot;center&quot;, &quot;start&quot;, &quot;end&quot;</li>
+<li><strong><code>width</code></strong>: <em><code>float</code></em> width of this element. note that this can not restrict the size if the contents stretch it</li>
+<li><strong><code>height</code></strong>: <em><code>float</code></em> height of this element. note that this can not restrict the size if the contents stretch it</li>
+<li><strong><code>active</code></strong>: <em><code>bool</code></em> If this widget can be interacted with</li>
+<li><strong><code>tooltip</code></strong>: <em><code>string</code></em> tooltip text (on hover)</li>
+<li><strong><code>visible</code></strong>: <em><code>bool</code></em> visibility of the widget</li>
+<li><strong><code>style</code></strong>: <em><code>string</code></em> inline css style applied to the widget</li>
+<li><strong><code>onscroll</code></strong>: <em><code>string</code></em> event to execute when the user scrolls with the mouse over the widget. The placeholder <code>{}</code> used in the command will be replaced with either <code>up</code> or <code>down</code>.</li>
+<li><strong><code>onhover</code></strong>: <em><code>string</code></em> event to execute when the user hovers over the widget</li>
+<li><strong><code>cursor</code></strong>: <em><code>string</code></em> Cursor to show while hovering (see <a href="https://developer.gnome.org/gdk3/stable/gdk3-Cursors.html">gtk3-cursors</a> for possible names)</li>
+</ul>
+<h2 id="combo-box-text"><code>combo-box-text</code></h2>
+<p>A combo box allowing the user to choose between several items.</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>items</code></strong>: <em><code>vec</code></em> Items that should be displayed in the combo box</li>
+<li><strong><code>onchange</code></strong>: <em><code>string</code></em> runs the code when a item was selected, replacing {} with the item as a string</li>
+</ul>
+<h2 id="expander"><code>expander</code></h2>
+<p>A widget that can expand and collapse, showing/hiding it's children.</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>name</code></strong>: <em><code>string</code></em> name of the expander</li>
+<li><strong><code>expanded</code></strong>: <em><code>bool</code></em> sets if the tree is expanded</li>
+<li><strong><code>vexpand</code></strong>: <em><code>bool</code></em> should this container expand vertically</li>
+<li><strong><code>hexpand</code></strong>: <em><code>bool</code></em> should this container expand horizontally</li>
+</ul>
+<h2 id="revealer"><code>revealer</code></h2>
+<p>A widget that can reveal a child with an animation.</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>transition</code></strong>: <em><code>string</code></em> the name of the transition. Possible values: &quot;slideright&quot;, &quot;slideleft&quot;, &quot;slideup&quot;, &quot;slidedown&quot;, &quot;crossfade&quot;, &quot;none&quot;</li>
+<li><strong><code>reveal</code></strong>: <em><code>bool</code></em> sets if the child is revealed or not</li>
+<li><strong><code>duration</code></strong>: <em><code>string</code></em> the duration of the reveal transition</li>
+<li><strong><code>vexpand</code></strong>: <em><code>bool</code></em> should this container expand vertically</li>
+<li><strong><code>hexpand</code></strong>: <em><code>bool</code></em> should this container expand horizontally</li>
+</ul>
+<h2 id="a-checkbox"><code>a checkbox</code></h2>
+<p>A checkbox that can trigger events on checked / unchecked.</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>onchecked</code></strong>: <em><code>string</code></em> action (command) to be executed when checked by the user</li>
+<li><strong><code>onunchecked</code></strong>: <em><code>string</code></em> similar to onchecked but when the widget is unchecked</li>
+</ul>
+<h2 id="color-button"><code>color-button</code></h2>
+<p>A button opening a color chooser window</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>use-alpha</code></strong>: <em><code>bool</code></em> bool to whether or not use alpha</li>
+<li><strong><code>onchange</code></strong>: <em><code>string</code></em> runs the code when the color was selected</li>
+</ul>
+<h2 id="color-chooser"><code>color-chooser</code></h2>
+<p>A color chooser widget</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>use-alpha</code></strong>: <em><code>bool</code></em> bool to wether or not use alpha</li>
+<li><strong><code>onchange</code></strong>: <em><code>string</code></em> runs the code when the color was selected</li>
+</ul>
+<h2 id="scale"><code>scale</code></h2>
+<p>A slider.</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>flipped</code></strong>: <em><code>bool</code></em> flip the direction</li>
+<li><strong><code>draw-value</code></strong>: <em><code>bool</code></em> draw the value of the property</li>
+<li><strong><code>value</code></strong>: <em><code>float</code></em> the value</li>
+<li><strong><code>min</code></strong>: <em><code>float</code></em> the minimum value</li>
+<li><strong><code>max</code></strong>: <em><code>float</code></em> the maximum value</li>
+<li><strong><code>onchange</code></strong>: <em><code>string</code></em> command executed once the value is changes. The placeholder <code>{}</code>, used in the command will be replaced by the new value.</li>
+</ul>
+<h2 id="progress"><code>progress</code></h2>
+<p>A progress bar</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>flipped</code></strong>: <em><code>bool</code></em> flip the direction</li>
+<li><strong><code>value</code></strong>: <em><code>float</code></em> value of the progress bar (between 0-100)</li>
+<li><strong><code>orientation</code></strong>: <em><code>string</code></em> orientation of the progress bar. possible values: &quot;vertical&quot;, &quot;v&quot;, &quot;horizontal&quot;, &quot;h&quot;</li>
+</ul>
+<h2 id="input"><code>input</code></h2>
+<p>An input field. For this to be useful, set <code>focusable=&quot;true&quot;</code> on the window.</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>value</code></strong>: <em><code>string</code></em> the content of the text field</li>
+<li><strong><code>onchange</code></strong>: <em><code>string</code></em> Command to run when the text changes. The placeholder <code>{}</code> will be replaced by the value</li>
+</ul>
+<h2 id="button"><code>button</code></h2>
+<p>A button</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>onclick</code></strong>: <em><code>string</code></em> a command that get's run when the button is clicked</li>
+<li><strong><code>onmiddleclick</code></strong>: <em><code>string</code></em> a command that get's run when the button is middleclicked</li>
+<li><strong><code>onrightclick</code></strong>: <em><code>string</code></em> a command that get's run when the button is rightclicked</li>
+<li><strong><code>vexpand</code></strong>: <em><code>bool</code></em> should this container expand vertically</li>
+<li><strong><code>hexpand</code></strong>: <em><code>bool</code></em> should this container expand horizontally</li>
+</ul>
+<h2 id="image"><code>image</code></h2>
+<p>A widget displaying an image</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>path</code></strong>: <em><code>string</code></em> path to the image file</li>
+<li><strong><code>width</code></strong>: <em><code>int</code></em> width of the image</li>
+<li><strong><code>height</code></strong>: <em><code>int</code></em> height of the image</li>
+</ul>
+<h2 id="box"><code>box</code></h2>
+<p>the main layout container</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>spacing</code></strong>: <em><code>int</code></em> spacing between elements</li>
+<li><strong><code>orientation</code></strong>: <em><code>string</code></em> orientation of the box. possible values: &quot;vertical&quot;, &quot;v&quot;, &quot;horizontal&quot;, &quot;h&quot;</li>
+<li><strong><code>space-evenly</code></strong>: <em><code>bool</code></em> space the widgets evenly.</li>
+<li><strong><code>vexpand</code></strong>: <em><code>bool</code></em> should this container expand vertically</li>
+<li><strong><code>hexpand</code></strong>: <em><code>bool</code></em> should this container expand horizontally</li>
+</ul>
+<h2 id="label"><code>label</code></h2>
+<p>A text widget giving you more control over how the text is displayed</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>text</code></strong>: <em><code>string</code></em> the text to display</li>
+<li><strong><code>limit-width</code></strong>: <em><code>int</code></em> maximum count of characters to display</li>
+<li><strong><code>markup</code></strong>: <em><code>string</code></em> Pango markup to display</li>
+<li><strong><code>wrap</code></strong>: <em><code>bool</code></em> Wrap the text. This mainly makes sense if you set the width of this widget.</li>
+</ul>
+<h2 id="literal"><code>literal</code></h2>
+<p>A widget that allows you to render arbitrary XML.</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>content</code></strong>: <em><code>string</code></em> inline Eww XML that will be rendered as a widget.</li>
+</ul>
+<h2 id="calendar"><code>calendar</code></h2>
+<p>A widget that displays a calendar</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>day</code></strong>: <em><code>float</code></em> the selected day</li>
+<li><strong><code>month</code></strong>: <em><code>float</code></em> the selected month</li>
+<li><strong><code>year</code></strong>: <em><code>float</code></em> the selected year</li>
+<li><strong><code>show-details</code></strong>: <em><code>bool</code></em> show details</li>
+<li><strong><code>show-heading</code></strong>: <em><code>bool</code></em> show heading line</li>
+<li><strong><code>show-day-names</code></strong>: <em><code>bool</code></em> show names of days</li>
+<li><strong><code>show-week-numbers</code></strong>: <em><code>bool</code></em> show week numbers</li>
+<li><strong><code>onclick</code></strong>: <em><code>string</code></em> command to run when the user selects a date. The <code>{}</code> placeholder will be replaced by the selected date.</li>
+</ul>
+
+
+                </div>
+            </div>
+
+            <div class="prev-link">
+                
+    
+        <a class="previous" href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;magic-variables-documenation&#x2F;"><</a>
+    
+
+            </div>
+
+            <div class="next-link">
+                
+    
+        <a class="next" href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;troubleshooting&#x2F;">></a>
+    
+
+            </div>
+        </div>
+
+        
+            
+            <script type="text/javascript" src="https://elkowar.github.io/eww/elasticlunr.min.js"></script>
+            <script type="text/javascript" src="https://elkowar.github.io/eww/search_index.en.js"></script>
+            
+            <script type="text/javascript" src="https://elkowar.github.io/eww/book.js"></script>
+        
+    </body>
+
+</html>

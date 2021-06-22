@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+      <meta http-equiv="X-UA-Compatible" content="IE=edge">
+      <meta http-equiv="content-type" content="text/html; charset=utf-8">
+
+      <!-- Enable responsiveness on mobile devices-->
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+
+      <title></title>
+
+      
+      
+
+      <!-- CSS -->
+      
+<link rel="stylesheet" href="https://elkowar.github.io/eww/book.css">
+<link rel="stylesheet" href="https://elkowar.github.io/eww/style.css">
+
+
+      
+      
+    </head>
+
+    <body>
+        <div class="menu">
+            
+            
+            <nav role="navigation">
+                <ul>
+                    
+                        
+                        
+                            
+                            <li >
+                                
+                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;">
+                                    <strong>1.</strong>
+                                    Eww - Widgets for everyone!
+                                </a>
+                                
+                                    <ul>
+                                        
+                                            <li >
+                                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;the-basics-of-how-to-configure-eww&#x2F;">
+                                                    <strong>1.1.</strong>
+                                                    Configuration
+                                                </a>
+                                            </li>
+                                        
+                                            <li >
+                                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;how-to-use-gtk-theming-in-eww&#x2F;">
+                                                    <strong>1.2.</strong>
+                                                    Theming with GTK
+                                                </a>
+                                            </li>
+                                        
+                                            <li >
+                                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;magic-variables-documenation&#x2F;">
+                                                    <strong>1.3.</strong>
+                                                    Magic Variables
+                                                </a>
+                                            </li>
+                                        
+                                            <li >
+                                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;widget-documentation&#x2F;">
+                                                    <strong>1.4.</strong>
+                                                    Widgets
+                                                </a>
+                                            </li>
+                                        
+                                            <li >
+                                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;troubleshooting&#x2F;">
+                                                    <strong>1.5.</strong>
+                                                    Troubleshooting
+                                                </a>
+                                            </li>
+                                        
+                                            <li class="active">
+                                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;embedded-eww-expression-language&#x2F;">
+                                                    <strong>1.6.</strong>
+                                                    Eww expressions
+                                                </a>
+                                            </li>
+                                        
+                                            <li >
+                                                <a href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;sample-configs&#x2F;">
+                                                    <strong>1.7.</strong>
+                                                    Examples
+                                                </a>
+                                            </li>
+                                        
+                                    </ul>
+                                
+                            </li>
+                        
+                    
+                </ul>
+            </nav>
+            
+            
+        </div>
+
+        <div class="page">
+            <div class="page__header">
+                <div class="menu-icon">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+                
+                <span class="search-icon">🔎</span>
+                
+            </div>
+
+            <div class="page__content">
+                
+                <div class="search-container">
+                    <input id="search" type="search" placeholder="Search..">
+                    <div class="search-results">
+                        <div class="search-results__header"></div>
+                        <ul class="search-results__items"></ul>
+                    </div>
+                </div>
+                
+                <div class="book-content">
+                    
+    <h1>Eww expressions</h1>
+    <h1 id="the-embedded-eww-expression-language">The embedded Eww expression-language</h1>
+<p>Within variable references, you can make use of a small, built-in expression language.
+This can be used whereever you can use variable-references (<code>{{varname}}</code>).</p>
+<h2 id="example">Example</h2>
+<pre style="background-color:#f5f5f5;">
+<code><span style="color:#6486ab;">&lt;button
+    class=</span><span style="color:#d07711;">&quot;{{if button_active then &#39;active&#39; else &#39;inactive&#39;}}&quot;
+    </span><span style="color:#6486ab;">onclick=</span><span style="color:#d07711;">&quot;toggle_thing&quot;</span><span style="color:#6486ab;">&gt;</span><span style="color:#1f1f1f;">
+    {{if button_active then &#39;disable&#39; else &#39;enable&#39;}}
+</span><span style="color:#6486ab;">&lt;/button&gt;</span><span style="color:#1f1f1f;">
+
+Some math: {{12 + 2 * 10}}
+</span></code></pre><h2 id="syntax">Syntax</h2>
+<p>The expression language supports:</p>
+<ul>
+<li>simple mathematical operations (<code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>%</code>)</li>
+<li>comparisons (<code>==</code>, <code>!=</code>, <code>&gt;</code>, <code>&lt;</code>)</li>
+<li>boolean operations (<code>||</code>, <code>&amp;&amp;</code>, <code>!</code>)</li>
+<li>elvis operator (<code>?:</code>)
+<ul>
+<li>if the left side is <code>&quot;&quot;</code>, then returns the right side, otherwise evaluates to the left side.</li>
+</ul>
+</li>
+<li>conditionals (<code>if condition then 'value' else 'other value'</code>)</li>
+<li>numbers, strings, booleans and variable references (<code>12</code>, <code>'hi'</code>, <code>true</code>, <code>some_variable</code>)
+<ul>
+<li>strings can contain other expressions again: <code>'foo {{some_variable}} bar'</code></li>
+</ul>
+</li>
+<li>json access (<code>object.field</code>, <code>array[12]</code>, <code>object[&quot;field&quot;]</code>)
+<ul>
+<li>for this, the object/array value needs to refer to a variable that contains a valid json string.</li>
+</ul>
+</li>
+<li>some function calls:
+<ul>
+<li><code>round(number, decimal_digits)</code>: Round a number to the given amount of decimals</li>
+<li><code>replace(string, regex, replacement)</code>: Replace matches of a given regex in a string</li>
+</ul>
+</li>
+</ul>
+
+
+                </div>
+            </div>
+
+            <div class="prev-link">
+                
+    
+        <a class="previous" href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;troubleshooting&#x2F;"><</a>
+    
+
+            </div>
+
+            <div class="next-link">
+                
+    
+        <a class="next" href="https:&#x2F;&#x2F;elkowar.github.io&#x2F;eww&#x2F;main&#x2F;sample-configs&#x2F;">></a>
+    
+
+            </div>
+        </div>
+
+        
+            
+            <script type="text/javascript" src="https://elkowar.github.io/eww/elasticlunr.min.js"></script>
+            <script type="text/javascript" src="https://elkowar.github.io/eww/search_index.en.js"></script>
+            
+            <script type="text/javascript" src="https://elkowar.github.io/eww/book.js"></script>
+        
+    </body>
+
+</html>
