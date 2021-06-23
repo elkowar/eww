@@ -1,6 +1,11 @@
 #![allow(clippy::option_map_unit_fn)]
 use super::{run_command, BuilderArgs};
-use crate::{config, eww_state, resolve_block, value::AttrVal, widgets::widget_node, util::parse_duration};
+use crate::{
+    config, enum_parse, eww_state, resolve_block,
+    util::{list_difference, parse_duration},
+    value::AttrVal,
+    widgets::widget_node,
+};
 use anyhow::*;
 use gdk::WindowExt;
 use glib;
@@ -275,11 +280,11 @@ fn build_gtk_revealer(bargs: &mut BuilderArgs) -> Result<gtk::Revealer> {
     let gtk_widget = gtk::Revealer::new();
     resolve_block!(bargs, gtk_widget, {
         // @prop transition - the name of the transition. Possible values: $transition
-        prop(transition: as_string) { gtk_widget.set_transition_type(parse_transition(&transition)?); },
+        prop(transition: as_string = "crossfade") { gtk_widget.set_transition_type(parse_transition(&transition)?); },
         // @prop reveal - sets if the child is revealed or not
         prop(reveal: as_bool) { gtk_widget.set_reveal_child(reveal); },
         // @prop duration - the duration of the reveal transition
-        prop(duration: as_string) { gtk_widget.set_transition_duration(parse_duration(&duration)?.as_millis() as u32); },
+        prop(duration: as_string = "500ms") { gtk_widget.set_transition_duration(parse_duration(&duration)?.as_millis() as u32); },
     });
     Ok(gtk_widget)
 }
@@ -568,36 +573,33 @@ fn build_gtk_calendar(bargs: &mut BuilderArgs) -> Result<gtk::Calendar> {
 
 /// @var orientation - "vertical", "v", "horizontal", "h"
 fn parse_orientation(o: &str) -> Result<gtk::Orientation> {
-    Ok(match o {
+    enum_parse! { "orientation", o,
         "vertical" | "v" => gtk::Orientation::Vertical,
         "horizontal" | "h" => gtk::Orientation::Horizontal,
-        _ => bail!(r#"Couldn't parse orientation: '{}'. Possible values are "vertical", "v", "horizontal", "h""#, o),
-    })
+    }
 }
 
 /// @var transition - "slideright", "slideleft", "slideup", "slidedown", "crossfade", "none"
 fn parse_transition(t: &str) -> Result<gtk::RevealerTransitionType> {
-    Ok(match t {
+    enum_parse! { "transition", t,
         "slideright" => gtk::RevealerTransitionType::SlideRight,
         "slideleft" => gtk::RevealerTransitionType::SlideLeft,
         "slideup" => gtk::RevealerTransitionType::SlideUp,
         "slidedown" => gtk::RevealerTransitionType::SlideDown,
-        "crossfade" => gtk::RevealerTransitionType::Crossfade,
+        "fade" | "crossfade" => gtk::RevealerTransitionType::Crossfade,
         "none" => gtk::RevealerTransitionType::None,
-        _ => bail!(r#"Couldn't parse transition: '{}'. Possible values are "slideright", "slideleft", "slideup", "slidedown", "crossfade" and "none" "#, t),
-    })
+    }
 }
 
 /// @var alignment - "fill", "baseline", "center", "start", "end"
 fn parse_align(o: &str) -> Result<gtk::Align> {
-    Ok(match o {
+    enum_parse! { "alignment", o,
         "fill" => gtk::Align::Fill,
         "baseline" => gtk::Align::Baseline,
         "center" => gtk::Align::Center,
         "start" => gtk::Align::Start,
         "end" => gtk::Align::End,
-        _ => bail!(r#"Couldn't parse alignment: '{}'. Possible values are "fill", "baseline", "center", "start", "end""#, o),
-    })
+    }
 }
 
 fn connect_first_map<W: IsA<gtk::Widget>, F: Fn(&W) + 'static>(widget: &W, func: F) {
@@ -609,26 +611,4 @@ fn connect_first_map<W: IsA<gtk::Widget>, F: Fn(&W) + 'static>(widget: &W, func:
             func(&w);
         }
     });
-}
-
-/// Compute the difference of two lists, returning a tuple of
-/// (
-///   elements that where in a but not in b,
-///   elements that where in b but not in a
-/// ).
-fn list_difference<'a, 'b, T: PartialEq>(a: &'a [T], b: &'b [T]) -> (Vec<&'a T>, Vec<&'b T>) {
-    let mut missing = Vec::new();
-    for elem in a {
-        if !b.contains(elem) {
-            missing.push(elem);
-        }
-    }
-
-    let mut new = Vec::new();
-    for elem in b {
-        if !a.contains(elem) {
-            new.push(elem);
-        }
-    }
-    (missing, new)
 }

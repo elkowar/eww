@@ -50,6 +50,48 @@ macro_rules! loop_select {
     }
 }
 
+/// Parse a string with a concrete set of options into some data-structure,
+/// and return a nicely formatted error message on invalid values. I.e.:
+/// ```rs
+/// let input = "up";
+/// enum_parse { "direction", input,
+///   "up" => Direction::Up,
+///   "down" => Direction::Down,
+/// }
+/// ```
+#[macro_export]
+macro_rules! enum_parse {
+    ($name:literal, $input:expr, $($($s:literal)|* => $val:expr),* $(,)?) => {
+        let input = $input;
+        match input {
+            $( $( $s )|* => Ok($val) ),*,
+            _ => Err(anyhow!(concat!("Couldn't parse ", $name, ": '{}'. Possible values are ", $($($s),*),*), input))
+        }
+    };
+}
+
+/// Compute the difference of two lists, returning a tuple of
+/// (
+///   elements that where in a but not in b,
+///   elements that where in b but not in a
+/// ).
+pub fn list_difference<'a, 'b, T: PartialEq>(a: &'a [T], b: &'b [T]) -> (Vec<&'a T>, Vec<&'b T>) {
+    let mut missing = Vec::new();
+    for elem in a {
+        if !b.contains(elem) {
+            missing.push(elem);
+        }
+    }
+
+    let mut new = Vec::new();
+    for elem in b {
+        if !a.contains(elem) {
+            new.push(elem);
+        }
+    }
+    (missing, new)
+}
+
 /// Joins two paths while keeping it somewhat pretty.
 /// If the second path is absolute, this will just return the second path.
 /// If it is relative, it will return the second path joined onto the first path, removing any `./` if present.
@@ -111,7 +153,6 @@ pub fn parse_duration(s: &str) -> Result<std::time::Duration> {
         Err(anyhow!("unrecognized time format: {}", s))
     }
 }
-
 
 pub trait IterAverage {
     fn avg(self) -> f32;
