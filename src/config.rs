@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, iter::FromIterator};
 
 use super::*;
 use anyhow::*;
@@ -54,13 +54,15 @@ pub struct Definitional<T> {
 impl<T: FromExpr> FromExpr for Definitional<T> {
     fn from_expr(e: Expr) -> Result<Self, AstError> {
         if let Expr::List(list) = e {
-            let mut iter = list.into_iter();
+            let mut iter = SExpIterator::new(list);
 
-            let def_type = DefType::from_sp(iter.next().unwrap())?;
-            let name = iter.next().unwrap().1.str()?;
-            let attrs = parse_key_values(&mut iter);
+            let def_type = DefType::from_sp(iter.next().unwrap().as_single().unwrap())?;
+            let name = iter.next().unwrap().as_single().unwrap().1.str()?;
+            let attrs = iter.next().unwrap().as_key_value().unwrap();
 
-            let children = iter.map(T::from_sp).collect::<Result<Vec<_>, AstError>>()?;
+            let children = iter
+                .map(|elem| T::from_sp(elem.as_single()?))
+                .collect::<Result<Vec<_>, AstError>>()?;
             Ok(Definitional {
                 def_type,
                 name,
@@ -78,40 +80,43 @@ pub struct WidgetDefinition {
     argnames: Vec<VarName>,
 }
 
-pub fn parse_key_values(iter: impl Iterator<Item = Sp<Expr>>) -> HashMap<String, Sp<Expr>> {
-    let mut attrs = HashMap::new();
-    let mut iter = iter.multipeek();
-    loop {
-        let next = iter.peek();
-        let next2 = iter.peek();
-        iter.reset_peek();
-        if let (Some(Sp(_, Expr::Keyword(_), _)), Some(_)) = (next, next2) {
-            if let Some(Sp(_, Expr::Keyword(x), _)) = iter.next() {
-                attrs.insert(x.to_string(), iter.next().unwrap());
-            } else {
-                unreachable!();
-            }
-        } else {
-            break;
-        }
-    }
-    attrs
-}
-
 struct SExpIterator {
     elements: LinkedList<Sp<Expr>>,
 }
 
+impl SExpIterator {
+    fn new(elements: Vec<Sp<Expr>>) -> Self {
+        SExpIterator {
+            elements: LinkedList::from_iter(elements.into_iter()),
+        }
+    }
+}
+
 enum ExpressionElement {
     Single(Sp<Expr>),
-    KeyValue(Vec<(String, Sp<Expr>)>),
+    KeyValue(HashMap<String, Sp<Expr>>),
+}
+
+impl ExpressionElement {
+    fn as_single(self) -> Option<Sp<Expr>> {
+        match self {
+            ExpressionElement::Single(x) => Some(x),
+            ExpressionElement::KeyValue(_) => None,
+        }
+    }
+    fn as_key_value(self) -> Option<HashMap<String, Sp<Expr>>> {
+        match self {
+            ExpressionElement::Single(_) => None,
+            ExpressionElement::KeyValue(x) => Some(x),
+        }
+    }
 }
 
 impl Iterator for SExpIterator {
     type Item = ExpressionElement;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut data = vec![];
+        let mut data = HashMap::new();
         loop {
             let first_is_kw = self.elements.front().map_or(false, |x| x.1.is_keyword());
             if first_is_kw {
@@ -120,7 +125,7 @@ impl Iterator for SExpIterator {
                     _ => unreachable!(),
                 };
                 if let Some(value) = self.elements.pop_front() {
-                    data.push((kw, value));
+                    data.insert(kw, value);
                 } else {
                     return if data.is_empty() {
                         Some(ExpressionElement::Single(Sp(l, Expr::Keyword(kw), r)))
@@ -138,12 +143,3 @@ impl Iterator for SExpIterator {
         }
     }
 }
-
-/*
-   (
-   foo
-   bar
-   :baz "hi" :bat "ho"
-   [rst arst arst rst])
-
-*/
