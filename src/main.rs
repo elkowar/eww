@@ -44,6 +44,12 @@ impl Expr {
             _ => Err(WrongExprType),
         }
     }
+    fn is_keyword(&self) -> bool {
+        match self {
+            Expr::Keyword(_) => true,
+            _ => false,
+        }
+    }
 }
 
 impl std::fmt::Display for Expr {

@@ -113,27 +113,28 @@ impl Iterator for SExpIterator {
     fn next(&mut self) -> Option<Self::Item> {
         let mut data = vec![];
         loop {
-            match (self.elements.pop_front(), self.elements.pop_front()) {
-                (Some(Sp(kw_l, Expr::Keyword(kw), kw_r)), Some(value)) => {
+            let first_is_kw = self.elements.front().map_or(false, |x| x.1.is_keyword());
+            if first_is_kw {
+                let (l, kw, r) = match self.elements.pop_front() {
+                    Some(Sp(l, Expr::Keyword(kw), r)) => (l, kw, r),
+                    _ => unreachable!(),
+                };
+                if let Some(value) = self.elements.pop_front() {
                     data.push((kw, value));
+                } else {
+                    return if data.is_empty() {
+                        Some(ExpressionElement::Single(Sp(l, Expr::Keyword(kw), r)))
+                    } else {
+                        Some(ExpressionElement::KeyValue(data))
+                    };
                 }
-                (Some(x), Some(y)) => {
-                    self.elements.push_front(y);
-                    self.elements.push_front(x);
-                    break;
-                }
-                (Some(x), None) => {
-                    self.elements.push_front(x);
-                    break;
-                }
-                (None, None) => break,
-                (None, Some(_)) => unreachable!(),
+            } else {
+                return if data.is_empty() {
+                    Some(ExpressionElement::Single(self.elements.pop_front()?))
+                } else {
+                    Some(ExpressionElement::KeyValue(data))
+                };
             }
-        }
-        if data.is_empty() {
-            Some(ExpressionElement::Single(self.elements.pop_front()?))
-        } else {
-            Some(ExpressionElement::KeyValue(data))
         }
     }
 }
