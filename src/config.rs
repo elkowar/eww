@@ -54,12 +54,10 @@ impl<T: FromExpr> FromExpr for Definitional<T> {
     fn from_expr(e: Expr) -> Result<Self, AstError> {
         if let Expr::List(list) = e {
             let mut iter = list.into_iter();
+
             let def_type = DefType::from_sp(iter.next().unwrap())?;
             let name = iter.next().unwrap().1.str()?;
-            let mut attrs = HashMap::new();
-            while let Some(Sp(_, Expr::Keyword(x), _)) = iter.next() {
-                attrs.insert(x, iter.next().unwrap());
-            }
+            let attrs = parse_key_values(&mut iter);
 
             let children = iter.map(T::from_sp).collect::<Result<Vec<_>, AstError>>()?;
             Ok(Definitional {
@@ -77,4 +75,24 @@ impl<T: FromExpr> FromExpr for Definitional<T> {
 pub struct WidgetDefinition {
     name: String,
     argnames: Vec<VarName>,
+}
+
+pub fn parse_key_values(iter: impl Iterator<Item = Sp<Expr>>) -> HashMap<String, Sp<Expr>> {
+    let mut attrs = HashMap::new();
+    let mut iter = iter.multipeek();
+    loop {
+        let next = iter.peek();
+        let next2 = iter.peek();
+        iter.reset_peek();
+        if let (Some(Sp(_, Expr::Keyword(_), _)), Some(_)) = (next, next2) {
+            if let Some(Sp(_, Expr::Keyword(x), _)) = iter.next() {
+                attrs.insert(x.to_string(), iter.next().unwrap());
+            } else {
+                unreachable!();
+            }
+        } else {
+            break;
+        }
+    }
+    attrs
 }
