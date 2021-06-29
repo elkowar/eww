@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use super::*;
 use anyhow::*;
+use std::collections::LinkedList;
 
 type VarName = String;
 type AttrValue = String;
@@ -96,3 +97,52 @@ pub fn parse_key_values(iter: impl Iterator<Item = Sp<Expr>>) -> HashMap<String,
     }
     attrs
 }
+
+struct SExpIterator {
+    elements: LinkedList<Sp<Expr>>,
+}
+
+enum ExpressionElement {
+    Single(Sp<Expr>),
+    KeyValue(Vec<(String, Sp<Expr>)>),
+}
+
+impl Iterator for SExpIterator {
+    type Item = ExpressionElement;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut data = vec![];
+        loop {
+            match (self.elements.pop_front(), self.elements.pop_front()) {
+                (Some(Sp(kw_l, Expr::Keyword(kw), kw_r)), Some(value)) => {
+                    data.push((kw, value));
+                }
+                (Some(x), Some(y)) => {
+                    self.elements.push_front(y);
+                    self.elements.push_front(x);
+                    break;
+                }
+                (Some(x), None) => {
+                    self.elements.push_front(x);
+                    break;
+                }
+                (None, None) => break,
+                (None, Some(_)) => unreachable!(),
+            }
+        }
+        if data.is_empty() {
+            Some(ExpressionElement::Single(self.elements.pop_front()?))
+        } else {
+            Some(ExpressionElement::KeyValue(data))
+        }
+    }
+}
+
+/*
+   (
+   foo
+   bar
+   :baz "hi" :bat "ho"
+   [rst arst arst rst])
+
+*/
