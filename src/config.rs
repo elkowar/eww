@@ -1,6 +1,7 @@
 use std::{collections::HashMap, iter::FromIterator};
 
 use super::*;
+use crate::error::*;
 use anyhow::*;
 use itertools::Itertools;
 use std::collections::LinkedList;
@@ -9,34 +10,8 @@ type VarName = String;
 type AttrValue = String;
 type AttrName = String;
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum AstError {
-    UnexpectedNode,
-    InvalidDefinition,
-    WrongExprType(Sp<Expr>),
-    MissingNode,
-}
-
-trait OptionAstErrorExt<T> {
-    fn or_missing(self) -> Result<T, AstError>;
-}
-impl<T> OptionAstErrorExt<T> for Option<T> {
-    fn or_missing(self) -> Result<T, AstError> {
-        self.ok_or(AstError::MissingNode)
-    }
-}
-
-impl From<WrongExprType> for AstError {
-    fn from(_: WrongExprType) -> Self {
-        AstError::WrongExprType
-    }
-}
-
 pub trait FromExpr: Sized {
     fn from_expr(e: Expr) -> Result<Self, AstError>;
-    fn from_sp(e: Sp<Expr>) -> Result<Self, AstError> {
-        Self::from_expr(e.1)
-    }
 }
 
 impl FromExpr for Expr {
@@ -51,7 +26,7 @@ pub enum DefType {
 
 impl FromExpr for DefType {
     fn from_expr(e: Expr) -> Result<Self, AstError> {
-        if let Expr::Symbol(sym) = e {
+        if let Expr::Symbol(_, sym) = e {
             match sym.as_str() {
                 "defwidget" => Ok(DefType::Widget),
                 _ => Err(AstError::InvalidDefinition),
@@ -65,20 +40,22 @@ impl FromExpr for DefType {
 pub struct Definitional<T> {
     def_type: DefType,
     name: String,
-    attrs: HashMap<AttrName, Sp<Expr>>,
+    attrs: HashMap<AttrName, Expr>,
     children: Vec<T>,
 }
 
 impl<T: FromExpr> FromExpr for Definitional<T> {
     fn from_expr(e: Expr) -> Result<Self, AstError> {
-        if let Expr::List(list) = e {
+        if let Expr::List(span, list) = e {
             let mut iter = itertools::put_back(list.into_iter());
 
-            let def_type = DefType::from_sp(iter.next().or_missing()?)?;
-            let name = iter.next().or_missing()?.1.str()?;
+            let def_type = DefType::from_expr(iter.next().or_missing()?)?;
+            let name = iter.next().or_missing()?.as_str()?;
             let attrs = parse_key_values(&mut iter);
 
-            let children = iter.map(T::from_sp).collect::<Result<Vec<_>, AstError>>()?;
+            let children = iter
+                .map(T::from_expr)
+                .collect::<Result<Vec<_>, AstError>>()?;
             Ok(Definitional {
                 def_type,
                 name,
@@ -93,16 +70,16 @@ impl<T: FromExpr> FromExpr for Definitional<T> {
 #[derive(Debug, Eq, PartialEq)]
 pub struct Element<T> {
     name: String,
-    attrs: HashMap<AttrName, Sp<Expr>>,
+    attrs: HashMap<AttrName, Expr>,
     children: Vec<T>,
 }
 
-impl FromExpr for Element<Sp<Expr>> {
+impl FromExpr for Element<Expr> {
     fn from_expr(e: Expr) -> Result<Self, AstError> {
-        if let Expr::List(list) = e {
+        if let Expr::List(span, list) = e {
             let mut iter = itertools::put_back(list.into_iter());
 
-            let name = iter.next().or_missing()?.1.str()?;
+            let name = iter.next().or_missing()?.as_symbol()?;
             let attrs = parse_key_values(&mut iter);
 
             Ok(Element {
@@ -116,18 +93,18 @@ impl FromExpr for Element<Sp<Expr>> {
     }
 }
 
-fn parse_key_values<I: Iterator<Item = Sp<Expr>>>(
+fn parse_key_values<I: Iterator<Item = Expr>>(
     iter: &mut itertools::PutBack<I>,
-) -> HashMap<String, Sp<Expr>> {
+) -> HashMap<String, Expr> {
     let mut data = HashMap::new();
     loop {
         match iter.next() {
-            Some(Sp(l, Expr::Keyword(kw), r)) => match iter.next() {
+            Some(Expr::Keyword(span, kw)) => match iter.next() {
                 Some(value) => {
                     data.insert(kw, value);
                 }
                 None => {
-                    iter.put_back(Sp(l, Expr::Keyword(kw), r));
+                    iter.put_back(Expr::Keyword(span, kw));
                     return data;
                 }
             },
@@ -149,28 +126,24 @@ mod test {
     fn test() {
         let parser = parser::ExprParser::new();
         assert_eq!(
-            Element::<Sp<Expr>>::from_expr(
-                parser
-                    .parse("(box foo :bar 12 :baz \"hi\" foo (bar))")
-                    .unwrap()
+            Element::<Expr>::from_expr(
+                parser.parse("(box :bar 12 :baz \"hi\" foo (bar))").unwrap()
             )
             .unwrap(),
             Element {
                 name: "box".to_string(),
-                children: vec![
-                    Sp(1, Expr::Symbol("foo".to_string()), 2),
-                    Sp(
-                        2,
-                        Expr::List(vec![Sp(2, Expr::Symbol("bar".to_string()), 3)]),
-                        3
-                    )
-                ],
-                attrs: {
-                    let mut data = HashMap::new();
-                    data.insert("foo".to_string(), Sp(2, Expr::Number(12), 3));
-                    data.insert("bar".to_string(), Sp(2, Expr::Str("hi".to_string()), 3));
-                    data
+                attrs: maplit::hashmap! {
+                    ":bar".to_string() => Expr::Number(Span(10, 12), 12),
+                    ":baz".to_string() => Expr::Str(Span(18, 22), "hi".to_string()),
+
                 },
+                children: vec![
+                    Expr::Symbol(Span(23, 26), "foo".to_string()),
+                    Expr::List(
+                        Span(27, 32),
+                        vec![Expr::Symbol(Span(28, 31), "bar".to_string())]
+                    ),
+                ],
             }
         );
     }

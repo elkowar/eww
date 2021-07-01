@@ -13,6 +13,7 @@ lalrpop-util = "0.19.5"
 regex = "1"
 itertools = "0.10"
 anyhow = "1.0"
+maplit = "*"
 
 [build-dependencies]
 lalrpop = "0.19.5"

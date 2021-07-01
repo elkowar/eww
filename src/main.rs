@@ -2,6 +2,8 @@
 #![allow(unused)]
 
 mod config;
+mod error;
+use error::AstError;
 
 use std::ops::Deref;
 
@@ -14,39 +16,43 @@ use lalrpop_util::lalrpop_mod;
 lalrpop_mod!(pub parser);
 
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
-pub struct Sp<T>(pub usize, pub T, pub usize);
+pub struct Span(pub usize, pub usize);
 
-impl<T: std::fmt::Display> std::fmt::Display for Sp<T> {
+impl std::fmt::Display for Span {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<{}- {} -{}>", self.0, self.1, self.2)
+        write!(f, "<{}..{}>", self.0, self.1)
     }
 }
-
-#[derive(Debug, Clone)]
-pub struct WrongExprType(Sp<Expr>);
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Expr {
-    List(Vec<Sp<Expr>>),
-    Table(Vec<(Sp<Expr>, Sp<Expr>)>),
-    Keyword(String),
-    Symbol(String),
-    Str(String),
-    Number(i32),
+    List(Span, Vec<Expr>),
+    Table(Span, Vec<(Expr, Expr)>),
+    Keyword(Span, String),
+    Symbol(Span, String),
+    Str(Span, String),
+    Number(Span, i32),
     Comment,
 }
 
-impl Expr {
-    fn str(self) -> Result<String, WrongExprType> {
-        use Expr::*;
-        match self {
-            Str(x) => Ok(x),
-            x => Err(WrongExprType(x)),
+macro_rules! as_func {
+    ($name:ident<$t:ty> = $p:pat => $value:expr) => {
+        fn $name(self) -> Result<$t, AstError> {
+            match self {
+                $p => Ok($value),
+                x => Err(AstError::WrongExprType(x)),
+            }
         }
-    }
+    };
+}
+
+impl Expr {
+    as_func!(as_str<String> = Expr::Str(_, x) => x);
+    as_func!(as_symbol<String> = Expr::Symbol(_, x) => x);
+
     fn is_keyword(&self) -> bool {
         match self {
-            Expr::Keyword(_) => true,
+            Expr::Keyword(_, _) => true,
             _ => false,
         }
     }
@@ -56,16 +62,16 @@ impl std::fmt::Display for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use Expr::*;
         match self {
-            Number(x) => write!(f, "{}", x),
-            List(x) => write!(f, "({})", x.iter().map(|e| format!("{}", e)).join(" ")),
-            Table(x) => write!(
+            Number(_, x) => write!(f, "{}", x),
+            List(_, x) => write!(f, "({})", x.iter().map(|e| format!("{}", e)).join(" ")),
+            Table(_, x) => write!(
                 f,
                 "{{{}}}",
                 x.iter().map(|(k, v)| format!("{} {}", k, v)).join(" ")
             ),
-            Keyword(x) => write!(f, "{}", x),
-            Symbol(x) => write!(f, "{}", x),
-            Str(x) => write!(f, "{}", x),
+            Keyword(_, x) => write!(f, "{}", x),
+            Symbol(_, x) => write!(f, "{}", x),
+            Str(_, x) => write!(f, "{}", x),
             Comment => write!(f, ""),
         }
     }

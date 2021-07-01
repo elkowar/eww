@@ -1,34 +1,29 @@
 use std::str::FromStr;
 //use crate::lexer;
 use crate::Expr;
-use crate::Sp;
+use crate::Span;
 
 grammar;
 
 
-Span<T>: Sp<T> = {
-    <@L> <T> <@R> => Sp(<>)
-};
-
 pub Expr: Expr = {
-    "(" <elems:(<Span<(<Expr>)>>)+> ")" => Expr::List(elems),
+    <l:@L> "(" <elems:(<Expr>)+> ")" <r:@R> => Expr::List(Span(l, r), elems),
 
-    "{" <elems:(<Span<(<Expr>)>> <Span<(<Expr>)>>)*> "}" => Expr::Table(elems),
+    <l:@L> "{" <elems:(<(<Expr>)> <(<Expr>)>)*> "}" <r:@R> => Expr::Table(Span(l, r), elems),
 
     <x:Keyword> => x,
     <x:Symbol> => x,
-    <x:StrLit> => Expr::Str(x),
-    <x:Num> => Expr::Number(x),
+    <l:@L> <x:StrLit> <r:@R> => Expr::Str(Span(l, r), x),
+    <l:@L> <x:Num> <r:@R> => Expr::Number(Span(l, r), x),
     Comment => Expr::Comment,
 };
 
-Keyword: Expr = <r":[^\s]+"> => Expr::Keyword(<>.to_string());
-Symbol: Expr = <r"[a-zA-Z_!\?<>/.*-+][^\s{}\(\)]*"> => Expr::Symbol(<>.to_string());
+Keyword: Expr = <l:@L> <x:r":[^\s]+"> <r:@R> => Expr::Keyword(Span(l, r), x.to_string());
+Symbol: Expr = <l:@L> <x:r"[a-zA-Z_!\?<>/.*-+][^\s{}\(\)]*"> <r:@R> => Expr::Symbol(Span(l, r), x.to_string());
 
 StrLit: String = {
-    r#""(?:[^"\\]|\\.)*""# => {
-      let val = <>;
-      val[1..val.len() - 1].to_owned()
+    <x:r#""(?:[^"\\]|\\.)*""#> => {
+      x[1..x.len() - 1].to_owned()
     },
 }
 
