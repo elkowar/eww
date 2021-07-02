@@ -1,0 +1,14 @@
+unstable_features = true
+fn_single_line = false
+max_width = 130
+reorder_impl_items = true
+merge_imports = true
+normalize_comments = true
+use_field_init_shorthand = true
+#wrap_comments = true
+combine_control_expr = false
+condense_wildcard_suffixes = true
+format_code_in_doc_comments = true
+format_macro_matchers = true
+format_strings = true
+use_small_heuristics = "Max"

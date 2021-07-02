@@ -15,7 +15,7 @@ pub Expr: Expr = {
     <x:Symbol> => x,
     <l:@L> <x:StrLit> <r:@R> => Expr::Str(Span(l, r), x),
     <l:@L> <x:Num> <r:@R> => Expr::Number(Span(l, r), x),
-    Comment => Expr::Comment,
+    <l:@L> Comment <r:@R> => Expr::Comment(Span(l, r)),
 };
 
 Keyword: Expr = <l:@L> <x:r":[^\s]+"> <r:@R> => Expr::Keyword(Span(l, r), x.to_string());
