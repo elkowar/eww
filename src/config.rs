@@ -41,10 +41,12 @@ pub struct Definitional<T> {
     name: String,
     attrs: HashMap<AttrName, Expr>,
     children: Vec<T>,
+    span: Span,
 }
 
 impl<T: FromExpr> FromExpr for Definitional<T> {
     fn from_expr(e: Expr) -> AstResult<Self> {
+        let span = e.span();
         spanned!(e.span(), {
             let list = e.as_list()?;
             let mut iter = itertools::put_back(list.into_iter());
@@ -54,7 +56,7 @@ impl<T: FromExpr> FromExpr for Definitional<T> {
             let attrs = parse_key_values(&mut iter);
 
             let children = iter.map(|x| T::from_expr(x)).collect::<AstResult<Vec<_>>>()?;
-            Definitional { def_type, name, attrs, children }
+            Definitional { span, def_type, name, attrs, children }
         })
     }
 }
@@ -63,10 +65,12 @@ pub struct Element<T> {
     name: String,
     attrs: HashMap<AttrName, Expr>,
     children: Vec<T>,
+    span: Span,
 }
 
 impl FromExpr for Element<Expr> {
     fn from_expr(e: Expr) -> AstResult<Self> {
+        let span = e.span();
         spanned!(e.span(), {
             let list = e.as_list()?;
             let mut iter = itertools::put_back(list.into_iter());
@@ -74,7 +78,7 @@ impl FromExpr for Element<Expr> {
             let name = iter.next().or_missing(ExprType::Str)?.as_symbol()?;
             let attrs = parse_key_values(&mut iter);
 
-            Element { name, attrs, children: iter.collect_vec() }
+            Element { span, name, attrs, children: iter.collect_vec() }
         })
     }
 }
@@ -112,6 +116,7 @@ mod test {
         assert_eq!(
             Element::<Expr>::from_expr(parser.parse("(box :bar 12 :baz \"hi\" foo (bar))").unwrap()).unwrap(),
             Element {
+                span: Span(0, 33),
                 name: "box".to_string(),
                 attrs: maplit::hashmap! {
                     ":bar".to_string() => Expr::Number(Span(10, 12), 12),
