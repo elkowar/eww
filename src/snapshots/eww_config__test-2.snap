@@ -1,0 +1,16 @@
+---
+source: src/main.rs
+expression: "p.parse(\"(12)\")"
+
+---
+Ok(
+    List(
+        0..4,
+        [
+            Number(
+                1..3,
+                12,
+            ),
+        ],
+    ),
+)

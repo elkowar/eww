@@ -19,6 +19,7 @@ impl FromExpr for Expr {
     }
 }
 
+#[derive(Debug, Eq, PartialEq)]
 pub enum DefType {
     Widget,
 }
@@ -36,15 +37,16 @@ impl FromExpr for DefType {
     }
 }
 
-pub struct Definitional<T> {
+#[derive(Debug, Eq, PartialEq)]
+pub struct Definitional<C, A> {
     def_type: DefType,
     name: String,
-    attrs: HashMap<AttrName, Expr>,
-    children: Vec<T>,
+    attrs: HashMap<AttrName, A>,
+    children: Vec<C>,
     span: Span,
 }
 
-impl<T: FromExpr> FromExpr for Definitional<T> {
+impl<C: FromExpr, A: FromExpr> FromExpr for Definitional<C, A> {
     fn from_expr(e: Expr) -> AstResult<Self> {
         let span = e.span();
         spanned!(e.span(), {
@@ -52,23 +54,24 @@ impl<T: FromExpr> FromExpr for Definitional<T> {
             let mut iter = itertools::put_back(list.into_iter());
 
             let def_type = DefType::from_expr(iter.next().or_missing(ExprType::Symbol)?)?;
-            let name = iter.next().or_missing(ExprType::Str)?.as_str()?;
-            let attrs = parse_key_values(&mut iter);
+            let name = iter.next().or_missing(ExprType::Symbol)?.as_symbol()?;
+            let attrs = parse_key_values(&mut iter)?;
+            let children = iter.map(|x| C::from_expr(x)).collect::<AstResult<Vec<_>>>()?;
 
-            let children = iter.map(|x| T::from_expr(x)).collect::<AstResult<Vec<_>>>()?;
             Definitional { span, def_type, name, attrs, children }
         })
     }
 }
+
 #[derive(Debug, Eq, PartialEq)]
-pub struct Element<T> {
+pub struct Element<C, A> {
     name: String,
-    attrs: HashMap<AttrName, Expr>,
-    children: Vec<T>,
+    attrs: HashMap<AttrName, A>,
+    children: Vec<C>,
     span: Span,
 }
 
-impl FromExpr for Element<Expr> {
+impl<C: FromExpr, A: FromExpr> FromExpr for Element<C, A> {
     fn from_expr(e: Expr) -> AstResult<Self> {
         let span = e.span();
         spanned!(e.span(), {
@@ -76,31 +79,33 @@ impl FromExpr for Element<Expr> {
             let mut iter = itertools::put_back(list.into_iter());
 
             let name = iter.next().or_missing(ExprType::Str)?.as_symbol()?;
-            let attrs = parse_key_values(&mut iter);
+            let attrs = parse_key_values(&mut iter)?;
+            let children = iter.map(C::from_expr).collect::<AstResult<Vec<_>>>()?;
 
-            Element { span, name, attrs, children: iter.collect_vec() }
+            Element { span, name, attrs, children }
         })
     }
 }
 
-fn parse_key_values<I: Iterator<Item = Expr>>(iter: &mut itertools::PutBack<I>) -> HashMap<String, Expr> {
+/// Parse consecutive `:keyword value` pairs from an expression iterator into a HashMap. Transforms the keys using the FromExpr trait.
+fn parse_key_values<T: FromExpr, I: Iterator<Item = Expr>>(iter: &mut itertools::PutBack<I>) -> AstResult<HashMap<String, T>> {
     let mut data = HashMap::new();
     loop {
         match iter.next() {
             Some(Expr::Keyword(span, kw)) => match iter.next() {
                 Some(value) => {
-                    data.insert(kw, value);
+                    data.insert(kw, T::from_expr(value)?);
                 }
                 None => {
                     iter.put_back(Expr::Keyword(span, kw));
-                    return data;
+                    return Ok(data);
                 }
             },
             Some(expr) => {
                 iter.put_back(expr);
-                return data;
+                return Ok(data);
             }
-            None => return data,
+            None => return Ok(data),
         }
     }
 }
@@ -109,25 +114,18 @@ fn parse_key_values<I: Iterator<Item = Expr>>(iter: &mut itertools::PutBack<I>) 
 mod test {
 
     use super::*;
+    use insta;
 
     #[test]
     fn test() {
         let parser = parser::ExprParser::new();
-        assert_eq!(
-            Element::<Expr>::from_expr(parser.parse("(box :bar 12 :baz \"hi\" foo (bar))").unwrap()).unwrap(),
-            Element {
-                span: Span(0, 33),
-                name: "box".to_string(),
-                attrs: maplit::hashmap! {
-                    ":bar".to_string() => Expr::Number(Span(10, 12), 12),
-                    ":baz".to_string() => Expr::Str(Span(18, 22), "hi".to_string()),
-
-                },
-                children: vec![
-                    Expr::Symbol(Span(23, 26), "foo".to_string()),
-                    Expr::List(Span(27, 32), vec![Expr::Symbol(Span(28, 31), "bar".to_string())]),
-                ],
-            }
-        );
+        insta::with_settings!({sort_maps => true}, {
+            insta::assert_debug_snapshot!(
+                Element::<Expr, Expr>::from_expr(parser.parse("(box :bar 12 :baz \"hi\" foo (bar))").unwrap()).unwrap()
+            );
+            insta::assert_debug_snapshot!(
+                Definitional::<Expr, Expr>::from_expr(parser.parse("(defwidget box (child) (child2))").unwrap()).unwrap()
+            );
+        });
     }
 }

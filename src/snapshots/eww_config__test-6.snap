@@ -1,0 +1,20 @@
+---
+source: src/main.rs
+expression: "p.parse(\"(:foo->: 1)\")"
+
+---
+Ok(
+    List(
+        0..11,
+        [
+            Keyword(
+                1..8,
+                ":foo->:",
+            ),
+            Number(
+                9..10,
+                1,
+            ),
+        ],
+    ),
+)

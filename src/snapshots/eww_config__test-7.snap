@@ -1,0 +1,20 @@
+---
+source: src/main.rs
+expression: "p.parse(\"(foo 1)\")"
+
+---
+Ok(
+    List(
+        0..7,
+        [
+            Symbol(
+                1..4,
+                "foo",
+            ),
+            Number(
+                5..6,
+                1,
+            ),
+        ],
+    ),
+)

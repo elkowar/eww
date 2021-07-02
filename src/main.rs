@@ -16,12 +16,18 @@ use lalrpop_util::lalrpop_mod;
 
 lalrpop_mod!(pub parser);
 
-#[derive(Debug, Eq, PartialEq, Clone, Copy)]
+#[derive(Eq, PartialEq, Clone, Copy)]
 pub struct Span(pub usize, pub usize);
 
 impl std::fmt::Display for Span {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<{}..{}>", self.0, self.1)
+        write!(f, "{}..{}", self.0, self.1)
+    }
+}
+
+impl std::fmt::Debug for Span {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self)
     }
 }
 
@@ -118,39 +124,33 @@ fn main() {}
 #[allow(unused_macros)]
 macro_rules! test_p {
     ($e:expr) => {
-        let e = $e;
         let p = parser::ExprParser::new();
-        match p.parse(e) {
-            Ok(res) => println!("{}\n=> {}\n", e, res),
-            Err(e) => eprintln!("{}", e),
-        }
+        insta::assert_debug_snapshot!(p.parse($e))
     };
 }
 
 #[test]
 fn test() {
-    // test_p!("1");
-    // test_p!("(12)");
-    // test_p!("(1 2)");
-    // test_p!("(1 :foo 1)");
-    // test_p!("(:foo 1)");
-    // test_p!("(:foo->: 1)");
-    // test_p!("(foo 1)");
-    // test_p!("(lol😄 1)");
+    test_p!("1");
+    test_p!("(12)");
+    test_p!("(1 2)");
+    test_p!("(1 :foo 1)");
+    test_p!("(:foo 1)");
+    test_p!("(:foo->: 1)");
+    test_p!("(foo 1)");
+    test_p!("(lol😄 1)");
 
-    // test_p!(r#"(test "hi")"#);
-    // test_p!(r#"(test "h\"i")"#);
-    // test_p!(r#"(test " hi ")"#);
+    test_p!(r#"(test "hi")"#);
+    test_p!(r#"(test "h\"i")"#);
+    test_p!(r#"(test " hi ")"#);
 
-    // test_p!("(+ (1 2 (* 2 5)))");
+    test_p!("(+ (1 2 (* 2 5)))");
 
-    // test_p!(r#"{:key value 12 "hi" (test) (1 2 3)}"#);
+    test_p!(r#"{:key value 12 "hi" (test) (1 2 3)}"#);
 
-    // test_p!(r#"; test"#);
-    // test_p!(
-    // r#"(f arg ; test
-    // arg2)"#
-    //);
-
-    // println!("\n\n\n\n\n\n");
+    test_p!(r#"; test"#);
+    test_p!(
+        r#"(f arg ; test
+     arg2)"#
+    );
 }

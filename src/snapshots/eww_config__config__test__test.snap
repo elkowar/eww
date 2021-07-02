@@ -1,0 +1,34 @@
+---
+source: src/config.rs
+expression: "Element::<Expr,\n          Expr>::from_expr(parser.parse(\"(box :bar 12 :baz \\\"hi\\\" foo (bar))\").unwrap()).unwrap()"
+
+---
+Element {
+    name: "box",
+    attrs: {
+        ":baz": Str(
+            18..22,
+            "hi",
+        ),
+        ":bar": Number(
+            10..12,
+            12,
+        ),
+    },
+    children: [
+        Symbol(
+            23..26,
+            "foo",
+        ),
+        List(
+            27..32,
+            [
+                Symbol(
+                    28..31,
+                    "bar",
+                ),
+            ],
+        ),
+    ],
+    span: 0..33,
+}

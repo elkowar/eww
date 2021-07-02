@@ -1,0 +1,10 @@
+---
+source: src/main.rs
+expression: "p.parse(r#\"; test\"#)"
+
+---
+Ok(
+    Comment(
+        0..6,
+    ),
+)

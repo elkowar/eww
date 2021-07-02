@@ -1,5 +1,5 @@
 [package]
-name = "nomwut"
+name = "eww_config"
 version = "0.1.0"
 authors = ["elkowar <5300871+elkowar@users.noreply.github.com>"]
 edition = "2018"
@@ -17,3 +17,6 @@ maplit = "1.0"
 
 [build-dependencies]
 lalrpop = "0.19.5"
+
+[dev-dependencies]
+insta = "1.7"

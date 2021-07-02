@@ -1,0 +1,11 @@
+---
+source: src/main.rs
+expression: "p.parse(\"1\")"
+
+---
+Ok(
+    Number(
+        0..1,
+        1,
+    ),
+)

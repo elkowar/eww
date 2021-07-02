@@ -1,0 +1,27 @@
+---
+source: src/main.rs
+expression: "p.parse(r#\"(f arg ; test\n     arg2)\"#)"
+
+---
+Ok(
+    List(
+        0..24,
+        [
+            Symbol(
+                1..2,
+                "f",
+            ),
+            Symbol(
+                3..6,
+                "arg",
+            ),
+            Comment(
+                7..13,
+            ),
+            Symbol(
+                19..23,
+                "arg2",
+            ),
+        ],
+    ),
+)
