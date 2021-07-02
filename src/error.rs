@@ -1,4 +1,4 @@
-use crate::{Expr, ExprType, Span};
+use crate::expr::{Expr, ExprType, Span};
 use thiserror::Error;
 
 pub type AstResult<T> = Result<T, AstError>;
@@ -10,7 +10,7 @@ pub enum AstError {
     #[error("Expected a {1}, but got nothing")]
     MissingNode(Option<Span>, ExprType),
     #[error("Wrong type of expression: Expected {1} but got {2}")]
-    WrongExprType(Option<Span>, ExprType, Expr),
+    WrongExprType(Option<Span>, ExprType, ExprType),
 }
 
 pub fn spanned(span: Span, err: impl Into<AstError>) -> AstError {

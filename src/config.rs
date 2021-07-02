@@ -1,9 +1,14 @@
-use std::{collections::HashMap, iter::FromIterator};
-
-use super::*;
-use crate::error::*;
+use crate::{
+    error::*,
+    expr::{Expr, ExprIterator, ExprType, Span},
+    parser, spanned,
+};
 use itertools::Itertools;
-use std::collections::LinkedList;
+use std::{
+    collections::{HashMap, LinkedList},
+    iter::FromIterator,
+    str::FromStr,
+};
 
 type VarName = String;
 type AttrValue = String;
@@ -24,15 +29,13 @@ pub enum DefType {
     Widget,
 }
 
-impl FromExpr for DefType {
-    fn from_expr(e: Expr) -> AstResult<Self> {
-        if let Expr::Symbol(span, sym) = e {
-            match sym.as_str() {
-                "defwidget" => Ok(DefType::Widget),
-                _ => Err(AstError::InvalidDefinition(Some(span))),
-            }
-        } else {
-            Err(AstError::WrongExprType(Some(e.span()), ExprType::Symbol, e))
+impl FromStr for DefType {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "defwidget" => Ok(DefType::Widget),
+            _ => Err(()),
         }
     }
 }
@@ -51,13 +54,13 @@ impl<C: FromExpr, A: FromExpr> FromExpr for Definitional<C, A> {
         let span = e.span();
         spanned!(e.span(), {
             let list = e.as_list()?;
-            let mut iter = itertools::put_back(list.into_iter());
+            let mut iter = ExprIterator::new(list.into_iter());
+            let (span, def_type) = iter.next_symbol()?;
+            let def_type = def_type.parse().map_err(|_| AstError::InvalidDefinition(Some(span)))?;
 
-            let def_type = DefType::from_expr(iter.next().or_missing(ExprType::Symbol)?)?;
-            let name = iter.next().or_missing(ExprType::Symbol)?.as_symbol()?;
-            let attrs = parse_key_values(&mut iter)?;
+            let (_, name) = iter.next_symbol()?;
+            let attrs = iter.key_values()?;
             let children = iter.map(|x| C::from_expr(x)).collect::<AstResult<Vec<_>>>()?;
-
             Definitional { span, def_type, name, attrs, children }
         })
     }
@@ -76,37 +79,12 @@ impl<C: FromExpr, A: FromExpr> FromExpr for Element<C, A> {
         let span = e.span();
         spanned!(e.span(), {
             let list = e.as_list()?;
-            let mut iter = itertools::put_back(list.into_iter());
-
-            let name = iter.next().or_missing(ExprType::Str)?.as_symbol()?;
-            let attrs = parse_key_values(&mut iter)?;
-            let children = iter.map(C::from_expr).collect::<AstResult<Vec<_>>>()?;
-
+            let mut iter = ExprIterator::new(list.into_iter());
+            let (_, name) = iter.next_symbol()?;
+            let attrs = iter.key_values()?;
+            let children = iter.map(|x| C::from_expr(x)).collect::<AstResult<Vec<_>>>()?;
             Element { span, name, attrs, children }
         })
-    }
-}
-
-/// Parse consecutive `:keyword value` pairs from an expression iterator into a HashMap. Transforms the keys using the FromExpr trait.
-fn parse_key_values<T: FromExpr, I: Iterator<Item = Expr>>(iter: &mut itertools::PutBack<I>) -> AstResult<HashMap<String, T>> {
-    let mut data = HashMap::new();
-    loop {
-        match iter.next() {
-            Some(Expr::Keyword(span, kw)) => match iter.next() {
-                Some(value) => {
-                    data.insert(kw, T::from_expr(value)?);
-                }
-                None => {
-                    iter.put_back(Expr::Keyword(span, kw));
-                    return Ok(data);
-                }
-            },
-            Some(expr) => {
-                iter.put_back(expr);
-                return Ok(data);
-            }
-            None => return Ok(data),
-        }
     }
 }
 

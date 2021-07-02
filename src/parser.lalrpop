@@ -1,7 +1,6 @@
 use std::str::FromStr;
 //use crate::lexer;
-use crate::Expr;
-use crate::Span;
+use crate::expr::{Expr, Span};
 
 grammar;
 
