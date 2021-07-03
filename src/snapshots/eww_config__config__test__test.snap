@@ -6,27 +6,14 @@ expression: "Element::<Expr,\n          Expr>::from_expr(parser.parse(\"(box :ba
 Element {
     name: "box",
     attrs: {
-        ":bar": Number(
-            10..12,
-            12,
-        ),
-        ":baz": Str(
-            18..22,
-            "hi",
-        ),
+        ":baz": Str<18..22>(hi),
+        ":bar": Number<10..12>(12),
     },
     children: [
-        Symbol(
-            23..26,
-            "foo",
-        ),
-        List(
-            27..32,
+        Symbol<23..26>(foo),
+        List<27..32>(
             [
-                Symbol(
-                    28..31,
-                    "bar",
-                ),
+                Symbol<28..31>(bar),
             ],
         ),
     ],

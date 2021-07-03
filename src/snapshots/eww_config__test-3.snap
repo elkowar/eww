@@ -1,20 +1,13 @@
 ---
-source: src/main.rs
+source: src/lib.rs
 expression: "p.parse(\"(1 2)\")"
 
 ---
 Ok(
-    List(
-        0..5,
+    List<0..5>(
         [
-            Number(
-                1..2,
-                1,
-            ),
-            Number(
-                3..4,
-                2,
-            ),
+            Number<1..2>(1),
+            Number<3..4>(2),
         ],
     ),
 )

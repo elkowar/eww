@@ -8,22 +8,14 @@ Definitional {
     name: "box",
     attrs: {},
     children: [
-        List(
-            15..22,
+        List<15..22>(
             [
-                Symbol(
-                    16..21,
-                    "child",
-                ),
+                Symbol<16..21>(child),
             ],
         ),
-        List(
-            23..31,
+        List<23..31>(
             [
-                Symbol(
-                    24..30,
-                    "child2",
-                ),
+                Symbol<24..30>(child2),
             ],
         ),
     ],

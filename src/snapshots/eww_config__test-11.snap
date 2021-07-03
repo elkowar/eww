@@ -1,20 +1,13 @@
 ---
-source: src/main.rs
+source: src/lib.rs
 expression: "p.parse(r#\"(test \" hi \")\"#)"
 
 ---
 Ok(
-    List(
-        0..13,
+    List<0..13>(
         [
-            Symbol(
-                1..5,
-                "test",
-            ),
-            Str(
-                6..12,
-                " hi ",
-            ),
+            Symbol<1..5>(test),
+            Str<6..12>( hi ),
         ],
     ),
 )

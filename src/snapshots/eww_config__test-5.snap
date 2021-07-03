@@ -1,20 +1,13 @@
 ---
-source: src/main.rs
+source: src/lib.rs
 expression: "p.parse(\"(:foo 1)\")"
 
 ---
 Ok(
-    List(
-        0..8,
+    List<0..8>(
         [
-            Keyword(
-                1..5,
-                ":foo",
-            ),
-            Number(
-                6..7,
-                1,
-            ),
+            Number<1..5>(:foo),
+            Number<6..7>(1),
         ],
     ),
 )

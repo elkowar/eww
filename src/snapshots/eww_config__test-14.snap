@@ -1,10 +1,8 @@
 ---
-source: src/main.rs
+source: src/lib.rs
 expression: "p.parse(r#\"; test\"#)"
 
 ---
 Ok(
-    Comment(
-        0..6,
-    ),
+    Comment<0..6>,
 )

@@ -15,7 +15,7 @@ impl std::fmt::Display for Span {
 
 impl std::fmt::Debug for Span {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self)
+        write!(f, "{}..{}", self.0, self.1)
     }
 }
 
@@ -36,7 +36,7 @@ impl Display for ExprType {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone)]
 pub enum Expr {
     List(Span, Vec<Expr>),
     Table(Span, Vec<(Expr, Expr)>),
@@ -48,8 +48,15 @@ pub enum Expr {
 }
 
 macro_rules! as_func {
-    ($exprtype:expr, $name:ident < $t:ty > = $p:pat => $value:expr) => {
+    ($exprtype:expr, $name:ident $nameref:ident < $t:ty > = $p:pat => $value:expr) => {
         pub fn $name(self) -> Result<$t, AstError> {
+            match self {
+                $p => Ok($value),
+                x => Err(AstError::WrongExprType(Some(x.span()), $exprtype, x.expr_type())),
+            }
+        }
+
+        pub fn $nameref(&self) -> Result<&$t, AstError> {
             match self {
                 $p => Ok($value),
                 x => Err(AstError::WrongExprType(Some(x.span()), $exprtype, x.expr_type())),
@@ -59,11 +66,11 @@ macro_rules! as_func {
 }
 
 impl Expr {
-    as_func!(ExprType::Str, as_str<String> = Expr::Str(_, x) => x);
+    as_func!(ExprType::Str, as_str as_str_ref<String> = Expr::Str(_, x) => x);
 
-    as_func!(ExprType::Symbol, as_symbol<String> = Expr::Symbol(_, x) => x);
+    as_func!(ExprType::Symbol, as_symbol as_symbol_ref<String> = Expr::Symbol(_, x) => x);
 
-    as_func!(ExprType::List, as_list<Vec<Expr>> = Expr::List(_, x) => x);
+    as_func!(ExprType::List, as_list as_list_ref<Vec<Expr>> = Expr::List(_, x) => x);
 
     pub fn expr_type(&self) -> ExprType {
         match self {
@@ -88,6 +95,13 @@ impl Expr {
             Expr::Comment(span) => *span,
         }
     }
+
+    pub fn first_list_elem(&self) -> Option<&Expr> {
+        match self {
+            Expr::List(_, list) => list.first(),
+            _ => None,
+        }
+    }
 }
 
 impl std::fmt::Display for Expr {
@@ -101,6 +115,20 @@ impl std::fmt::Display for Expr {
             Symbol(_, x) => write!(f, "{}", x),
             Str(_, x) => write!(f, "{}", x),
             Comment(_) => write!(f, ""),
+        }
+    }
+}
+impl std::fmt::Debug for Expr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use Expr::*;
+        match self {
+            Number(span, x) => write!(f, "Number<{}>({})", span, x),
+            List(span, x) => f.debug_tuple(&format!("List<{}>", span)).field(x).finish(),
+            Table(span, x) => f.debug_tuple(&format!("Table<{}>", span)).field(x).finish(),
+            Keyword(span, x) => write!(f, "Number<{}>({})", span, x),
+            Symbol(span, x) => write!(f, "Symbol<{}>({})", span, x),
+            Str(span, x) => write!(f, "Str<{}>({})", span, x),
+            Comment(span) => write!(f, "Comment<{}>", span),
         }
     }
 }
@@ -128,15 +156,19 @@ macro_rules! return_or_put_back {
 }
 
 impl<I: Iterator<Item = Expr>> ExprIterator<I> {
-    return_or_put_back!(next_symbol, ExprType::Symbol, (Span, String) = Expr::Symbol(span, x) => (span, x));
+    return_or_put_back!(expect_symbol, ExprType::Symbol, (Span, String) = Expr::Symbol(span, x) => (span, x));
 
-    return_or_put_back!(next_string, ExprType::Str, (Span, String) = Expr::Str(span, x) => (span, x));
+    return_or_put_back!(expect_string, ExprType::Str, (Span, String) = Expr::Str(span, x) => (span, x));
+
+    return_or_put_back!(expect_number, ExprType::Number, (Span, i32) = Expr::Number(span, x) => (span, x));
+
+    return_or_put_back!(expect_list, ExprType::List, (Span, Vec<Expr>) = Expr::List(span, x) => (span, x));
 
     pub fn new(iter: I) -> Self {
         ExprIterator { iter: itertools::put_back(iter) }
     }
 
-    pub fn key_values<T: FromExpr>(&mut self) -> AstResult<HashMap<String, T>> {
+    pub fn expect_key_values<T: FromExpr>(&mut self) -> AstResult<HashMap<String, T>> {
         parse_key_values(&mut self.iter)
     }
 }

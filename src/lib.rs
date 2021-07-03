@@ -41,6 +41,7 @@ fn test() {
         r#"{:key value 12 "hi" (test) (1 2 3)}"#,
         r#"; test"#,
         r#"(f arg ; test
-        arg2)"#
+        arg2)"#,
+        "\"h\\\"i\""
     );
 }

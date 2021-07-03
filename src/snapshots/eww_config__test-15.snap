@@ -4,24 +4,12 @@ expression: "p.parse(r#\"(f arg ; test\n        arg2)\"#)"
 
 ---
 Ok(
-    List(
-        0..27,
+    List<0..27>(
         [
-            Symbol(
-                1..2,
-                "f",
-            ),
-            Symbol(
-                3..6,
-                "arg",
-            ),
-            Comment(
-                7..13,
-            ),
-            Symbol(
-                22..26,
-                "arg2",
-            ),
+            Symbol<1..2>(f),
+            Symbol<3..6>(arg),
+            Comment<7..13>,
+            Symbol<22..26>(arg2),
         ],
     ),
 )

@@ -1,20 +1,13 @@
 ---
-source: src/main.rs
+source: src/lib.rs
 expression: "p.parse(\"(lol😄 1)\")"
 
 ---
 Ok(
-    List(
-        0..11,
+    List<0..11>(
         [
-            Symbol(
-                1..8,
-                "lol😄",
-            ),
-            Number(
-                9..10,
-                1,
-            ),
+            Symbol<1..8>(lol😄),
+            Number<9..10>(1),
         ],
     ),
 )

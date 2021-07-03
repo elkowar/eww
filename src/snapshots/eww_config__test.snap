@@ -1,11 +1,8 @@
 ---
-source: src/main.rs
+source: src/lib.rs
 expression: "p.parse(\"1\")"
 
 ---
 Ok(
-    Number(
-        0..1,
-        1,
-    ),
+    Number<0..1>(1),
 )

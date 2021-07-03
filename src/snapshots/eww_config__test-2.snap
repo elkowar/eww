@@ -1,16 +1,12 @@
 ---
-source: src/main.rs
+source: src/lib.rs
 expression: "p.parse(\"(12)\")"
 
 ---
 Ok(
-    List(
-        0..4,
+    List<0..4>(
         [
-            Number(
-                1..3,
-                12,
-            ),
+            Number<1..3>(12),
         ],
     ),
 )
