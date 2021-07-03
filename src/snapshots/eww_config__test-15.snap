@@ -1,11 +1,11 @@
 ---
-source: src/main.rs
-expression: "p.parse(r#\"(f arg ; test\n     arg2)\"#)"
+source: src/lib.rs
+expression: "p.parse(r#\"(f arg ; test\n        arg2)\"#)"
 
 ---
 Ok(
     List(
-        0..24,
+        0..27,
         [
             Symbol(
                 1..2,
@@ -19,7 +19,7 @@ Ok(
                 7..13,
             ),
             Symbol(
-                19..23,
+                22..26,
                 "arg2",
             ),
         ],

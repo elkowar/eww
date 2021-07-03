@@ -82,7 +82,7 @@ impl<C: FromExpr, A: FromExpr> FromExpr for Element<C, A> {
             let mut iter = ExprIterator::new(list.into_iter());
             let (_, name) = iter.next_symbol()?;
             let attrs = iter.key_values()?;
-            let children = iter.map(|x| C::from_expr(x)).collect::<AstResult<Vec<_>>>()?;
+            let children = iter.map(C::from_expr).collect::<AstResult<Vec<_>>>()?;
             Element { span, name, attrs, children }
         })
     }

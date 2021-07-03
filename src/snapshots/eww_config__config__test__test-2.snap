@@ -27,5 +27,5 @@ Definitional {
             ],
         ),
     ],
-    span: 0..32,
+    span: 1..10,
 }
