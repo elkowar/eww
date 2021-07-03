@@ -1,4 +1,5 @@
 use crate::expr::{Expr, ExprType, Span};
+use codespan_reporting::{diagnostic, files};
 use thiserror::Error;
 
 pub type AstResult<T> = Result<T, AstError>;
@@ -11,6 +12,17 @@ pub enum AstError {
     MissingNode(Option<Span>, ExprType),
     #[error("Wrong type of expression: Expected {1} but got {2}")]
     WrongExprType(Option<Span>, ExprType, ExprType),
+}
+
+impl AstError {
+    pub fn pretty_diagnostic(&self, files: &files::SimpleFiles<&str, &str>) -> diagnostic::Diagnostic<usize> {
+        let diag = diagnostic::Diagnostic::error().with_message(format!("{}", self));
+        if let AstError::WrongExprType(Some(span), ..) = self {
+            diag.with_labels(vec![diagnostic::Label::primary(span.2, span.0..span.1)])
+        } else {
+            diag
+        }
+    }
 }
 
 pub fn spanned(span: Span, err: impl Into<AstError>) -> AstError {

@@ -10,8 +10,6 @@ use std::{
     str::FromStr,
 };
 
-// https://michael-f-bryan.github.io/static-analyser-in-rust/book/codemap.html
-
 type VarName = String;
 type AttrValue = String;
 type AttrName = String;
@@ -59,7 +57,7 @@ mod test {
         let parser = parser::ExprParser::new();
         insta::with_settings!({sort_maps => true}, {
             insta::assert_debug_snapshot!(
-                Element::<Expr, Expr>::from_expr(parser.parse("(box :bar 12 :baz \"hi\" foo (bar))").unwrap()).unwrap()
+                Element::<Expr, Expr>::from_expr(parser.parse(0, "(box :bar 12 :baz \"hi\" foo (bar))").unwrap()).unwrap()
             );
         });
     }

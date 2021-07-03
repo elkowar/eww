@@ -2,9 +2,9 @@
 #![allow(unused)]
 #![feature(try_blocks)]
 
-mod config;
-mod error;
-mod expr;
+pub mod config;
+pub mod error;
+pub mod expr;
 use error::AstError;
 
 use std::{fmt::Display, ops::Deref};
@@ -17,7 +17,7 @@ lalrpop_mod!(pub parser);
 
 macro_rules! test_parser {
     ($p:expr, $($text:literal),*) => {{
-        $(insta::assert_debug_snapshot!($p.parse($text));)*
+        $(insta::assert_debug_snapshot!($p.parse(0, $text));)*
     }}
 }
 

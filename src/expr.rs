@@ -5,7 +5,7 @@ use crate::{config::FromExpr, error::*};
 use std::fmt::Display;
 
 #[derive(Eq, PartialEq, Clone, Copy)]
-pub struct Span(pub usize, pub usize);
+pub struct Span(pub usize, pub usize, pub usize);
 
 impl std::fmt::Display for Span {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
