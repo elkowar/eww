@@ -66,6 +66,8 @@ impl Expr {
 
     as_func!(ExprType::Symbol, as_symbol as_symbol_ref<String> = Expr::Symbol(_, x) => x);
 
+    as_func!(ExprType::Keyword, as_keyword as_keyword_ref<String> = Expr::Keyword(_, x) => x);
+
     as_func!(ExprType::List, as_list as_list_ref<Vec<Expr>> = Expr::List(_, x) => x);
 
     pub fn expr_type(&self) -> ExprType {
