@@ -1,4 +1,7 @@
-use crate::expr::{Expr, ExprType, Span};
+use crate::{
+    expr::{Expr, ExprType, Span},
+    lexer,
+};
 use codespan_reporting::{diagnostic, files};
 use thiserror::Error;
 
@@ -12,16 +15,45 @@ pub enum AstError {
     MissingNode(Option<Span>, ExprType),
     #[error("Wrong type of expression: Expected {1} but got {2}")]
     WrongExprType(Option<Span>, ExprType, ExprType),
+
+    #[error("Parse error: {source}")]
+    ParseError { file_id: Option<usize>, source: lalrpop_util::ParseError<usize, lexer::Token, lexer::LexicalError> },
 }
 
 impl AstError {
+    pub fn get_span(&self) -> Option<Span> {
+        match self {
+            AstError::InvalidDefinition(span) => *span,
+            AstError::MissingNode(span, _) => *span,
+            AstError::WrongExprType(span, ..) => *span,
+            AstError::ParseError { file_id, source } => file_id.and_then(|id| get_parse_error_span(id, source)),
+        }
+    }
+
     pub fn pretty_diagnostic(&self, files: &files::SimpleFiles<&str, &str>) -> diagnostic::Diagnostic<usize> {
         let diag = diagnostic::Diagnostic::error().with_message(format!("{}", self));
-        if let AstError::WrongExprType(Some(span), ..) = self {
+        if let Some(span) = self.get_span() {
             diag.with_labels(vec![diagnostic::Label::primary(span.2, span.0..span.1)])
         } else {
             diag
         }
+    }
+
+    pub fn from_parse_error(file_id: usize, err: lalrpop_util::ParseError<usize, lexer::Token, lexer::LexicalError>) -> AstError {
+        AstError::ParseError { file_id: Some(file_id), source: err }
+    }
+}
+
+fn get_parse_error_span(
+    file_id: usize,
+    err: &lalrpop_util::ParseError<usize, lexer::Token, lexer::LexicalError>,
+) -> Option<Span> {
+    match err {
+        lalrpop_util::ParseError::InvalidToken { location } => Some(Span(*location, *location, file_id)),
+        lalrpop_util::ParseError::UnrecognizedEOF { location, expected } => Some(Span(*location, *location, file_id)),
+        lalrpop_util::ParseError::UnrecognizedToken { token, expected } => Some(Span(token.0, token.2, file_id)),
+        lalrpop_util::ParseError::ExtraToken { token } => Some(Span(token.0, token.2, file_id)),
+        lalrpop_util::ParseError::User { error } => None,
     }
 }
 

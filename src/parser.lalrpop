@@ -13,8 +13,8 @@ extern {
         ")" => Token::RPren,
         "true" => Token::True,
         "false" => Token::False,
-        "strLit" => Token::StrLit(<String>),
-        "numLit" => Token::NumLit(<String>),
+        "string" => Token::StrLit(<String>),
+        "number" => Token::NumLit(<String>),
         "symbol" => Token::Symbol(<String>),
         "keyword" => Token::Keyword(<String>),
         "comment" => Token::Comment,
@@ -40,13 +40,13 @@ Value: String = {
 };
 
 StrLit: String = {
-    <x:"strLit"> => {
+    <x:"string"> => {
       x[1..x.len() - 1].to_owned()
     },
 };
 
 
-Num: String = <"numLit"> => <>.to_string();
+Num: String = <"number"> => <>.to_string();
 Bool: String = {
     "true" => "true".to_string(),
     "false" => "false".to_string(),

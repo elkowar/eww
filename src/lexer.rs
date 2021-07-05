@@ -34,8 +34,31 @@ pub enum Token {
     Error,
 }
 
+impl std::fmt::Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Token::LPren => write!(f, "'('"),
+            Token::RPren => write!(f, "')'"),
+            Token::True => write!(f, "true"),
+            Token::False => write!(f, "false"),
+            Token::StrLit(x) => write!(f, "\"{}\"", x),
+            Token::NumLit(x) => write!(f, "{}", x),
+            Token::Symbol(x) => write!(f, "{}", x),
+            Token::Keyword(x) => write!(f, "{}", x),
+            Token::Comment => write!(f, ""),
+            Token::Error => write!(f, ""),
+        }
+    }
+}
+
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub struct LexicalError(usize, usize);
+
+impl std::fmt::Display for LexicalError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Lexical error at {}..{}", self.0, self.1)
+    }
+}
 
 pub type SpannedResult<Tok, Loc, Error> = Result<(Loc, Tok, Loc), Error>;
 
