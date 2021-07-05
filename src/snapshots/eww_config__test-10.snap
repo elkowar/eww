@@ -1,13 +1,13 @@
 ---
 source: src/lib.rs
-expression: "p.parse(r#\"(test \"h\\\"i\")\"#)"
+expression: "p.parse(0, lexer::Lexer::new(\"(lol😄 1)\"))"
 
 ---
 Ok(
-    List<0..13>(
+    List<0..11>(
         [
-            Symbol<1..5>(test),
-            Str<6..12>(h\"i),
+            Symbol<1..8>(lol😄),
+            Value<9..10>(1),
         ],
     ),
 )

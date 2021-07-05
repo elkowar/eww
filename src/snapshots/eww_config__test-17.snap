@@ -1,0 +1,8 @@
+---
+source: src/lib.rs
+expression: "p.parse(0, lexer::Lexer::new(\"\\\"h\\\\\\\"i\\\"\"))"
+
+---
+Ok(
+    Value<0..6>(h\"i),
+)

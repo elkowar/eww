@@ -1,8 +1,25 @@
 ---
 source: src/lib.rs
-expression: "p.parse(r#\"; test\"#)"
+expression: "p.parse(0, lexer::Lexer::new(\"(+ (1 2 (* 2 5)))\"))"
 
 ---
 Ok(
-    Comment<0..6>,
+    List<0..17>(
+        [
+            Symbol<1..2>(+),
+            List<3..16>(
+                [
+                    Value<4..5>(1),
+                    Value<6..7>(2),
+                    List<8..15>(
+                        [
+                            Symbol<9..10>(*),
+                            Value<11..12>(2),
+                            Value<13..14>(5),
+                        ],
+                    ),
+                ],
+            ),
+        ],
+    ),
 )

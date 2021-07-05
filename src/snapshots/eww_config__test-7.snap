@@ -1,13 +1,13 @@
 ---
 source: src/lib.rs
-expression: "p.parse(\"(foo 1)\")"
+expression: "p.parse(0, lexer::Lexer::new(\"(:foo 1)\"))"
 
 ---
 Ok(
-    List<0..7>(
+    List<0..8>(
         [
-            Symbol<1..4>(foo),
-            Number<5..6>(1),
+            Number<1..5>(:foo),
+            Value<6..7>(1),
         ],
     ),
 )

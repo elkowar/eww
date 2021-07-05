@@ -1,33 +1,13 @@
 ---
 source: src/lib.rs
-expression: "p.parse(r#\"{:key value 12 \"hi\" (test) (1 2 3)}\"#)"
+expression: "p.parse(0, lexer::Lexer::new(r#\"(test \" hi \")\"#))"
 
 ---
 Ok(
-    Table<0..35>(
+    List<0..13>(
         [
-            (
-                Number<1..5>(:key),
-                Symbol<6..11>(value),
-            ),
-            (
-                Number<12..14>(12),
-                Str<15..19>(hi),
-            ),
-            (
-                List<20..26>(
-                    [
-                        Symbol<21..25>(test),
-                    ],
-                ),
-                List<27..34>(
-                    [
-                        Number<28..29>(1),
-                        Number<30..31>(2),
-                        Number<32..33>(3),
-                    ],
-                ),
-            ),
+            Symbol<1..5>(test),
+            Value<6..12>( hi ),
         ],
     ),
 )

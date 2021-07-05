@@ -1,8 +1,15 @@
 ---
 source: src/lib.rs
-expression: "p.parse(\"\\\"h\\\\\\\"i\\\"\")"
+expression: "p.parse(0, lexer::Lexer::new(r#\"(f arg ; test\n        arg2)\"#))"
 
 ---
 Ok(
-    Str<0..6>(h\"i),
+    List<0..27>(
+        [
+            Symbol<1..2>(f),
+            Symbol<3..6>(arg),
+            Comment<7..13>,
+            Symbol<22..26>(arg2),
+        ],
+    ),
 )

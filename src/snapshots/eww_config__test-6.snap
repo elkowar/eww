@@ -1,13 +1,14 @@
 ---
 source: src/lib.rs
-expression: "p.parse(\"(:foo->: 1)\")"
+expression: "p.parse(0, lexer::Lexer::new(\"(1 :foo 1)\"))"
 
 ---
 Ok(
-    List<0..11>(
+    List<0..10>(
         [
-            Number<1..8>(:foo->:),
-            Number<9..10>(1),
+            Value<1..2>(1),
+            Number<3..7>(:foo),
+            Value<8..9>(1),
         ],
     ),
 )

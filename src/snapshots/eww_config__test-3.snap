@@ -1,13 +1,8 @@
 ---
 source: src/lib.rs
-expression: "p.parse(\"(1 2)\")"
+expression: "p.parse(0, lexer::Lexer::new(\"1.2\"))"
 
 ---
 Ok(
-    List<0..5>(
-        [
-            Number<1..2>(1),
-            Number<3..4>(2),
-        ],
-    ),
+    Value<0..3>(1.2),
 )

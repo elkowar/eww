@@ -1,8 +1,25 @@
 use std::str::FromStr;
-//use crate::lexer;
+use crate::lexer::{Token, LexicalError};
 use crate::expr::{Expr, Span};
 
 grammar(file_id: usize);
+
+extern {
+    type Location = usize;
+    type Error = LexicalError;
+
+    enum Token {
+        "(" => Token::LPren,
+        ")" => Token::RPren,
+        "true" => Token::True,
+        "false" => Token::False,
+        "strLit" => Token::StrLit(<String>),
+        "numLit" => Token::NumLit(<String>),
+        "symbol" => Token::Symbol(<String>),
+        "keyword" => Token::Keyword(<String>),
+        "comment" => Token::Comment,
+    }
+}
 
 
 pub Expr: Expr = {
@@ -10,11 +27,11 @@ pub Expr: Expr = {
     <x:Keyword> => x,
     <x:Symbol> => x,
     <l:@L> <x:Value> <r:@R> => Expr::Value(Span(l, r, file_id), x),
-    <l:@L> Comment <r:@R> => Expr::Comment(Span(l, r, file_id)),
+    <l:@L> "comment" <r:@R> => Expr::Comment(Span(l, r, file_id)),
 };
 
-Keyword: Expr = <l:@L> <x:r":[^\s]+"> <r:@R> => Expr::Keyword(Span(l, r, file_id), x.to_string());
-Symbol: Expr = <l:@L> <x:SymbolRegex> <r:@R> => Expr::Symbol(Span(l, r, file_id), x.to_string());
+Keyword: Expr = <l:@L> <x:"keyword"> <r:@R> => Expr::Keyword(Span(l, r, file_id), x.to_string());
+Symbol: Expr = <l:@L> <x:"symbol"> <r:@R> => Expr::Symbol(Span(l, r, file_id), x.to_string());
 
 Value: String = {
     <StrLit> => <>,
@@ -23,23 +40,17 @@ Value: String = {
 };
 
 StrLit: String = {
-    <x:r#""(?:[^"\\]|\\.)*""#> => {
+    <x:"strLit"> => {
       x[1..x.len() - 1].to_owned()
     },
 };
 
 
-Num: String = <x:r"[0-9]+"> => x.to_string();
-Bool: String = <x:BoolRegex> => x.to_string();
-
-match {
-    r"true|false" => BoolRegex,
-} else {
-    r"[a-zA-Z_!\?<>/.*-+][^\s{}\(\)]*" => SymbolRegex,
-    _
+Num: String = <"numLit"> => <>.to_string();
+Bool: String = {
+    "true" => "true".to_string(),
+    "false" => "false".to_string(),
 }
 
-
-Comment: () = r";[^\n\r]*";
 
 // vim:shiftwidth=4

@@ -1,8 +1,8 @@
 ---
 source: src/lib.rs
-expression: "p.parse(\"1\")"
+expression: "p.parse(0, lexer::Lexer::new(\"1\"))"
 
 ---
 Ok(
-    Number<0..1>(1),
+    Value<0..1>(1),
 )

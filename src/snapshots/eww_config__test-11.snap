@@ -1,13 +1,13 @@
 ---
 source: src/lib.rs
-expression: "p.parse(r#\"(test \" hi \")\"#)"
+expression: "p.parse(0, lexer::Lexer::new(r#\"(test \"hi\")\"#))"
 
 ---
 Ok(
-    List<0..13>(
+    List<0..11>(
         [
             Symbol<1..5>(test),
-            Str<6..12>( hi ),
+            Value<6..10>(hi),
         ],
     ),
 )

@@ -6,8 +6,8 @@ expression: "Element::<Expr, Expr>::from_expr(parser.parse(0, lexer).unwrap()).u
 Element {
     name: "box",
     attrs: {
-        ":bar": Value<10..12>(12),
         ":baz": Value<18..22>(hi),
+        ":bar": Value<10..12>(12),
     },
     children: [
         Symbol<23..26>(foo),

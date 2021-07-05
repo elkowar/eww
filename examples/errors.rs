@@ -1,4 +1,4 @@
-use eww_config::{config::*, expr::*, parser};
+use eww_config::{config::*, expr::*, lexer, parser};
 
 fn main() {
     let parser = parser::ExprParser::new();
@@ -7,7 +7,9 @@ fn main() {
     let input = "(12 :bar 22 (foo) (baz)";
 
     let file_id = files.add("foo.eww", input);
-    let ast = parser.parse(file_id, input);
+    let lexer = lexer::Lexer::new(input);
+
+    let ast = parser.parse(file_id, lexer);
     match ast {
         Ok(ast) => {
             let element: Result<Element<Expr, Expr>, _> = Element::from_expr(ast);
@@ -18,6 +20,6 @@ fn main() {
             let mut writer = term::termcolor::StandardStream::stderr(term::termcolor::ColorChoice::Always);
             term::emit(&mut writer, &term::Config::default(), &files, &diag).unwrap();
         }
-        Err(err) => eprintln!("{}", err),
+        Err(err) => eprintln!("{:?}", err),
     }
 }

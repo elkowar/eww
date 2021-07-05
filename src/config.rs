@@ -50,14 +50,16 @@ impl<C: FromExpr, A: FromExpr> FromExpr for Element<C, A> {
 mod test {
 
     use super::*;
+    use crate::lexer;
     use insta;
 
     #[test]
     fn test() {
         let parser = parser::ExprParser::new();
         insta::with_settings!({sort_maps => true}, {
+            let lexer = lexer::Lexer::new("(box :bar 12 :baz \"hi\" foo (bar))");
             insta::assert_debug_snapshot!(
-                Element::<Expr, Expr>::from_expr(parser.parse(0, "(box :bar 12 :baz \"hi\" foo (bar))").unwrap()).unwrap()
+                Element::<Expr, Expr>::from_expr(parser.parse(0, lexer).unwrap()).unwrap()
             );
         });
     }

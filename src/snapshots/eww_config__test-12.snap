@@ -1,25 +1,13 @@
 ---
 source: src/lib.rs
-expression: "p.parse(\"(+ (1 2 (* 2 5)))\")"
+expression: "p.parse(0, lexer::Lexer::new(r#\"(test \"h\\\"i\")\"#))"
 
 ---
 Ok(
-    List<0..17>(
+    List<0..13>(
         [
-            Symbol<1..2>(+),
-            List<3..16>(
-                [
-                    Number<4..5>(1),
-                    Number<6..7>(2),
-                    List<8..15>(
-                        [
-                            Symbol<9..10>(*),
-                            Number<11..12>(2),
-                            Number<13..14>(5),
-                        ],
-                    ),
-                ],
-            ),
+            Symbol<1..5>(test),
+            Value<6..12>(h\"i),
         ],
     ),
 )

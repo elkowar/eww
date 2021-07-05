@@ -5,6 +5,7 @@
 pub mod config;
 pub mod error;
 pub mod expr;
+pub mod lexer;
 use error::AstError;
 
 use std::{fmt::Display, ops::Deref};
@@ -16,18 +17,25 @@ use lalrpop_util::lalrpop_mod;
 lalrpop_mod!(pub parser);
 
 macro_rules! test_parser {
-    ($p:expr, $($text:literal),*) => {{
-        $(insta::assert_debug_snapshot!($p.parse(0, $text));)*
+    ($($text:literal),*) => {{
+        let p = crate::parser::ExprParser::new();
+        use crate::lexer::Lexer;
+
+        ::insta::with_settings!({sort_maps => true}, {
+            $(
+                ::insta::assert_debug_snapshot!(p.parse(0, Lexer::new($text)));
+            )*
+        });
     }}
 }
 
 #[test]
 fn test() {
-    let p = parser::ExprParser::new();
     test_parser!(
-        p,
         "1",
         "(12)",
+        "1.2",
+        "-1.2",
         "(1 2)",
         "(1 :foo 1)",
         "(:foo 1)",
@@ -38,7 +46,6 @@ fn test() {
         r#"(test "h\"i")"#,
         r#"(test " hi ")"#,
         "(+ (1 2 (* 2 5)))",
-        r#"{:key value 12 "hi" (test) (1 2 3)}"#,
         r#"; test"#,
         r#"(f arg ; test
         arg2)"#,
