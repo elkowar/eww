@@ -122,7 +122,7 @@ Here you can include other config files so that they are merged together at star
 If you define a variable/widget/window, in a config file, when it's defined somewhere else, you can see a warning in the eww logs (`eww logs`)
 
 ## The `<definitions>` block
-In here you whole widget will be made, and you can also create your own widgets. Check [Widget Documentation](widgets.md) for pre-defined widgets.
+In here your whole widget will be made, and you can also create your own widgets. Check [Widget Documentation](widgets.md) for pre-defined widgets.
 
 ### Custom widgets
 
