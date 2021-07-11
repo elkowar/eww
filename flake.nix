@@ -45,4 +45,3 @@
         devShell = import ./shell.nix { inherit pkgs; };
       });
 }
-
