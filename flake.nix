@@ -10,8 +10,9 @@
   outputs = {flake-utils, fenix, nixpkgs}:
     flake-utils.lib.eachDefaultSystem (system: 
 	let pkgs = nixpkgs.legacyPackages.${system} // { inherit (fenix.packages.${system}.latest) cargo rustc; } ; 
+
 	in
 	{
-	devshell = import ./shell.nix {inherit pkgs;};
+	devShell = import ./shell.nix {inherit pkgs;};
     });
 }
