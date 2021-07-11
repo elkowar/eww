@@ -1,14 +1,19 @@
 {
   inputs = {
+    flake-compat = {
+      url = "github:edolstra/flake-compat";
+      flake = false;
+    };
+    nixpkgs.url = "nixpkgs/nixpkgs-unstable";
+    flake-utils.url = "github:numtide/flake-utils";
+
     fenix = {
       url = "github:nix-community/fenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    nixpkgs.url = "nixpkgs/nixpkgs-unstable";
-    flake-utils.url = "github:numtide/flake-utils";
     naersk.url = "github:nmattia/naersk";
   };
-  outputs = { flake-utils, fenix, nixpkgs, naersk, ... }:
+  outputs = { self, flake-utils, fenix, nixpkgs, naersk, flake-compat, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         # Add rust nightly to pkgs
@@ -40,3 +45,4 @@
         devShell = import ./shell.nix { inherit pkgs; };
       });
 }
+

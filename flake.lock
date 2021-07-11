@@ -22,6 +22,22 @@
         "type": "github"
       }
     },
+    "flake-compat": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1606424373,
+        "narHash": "sha256-oq8d4//CJOrVj+EcOaSXvMebvuTkmBJuT5tzlfewUnQ=",
+        "owner": "edolstra",
+        "repo": "flake-compat",
+        "rev": "99f1c2157fba4bfe6211a321fd0ee43199025dbf",
+        "type": "github"
+      },
+      "original": {
+        "owner": "edolstra",
+        "repo": "flake-compat",
+        "type": "github"
+      }
+    },
     "flake-utils": {
       "locked": {
         "lastModified": 1623875721,
@@ -107,6 +123,7 @@
     "root": {
       "inputs": {
         "fenix": "fenix",
+        "flake-compat": "flake-compat",
         "flake-utils": "flake-utils",
         "naersk": "naersk_2",
         "nixpkgs": "nixpkgs_2"
