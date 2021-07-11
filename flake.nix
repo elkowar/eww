@@ -1,18 +1,42 @@
 {
   inputs = {
-	fenix = {
+    fenix = {
       url = "github:nix-community/fenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     nixpkgs.url = "nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    naersk.url = "github:nmattia/naersk";
   };
-  outputs = {flake-utils, fenix, nixpkgs}:
-    flake-utils.lib.eachDefaultSystem (system: 
-	let pkgs = nixpkgs.legacyPackages.${system} // { inherit (fenix.packages.${system}.latest) cargo rustc; } ; 
+  outputs = { flake-utils, fenix, nixpkgs, naersk, ... }:
+    flake-utils.lib.eachDefaultSystem (system:
+      let
+        # Add rust nightly to pkgs
+        pkgs = nixpkgs.legacyPackages.${system} // { inherit (fenix.packages.${system}.latest) cargo rustc; };
 
-	in
-	{
-	devShell = import ./shell.nix {inherit pkgs;};
-    });
+        naersk-lib = (naersk.lib."${system}".override {
+          cargo = pkgs.cargo;
+          rustc = pkgs.rustc;
+        });
+
+        eww = naersk-lib.buildPackage {
+          pname = "eww";
+          nativeBuildInputs = with pkgs; [ pkg-config gtk3 ];
+          root = ./.;
+        };
+
+
+      in
+      rec {
+        packages.eww = eww;
+
+        defaultPackage = eww;
+
+        apps.eww = flake-utils.lib.mkApp {
+          drv = eww;
+        };
+        defaultApp = apps.eww;
+
+        devShell = import ./shell.nix { inherit pkgs; };
+      });
 }
