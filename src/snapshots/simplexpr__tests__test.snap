@@ -1,0 +1,10 @@
+---
+source: src/lib.rs
+expression: "p.parse(\"1\")"
+
+---
+Ok(
+    Literal(
+        "1",
+    ),
+)

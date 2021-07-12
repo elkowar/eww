@@ -1,0 +1,57 @@
+
+use crate::ast::{SimplExpr, Span, BinOp, UnaryOp};
+
+grammar;
+
+Comma<T>: Vec<T> = {
+    <mut v:(<T> ",")*> <e:T?> => match e {
+        None => v,
+        Some(e) => {
+            v.push(e);
+            v
+        }
+    }
+};
+
+pub Expr: SimplExpr = {
+  #[precedence(level="0")]
+  "true" => SimplExpr::Literal("true".to_string()),
+  "false" => SimplExpr::Literal("false".to_string()),
+  <Number>,
+  "(" <ExprReset> ")",
+  <ident:Ident> "(" <args: Comma<ExprReset>> ")" => SimplExpr::FunctionCall(ident, args),
+
+
+  #[precedence(level="1")] #[assoc(side="left")]
+  "!" <Expr> => SimplExpr::UnaryOp(UnaryOp::Not, Box::new(<>))
+
+
+  #[precedence(level="2")] #[assoc(side="left")]
+  <l:Expr> "*" <r:Expr> => SimplExpr::BinOp(Box::new(l), BinOp::Times, Box::new(r)),
+  <l:Expr> "/" <r:Expr> => SimplExpr::BinOp(Box::new(l), BinOp::Div, Box::new(r)),
+  <l:Expr> "%" <r:Expr> => SimplExpr::BinOp(Box::new(l), BinOp::Mod, Box::new(r)),
+
+  #[precedence(level="3")] #[assoc(side="left")]
+  <l:Expr> "+" <r:Expr> => SimplExpr::BinOp(Box::new(l), BinOp::Plus, Box::new(r)),
+  <l:Expr> "-" <r:Expr> => SimplExpr::BinOp(Box::new(l), BinOp::Minus, Box::new(r)),
+
+  #[precedence(level="4")] #[assoc(side="left")]
+  <l:Expr> "==" <r:Expr> => SimplExpr::BinOp(Box::new(l), BinOp::Equals, Box::new(r)),
+  <l:Expr> "!=" <r:Expr> => SimplExpr::BinOp(Box::new(l), BinOp::NotEquals, Box::new(r)),
+  <l:Expr> "<"  <r:Expr> => SimplExpr::BinOp(Box::new(l), BinOp::GT, Box::new(r)),
+  <l:Expr> ">"  <r:Expr> => SimplExpr::BinOp(Box::new(l), BinOp::LT, Box::new(r)),
+  <l:Expr> "=~" <r:Expr> => SimplExpr::BinOp(Box::new(l), BinOp::RegexMatch, Box::new(r)),
+
+  #[precedence(level="5")] #[assoc(side="left")]
+  <l:Expr> "&&"  <r:Expr> => SimplExpr::BinOp(Box::new(l), BinOp::And, Box::new(r)),
+  <l:Expr> "||"  <r:Expr> => SimplExpr::BinOp(Box::new(l), BinOp::Or, Box::new(r)),
+  <l:Expr> "?:"  <r:Expr> => SimplExpr::BinOp(Box::new(l), BinOp::Elvis, Box::new(r)),
+
+  #[precedence(level="6")] #[assoc(side="right")]
+  <cond:Expr> "?" <then:ExprReset> ":" <els:Expr> => SimplExpr::IfElse(Box::new(cond), Box::new(then), Box::new(els)),
+};
+
+ExprReset = <Expr>;
+
+Number: SimplExpr = r"[+-]?(?:[0-9]+[.])?[0-9]+" => SimplExpr::Literal(<>.to_string());
+Ident: String = r"[a-zA-Z_][^\s{}\(\)]*" => <>.to_string();

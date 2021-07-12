@@ -1,0 +1,28 @@
+[package]
+name = "simplexpr"
+version = "0.1.0"
+edition = "2018"
+authors = ["elkowar <5300871+elkowar@users.noreply.github.com>"]
+
+
+build = "build.rs"
+
+[dependencies]
+lalrpop-util = "0.19.5"
+regex = "1"
+itertools = "0.10"
+thiserror = "1.0"
+maplit = "1.0"
+codespan-reporting = "0.11"
+logos = "0.12"
+
+serde = {version = "1.0", features = ["derive"]}
+serde_json = "1.0"
+
+
+
+[build-dependencies]
+lalrpop = "0.19.5"
+
+[dev-dependencies]
+insta = "1.7"

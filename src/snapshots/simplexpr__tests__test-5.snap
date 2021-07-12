@@ -1,0 +1,24 @@
+---
+source: src/lib.rs
+expression: "p.parse(\"1 + true ? 2 : 5\")"
+
+---
+Ok(
+    IfElse(
+        BinOp(
+            Literal(
+                "1",
+            ),
+            Plus,
+            Literal(
+                "true",
+            ),
+        ),
+        Literal(
+            "2",
+        ),
+        Literal(
+            "5",
+        ),
+    ),
+)

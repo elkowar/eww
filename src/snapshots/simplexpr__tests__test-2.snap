@@ -1,0 +1,16 @@
+---
+source: src/lib.rs
+expression: "p.parse(\"2 + 5\")"
+
+---
+Ok(
+    BinOp(
+        Literal(
+            "2",
+        ),
+        Plus,
+        Literal(
+            "5",
+        ),
+    ),
+)
