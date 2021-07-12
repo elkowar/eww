@@ -23,6 +23,7 @@ pkgs.mkShell {
     rustfmt
     clippy
     deno
+    mdbook
   ];
 
 
