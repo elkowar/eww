@@ -1,6 +1,6 @@
 use crate::{
+    ast::{Ast, AstIterator, AstType, Span},
     error::*,
-    expr::{Expr, ExprIterator, ExprType, Span},
     parser, spanned,
 };
 use itertools::Itertools;
@@ -14,12 +14,12 @@ type VarName = String;
 type AttrValue = String;
 type AttrName = String;
 
-pub trait FromExpr: Sized {
-    fn from_expr(e: Expr) -> AstResult<Self>;
+pub trait FromAst: Sized {
+    fn from_ast(e: Ast) -> AstResult<Self>;
 }
 
-impl FromExpr for Expr {
-    fn from_expr(e: Expr) -> AstResult<Self> {
+impl FromAst for Ast {
+    fn from_ast(e: Ast) -> AstResult<Self> {
         Ok(e)
     }
 }
@@ -32,15 +32,15 @@ pub struct Element<C, A> {
     span: Span,
 }
 
-impl<C: FromExpr, A: FromExpr> FromExpr for Element<C, A> {
-    fn from_expr(e: Expr) -> AstResult<Self> {
+impl<C: FromAst, A: FromAst> FromAst for Element<C, A> {
+    fn from_ast(e: Ast) -> AstResult<Self> {
         let span = e.span();
         spanned!(e.span(), {
             let list = e.as_list()?;
-            let mut iter = ExprIterator::new(list.into_iter());
+            let mut iter = AstIterator::new(list.into_iter());
             let (_, name) = iter.expect_symbol()?;
             let attrs = iter.expect_key_values()?;
-            let children = iter.map(C::from_expr).collect::<AstResult<Vec<_>>>()?;
+            let children = iter.map(C::from_ast).collect::<AstResult<Vec<_>>>()?;
             Element { span, name, attrs, children }
         })
     }
@@ -55,11 +55,11 @@ mod test {
 
     #[test]
     fn test() {
-        let parser = parser::ExprParser::new();
+        let parser = parser::AstParser::new();
         insta::with_settings!({sort_maps => true}, {
             let lexer = lexer::Lexer::new("(box :bar 12 :baz \"hi\" foo (bar))");
             insta::assert_debug_snapshot!(
-                Element::<Expr, Expr>::from_expr(parser.parse(0, lexer).unwrap()).unwrap()
+                Element::<Ast, Ast>::from_ast(parser.parse(0, lexer).unwrap()).unwrap()
             );
         });
     }

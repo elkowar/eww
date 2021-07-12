@@ -1,6 +1,6 @@
 use std::str::FromStr;
 use crate::lexer::{Token, LexicalError};
-use crate::expr::{Expr, Span};
+use crate::ast::{Ast, Span};
 
 grammar(file_id: usize);
 
@@ -22,16 +22,16 @@ extern {
 }
 
 
-pub Expr: Expr = {
-    <l:@L> "(" <elems:(<Expr>)+> ")" <r:@R> => Expr::List(Span(l, r, file_id), elems),
+pub Ast: Ast = {
+    <l:@L> "(" <elems:(<Ast>)+> ")" <r:@R> => Ast::List(Span(l, r, file_id), elems),
     <x:Keyword> => x,
     <x:Symbol> => x,
-    <l:@L> <x:Value> <r:@R> => Expr::Value(Span(l, r, file_id), x),
-    <l:@L> "comment" <r:@R> => Expr::Comment(Span(l, r, file_id)),
+    <l:@L> <x:Value> <r:@R> => Ast::Value(Span(l, r, file_id), x),
+    <l:@L> "comment" <r:@R> => Ast::Comment(Span(l, r, file_id)),
 };
 
-Keyword: Expr = <l:@L> <x:"keyword"> <r:@R> => Expr::Keyword(Span(l, r, file_id), x.to_string());
-Symbol: Expr = <l:@L> <x:"symbol"> <r:@R> => Expr::Symbol(Span(l, r, file_id), x.to_string());
+Keyword: Ast = <l:@L> <x:"keyword"> <r:@R> => Ast::Keyword(Span(l, r, file_id), x.to_string());
+Symbol: Ast = <l:@L> <x:"symbol"> <r:@R> => Ast::Symbol(Span(l, r, file_id), x.to_string());
 
 Value: String = {
     <StrLit> => <>,

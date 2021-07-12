@@ -1,4 +1,4 @@
-use eww_config::{config::*, expr::*};
+use eww_config::{ast::*, config::*};
 
 fn main() {
     let mut files = codespan_reporting::files::SimpleFiles::new();
@@ -7,7 +7,7 @@ fn main() {
 
     let file_id = files.add("foo.eww", input);
     let ast = eww_config::parse_string(file_id, input);
-    match ast.and_then(Element::<Expr, Expr>::from_expr) {
+    match ast.and_then(Element::<Ast, Ast>::from_ast) {
         Ok(ast) => {
             println!("{:?}", ast);
         }

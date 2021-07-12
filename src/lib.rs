@@ -2,12 +2,12 @@
 #![allow(unused)]
 #![feature(try_blocks)]
 
+pub mod ast;
 pub mod config;
 pub mod error;
-pub mod expr;
 mod lexer;
+use ast::Ast;
 use error::{AstError, AstResult};
-use expr::Expr;
 
 use std::{fmt::Display, ops::Deref};
 
@@ -17,15 +17,15 @@ use lalrpop_util::lalrpop_mod;
 
 lalrpop_mod!(pub parser);
 
-pub fn parse_string(file_id: usize, s: &str) -> AstResult<Expr> {
+pub fn parse_string(file_id: usize, s: &str) -> AstResult<Ast> {
     let lexer = lexer::Lexer::new(s);
-    let parser = parser::ExprParser::new();
+    let parser = parser::AstParser::new();
     Ok(parser.parse(file_id, lexer).map_err(|e| AstError::from_parse_error(file_id, e))?)
 }
 
 macro_rules! test_parser {
     ($($text:literal),*) => {{
-        let p = crate::parser::ExprParser::new();
+        let p = crate::parser::AstParser::new();
         use crate::lexer::Lexer;
 
         ::insta::with_settings!({sort_maps => true}, {

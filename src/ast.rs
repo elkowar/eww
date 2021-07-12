@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use std::collections::HashMap;
 
-use crate::{config::FromExpr, error::*};
+use crate::{config::FromAst, error::*};
 use std::fmt::Display;
 
 #[derive(Eq, PartialEq, Clone, Copy)]
@@ -20,7 +20,7 @@ impl std::fmt::Debug for Span {
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub enum ExprType {
+pub enum AstType {
     List,
     Keyword,
     Symbol,
@@ -28,15 +28,16 @@ pub enum ExprType {
     Comment,
 }
 
-impl Display for ExprType {
+impl Display for AstType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", self)
     }
 }
 
 #[derive(PartialEq, Eq, Clone)]
-pub enum Expr {
-    List(Span, Vec<Expr>),
+pub enum Ast {
+    List(Span, Vec<Ast>),
+    // ArgList(Span, Vec<Ast>),
     Keyword(Span, String),
     Symbol(Span, String),
     Value(Span, String),
@@ -61,46 +62,46 @@ macro_rules! as_func {
     };
 }
 
-impl Expr {
-    as_func!(ExprType::Value, as_value as_value_ref<String> = Expr::Value(_, x) => x);
+impl Ast {
+    as_func!(AstType::Value, as_value as_value_ref<String> = Ast::Value(_, x) => x);
 
-    as_func!(ExprType::Symbol, as_symbol as_symbol_ref<String> = Expr::Symbol(_, x) => x);
+    as_func!(AstType::Symbol, as_symbol as_symbol_ref<String> = Ast::Symbol(_, x) => x);
 
-    as_func!(ExprType::Keyword, as_keyword as_keyword_ref<String> = Expr::Keyword(_, x) => x);
+    as_func!(AstType::Keyword, as_keyword as_keyword_ref<String> = Ast::Keyword(_, x) => x);
 
-    as_func!(ExprType::List, as_list as_list_ref<Vec<Expr>> = Expr::List(_, x) => x);
+    as_func!(AstType::List, as_list as_list_ref<Vec<Ast>> = Ast::List(_, x) => x);
 
-    pub fn expr_type(&self) -> ExprType {
+    pub fn expr_type(&self) -> AstType {
         match self {
-            Expr::List(..) => ExprType::List,
-            Expr::Keyword(..) => ExprType::Keyword,
-            Expr::Symbol(..) => ExprType::Symbol,
-            Expr::Value(..) => ExprType::Value,
-            Expr::Comment(_) => ExprType::Comment,
+            Ast::List(..) => AstType::List,
+            Ast::Keyword(..) => AstType::Keyword,
+            Ast::Symbol(..) => AstType::Symbol,
+            Ast::Value(..) => AstType::Value,
+            Ast::Comment(_) => AstType::Comment,
         }
     }
 
     pub fn span(&self) -> Span {
         match self {
-            Expr::List(span, _) => *span,
-            Expr::Keyword(span, _) => *span,
-            Expr::Symbol(span, _) => *span,
-            Expr::Value(span, _) => *span,
-            Expr::Comment(span) => *span,
+            Ast::List(span, _) => *span,
+            Ast::Keyword(span, _) => *span,
+            Ast::Symbol(span, _) => *span,
+            Ast::Value(span, _) => *span,
+            Ast::Comment(span) => *span,
         }
     }
 
-    pub fn first_list_elem(&self) -> Option<&Expr> {
+    pub fn first_list_elem(&self) -> Option<&Ast> {
         match self {
-            Expr::List(_, list) => list.first(),
+            Ast::List(_, list) => list.first(),
             _ => None,
         }
     }
 }
 
-impl std::fmt::Display for Expr {
+impl std::fmt::Display for Ast {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use Expr::*;
+        use Ast::*;
         match self {
             List(_, x) => write!(f, "({})", x.iter().map(|e| format!("{}", e)).join(" ")),
             Keyword(_, x) => write!(f, "{}", x),
@@ -110,9 +111,9 @@ impl std::fmt::Display for Expr {
         }
     }
 }
-impl std::fmt::Debug for Expr {
+impl std::fmt::Debug for Ast {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use Expr::*;
+        use Ast::*;
         match self {
             List(span, x) => f.debug_tuple(&format!("List<{}>", span)).field(x).finish(),
             Keyword(span, x) => write!(f, "Number<{}>({})", span, x),
@@ -123,7 +124,7 @@ impl std::fmt::Debug for Expr {
     }
 }
 
-pub struct ExprIterator<I: Iterator<Item = Expr>> {
+pub struct AstIterator<I: Iterator<Item = Ast>> {
     iter: itertools::PutBack<I>,
 }
 
@@ -145,24 +146,24 @@ macro_rules! return_or_put_back {
     };
 }
 
-impl<I: Iterator<Item = Expr>> ExprIterator<I> {
-    return_or_put_back!(expect_symbol, ExprType::Symbol, (Span, String) = Expr::Symbol(span, x) => (span, x));
+impl<I: Iterator<Item = Ast>> AstIterator<I> {
+    return_or_put_back!(expect_symbol, AstType::Symbol, (Span, String) = Ast::Symbol(span, x) => (span, x));
 
-    return_or_put_back!(expect_string, ExprType::Value, (Span, String) = Expr::Value(span, x) => (span, x));
+    return_or_put_back!(expect_string, AstType::Value, (Span, String) = Ast::Value(span, x) => (span, x));
 
-    return_or_put_back!(expect_list, ExprType::List, (Span, Vec<Expr>) = Expr::List(span, x) => (span, x));
+    return_or_put_back!(expect_list, AstType::List, (Span, Vec<Ast>) = Ast::List(span, x) => (span, x));
 
     pub fn new(iter: I) -> Self {
-        ExprIterator { iter: itertools::put_back(iter) }
+        AstIterator { iter: itertools::put_back(iter) }
     }
 
-    pub fn expect_key_values<T: FromExpr>(&mut self) -> AstResult<HashMap<String, T>> {
+    pub fn expect_key_values<T: FromAst>(&mut self) -> AstResult<HashMap<String, T>> {
         parse_key_values(&mut self.iter)
     }
 }
 
-impl<I: Iterator<Item = Expr>> Iterator for ExprIterator<I> {
-    type Item = Expr;
+impl<I: Iterator<Item = Ast>> Iterator for AstIterator<I> {
+    type Item = Ast;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next()
@@ -170,16 +171,16 @@ impl<I: Iterator<Item = Expr>> Iterator for ExprIterator<I> {
 }
 
 /// Parse consecutive `:keyword value` pairs from an expression iterator into a HashMap. Transforms the keys using the FromExpr trait.
-fn parse_key_values<T: FromExpr, I: Iterator<Item = Expr>>(iter: &mut itertools::PutBack<I>) -> AstResult<HashMap<String, T>> {
+fn parse_key_values<T: FromAst, I: Iterator<Item = Ast>>(iter: &mut itertools::PutBack<I>) -> AstResult<HashMap<String, T>> {
     let mut data = HashMap::new();
     loop {
         match iter.next() {
-            Some(Expr::Keyword(span, kw)) => match iter.next() {
+            Some(Ast::Keyword(span, kw)) => match iter.next() {
                 Some(value) => {
-                    data.insert(kw, T::from_expr(value)?);
+                    data.insert(kw, T::from_ast(value)?);
                 }
                 None => {
-                    iter.put_back(Expr::Keyword(span, kw));
+                    iter.put_back(Ast::Keyword(span, kw));
                     return Ok(data);
                 }
             },

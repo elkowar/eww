@@ -1,5 +1,5 @@
 use crate::{
-    expr::{Expr, ExprType, Span},
+    ast::{Ast, AstType, Span},
     lexer,
 };
 use codespan_reporting::{diagnostic, files};
@@ -12,9 +12,9 @@ pub enum AstError {
     #[error("Definition invalid")]
     InvalidDefinition(Option<Span>),
     #[error("Expected a {1}, but got nothing")]
-    MissingNode(Option<Span>, ExprType),
+    MissingNode(Option<Span>, AstType),
     #[error("Wrong type of expression: Expected {1} but got {2}")]
-    WrongExprType(Option<Span>, ExprType, ExprType),
+    WrongExprType(Option<Span>, AstType, AstType),
 
     #[error("Parse error: {source}")]
     ParseError { file_id: Option<usize>, source: lalrpop_util::ParseError<usize, lexer::Token, lexer::LexicalError> },
@@ -68,10 +68,10 @@ pub fn spanned(span: Span, err: impl Into<AstError>) -> AstError {
 }
 
 pub trait OptionAstErrorExt<T> {
-    fn or_missing(self, t: ExprType) -> Result<T, AstError>;
+    fn or_missing(self, t: AstType) -> Result<T, AstError>;
 }
 impl<T> OptionAstErrorExt<T> for Option<T> {
-    fn or_missing(self, t: ExprType) -> Result<T, AstError> {
+    fn or_missing(self, t: AstType) -> Result<T, AstError> {
         self.ok_or(AstError::MissingNode(None, t))
     }
 }
