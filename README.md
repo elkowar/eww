@@ -9,10 +9,10 @@ your own, custom widgets in any window manager.
 
 Documentation **and instructions on how to install** can be found [here](https://elkowar.github.io/eww).
 
-## Configuration Rework - USER OPINIONS NEEDED
+## New configuration language needs a name - USER OPINIONS NEEDED
 
-Currently, a rework of the configuration language is planned.
-Please give your opinions in the [discussion post](https://github.com/elkowar/eww/discussions/171).
+The rework of the configuration language has been decided on. Now, we just need a name!
+Please give your opinions in the [discussion post](https://github.com/elkowar/eww/discussions/206).
 
 
 ## Examples
