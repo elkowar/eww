@@ -11,14 +11,14 @@ lazy_static::lazy_static! {
 
 /// Notify all listening tasks of the termination of the eww application process.
 pub fn send_exit() -> Result<()> {
-    (&*APPLICATION_EXIT_SENDER).send(()).context("Failed to send exit lifecycle event")?;
+    (APPLICATION_EXIT_SENDER).send(()).context("Failed to send exit lifecycle event")?;
     Ok(())
 }
 
 /// Yields Ok(()) on application termination. Await on this in all long-running tasks
 /// and perform any cleanup if necessary.
 pub async fn recv_exit() -> Result<()> {
-    (&*APPLICATION_EXIT_SENDER).subscribe().recv().await.context("Failed to receive lifecycle event")
+    (APPLICATION_EXIT_SENDER).subscribe().recv().await.context("Failed to receive lifecycle event")
 }
 
 /// Select in a loop, breaking once a application termination event (see `crate::application_lifecycle`) is received.

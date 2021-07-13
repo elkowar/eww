@@ -143,7 +143,7 @@ impl AttrValExpr {
 
     pub fn eval(self, values: &HashMap<VarName, PrimVal>) -> Result<PrimVal> {
         match self {
-            AttrValExpr::Literal(x) => x.resolve_fully(&values),
+            AttrValExpr::Literal(x) => x.resolve_fully(values),
             AttrValExpr::VarRef(ref name) => values
                 .get(name)
                 .cloned()

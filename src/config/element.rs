@@ -77,7 +77,7 @@ impl WidgetUse {
                     .map(|attr| {
                         (
                             AttrName(attr.name().to_owned()),
-                            AttrVal::parse_string(&xml_ext::resolve_escaped_symbols(&attr.value())),
+                            AttrVal::parse_string(&xml_ext::resolve_escaped_symbols(attr.value())),
                         )
                     })
                     .collect::<HashMap<_, _>>(),
