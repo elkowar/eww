@@ -13,8 +13,7 @@ mod platform {
 
 #[cfg(feature = "wayland")]
 mod platform {
-    use crate::config::{AnchorAlignment, EwwWindowDefinition, Side, WindowStacking};
-    use anyhow::*;
+    use crate::config::{AnchorAlignment, EwwWindowDefinition, WindowStacking};
     use gdk;
     use gtk::prelude::*;
 
@@ -44,7 +43,7 @@ mod platform {
         }
 
         // Sets the keyboard interactivity
-        gtk_layer_shell::set_keyboard_interactivity(&window, window_def.focusable);
+        gtk_layer_shell::set_keyboard_interactivity(&window, window_def.backend_options.focusable);
 
         if let Some(geometry) = window_def.geometry {
             // Positioning surface
@@ -83,7 +82,7 @@ mod platform {
                 gtk_layer_shell::set_margin(&window, gtk_layer_shell::Edge::Top, yoffset);
             }
         }
-        if window_def.exclusive {
+        if window_def.backend_options.exclusive {
             gtk_layer_shell::auto_exclusive_zone_enable(&window);
         }
         Some(window)
