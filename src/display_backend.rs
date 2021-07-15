@@ -108,7 +108,7 @@ mod platform {
 
 #[cfg(feature = "x11")]
 mod platform {
-    use crate::config::{EwwWindowDefinition, Side, StrutDefinition, WindowStacking};
+    use crate::config::{EwwWindowDefinition, EwwWindowType, Side, WindowStacking};
     use anyhow::*;
     use gdkx11;
     use gtk::{self, prelude::*};
@@ -139,9 +139,9 @@ mod platform {
         Some(window)
     }
 
-    pub fn reserve_space_for(window: &gtk::Window, monitor: gdk::Rectangle, strut_def: StrutDefinition) -> Result<()> {
+    pub fn set_xprops(window: &gtk::Window, monitor: gdk::Rectangle, window_def: &EwwWindowDefinition) -> Result<()> {
         let backend = X11Backend::new()?;
-        backend.reserve_space_for(window, monitor, strut_def)?;
+        backend.set_xprops_for(window, monitor, window_def)?;
         Ok(())
     }
 
@@ -159,11 +159,11 @@ mod platform {
             Ok(X11Backend { conn, root_window: screen.root, atoms })
         }
 
-        fn reserve_space_for(
+        fn set_xprops_for(
             &self,
             window: &gtk::Window,
             monitor_rect: gdk::Rectangle,
-            strut_def: StrutDefinition,
+            window_def: &EwwWindowDefinition,
         ) -> Result<()> {
             let win_id = window
                 .get_window()
@@ -172,6 +172,7 @@ mod platform {
                 .ok()
                 .context("Failed to get x11 window for gtk window")?
                 .get_xid() as u32;
+            let strut_def = window_def.struts;
             let root_window_geometry = self.conn.get_geometry(self.root_window)?.reply()?;
 
             let mon_end_x = (monitor_rect.x + monitor_rect.width) as u32 - 1u32;
@@ -217,16 +218,33 @@ mod platform {
                     &strut_list,
                 )?
                 .check()?;
-            self.conn.flush()?;
-            Ok(())
+
+            x11rb::wrapper::ConnectionExt::change_property32(
+                &self.conn,
+                PropMode::REPLACE,
+                win_id,
+                self.atoms._NET_WM_WINDOW_TYPE,
+                self.atoms.ATOM,
+                &[match window_def.window_type {
+                    EwwWindowType::Dock => self.atoms._NET_WM_WINDOW_TYPE_DOCK,
+                    EwwWindowType::Normal => self.atoms._NET_WM_WINDOW_TYPE_NORMAL,
+                    EwwWindowType::Dialog => self.atoms._NET_WM_WINDOW_TYPE_DIALOG,
+                    EwwWindowType::Toolbar => self.atoms._NET_WM_WINDOW_TYPE_TOOLBAR,
+                }],
+            )?
+            .check()?;
+
+            self.conn.flush().context("Failed to send requests to X server")
         }
     }
 
     x11rb::atom_manager! {
         pub AtomCollection: AtomCollectionCookie {
             _NET_WM_WINDOW_TYPE,
+            _NET_WM_WINDOW_TYPE_NORMAL,
             _NET_WM_WINDOW_TYPE_DOCK,
             _NET_WM_WINDOW_TYPE_DIALOG,
+            _NET_WM_WINDOW_TYPE_TOOLBAR,
             _NET_WM_STATE,
             _NET_WM_STATE_STICKY,
             _NET_WM_STATE_ABOVE,

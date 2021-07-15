@@ -307,7 +307,6 @@ fn initialize_window(
     window_def: config::EwwWindowDefinition,
 ) -> Result<EwwWindow> {
     let actual_window_rect = window_def.geometry.get_window_rectangle(monitor_geometry);
-
     if let Some(window) = display_backend::initialize_window(&window_def, monitor_geometry) {
         window.set_title(&format!("Eww - {}", window_def.name));
         let wm_class_name = format!("eww-{}", window_def.name);
@@ -329,7 +328,7 @@ fn initialize_window(
         gdk_window.set_override_redirect(!window_def.focusable);
 
         #[cfg(feature = "x11")]
-        display_backend::reserve_space_for(&window, monitor_geometry, window_def.struts)?;
+        display_backend::set_xprops(&window, monitor_geometry, &window_def)?;
 
         // this should only be required on x11, as waylands layershell should manage the margins properly anways.
         #[cfg(feature = "x11")]
@@ -344,7 +343,6 @@ fn initialize_window(
     } else {
         Err(anyhow!("monitor {} is unavailable", window_def.screen_number.unwrap()))
     }
-
 }
 
 /// Apply the provided window-positioning rules to the window.

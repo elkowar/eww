@@ -220,7 +220,7 @@ For Wayland users the `<reserve/>` block is replaced by the exclusive field in `
 The previous `<window>` block would look like this.
 
 ```xml
-    <window name="main_window" stacking="fg" focusable="false" screen="1" exclusive="true">
+    <window name="main_window" stacking="fg" focusable="false" screen="1" exclusive="true" windowtype="normal">
         <geometry anchor="top left" x="300px" y="50%" width="25%" height="20px"/>
         <widget>
             <main/>
@@ -247,3 +247,10 @@ There are a couple things you can optionally configure on the window itself:
   The details on how it is actually implemented are left to the compositor.
   This option is only valid on Wayland.
   Possible values: `"true"`, `"false"`. Default: `"false"`
+- `windowtype`: (X11 only) Can be used in determining the decoration, stacking position and other behavior of the window.
+  Possible values: 
+    - `"normal"`: indicates that this is a normal, top-level window
+    - `"dock"`: indicates a dock or panel feature
+    - `"toolbar"`: toolbars "torn off" from the main application
+    - `"dialog"`: indicates that this is a dialog window
+    - Default: `"dock"` if reserve is set, else `"normal"` 
