@@ -339,7 +339,7 @@ The <code>&lt;windows&gt;</code> config should look something like this:</p>
 </code></pre>
 <p>For Wayland users the <code>&lt;reserve/&gt;</code> block is replaced by the exclusive field in <code>&lt;window&gt;</code>.
 The previous <code>&lt;window&gt;</code> block would look like this.</p>
-<pre><code class="language-xml">    &lt;window name=&quot;main_window&quot; stacking=&quot;fg&quot; focusable=&quot;false&quot; screen=&quot;1&quot; exclusive=&quot;true&quot;&gt;
+<pre><code class="language-xml">    &lt;window name=&quot;main_window&quot; stacking=&quot;fg&quot; focusable=&quot;false&quot; screen=&quot;1&quot; exclusive=&quot;true&quot; windowtype=&quot;normal&quot;&gt;
         &lt;geometry anchor=&quot;top left&quot; x=&quot;300px&quot; y=&quot;50%&quot; width=&quot;25%&quot; height=&quot;20px&quot;/&gt;
         &lt;widget&gt;
             &lt;main/&gt;
@@ -367,6 +367,16 @@ A surface can be a window, an Eww widget or any layershell surface.
 The details on how it is actually implemented are left to the compositor.
 This option is only valid on Wayland.
 Possible values: <code>&quot;true&quot;</code>, <code>&quot;false&quot;</code>. Default: <code>&quot;false&quot;</code></li>
+<li><code>windowtype</code>: (X11 only) Can be used in determining the decoration, stacking position and other behavior of the window.
+Possible values: 
+<ul>
+<li><code>&quot;normal&quot;</code>: indicates that this is a normal, top-level window</li>
+<li><code>&quot;dock&quot;</code>: indicates a dock or panel feature</li>
+<li><code>&quot;toolbar&quot;</code>: toolbars &quot;torn off&quot; from the main application</li>
+<li><code>&quot;dialog&quot;</code>: indicates that this is a dialog window</li>
+<li>Default: <code>&quot;dock&quot;</code> if reserve is set, else <code>&quot;normal&quot;</code> </li>
+</ul>
+</li>
 </ul>
 
                     </main>
