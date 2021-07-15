@@ -37,16 +37,19 @@ impl Default for EwwWindowType {
 #[derive(Debug, Clone)]
 pub struct EwwWindowDefinition {
     pub name: WindowName,
-    pub window_type: EwwWindowType,
+    
     pub geometry: EwwWindowGeometry,
     pub stacking: WindowStacking,
     pub screen_number: Option<i32>,
     pub widget: Box<dyn widget_node::WidgetNode>,
     pub focusable: bool,
-
+    
+    #[cfg(feature = "x11")]
+    pub window_type: EwwWindowType,
+    
     #[cfg(feature = "x11")]
     pub struts: StrutDefinition,
-
+    
     #[cfg(feature = "wayland")]
     pub exclusive: bool,
 }
