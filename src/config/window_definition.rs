@@ -1,11 +1,11 @@
-use super::*;
+use super::{backend_window_options::*, *};
 use crate::{ensure_xml_tag_is, value::NumWithUnit, widgets::widget_node};
 use derive_more::*;
 use serde::{Deserialize, Serialize};
 use smart_default::SmartDefault;
 use std::{collections::HashMap, str::FromStr};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EwwWindowType {
     Dock,
     Dialog,
@@ -37,21 +37,13 @@ impl Default for EwwWindowType {
 #[derive(Debug, Clone)]
 pub struct EwwWindowDefinition {
     pub name: WindowName,
-    
+
     pub geometry: EwwWindowGeometry,
     pub stacking: WindowStacking,
     pub screen_number: Option<i32>,
     pub widget: Box<dyn widget_node::WidgetNode>,
     pub focusable: bool,
-    
-    #[cfg(feature = "x11")]
-    pub window_type: EwwWindowType,
-    
-    #[cfg(feature = "x11")]
-    pub struts: StrutDefinition,
-    
-    #[cfg(feature = "wayland")]
-    pub exclusive: bool,
+    pub backend_options: BackendWindowOptions,
 }
 
 impl EwwWindowDefinition {
@@ -63,12 +55,7 @@ impl EwwWindowDefinition {
             screen_number: window.screen_number,
             widget: widget_node::generate_generic_widget_node(defs, &HashMap::new(), window.widget)?,
             focusable: window.focusable,
-            #[cfg(feature = "x11")]
-            window_type: window.window_type,
-            #[cfg(feature = "x11")]
-            struts: window.struts,
-            #[cfg(feature = "wayland")]
-            exclusive: window.exclusive,
+            backend_options: window.backend_options,
         })
     }
 }
@@ -82,15 +69,7 @@ pub struct RawEwwWindowDefinition {
     pub screen_number: Option<i32>,
     pub widget: WidgetUse,
     pub focusable: bool,
-
-    #[cfg(feature = "x11")]
-    pub window_type: EwwWindowType,
-
-    #[cfg(feature = "x11")]
-    pub struts: StrutDefinition,
-
-    #[cfg(feature = "wayland")]
-    pub exclusive: bool,
+    pub backend_options: BackendWindowOptions,
 }
 
 impl RawEwwWindowDefinition {
@@ -102,32 +81,17 @@ impl RawEwwWindowDefinition {
         let focusable = xml.parse_optional_attr("focusable")?;
         let screen_number = xml.parse_optional_attr("screen")?;
 
-        #[cfg(feature = "x11")]
-        let struts: Option<StrutDefinition> =
-            xml.child("reserve").ok().map(StrutDefinition::from_xml_element).transpose().context("Failed to parse <reserve>")?;
-
         Ok(RawEwwWindowDefinition {
             name: WindowName(xml.attr("name")?),
             geometry: match xml.child("geometry") {
                 Ok(node) => EwwWindowGeometry::from_xml_element(node)?,
                 Err(_) => EwwWindowGeometry::default(),
             },
-            #[cfg(feature = "x11")]
-            window_type: match xml.attr("windowtype") {
-                Ok(v) => EwwWindowType::from_str(&v)?,
-                Err(_) => match struts {
-                    Some(_) => EwwWindowType::Dock,
-                    None => Default::default(),
-                },
-            },
             widget: WidgetUse::from_xml_node(xml.child("widget")?.only_child()?)?,
             stacking,
             screen_number,
             focusable: focusable.unwrap_or(false),
-            #[cfg(feature = "x11")]
-            struts: struts.unwrap_or_default(),
-            #[cfg(feature = "wayland")]
-            exclusive: xml.parse_optional_attr("exclusive")?.unwrap_or_default(),
+            backend_options: BackendWindowOptions::from_xml_element(xml)?,
         })
     }
 }

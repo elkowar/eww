@@ -4,23 +4,6 @@ use itertools::Itertools;
 use std::path::Path;
 
 #[macro_export]
-macro_rules! impl_try_from {
-    ($typ:ty {
-        $(
-            for $for:ty => |$arg:ident| $code:expr
-        );*;
-    }) => {
-        $(impl TryFrom<$typ> for $for {
-            type Error = anyhow::Error;
-
-            fn try_from($arg: $typ) -> Result<Self> {
-                $code
-            }
-        })*
-    };
-}
-
-#[macro_export]
 macro_rules! try_logging_errors {
     ($context:expr => $code:block) => {{
         let result: Result<_> = try { $code };

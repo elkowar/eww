@@ -3,8 +3,6 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::{convert::TryFrom, fmt, iter::FromIterator};
 
-use crate::impl_try_from;
-
 #[derive(Clone, Deserialize, Serialize, derive_more::From, Default)]
 pub struct PrimVal(pub String);
 
@@ -46,53 +44,32 @@ impl std::str::FromStr for PrimVal {
     }
 }
 
-impl_try_from!(PrimVal {
+macro_rules! impl_try_from {
+    (impl From<$typ:ty> {
+        $(for $for:ty => |$arg:ident| $code:expr);*;
+    }) => {
+        $(impl TryFrom<$typ> for $for {
+            type Error = anyhow::Error;
+            fn try_from($arg: $typ) -> Result<Self> { $code }
+        })*
+    };
+}
+macro_rules! impl_primval_from {
+    ($($t:ty),*) => {
+        $(impl From<$t> for PrimVal {
+            fn from(x: $t) -> Self { PrimVal(x.to_string()) }
+        })*
+    };
+}
+
+impl_try_from!(impl From<PrimVal> {
     for String => |x| x.as_string();
     for f64 => |x| x.as_f64();
     for bool => |x| x.as_bool();
     for Vec<String> => |x| x.as_vec();
 });
 
-impl From<bool> for PrimVal {
-    fn from(x: bool) -> Self {
-        PrimVal(x.to_string())
-    }
-}
-
-impl From<i32> for PrimVal {
-    fn from(s: i32) -> Self {
-        PrimVal(s.to_string())
-    }
-}
-
-impl From<u32> for PrimVal {
-    fn from(s: u32) -> Self {
-        PrimVal(s.to_string())
-    }
-}
-
-impl From<f32> for PrimVal {
-    fn from(s: f32) -> Self {
-        PrimVal(s.to_string())
-    }
-}
-
-impl From<u8> for PrimVal {
-    fn from(s: u8) -> Self {
-        PrimVal(s.to_string())
-    }
-}
-impl From<f64> for PrimVal {
-    fn from(s: f64) -> Self {
-        PrimVal(s.to_string())
-    }
-}
-
-impl From<&str> for PrimVal {
-    fn from(s: &str) -> Self {
-        PrimVal(s.to_string())
-    }
-}
+impl_primval_from!(bool, i32, u32, f32, u8, f64, &str);
 
 impl From<&serde_json::Value> for PrimVal {
     fn from(v: &serde_json::Value) -> Self {

@@ -245,8 +245,7 @@ impl App {
 
         // initialize script var handlers for variables that where not used before opening this window.
         // TODO somehow make this less shit
-        for newly_used_var in
-            self.variables_only_used_in(window_name).filter_map(|var| self.eww_config.get_script_var(var).ok())
+        for newly_used_var in self.variables_only_used_in(window_name).filter_map(|var| self.eww_config.get_script_var(var).ok())
         {
             self.script_var_handler.add(newly_used_var.clone());
         }
@@ -310,11 +309,15 @@ fn initialize_window(
     if let Some(window) = display_backend::initialize_window(&window_def, monitor_geometry) {
         window.set_title(&format!("Eww - {}", window_def.name));
         let wm_class_name = format!("eww-{}", window_def.name);
+        #[allow(deprecated)]
         window.set_wmclass(&wm_class_name, &wm_class_name);
         window.set_position(gtk::WindowPosition::Center);
         window.set_size_request(actual_window_rect.width, actual_window_rect.height);
         window.set_default_size(actual_window_rect.width, actual_window_rect.height);
         window.set_decorated(false);
+        window.set_skip_taskbar_hint(true);
+        window.set_skip_pager_hint(true);
+
         // run on_screen_changed to set the visual correctly initially.
         on_screen_changed(&window, None);
         window.connect_screen_changed(on_screen_changed);
@@ -325,20 +328,24 @@ fn initialize_window(
 
         apply_window_position(window_def.clone(), monitor_geometry, &window)?;
         let gdk_window = window.get_window().context("couldn't get gdk window from gtk window")?;
-        gdk_window.set_override_redirect(!window_def.focusable);
 
         #[cfg(feature = "x11")]
-        display_backend::set_xprops(&window, monitor_geometry, &window_def)?;
-
-        // this should only be required on x11, as waylands layershell should manage the margins properly anways.
-        #[cfg(feature = "x11")]
-        window.connect_configure_event({
-            let window_def = window_def.clone();
-            move |window, _evt| {
-                let _ = apply_window_position(window_def.clone(), monitor_geometry, &window);
-                false
+        {
+            if window_def.backend_options.sticky {
+                window.stick();
             }
-        });
+            gdk_window.set_override_redirect(window_def.backend_options.wm_ignore);
+            display_backend::set_xprops(&window, monitor_geometry, &window_def)?;
+
+            // this should only be required on x11, as waylands layershell should manage the margins properly anways.
+            window.connect_configure_event({
+                let window_def = window_def.clone();
+                move |window, _evt| {
+                    let _ = apply_window_position(window_def.clone(), monitor_geometry, &window);
+                    false
+                }
+            });
+        }
         Ok(EwwWindow { name: window_def.name.clone(), definition: window_def, gtk_window: window })
     } else {
         Err(anyhow!("monitor {} is unavailable", window_def.screen_number.unwrap()))
@@ -367,11 +374,13 @@ fn on_screen_changed(window: &gtk::Window, _old_screen: Option<&gdk::Screen>) {
 }
 
 fn get_default_monitor_index() -> i32 {
+    #[allow(deprecated)]
     gdk::Display::get_default().expect("could not get default display").get_default_screen().get_primary_monitor()
 }
 
 /// Get the monitor geometry of a given monitor number
 fn get_monitor_geometry(n: i32) -> gdk::Rectangle {
+    #[allow(deprecated)]
     gdk::Display::get_default().expect("could not get default display").get_default_screen().get_monitor_geometry(n)
 }
 

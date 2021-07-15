@@ -13,9 +13,6 @@ mod platform {
             gtk::Window::new(gtk::WindowType::Popup)
         };
         window.set_resizable(true);
-        if !window_def.focusable {
-            window.set_type_hint(gdk::WindowTypeHint::Dock);
-        }
         if window_def.stacking == WindowStacking::Foreground {
             window.set_keep_above(true);
         } else {
@@ -46,10 +43,10 @@ mod platform {
                 if let Some(monitor) = gdk::Display::get_default().expect("could not get default display").get_monitor(index) {
                     gtk_layer_shell::set_monitor(&window, &monitor);
                 } else {
-                    return None
+                    return None;
                 }
             }
-            None => {},
+            None => {}
         };
         window.set_resizable(true);
 
@@ -128,9 +125,6 @@ mod platform {
             gtk::Window::new(gtk::WindowType::Popup)
         };
         window.set_resizable(true);
-        if !window_def.focusable {
-            window.set_type_hint(gdk::WindowTypeHint::Dock);
-        }
         if window_def.stacking == WindowStacking::Foreground {
             window.set_keep_above(true);
         } else {
@@ -172,7 +166,7 @@ mod platform {
                 .ok()
                 .context("Failed to get x11 window for gtk window")?
                 .get_xid() as u32;
-            let strut_def = window_def.struts;
+            let strut_def = window_def.backend_options.struts;
             let root_window_geometry = self.conn.get_geometry(self.root_window)?.reply()?;
 
             let mon_end_x = (monitor_rect.x + monitor_rect.width) as u32 - 1u32;
@@ -225,7 +219,7 @@ mod platform {
                 win_id,
                 self.atoms._NET_WM_WINDOW_TYPE,
                 self.atoms.ATOM,
-                &[match window_def.window_type {
+                &[match window_def.backend_options.window_type {
                     EwwWindowType::Dock => self.atoms._NET_WM_WINDOW_TYPE_DOCK,
                     EwwWindowType::Normal => self.atoms._NET_WM_WINDOW_TYPE_NORMAL,
                     EwwWindowType::Dialog => self.atoms._NET_WM_WINDOW_TYPE_DIALOG,
