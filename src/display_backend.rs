@@ -7,21 +7,7 @@ mod platform {
     use gtk::{self, prelude::*};
 
     pub fn initialize_window(window_def: &EwwWindowDefinition, _monitor: gdk::Rectangle) -> Option<gtk::Window> {
-        let window = if window_def.focusable {
-            gtk::Window::new(gtk::WindowType::Toplevel)
-        } else {
-            gtk::Window::new(gtk::WindowType::Popup)
-        };
-        if window_def.stacking == WindowStacking::Foreground {
-            window.set_keep_above(true);
-        } else {
-            window.set_keep_below(true);
-        }
-        Some(window)
-    }
-
-    pub fn reserve_space_for(_window: &gtk::Window, _monitor: gdk::Rectangle, _strut_def: StrutDefinition) -> Result<()> {
-        Err(anyhow!("Cannot reserve space on non X11 or and wayland backends"))
+        Some(gtk::Window::new(gtk::WindowType::Toplevel))
     }
 }
 
@@ -47,7 +33,7 @@ mod platform {
             }
             None => {}
         };
-        window.set_resizable(true);
+        window.set_resizable(window_def.resizable);
 
         // Sets the layer where the layer shell surface will spawn
         match window_def.stacking {
@@ -122,7 +108,10 @@ mod platform {
     pub fn initialize_window(window_def: &EwwWindowDefinition, _monitor: gdk::Rectangle) -> Option<gtk::Window> {
         let window_type = if window_def.backend_options.wm_ignore { gtk::WindowType::Popup } else { gtk::WindowType::Toplevel };
         let window = gtk::Window::new(window_type);
-        // window.set_resizable(true);
+        let wm_class_name = format!("eww-{}", window_def.name);
+        #[allow(deprecated)]
+        window.set_wmclass(&wm_class_name, &wm_class_name);
+        window.set_resizable(window_def.resizable);
         window.set_keep_above(window_def.stacking == WindowStacking::Foreground);
         window.set_keep_below(window_def.stacking == WindowStacking::Background);
         if window_def.backend_options.sticky {

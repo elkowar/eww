@@ -39,7 +39,7 @@ pub struct EwwWindowDefinition {
     pub stacking: WindowStacking,
     pub screen_number: Option<i32>,
     pub widget: Box<dyn widget_node::WidgetNode>,
-    pub focusable: bool,
+    pub resizable: bool,
     pub backend_options: BackendWindowOptions,
 }
 
@@ -50,8 +50,8 @@ impl EwwWindowDefinition {
             geometry: window.geometry,
             stacking: window.stacking,
             screen_number: window.screen_number,
+            resizable: window.resizable,
             widget: widget_node::generate_generic_widget_node(defs, &HashMap::new(), window.widget)?,
-            focusable: window.focusable,
             backend_options: window.backend_options,
         })
     }
@@ -64,9 +64,8 @@ pub struct RawEwwWindowDefinition {
     pub geometry: Option<EwwWindowGeometry>,
     pub stacking: WindowStacking,
     pub widget: WidgetUse,
-    pub focusable: bool,
+    pub resizable: bool,
     pub backend_options: BackendWindowOptions,
-    // TODO maybe rename this to monitor?
     pub screen_number: Option<i32>,
 }
 
@@ -82,8 +81,9 @@ impl RawEwwWindowDefinition {
             },
             widget: WidgetUse::from_xml_node(xml.child("widget")?.only_child()?)?,
             stacking: xml.parse_optional_attr("stacking")?.unwrap_or_default(),
+            // TODO maybe rename this to monitor?
             screen_number: xml.parse_optional_attr("screen")?,
-            focusable: xml.parse_optional_attr("focusable")?.unwrap_or(false),
+            resizable: xml.parse_optional_attr("resizable")?.unwrap_or(true),
             backend_options: BackendWindowOptions::from_xml_element(xml)?,
         })
     }

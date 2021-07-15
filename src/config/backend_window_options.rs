@@ -47,10 +47,14 @@ mod wayland {
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct BackendWindowOptions {
         pub exclusive: bool,
+        pub focusable: bool,
     }
     impl BackendWindowOptions {
         pub fn from_xml_element(xml: &XmlElement) -> Result<Self> {
-            Ok(BackendWindowOptions { exclusive: xml.parse_optional_attr("exclusive")?.unwrap_or(false) })
+            Ok(BackendWindowOptions {
+                exclusive: xml.parse_optional_attr("exclusive")?.unwrap_or(false),
+                focusable: xml.parse_optional_attr("focusable")?.unwrap_or(false),
+            })
         }
     }
 }

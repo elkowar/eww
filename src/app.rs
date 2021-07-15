@@ -3,7 +3,7 @@ use crate::{
     config::{window_definition::WindowName, AnchorPoint},
     display_backend, eww_state,
     script_var_handler::*,
-    value::{Coords, NumWithUnit, PrimVal, VarName},
+    value::{Coords, PrimVal, VarName},
     EwwPaths,
 };
 use anyhow::*;
@@ -309,9 +309,6 @@ fn initialize_window(
         .with_context(|| format!("monitor {} is unavailable", window_def.screen_number.unwrap()))?;
 
     window.set_title(&format!("Eww - {}", window_def.name));
-    let wm_class_name = format!("eww-{}", window_def.name);
-    #[allow(deprecated)]
-    window.set_wmclass(&wm_class_name, &wm_class_name);
     window.set_position(gtk::WindowPosition::None);
     window.set_gravity(gdk::Gravity::Center);
 
@@ -330,24 +327,17 @@ fn initialize_window(
 
     window.add(&root_widget);
 
-    #[cfg(feature = "x11")]
-    if let Some(geometry) = window_def.geometry {
-        window.connect_draw(move |window, _| {
-            let _ = apply_window_position(geometry, monitor_geometry, &window);
-            gtk::Inhibit(false)
-        });
-        window.connect_configure_event(move |window, _| {
-            let _ = apply_window_position(geometry, monitor_geometry, &window);
-            false
-        });
-    }
-
     window.show_all();
 
     #[cfg(feature = "x11")]
     {
-        let gdk_window = window.get_window().context("couldn't get gdk window from gtk window")?;
-        gdk_window.set_override_redirect(window_def.backend_options.wm_ignore);
+        if let Some(geometry) = window_def.geometry {
+            let _ = apply_window_position(geometry, monitor_geometry, &window);
+            window.connect_configure_event(move |window, _| {
+                let _ = apply_window_position(geometry, monitor_geometry, &window);
+                false
+            });
+        }
         display_backend::set_xprops(&window, monitor_geometry, &window_def)?;
     }
     Ok(EwwWindow { name: window_def.name.clone(), definition: window_def, gtk_window: window })
@@ -359,9 +349,8 @@ fn apply_window_position(
     monitor_geometry: gdk::Rectangle,
     window: &gtk::Window,
 ) -> Result<()> {
-    let (gtk_window_width, gtk_window_height) = window.get_size();
-    window_geometry.size = Coords { x: NumWithUnit::Pixels(gtk_window_width), y: NumWithUnit::Pixels(gtk_window_height) };
     let gdk_window = window.get_window().context("Failed to get gdk window from gtk window")?;
+    window_geometry.size = Coords::from_pixels(window.get_size());
     let actual_window_rect = window_geometry.get_window_rectangle(monitor_geometry);
     gdk_window.move_(actual_window_rect.x, actual_window_rect.y);
     Ok(())

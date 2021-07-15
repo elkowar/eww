@@ -68,7 +68,7 @@ impl fmt::Debug for Coords {
 }
 
 impl Coords {
-    pub fn from_pixels(x: i32, y: i32) -> Self {
+    pub fn from_pixels((x, y): (i32, i32)) -> Self {
         Coords { x: NumWithUnit::Pixels(x), y: NumWithUnit::Pixels(y) }
     }
 
