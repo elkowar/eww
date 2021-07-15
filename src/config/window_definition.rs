@@ -58,12 +58,13 @@ impl EwwWindowDefinition {
     pub fn generate(defs: &HashMap<String, WidgetDefinition>, window: RawEwwWindowDefinition) -> Result<Self> {
         Ok(EwwWindowDefinition {
             name: window.name,
-            window_type: window.window_type,
             geometry: window.geometry,
             stacking: window.stacking,
             screen_number: window.screen_number,
             widget: widget_node::generate_generic_widget_node(defs, &HashMap::new(), window.widget)?,
             focusable: window.focusable,
+            #[cfg(feature = "x11")]
+            window_type: window.window_type,
             #[cfg(feature = "x11")]
             struts: window.struts,
             #[cfg(feature = "wayland")]
