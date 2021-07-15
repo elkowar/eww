@@ -12,7 +12,6 @@ mod platform {
         } else {
             gtk::Window::new(gtk::WindowType::Popup)
         };
-        window.set_resizable(true);
         if window_def.stacking == WindowStacking::Foreground {
             window.set_keep_above(true);
         } else {
@@ -60,42 +59,44 @@ mod platform {
 
         // Sets the keyboard interactivity
         gtk_layer_shell::set_keyboard_interactivity(&window, window_def.focusable);
-        // Positioning surface
-        let mut top = false;
-        let mut left = false;
-        let mut right = false;
-        let mut bottom = false;
 
-        match window_def.geometry.anchor_point.x {
-            AnchorAlignment::START => left = true,
-            AnchorAlignment::CENTER => {}
-            AnchorAlignment::END => right = true,
+        if let Some(geometry) = window_def.geometry {
+            // Positioning surface
+            let mut top = false;
+            let mut left = false;
+            let mut right = false;
+            let mut bottom = false;
+
+            match geometry.anchor_point.x {
+                AnchorAlignment::START => left = true,
+                AnchorAlignment::CENTER => {}
+                AnchorAlignment::END => right = true,
+            }
+            match geometry.anchor_point.y {
+                AnchorAlignment::START => top = true,
+                AnchorAlignment::CENTER => {}
+                AnchorAlignment::END => bottom = true,
+            }
+
+            gtk_layer_shell::set_anchor(&window, gtk_layer_shell::Edge::Left, left);
+            gtk_layer_shell::set_anchor(&window, gtk_layer_shell::Edge::Right, right);
+            gtk_layer_shell::set_anchor(&window, gtk_layer_shell::Edge::Top, top);
+            gtk_layer_shell::set_anchor(&window, gtk_layer_shell::Edge::Bottom, bottom);
+
+            let xoffset = geometry.offset.x.relative_to(monitor.width);
+            let yoffset = geometry.offset.y.relative_to(monitor.height);
+
+            if left {
+                gtk_layer_shell::set_margin(&window, gtk_layer_shell::Edge::Left, xoffset);
+            } else {
+                gtk_layer_shell::set_margin(&window, gtk_layer_shell::Edge::Right, xoffset);
+            }
+            if bottom {
+                gtk_layer_shell::set_margin(&window, gtk_layer_shell::Edge::Bottom, yoffset);
+            } else {
+                gtk_layer_shell::set_margin(&window, gtk_layer_shell::Edge::Top, yoffset);
+            }
         }
-        match window_def.geometry.anchor_point.y {
-            AnchorAlignment::START => top = true,
-            AnchorAlignment::CENTER => {}
-            AnchorAlignment::END => bottom = true,
-        }
-
-        gtk_layer_shell::set_anchor(&window, gtk_layer_shell::Edge::Left, left);
-        gtk_layer_shell::set_anchor(&window, gtk_layer_shell::Edge::Right, right);
-        gtk_layer_shell::set_anchor(&window, gtk_layer_shell::Edge::Top, top);
-        gtk_layer_shell::set_anchor(&window, gtk_layer_shell::Edge::Bottom, bottom);
-
-        let xoffset = window_def.geometry.offset.x.relative_to(monitor.width);
-        let yoffset = window_def.geometry.offset.y.relative_to(monitor.height);
-
-        if left {
-            gtk_layer_shell::set_margin(&window, gtk_layer_shell::Edge::Left, xoffset);
-        } else {
-            gtk_layer_shell::set_margin(&window, gtk_layer_shell::Edge::Right, xoffset);
-        }
-        if bottom {
-            gtk_layer_shell::set_margin(&window, gtk_layer_shell::Edge::Bottom, yoffset);
-        } else {
-            gtk_layer_shell::set_margin(&window, gtk_layer_shell::Edge::Top, yoffset);
-        }
-
         if window_def.exclusive {
             gtk_layer_shell::auto_exclusive_zone_enable(&window);
         }
@@ -119,16 +120,15 @@ mod platform {
     };
 
     pub fn initialize_window(window_def: &EwwWindowDefinition, _monitor: gdk::Rectangle) -> Option<gtk::Window> {
-        let window = if window_def.focusable {
-            gtk::Window::new(gtk::WindowType::Toplevel)
+        let window_type = if window_def.backend_options.wm_ignore { gtk::WindowType::Popup } else { gtk::WindowType::Toplevel };
+        let window = gtk::Window::new(window_type);
+        // window.set_resizable(true);
+        window.set_keep_above(window_def.stacking == WindowStacking::Foreground);
+        window.set_keep_below(window_def.stacking == WindowStacking::Background);
+        if window_def.backend_options.sticky {
+            window.stick();
         } else {
-            gtk::Window::new(gtk::WindowType::Popup)
-        };
-        window.set_resizable(true);
-        if window_def.stacking == WindowStacking::Foreground {
-            window.set_keep_above(true);
-        } else {
-            window.set_keep_below(true);
+            window.unstick();
         }
         Some(window)
     }
@@ -224,6 +224,7 @@ mod platform {
                     EwwWindowType::Normal => self.atoms._NET_WM_WINDOW_TYPE_NORMAL,
                     EwwWindowType::Dialog => self.atoms._NET_WM_WINDOW_TYPE_DIALOG,
                     EwwWindowType::Toolbar => self.atoms._NET_WM_WINDOW_TYPE_TOOLBAR,
+                    EwwWindowType::Utility => self.atoms._NET_WM_WINDOW_TYPE_UTILITY,
                 }],
             )?
             .check()?;
@@ -239,6 +240,7 @@ mod platform {
             _NET_WM_WINDOW_TYPE_DOCK,
             _NET_WM_WINDOW_TYPE_DIALOG,
             _NET_WM_WINDOW_TYPE_TOOLBAR,
+            _NET_WM_WINDOW_TYPE_UTILITY,
             _NET_WM_STATE,
             _NET_WM_STATE_STICKY,
             _NET_WM_STATE_ABOVE,

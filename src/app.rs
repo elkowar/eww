@@ -231,7 +231,7 @@ impl App {
         log::info!("Opening window {}", window_name);
 
         let mut window_def = self.eww_config.get_window(window_name)?.clone();
-        window_def.geometry = window_def.geometry.override_if_given(anchor, pos, size);
+        window_def.geometry = window_def.geometry.map(|x| x.override_if_given(anchor, pos, size));
 
         let root_widget =
             window_def.widget.render(&mut self.eww_state, window_name, &self.eww_config.get_widget_definitions())?;
@@ -305,63 +305,64 @@ fn initialize_window(
     root_widget: gtk::Widget,
     window_def: config::EwwWindowDefinition,
 ) -> Result<EwwWindow> {
-    let actual_window_rect = window_def.geometry.get_window_rectangle(monitor_geometry);
-    if let Some(window) = display_backend::initialize_window(&window_def, monitor_geometry) {
-        window.set_title(&format!("Eww - {}", window_def.name));
-        let wm_class_name = format!("eww-{}", window_def.name);
-        #[allow(deprecated)]
-        window.set_wmclass(&wm_class_name, &wm_class_name);
-        window.set_position(gtk::WindowPosition::Center);
+    let window = display_backend::initialize_window(&window_def, monitor_geometry)
+        .with_context(|| format!("monitor {} is unavailable", window_def.screen_number.unwrap()))?;
+
+    window.set_title(&format!("Eww - {}", window_def.name));
+    let wm_class_name = format!("eww-{}", window_def.name);
+    #[allow(deprecated)]
+    window.set_wmclass(&wm_class_name, &wm_class_name);
+    window.set_position(gtk::WindowPosition::None);
+    window.set_gravity(gdk::Gravity::Center);
+
+    if let Some(geometry) = window_def.geometry {
+        let actual_window_rect = geometry.get_window_rectangle(monitor_geometry);
         window.set_size_request(actual_window_rect.width, actual_window_rect.height);
         window.set_default_size(actual_window_rect.width, actual_window_rect.height);
-        window.set_decorated(false);
-        window.set_skip_taskbar_hint(true);
-        window.set_skip_pager_hint(true);
-
-        // run on_screen_changed to set the visual correctly initially.
-        on_screen_changed(&window, None);
-        window.connect_screen_changed(on_screen_changed);
-
-        window.add(&root_widget);
-
-        window.show_all();
-
-        apply_window_position(window_def.clone(), monitor_geometry, &window)?;
-        let gdk_window = window.get_window().context("couldn't get gdk window from gtk window")?;
-
-        #[cfg(feature = "x11")]
-        {
-            if window_def.backend_options.sticky {
-                window.stick();
-            }
-            gdk_window.set_override_redirect(window_def.backend_options.wm_ignore);
-            display_backend::set_xprops(&window, monitor_geometry, &window_def)?;
-
-            // this should only be required on x11, as waylands layershell should manage the margins properly anways.
-            window.connect_configure_event({
-                let window_def = window_def.clone();
-                move |window, _evt| {
-                    let _ = apply_window_position(window_def.clone(), monitor_geometry, &window);
-                    false
-                }
-            });
-        }
-        Ok(EwwWindow { name: window_def.name.clone(), definition: window_def, gtk_window: window })
-    } else {
-        Err(anyhow!("monitor {} is unavailable", window_def.screen_number.unwrap()))
     }
+    window.set_decorated(false);
+    window.set_skip_taskbar_hint(true);
+    window.set_skip_pager_hint(true);
+
+    // run on_screen_changed to set the visual correctly initially.
+    on_screen_changed(&window, None);
+    window.connect_screen_changed(on_screen_changed);
+
+    window.add(&root_widget);
+
+    #[cfg(feature = "x11")]
+    if let Some(geometry) = window_def.geometry {
+        window.connect_draw(move |window, _| {
+            let _ = apply_window_position(geometry, monitor_geometry, &window);
+            gtk::Inhibit(false)
+        });
+        window.connect_configure_event(move |window, _| {
+            let _ = apply_window_position(geometry, monitor_geometry, &window);
+            false
+        });
+    }
+
+    window.show_all();
+
+    #[cfg(feature = "x11")]
+    {
+        let gdk_window = window.get_window().context("couldn't get gdk window from gtk window")?;
+        gdk_window.set_override_redirect(window_def.backend_options.wm_ignore);
+        display_backend::set_xprops(&window, monitor_geometry, &window_def)?;
+    }
+    Ok(EwwWindow { name: window_def.name.clone(), definition: window_def, gtk_window: window })
 }
 
 /// Apply the provided window-positioning rules to the window.
 fn apply_window_position(
-    mut window_def: config::EwwWindowDefinition,
+    mut window_geometry: config::EwwWindowGeometry,
     monitor_geometry: gdk::Rectangle,
     window: &gtk::Window,
 ) -> Result<()> {
     let (gtk_window_width, gtk_window_height) = window.get_size();
-    window_def.geometry.size = Coords { x: NumWithUnit::Pixels(gtk_window_width), y: NumWithUnit::Pixels(gtk_window_height) };
+    window_geometry.size = Coords { x: NumWithUnit::Pixels(gtk_window_width), y: NumWithUnit::Pixels(gtk_window_height) };
     let gdk_window = window.get_window().context("Failed to get gdk window from gtk window")?;
-    let actual_window_rect = window_def.geometry.get_window_rectangle(monitor_geometry);
+    let actual_window_rect = window_geometry.get_window_rectangle(monitor_geometry);
     gdk_window.move_(actual_window_rect.x, actual_window_rect.y);
     Ok(())
 }

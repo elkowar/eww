@@ -5,30 +5,27 @@ use serde::{Deserialize, Serialize};
 use smart_default::SmartDefault;
 use std::{collections::HashMap, str::FromStr};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, SmartDefault)]
 pub enum EwwWindowType {
+    #[default]
     Dock,
     Dialog,
     Toolbar,
     Normal,
+    Utility,
 }
 impl FromStr for EwwWindowType {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
+        match s.to_lowercase().as_str() {
             "dock" => Ok(Self::Dock),
             "toolbar" => Ok(Self::Toolbar),
             "dialog" => Ok(Self::Dialog),
             "normal" => Ok(Self::Normal),
-            x => Err(anyhow!("Unknown windowtype provided '{}'. Possible values are: dock, toolbar, dialog, normal", x)),
+            "utility" => Ok(Self::Utility),
+            x => Err(anyhow!("Unknown windowtype provided '{}'. Possible values are: dock, toolbar, dialog, normal, utility", x)),
         }
-    }
-}
-
-impl Default for EwwWindowType {
-    fn default() -> Self {
-        Self::Normal
     }
 }
 
@@ -38,7 +35,7 @@ impl Default for EwwWindowType {
 pub struct EwwWindowDefinition {
     pub name: WindowName,
 
-    pub geometry: EwwWindowGeometry,
+    pub geometry: Option<EwwWindowGeometry>,
     pub stacking: WindowStacking,
     pub screen_number: Option<i32>,
     pub widget: Box<dyn widget_node::WidgetNode>,
@@ -64,33 +61,29 @@ impl EwwWindowDefinition {
 #[derive(Debug, Clone, PartialEq)]
 pub struct RawEwwWindowDefinition {
     pub name: WindowName,
-    pub geometry: EwwWindowGeometry,
+    pub geometry: Option<EwwWindowGeometry>,
     pub stacking: WindowStacking,
-    pub screen_number: Option<i32>,
     pub widget: WidgetUse,
     pub focusable: bool,
     pub backend_options: BackendWindowOptions,
+    // TODO maybe rename this to monitor?
+    pub screen_number: Option<i32>,
 }
 
 impl RawEwwWindowDefinition {
     pub fn from_xml_element(xml: &XmlElement) -> Result<Self> {
         ensure_xml_tag_is!(xml, "window");
-        let stacking: WindowStacking = xml.parse_optional_attr("stacking")?.unwrap_or_default();
-
-        // TODO maybe rename this to monitor?
-        let focusable = xml.parse_optional_attr("focusable")?;
-        let screen_number = xml.parse_optional_attr("screen")?;
 
         Ok(RawEwwWindowDefinition {
             name: WindowName(xml.attr("name")?),
             geometry: match xml.child("geometry") {
-                Ok(node) => EwwWindowGeometry::from_xml_element(node)?,
-                Err(_) => EwwWindowGeometry::default(),
+                Ok(node) => Some(EwwWindowGeometry::from_xml_element(node)?),
+                Err(_) => None,
             },
             widget: WidgetUse::from_xml_node(xml.child("widget")?.only_child()?)?,
-            stacking,
-            screen_number,
-            focusable: focusable.unwrap_or(false),
+            stacking: xml.parse_optional_attr("stacking")?.unwrap_or_default(),
+            screen_number: xml.parse_optional_attr("screen")?,
+            focusable: xml.parse_optional_attr("focusable")?.unwrap_or(false),
             backend_options: BackendWindowOptions::from_xml_element(xml)?,
         })
     }

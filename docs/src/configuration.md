@@ -248,9 +248,11 @@ There are a couple things you can optionally configure on the window itself:
   This option is only valid on Wayland.
   Possible values: `"true"`, `"false"`. Default: `"false"`
 - `windowtype`: (X11 only) Can be used in determining the decoration, stacking position and other behavior of the window.
-  Possible values: 
+  Window managers tend to interpret these differently, so play around with which one works for your usecase!
+  Possible values:
     - `"normal"`: indicates that this is a normal, top-level window
-    - `"dock"`: indicates a dock or panel feature
+    - `"dock"`: indicates a dock panel or widget window
+    - `"utility"`: indicates a pinned utility window
     - `"toolbar"`: toolbars "torn off" from the main application
     - `"dialog"`: indicates that this is a dialog window
-    - Default: `"dock"` if reserve is set, else `"normal"` 
+    - Default: `"dock"`

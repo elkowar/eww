@@ -9,12 +9,12 @@ use super::xml_ext::XmlElement;
 
 #[derive(Debug, derive_more::Display, Clone, Copy, Eq, PartialEq, SmartDefault, Serialize, Deserialize)]
 pub enum AnchorAlignment {
-    #[display("start")]
+    #[display(fmt = "start")]
     #[default]
     START,
-    #[display("center")]
+    #[display(fmt = "center")]
     CENTER,
-    #[display("end")]
+    #[display(fmt = "end")]
     END,
 }
 
@@ -117,7 +117,7 @@ impl EwwWindowGeometry {
         })
     }
 
-    pub fn override_if_given(&mut self, anchor_point: Option<AnchorPoint>, offset: Option<Coords>, size: Option<Coords>) -> Self {
+    pub fn override_if_given(&self, anchor_point: Option<AnchorPoint>, offset: Option<Coords>, size: Option<Coords>) -> Self {
         EwwWindowGeometry {
             anchor_point: anchor_point.unwrap_or(self.anchor_point),
             offset: offset.unwrap_or(self.offset),

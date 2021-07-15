@@ -1,6 +1,5 @@
 use crate::config::xml_ext::XmlElement;
 use anyhow::*;
-use std::str::FromStr;
 
 #[cfg(feature = "no-x11-wayland")]
 pub use no_x11_wayland::*;
@@ -33,11 +32,7 @@ mod x11 {
                 .context("Failed to parse <reserve>")?;
 
             Ok(BackendWindowOptions {
-                window_type: match xml.attr("windowtype") {
-                    Ok(v) => EwwWindowType::from_str(&v)?,
-                    Err(_) if struts.is_some() => EwwWindowType::Dock,
-                    Err(_) => Default::default(),
-                },
+                window_type: xml.parse_optional_attr("windowtype")?.unwrap_or_default(),
                 wm_ignore: xml.parse_optional_attr("wm-ignore")?.unwrap_or(false),
                 sticky: xml.parse_optional_attr("sticky")?.unwrap_or(true),
                 struts: struts.unwrap_or_default(),
