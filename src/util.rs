@@ -4,23 +4,6 @@ use itertools::Itertools;
 use std::path::Path;
 
 #[macro_export]
-macro_rules! impl_try_from {
-    ($typ:ty {
-        $(
-            for $for:ty => |$arg:ident| $code:expr
-        );*;
-    }) => {
-        $(impl TryFrom<$typ> for $for {
-            type Error = anyhow::Error;
-
-            fn try_from($arg: $typ) -> Result<Self> {
-                $code
-            }
-        })*
-    };
-}
-
-#[macro_export]
 macro_rules! try_logging_errors {
     ($context:expr => $code:block) => {{
         let result: Result<_> = try { $code };
@@ -62,8 +45,8 @@ macro_rules! loop_select {
 #[macro_export]
 macro_rules! enum_parse {
     ($name:literal, $input:expr, $($($s:literal)|* => $val:expr),* $(,)?) => {
-        let input = $input;
-        match input {
+        let input = $input.to_lowercase();
+        match input.as_str() {
             $( $( $s )|* => Ok($val) ),*,
             _ => Err(anyhow!(concat!("Couldn't parse ", $name, ": '{}'. Possible values are ", $($($s),*),*), input))
         }

@@ -8,6 +8,7 @@ use anyhow::*;
 use element::*;
 use xml_ext::*;
 
+pub mod backend_window_options;
 pub mod element;
 pub mod eww_config;
 pub mod inbuilt;
