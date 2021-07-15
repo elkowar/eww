@@ -20,8 +20,8 @@ pkgs.mkShell {
     gcc
     gtk3
     pkg-config
-    rustfmt
-    clippy
+    rustfmt-preview
+    clippy-preview
     deno
     mdbook
   ];
