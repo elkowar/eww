@@ -1,36 +1,12 @@
 use super::{backend_window_options::*, *};
-use crate::{ensure_xml_tag_is, value::NumWithUnit, widgets::widget_node};
+use crate::{ensure_xml_tag_is, enum_parse, value::NumWithUnit, widgets::widget_node};
 use derive_more::*;
 use serde::{Deserialize, Serialize};
 use smart_default::SmartDefault;
 use std::{collections::HashMap, str::FromStr};
 
-#[derive(Debug, Clone, PartialEq, Eq, SmartDefault)]
-pub enum EwwWindowType {
-    #[default]
-    Dock,
-    Dialog,
-    Toolbar,
-    Normal,
-    Utility,
-}
-impl FromStr for EwwWindowType {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "dock" => Ok(Self::Dock),
-            "toolbar" => Ok(Self::Toolbar),
-            "dialog" => Ok(Self::Dialog),
-            "normal" => Ok(Self::Normal),
-            "utility" => Ok(Self::Utility),
-            x => Err(anyhow!("Unknown windowtype provided '{}'. Possible values are: dock, toolbar, dialog, normal, utility", x)),
-        }
-    }
-}
-
 /// Full window-definition containing the fully expanded widget tree.
-/// **Use this** rather than `[RawEwwWindowDefinition]`.
+/// **Use this** rather than [RawEwwWindowDefinition].
 #[derive(Debug, Clone)]
 pub struct EwwWindowDefinition {
     pub name: WindowName,
@@ -72,13 +48,14 @@ pub struct RawEwwWindowDefinition {
 impl RawEwwWindowDefinition {
     pub fn from_xml_element(xml: &XmlElement) -> Result<Self> {
         ensure_xml_tag_is!(xml, "window");
+        let geometry = match xml.child("geometry") {
+            Ok(node) => Some(EwwWindowGeometry::from_xml_element(node)?),
+            Err(_) => None,
+        };
 
         Ok(RawEwwWindowDefinition {
             name: WindowName(xml.attr("name")?),
-            geometry: match xml.child("geometry") {
-                Ok(node) => Some(EwwWindowGeometry::from_xml_element(node)?),
-                Err(_) => None,
-            },
+            geometry,
             widget: WidgetUse::from_xml_node(xml.child("widget")?.only_child()?)?,
             stacking: xml.parse_optional_attr("stacking")?.unwrap_or_default(),
             // TODO maybe rename this to monitor?
@@ -86,6 +63,29 @@ impl RawEwwWindowDefinition {
             resizable: xml.parse_optional_attr("resizable")?.unwrap_or(true),
             backend_options: BackendWindowOptions::from_xml_element(xml)?,
         })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, SmartDefault)]
+pub enum EwwWindowType {
+    #[default]
+    Dock,
+    Dialog,
+    Toolbar,
+    Normal,
+    Utility,
+}
+impl FromStr for EwwWindowType {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        enum_parse! { "window type", s,
+            "dock" => Self::Dock,
+            "toolbar" => Self::Toolbar,
+            "dialog" => Self::Dialog,
+            "normal" => Self::Normal,
+            "utility" => Self::Utility,
+        }
     }
 }
 
@@ -102,12 +102,11 @@ impl std::str::FromStr for Side {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Side> {
-        match s {
-            "l" | "left" => Ok(Side::Left),
-            "r" | "right" => Ok(Side::Right),
-            "t" | "top" => Ok(Side::Top),
-            "b" | "bottom" => Ok(Side::Bottom),
-            _ => Err(anyhow!("Failed to parse {} as valid side. Must be one of \"left\", \"right\", \"top\", \"bottom\"", s)),
+        enum_parse! { "side", s,
+            "l" | "left" => Side::Left,
+            "r" | "right" => Side::Right,
+            "t" | "top" => Side::Top,
+            "b" | "bottom" => Side::Bottom,
         }
     }
 }
@@ -139,27 +138,19 @@ impl std::str::FromStr for WindowStacking {
 
     #[cfg(not(feature = "wayland"))]
     fn from_str(s: &str) -> Result<Self> {
-        let s = s.to_lowercase();
-        match s.as_str() {
-            "foreground" | "fg" | "f" => Ok(WindowStacking::Foreground),
-            "background" | "bg" | "b" => Ok(WindowStacking::Background),
-            _ => Err(anyhow!("Couldn't parse '{}' as window stacking, must be either foreground, fg, background or bg", s)),
+        enum_parse! { "WindowStacking", s,
+            "foreground" | "fg" | "f" => WindowStacking::Foreground,
+            "background" | "bg" | "b" => WindowStacking::Background,
         }
     }
 
     #[cfg(feature = "wayland")]
     fn from_str(s: &str) -> Result<Self> {
-        let s = s.to_lowercase();
-        match s.as_str() {
-            "foreground" | "fg" => Ok(WindowStacking::Foreground),
-            "background" | "bg" => Ok(WindowStacking::Background),
-            "bottom" | "bt" => Ok(WindowStacking::Bottom),
-            "overlay" | "ov" => Ok(WindowStacking::Overlay),
-            _ => Err(anyhow!(
-                "Couldn't parse '{}' as window stacking, must be either foreground, fg, background, bg, bottom, bt, overlay or \
-                 ov",
-                s
-            )),
+        enum_parse! { "WindowStacking", s,
+            "foreground" | "fg" => WindowStacking::Foreground,
+            "background" | "bg" => WindowStacking::Background,
+            "bottom" | "bt" => WindowStacking::Bottom,
+            "overlay" | "ov" => WindowStacking::Overlay,
         }
     }
 }

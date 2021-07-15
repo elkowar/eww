@@ -45,8 +45,8 @@ macro_rules! loop_select {
 #[macro_export]
 macro_rules! enum_parse {
     ($name:literal, $input:expr, $($($s:literal)|* => $val:expr),* $(,)?) => {
-        let input = $input;
-        match input {
+        let input = $input.to_lowercase();
+        match input.as_str() {
             $( $( $s )|* => Ok($val) ),*,
             _ => Err(anyhow!(concat!("Couldn't parse ", $name, ": '{}'. Possible values are ", $($($s),*),*), input))
         }
