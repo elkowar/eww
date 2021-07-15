@@ -502,7 +502,7 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
         prop(wrap: as_bool) {
             gtk_widget.set_line_wrap(wrap)
         },
-        // @prop angle - the angle of rotation for the label
+        // @prop angle - the angle of rotation for the label (between 0 - 360)
         prop(angle: as_f64 = 0) {
             gtk_widget.set_angle(angle)
         }
