@@ -82,7 +82,7 @@ fn build_builtin_gtk_widget(
     // run resolve functions for superclasses such as range, orientable, and widget
 
     if let Some(gtk_widget) = gtk_widget.dynamic_cast_ref::<gtk::Container>() {
-        resolve_container_attrs(&mut bargs, &gtk_widget);
+        resolve_container_attrs(&mut bargs, gtk_widget);
         for child in &widget.children {
             let child_widget = child.render(bargs.eww_state, window_name, widget_definitions).with_context(|| {
                 format!(
@@ -98,10 +98,10 @@ fn build_builtin_gtk_widget(
     }
 
     if let Some(w) = gtk_widget.dynamic_cast_ref() {
-        resolve_range_attrs(&mut bargs, &w)
+        resolve_range_attrs(&mut bargs, w)
     }
     if let Some(w) = gtk_widget.dynamic_cast_ref() {
-        resolve_orientable_attrs(&mut bargs, &w)
+        resolve_orientable_attrs(&mut bargs, w)
     };
     resolve_widget_attrs(&mut bargs, &gtk_widget);
 

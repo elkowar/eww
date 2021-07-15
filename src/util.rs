@@ -102,7 +102,7 @@ pub fn join_path_pretty<P: AsRef<std::path::Path>, P2: AsRef<std::path::Path>>(a
     if b.is_absolute() {
         b.to_path_buf()
     } else {
-        a.parent().unwrap().join(b.strip_prefix("./").unwrap_or(&b))
+        a.parent().unwrap().join(b.strip_prefix("./").unwrap_or(b))
     }
 }
 

@@ -204,7 +204,7 @@ impl App {
     }
 
     fn close_window(&mut self, window_name: &WindowName) -> Result<()> {
-        for unused_var in self.variables_only_used_in(&window_name) {
+        for unused_var in self.variables_only_used_in(window_name) {
             log::info!("stopping for {}", &unused_var);
             self.script_var_handler.stop_for_variable(unused_var.clone());
         }
@@ -246,7 +246,7 @@ impl App {
         // initialize script var handlers for variables that where not used before opening this window.
         // TODO somehow make this less shit
         for newly_used_var in
-            self.variables_only_used_in(&window_name).filter_map(|var| self.eww_config.get_script_var(&var).ok())
+            self.variables_only_used_in(window_name).filter_map(|var| self.eww_config.get_script_var(var).ok())
         {
             self.script_var_handler.add(newly_used_var.clone());
         }

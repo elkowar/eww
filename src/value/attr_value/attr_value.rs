@@ -160,14 +160,14 @@ impl AttrValElement {
 
     pub fn as_expr(&self) -> Option<&AttrValExpr> {
         match self {
-            AttrValElement::Expr(x) => Some(&x),
+            AttrValElement::Expr(x) => Some(x),
             _ => None,
         }
     }
 
     pub fn as_primitive(&self) -> Option<&PrimVal> {
         match self {
-            AttrValElement::Primitive(x) => Some(&x),
+            AttrValElement::Primitive(x) => Some(x),
             _ => None,
         }
     }

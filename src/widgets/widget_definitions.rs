@@ -608,7 +608,7 @@ fn connect_first_map<W: IsA<gtk::Widget>, F: Fn(&W) + 'static>(widget: &W, func:
     let is_first_map = std::rc::Rc::new(std::cell::RefCell::new(true));
     widget.connect_map(move |w| {
         if is_first_map.replace(false) {
-            func(&w);
+            func(w);
         }
     });
 }
