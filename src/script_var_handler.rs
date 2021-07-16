@@ -144,6 +144,7 @@ impl PollVarHandler {
                 notify::Watcher::new_immediate(move |res: notify::Result<notify::Event>| {
                     match res {
                         Ok(event) => {
+                            log::debug!("File watcher triggered for file {:?} | Type: {:?}", event.paths, event.kind);
                             if let Err(err) = tx.send(event.paths) {
                                 log::warn!("Error forwarding file update event: {:?}", err);
                             }

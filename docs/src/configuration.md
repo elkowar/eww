@@ -76,7 +76,7 @@ Useful for creating volume sliders or anything similar.
 Example:
 ```xml
 <variables>
-    <script-var name="date" interval="5s">
+    <script-var name="date" interval="5s" files=[/home/user/time,/root/time]>
         date +%H:%M
     </script-var>
 </variables>
@@ -92,12 +92,24 @@ and then reference it by doing:
 The `interval="5s"` part says how long time it should take before Eww runs the command again.
 Here are the available times you can set:
 
-| Shortened | Full name   |
-|-----------|-------------|
-| ms        | Miliseconds |
-| s         | Seconds     |
-| m         | Minutes     |
-| h         | Hours       |
+| Shortened | Full name    |
+|-----------|--------------|
+| ms        | Milliseconds |
+| s         | Seconds      |
+| m         | Minutes      |
+| h         | Hours        |
+
+
+
+The `files` part says what files Eww should monitor for changes, to then run the command again.
+It's a list, separated only by `,` (no spaces). Each path acts recursively, so in the case that it should point to a directory, Eww would trigger every time something *in* that directory (and all consequent directories) changes.
+
+Should a script var have both, files to monitor and a delay, Eww will wait for the one triggering first.
+
+Note that file events may be triggered several times, e.g. creating, opening and then closing the file.
+So it might happen that the command is executed several times for every action. We might want to add a way to limit the even to a certain one in the future.
+
+This feature is supported on all major platforms (see the list [here](https://github.com/notify-rs/notify#platforms))
 
 
 ### Tail
