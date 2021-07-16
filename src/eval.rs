@@ -23,6 +23,9 @@ pub enum EvalError {
     #[error("Unknown function {0}")]
     UnknownFunction(String),
 
+    #[error("Unknown variable {0}")]
+    UnknownVariable(String),
+
     #[error("Unable to index into value {0}")]
     CannotIndex(String),
 
@@ -53,34 +56,37 @@ impl SimplExpr {
             BinOp(span, box a, op, box b) => BinOp(span, box f(a), op, box f(b)),
             UnaryOp(span, op, box a) => UnaryOp(span, op, box f(a)),
             IfElse(span, box a, box b, box c) => IfElse(span, box f(a), box f(b), box f(c)),
+            JsonAccess(span, box a, box b) => JsonAccess(span, box f(a), box f(b)),
+            FunctionCall(span, name, args) => FunctionCall(span, name, args.into_iter().map(f).collect()),
             other => f(other),
         }
     }
 
     /// resolve variable references in the expression. Fails if a variable cannot be resolved.
-    // pub fn resolve_refs(self, variables: &HashMap<VarName, DynVal>) -> Result<Self> {
-    // use SimplExpr::*;
-    // match self {
-    //// Literal(x) => Ok(Literal(AttrValue::from_primitive(x.resolve_fully(&variables)?))),
-    // Literal(x) => Ok(Literal(x)),
-    // VarRef(ref name) => Ok(Literal(AttrVal::from_primitive(
-    // variables.get(name).with_context(|| format!("Unknown variable {} referenced in {:?}", &name, &self))?.clone(),
-    //))),
-    // BinOp(box a, op, box b) => {
-    // Ok(BinOp(box a.resolve_refs(variables?), op, box b.resolve_refs(variables?)))
-    //}
-    // UnaryOp(op, box x) => Ok(UnaryOp(op, box x.resolve_refs(variables?))),
-    // IfElse(box a, box b, box c) => Ok(IfElse(
-    // box a.resolve_refs(variables?),
-    // box b.resolve_refs(variables?),
-    // box c.resolve_refs(variables?),
-    //)),
-    // JsonAccess(box a, box b) => {
-    // Ok(JsonAccess(box a.resolve_refs(variables?), box b.resolve_refs(variables?)))
-    //}
-    // FunctionCall(function_name, args) => {
-    // Ok(FunctionCall(function_name, args.into_iter().map(|a| a.resolve_refs(variables)).collect::<Result<_>>()?))
-    //}
+    pub fn resolve_refs(self, variables: &HashMap<VarName, DynVal>) -> Result<Self, EvalError> {
+        use SimplExpr::*;
+        match self {
+            // Literal(x) => Ok(Literal(AttrValue::from_primitive(x.resolve_fully(&variables)?))),
+            Literal(span, x) => Ok(Literal(span, x)),
+            BinOp(span, box a, op, box b) => Ok(BinOp(span, box a.resolve_refs(variables)?, op, box b.resolve_refs(variables)?)),
+            UnaryOp(span, op, box x) => Ok(UnaryOp(span, op, box x.resolve_refs(variables)?)),
+            IfElse(span, box a, box b, box c) => {
+                Ok(IfElse(span, box a.resolve_refs(variables)?, box b.resolve_refs(variables)?, box c.resolve_refs(variables)?))
+            }
+            JsonAccess(span, box a, box b) => {
+                Ok(JsonAccess(span, box a.resolve_refs(variables)?, box b.resolve_refs(variables)?))
+            }
+            FunctionCall(span, function_name, args) => Ok(FunctionCall(
+                span,
+                function_name,
+                args.into_iter().map(|a| a.resolve_refs(variables)).collect::<Result<_, EvalError>>()?,
+            )),
+            VarRef(span, ref name) => match variables.get(name) {
+                Some(value) => Ok(Literal(span, value.clone())),
+                None => Err(EvalError::UnknownVariable(name.to_string()).at(span)),
+            },
+        }
+    }
 
     pub fn var_refs(&self) -> Vec<&String> {
         use SimplExpr::*;
