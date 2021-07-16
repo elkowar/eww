@@ -97,7 +97,6 @@ pub fn get_battery_capacity() -> Result<String> {
     {
         let i = i?.path();
         if i.is_dir() {
-            // some ugly hack because if let Some(a) = a && Some(b) = b doesn't work yet
             if let (Ok(o), Ok(s)) = (read_to_string(i.join("capacity")), read_to_string(i.join("status"))) {
                 json.push_str(&format!(
                     r#"{:?}: {{ "status": "{}", "capacity": {} }},"#,

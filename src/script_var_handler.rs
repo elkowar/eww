@@ -127,7 +127,7 @@ impl PollVarHandler {
     }
 
     async fn start(&mut self, var: config::PollScriptVar) {
-        log::debug!("starting poll var {}", &var.name);
+        log::debug!("Starting poll var {}", &var.name);
         let cancellation_token = CancellationToken::new();
         self.poll_handles.insert(var.name.clone(), cancellation_token.clone());
         let evt_send = self.evt_send.clone();
@@ -137,14 +137,47 @@ impl PollVarHandler {
             };
             crate::print_result_err!("while running script-var command", &result);
 
+            use notify::Watcher;
+            let x = &var.files;
+            let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+            let mut watcher: notify::RecommendedWatcher =
+                notify::Watcher::new_immediate(move |res: notify::Result<notify::Event>| {
+                    match res {
+                        Ok(event) => {
+                            if let Err(err) = tx.send(event.paths) {
+                                log::warn!("Error forwarding file update event: {:?}", err);
+                            }
+                        }
+                        Err(e) => log::error!("Encountered error While Watching Files: {}", e),
+                    }
+                })
+                .unwrap();
+
+            for i in x {
+                watcher.watch(i, notify::RecursiveMode::Recursive).unwrap();
+            }
+
             crate::loop_select_exiting! {
-                _ = cancellation_token.cancelled() => break,
-                _ = tokio::time::sleep(var.interval) => {
-                    let result: Result<_> = try {
-                        evt_send.send(app::DaemonCommand::UpdateVars(vec![(var.name.clone(), var.run_once()?)]))?;
-                    };
-                    crate::print_result_err!("while running script-var command", &result);
-                }
+                    _ = cancellation_token.cancelled() => break,
+                    // sleeps infinitely if var.interval is None
+                    _ = async {
+                        if let Some(t) = var.interval {
+                            tokio::time::sleep(t).await
+                        } else {
+                            std::future::pending().await
+                        }
+                    } => {
+                        let result: Result<_> = try {
+                            evt_send.send(app::DaemonCommand::UpdateVars(vec![(var.name.clone(), var.run_once()?)]))?;
+                        };
+                        crate::print_result_err!("while running script-var command", &result);
+                    },
+                    _ = rx.recv() => {
+                        let result: Result<_> = try {
+                                evt_send.send(app::DaemonCommand::UpdateVars(vec![(var.name.clone(), var.run_once()?)]))?;
+                        };
+                        crate::print_result_err!("while running script-var command", &result);
+                    },
             }
         });
     }
@@ -179,7 +212,7 @@ impl TailVarHandler {
     }
 
     async fn start(&mut self, var: config::TailScriptVar) {
-        log::debug!("starting poll var {}", &var.name);
+        log::debug!("Starting poll var {}", &var.name);
         let cancellation_token = CancellationToken::new();
         self.tail_process_handles.insert(var.name.clone(), cancellation_token.clone());
 

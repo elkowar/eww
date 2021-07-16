@@ -1,4 +1,4 @@
-use std::process::Command;
+use std::{path::PathBuf, process::Command};
 
 use anyhow::*;
 
@@ -6,16 +6,21 @@ use crate::ensure_xml_tag_is;
 
 use super::*;
 
+type Interval = Option<std::time::Duration>;
+type Files = Vec<PathBuf>;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum VarSource {
     Shell(String),
     Function(fn() -> Result<PrimVal>),
 }
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PollScriptVar {
     pub name: VarName,
     pub command: VarSource,
-    pub interval: std::time::Duration,
+    pub interval: Interval,
+    pub files: Files,
 }
 
 impl PollScriptVar {
@@ -24,6 +29,13 @@ impl PollScriptVar {
             VarSource::Shell(x) => run_command(x),
             VarSource::Function(x) => x(),
         }
+    }
+    pub fn change_delay(&mut self, a: Interval) -> () {
+        self.interval = a;
+    }
+
+    pub fn change_files(&mut self, a: Files) -> () {
+        self.files = a;
     }
 }
 
@@ -64,12 +76,22 @@ impl ScriptVar {
 
         let name = VarName(xml.attr("name")?);
         let command = xml.only_child()?.as_text()?.text();
-        if let Ok(interval) = xml.attr("interval") {
-            let interval = util::parse_duration(&interval)?;
-            Ok(ScriptVar::Poll(PollScriptVar { name, command: crate::config::VarSource::Shell(command), interval }))
-        } else {
-            Ok(ScriptVar::Tail(TailScriptVar { name, command }))
+
+        let interval = xml.attr("interval");
+        let files = xml.attr("files");
+
+        if interval.is_err() && files.is_err() {
+            return Ok(ScriptVar::Tail(TailScriptVar { name, command }))
         }
+
+        Ok(ScriptVar::Poll(PollScriptVar {
+            name,
+            command: VarSource::Shell(command),
+            interval: if interval.is_err() { None } else { Some(util::parse_duration(&interval.unwrap())?) },
+            // empty vec doesn't allocate on heap, so no considerable larger memory footprint
+            files: if files.is_err() { vec![] } else { PrimVal::from_string(files.unwrap()).as_vec()?.iter().map(PathBuf::from).collect() }
+        }))
+
     }
 }
 
