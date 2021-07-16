@@ -6,9 +6,11 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     #[error("Parse error: {source}")]
     ParseError { source: lalrpop_util::ParseError<usize, lexer::Token, lexer::LexicalError> },
-    #[error("Conversion error: {0}")]
+
+    #[error("Type error: {0}")]
     ConversionError(#[from] dynval::ConversionError),
-    #[error("At: {0}: {1}")]
+
+    #[error("{1}")]
     Spanned(Span, Box<dyn std::error::Error>),
 
     #[error(transparent)]

@@ -29,7 +29,7 @@ pub enum EvalError {
     #[error("Unable to index into value {0}")]
     CannotIndex(String),
 
-    #[error("At {0}: {1}")]
+    #[error("{1}")]
     Spanned(Span, Box<EvalError>),
 }
 
@@ -48,6 +48,11 @@ impl EvalError {
 }
 
 type VarName = String;
+
+pub trait FunctionSource {
+    type Err;
+    fn run_fn(&self, name: &str, args: &Vec<DynVal>) -> Result<DynVal, Self::Err>;
+}
 
 impl SimplExpr {
     pub fn map_terminals_into(self, f: impl Fn(Self) -> Self) -> Self {
@@ -124,8 +129,10 @@ impl SimplExpr {
                     BinOp::NotEquals => DynVal::from(a != b),
                     BinOp::And => DynVal::from(a.as_bool()? && b.as_bool()?),
                     BinOp::Or => DynVal::from(a.as_bool()? || b.as_bool()?),
-
-                    BinOp::Plus => DynVal::from(a.as_f64()? + b.as_f64()?),
+                    BinOp::Plus => match a.as_f64() {
+                        Ok(num) => DynVal::from(num + b.as_f64()?),
+                        Err(_) => DynVal::from(format!("{}{}", a.as_string()?, b.as_string()?)),
+                    },
                     BinOp::Minus => DynVal::from(a.as_f64()? - b.as_f64()?),
                     BinOp::Times => DynVal::from(a.as_f64()? * b.as_f64()?),
                     BinOp::Div => DynVal::from(a.as_f64()? / b.as_f64()?),

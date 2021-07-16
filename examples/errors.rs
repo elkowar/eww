@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use simplexpr::dynval::DynVal;
-
 fn main() {
     let mut files = codespan_reporting::files::SimpleFiles::new();
 
