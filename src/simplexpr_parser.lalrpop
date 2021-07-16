@@ -1,7 +1,7 @@
 
 use crate::ast::{SimplExpr::{self, *}, Span, BinOp::*, UnaryOp::*};
-use crate::lexer::{Token, LexicalError};
-use crate::lalrpop_helpers::*;
+use crate::parser::lexer::{Token, LexicalError};
+use crate::parser::lalrpop_helpers::*;
 
 
 grammar;
@@ -67,7 +67,7 @@ pub Expr: SimplExpr = {
   <l:@L> <value:Expr>         "[" <index: ExprReset>       "]" <r:@R> => JsonAccess(Span(l, r), b(value), b(index)),
 
   <l:@L> <value:Expr> "." <lit_l:@L> <index:"identifier"> <r:@R> => {
-    JsonAccess(Span(l, r), b(value), b(Literal(Span(lit_l, r), index)))
+    JsonAccess(Span(l, r), b(value), b(Literal(Span(lit_l, r), index.into())))
   },
 
   #[precedence(level="2")] #[assoc(side="right")]
@@ -103,10 +103,10 @@ pub Expr: SimplExpr = {
 ExprReset = <Expr>;
 
 Literal: SimplExpr = {
-  <l:@L> <x:StrLit>   <r:@R> => Literal(Span(l, r), x),
-  <l:@L> <x:"number"> <r:@R> => Literal(Span(l, r), x.to_string()),
-  <l:@L> "true"       <r:@R> => Literal(Span(l, r), "true".to_string()),
-  <l:@L> "false"      <r:@R> => Literal(Span(l, r), "false".to_string()),
+  <l:@L> <x:StrLit>   <r:@R> => Literal(Span(l, r), x.into()),
+  <l:@L> <x:"number"> <r:@R> => Literal(Span(l, r), x.into()),
+  <l:@L> "true"       <r:@R> => Literal(Span(l, r), "true".into()),
+  <l:@L> "false"      <r:@R> => Literal(Span(l, r), "false".into()),
 }
 
 StrLit: String = {

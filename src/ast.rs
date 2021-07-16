@@ -1,3 +1,4 @@
+use crate::dynval::DynVal;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
@@ -42,7 +43,7 @@ pub enum UnaryOp {
 
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub enum SimplExpr {
-    Literal(Span, String),
+    Literal(Span, DynVal),
     VarRef(Span, String),
     BinOp(Span, Box<SimplExpr>, BinOp, Box<SimplExpr>),
     UnaryOp(Span, UnaryOp, Box<SimplExpr>),
@@ -63,6 +64,19 @@ impl std::fmt::Display for SimplExpr {
             SimplExpr::FunctionCall(_, function_name, args) => {
                 write!(f, "{}({})", function_name, args.iter().join(", "))
             }
+        }
+    }
+}
+impl SimplExpr {
+    pub fn span(&self) -> Span {
+        match self {
+            SimplExpr::Literal(span, _) => *span,
+            SimplExpr::VarRef(span, _) => *span,
+            SimplExpr::BinOp(span, ..) => *span,
+            SimplExpr::UnaryOp(span, ..) => *span,
+            SimplExpr::IfElse(span, ..) => *span,
+            SimplExpr::JsonAccess(span, ..) => *span,
+            SimplExpr::FunctionCall(span, ..) => *span,
         }
     }
 }

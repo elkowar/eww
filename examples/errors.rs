@@ -4,7 +4,7 @@ fn main() {
     let input = "12 + \"hi\" * foo ) ? bar == baz : false";
 
     let _ = files.add("foo.eww", input);
-    let ast = simplexpr::parse_string(input);
+    let ast = simplexpr::parser::parse_string(input);
     match ast {
         Ok(ast) => {
             println!("{:?}", ast);
