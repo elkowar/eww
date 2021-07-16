@@ -1,4 +1,4 @@
-use crate::ast::Span;
+use crate::ast::{MaybeSpanned, Span};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::{convert::TryFrom, fmt, iter::FromIterator};
@@ -6,7 +6,7 @@ use std::{convert::TryFrom, fmt, iter::FromIterator};
 pub type Result<T> = std::result::Result<T, ConversionError>;
 
 #[derive(Debug, thiserror::Error)]
-#[error("Type error: Failed to turn {value} into a {target_type}")]
+#[error("Failed to turn {value} into a {target_type}")]
 pub struct ConversionError {
     value: DynVal,
     target_type: &'static str,
@@ -17,10 +17,20 @@ impl ConversionError {
     fn new(value: DynVal, target_type: &'static str, source: Box<dyn std::error::Error>) -> Self {
         ConversionError { value, target_type, source: Some(source) }
     }
+
+    pub fn span(&self) -> Option<Span> {
+        self.value.1
+    }
 }
 
 #[derive(Clone, Deserialize, Serialize, Default)]
 pub struct DynVal(pub String, pub Option<Span>);
+
+impl MaybeSpanned for DynVal {
+    fn try_span(&self) -> Option<Span> {
+        self.1
+    }
+}
 
 impl From<String> for DynVal {
     fn from(s: String) -> Self {
@@ -30,7 +40,7 @@ impl From<String> for DynVal {
 
 impl fmt::Display for DynVal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
+        write!(f, "\"{}\"", self.0)
     }
 }
 impl fmt::Debug for DynVal {
@@ -106,6 +116,10 @@ impl From<&serde_json::Value> for DynVal {
 }
 
 impl DynVal {
+    pub fn at(self, span: Span) -> Self {
+        DynVal(self.0, Some(span))
+    }
+
     pub fn from_string(s: String) -> Self {
         DynVal(s, None)
     }

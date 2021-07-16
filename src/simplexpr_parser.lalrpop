@@ -1,4 +1,3 @@
-
 use crate::ast::{SimplExpr::{self, *}, Span, BinOp::*, UnaryOp::*};
 use crate::parser::lexer::{Token, LexicalError};
 use crate::parser::lalrpop_helpers::*;
@@ -103,10 +102,10 @@ pub Expr: SimplExpr = {
 ExprReset = <Expr>;
 
 Literal: SimplExpr = {
-  <l:@L> <x:StrLit>   <r:@R> => Literal(Span(l, r), x.into()),
-  <l:@L> <x:"number"> <r:@R> => Literal(Span(l, r), x.into()),
-  <l:@L> "true"       <r:@R> => Literal(Span(l, r), "true".into()),
-  <l:@L> "false"      <r:@R> => Literal(Span(l, r), "false".into()),
+  <l:@L> <x:StrLit>   <r:@R> => SimplExpr::literal(Span(l, r), x),
+  <l:@L> <x:"number"> <r:@R> => SimplExpr::literal(Span(l, r), x),
+  <l:@L> "true"       <r:@R> => SimplExpr::literal(Span(l, r), "true".into()),
+  <l:@L> "false"      <r:@R> => SimplExpr::literal(Span(l, r), "false".into()),
 }
 
 StrLit: String = {

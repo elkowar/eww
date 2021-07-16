@@ -1,11 +1,19 @@
+use std::collections::HashMap;
+
+use simplexpr::dynval::DynVal;
+
 fn main() {
     let mut files = codespan_reporting::files::SimpleFiles::new();
 
-    let input = "12 + \"hi\" * foo ) ? bar == baz : false";
+    let input = "12 + foo * 2 < 2 ? bar == true : false";
 
     let _ = files.add("foo.eww", input);
     let ast = simplexpr::parser::parse_string(input);
-    match ast {
+
+    let mut vars = HashMap::new();
+    vars.insert("foo".to_string(), "2".into());
+
+    match ast.and_then(|x| x.eval(&vars).map_err(|e| e.into())) {
         Ok(ast) => {
             println!("{:?}", ast);
         }

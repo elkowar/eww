@@ -11,10 +11,10 @@ pub enum EvalError {
     #[error("Invalid regex: {0}")]
     InvalidRegex(#[from] regex::Error),
 
-    #[error("got unresolved variable {0}")]
+    #[error("got unresolved variable `{0}`")]
     UnresolvedVariable(VarName),
 
-    #[error("Conversion error: {0}")]
+    #[error("Type error: {0}")]
     ConversionError(#[from] ConversionError),
 
     #[error("Incorrect number of arguments given to function: {0}")]
@@ -34,6 +34,7 @@ impl EvalError {
     pub fn span(&self) -> Option<Span> {
         match self {
             EvalError::Spanned(span, _) => Some(*span),
+            EvalError::ConversionError(err) => err.span(),
             _ => None,
         }
     }
@@ -103,10 +104,11 @@ impl SimplExpr {
     }
 
     pub fn eval(self, values: &HashMap<VarName, DynVal>) -> Result<DynVal, EvalError> {
-        match self {
+        let span = self.span();
+        let value = match self {
             SimplExpr::Literal(_, x) => Ok(x),
             SimplExpr::VarRef(span, ref name) => {
-                values.get(name).cloned().ok_or_else(|| EvalError::UnresolvedVariable(name.to_string()).at(span))
+                Ok(values.get(name).cloned().ok_or_else(|| EvalError::UnresolvedVariable(name.to_string()).at(span))?.at(span))
             }
             SimplExpr::BinOp(_, a, op, b) => {
                 let a = a.eval(values)?;
@@ -167,7 +169,8 @@ impl SimplExpr {
                 let args = args.into_iter().map(|a| a.eval(values)).collect::<Result<_, EvalError>>()?;
                 call_expr_function(&function_name, args).map_err(|e| e.at(span))
             }
-        }
+        };
+        Ok(value?.at(span))
     }
 }
 
