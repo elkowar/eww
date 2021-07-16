@@ -1,0 +1,22 @@
+---
+source: src/lib.rs
+expression: "Lexer::new(\"foo.bar[2 + 2] * asdf[foo.bar]\").filter_map(|x|\n                                                            x.ok()).map(|(_,\n                                                                          x,\n                                                                          _)|\n                                                                            match x\n                                                                                {\n                                                                                Token::Ident(x)\n                                                                                |\n                                                                                Token::NumLit(x)\n                                                                                |\n                                                                                Token::StrLit(x)\n                                                                                =>\n                                                                                format!(\"{}\",\n                                                                                        x),\n                                                                                x\n                                                                                =>\n                                                                                format!(\"{}\",\n                                                                                        x),\n                                                                            }).collect::<Vec<_>>()"
+
+---
+[
+    "foo",
+    "Dot",
+    "bar",
+    "LBrack",
+    "2",
+    "+",
+    "2",
+    "RBrack",
+    "*",
+    "asdf",
+    "LBrack",
+    "foo",
+    "Dot",
+    "bar",
+    "RBrack",
+]

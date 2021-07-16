@@ -1,34 +1,8 @@
 ---
 source: src/lib.rs
-expression: "p.parse(\"2 * 5 + 1 * 1 + 3\")"
+expression: "p.parse(Lexer::new(\"2 * 5 + 1 * 1 + 3\"))"
 
 ---
 Ok(
-    BinOp(
-        BinOp(
-            BinOp(
-                Literal(
-                    "2",
-                ),
-                Times,
-                Literal(
-                    "5",
-                ),
-            ),
-            Plus,
-            BinOp(
-                Literal(
-                    "1",
-                ),
-                Times,
-                Literal(
-                    "1",
-                ),
-            ),
-        ),
-        Plus,
-        Literal(
-            "3",
-        ),
-    ),
+    ((("2" * "5") + ("1" * "1")) + "3"),
 )

@@ -1,30 +1,8 @@
 ---
 source: src/lib.rs
-expression: "p.parse(\"1 + (if true then 2 else 5) + 2\")"
+expression: "p.parse(Lexer::new(\"1 + (true ? 2 : 5) + 2\"))"
 
 ---
 Ok(
-    BinOp(
-        BinOp(
-            Literal(
-                "1",
-            ),
-            Plus,
-            IfElse(
-                Literal(
-                    "true",
-                ),
-                Literal(
-                    "2",
-                ),
-                Literal(
-                    "5",
-                ),
-            ),
-        ),
-        Plus,
-        Literal(
-            "2",
-        ),
-    ),
+    (("1" + (if "true" then "2" else "5")) + "2"),
 )

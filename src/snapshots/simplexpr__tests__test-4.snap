@@ -1,22 +1,8 @@
 ---
 source: src/lib.rs
-expression: "p.parse(\"(1 + 2) * 2\")"
+expression: "p.parse(Lexer::new(\"(1 + 2) * 2\"))"
 
 ---
 Ok(
-    BinOp(
-        BinOp(
-            Literal(
-                "1",
-            ),
-            Plus,
-            Literal(
-                "2",
-            ),
-        ),
-        Times,
-        Literal(
-            "2",
-        ),
-    ),
+    (("1" + "2") * "2"),
 )

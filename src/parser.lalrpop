@@ -1,7 +1,49 @@
 
-use crate::ast::{SimplExpr, Span, BinOp, UnaryOp};
+use crate::ast::{SimplExpr::{self, *}, Span, BinOp::*, UnaryOp::*};
+use crate::lexer::{Token, LexicalError};
+use crate::lalrpop_helpers::*;
+
 
 grammar;
+
+extern {
+  type Location = usize;
+  type Error = LexicalError;
+
+  enum Token {
+    "+"          => Token::Plus,
+    "-"          => Token::Minus,
+    "*"          => Token::Times,
+    "/"          => Token::Div,
+    "%"          => Token::Mod,
+    "=="         => Token::Equals,
+    "!="         => Token::NotEquals,
+    "&&"         => Token::And,
+    "||"         => Token::Or,
+    ">"          => Token::GT,
+    "<"          => Token::LT,
+    "?:"         => Token::Elvis,
+    "=~"         => Token::RegexMatch,
+
+    "!"          => Token::Not,
+
+    ","          => Token::Comma,
+    "?"          => Token::Question,
+    ":"          => Token::Colon,
+    "("          => Token::LPren,
+    ")"          => Token::RPren,
+    "["          => Token::LBrack,
+    "]"          => Token::RBrack,
+    "."          => Token::Dot,
+    "true"       => Token::True,
+    "false"      => Token::False,
+
+    "identifier" => Token::Ident(<String>),
+    "number"     => Token::NumLit(<String>),
+    "string"     => Token::StrLit(<String>),
+
+  }
+}
 
 Comma<T>: Vec<T> = {
     <mut v:(<T> ",")*> <e:T?> => match e {
@@ -15,43 +57,57 @@ Comma<T>: Vec<T> = {
 
 pub Expr: SimplExpr = {
   #[precedence(level="0")]
-  "true" => SimplExpr::Literal("true".to_string()),
-  "false" => SimplExpr::Literal("false".to_string()),
-  <Number>,
+  <Literal>,
+  <l:@L> <ident:"identifier"> <r:@R> => VarRef(Span(l, r), ident.to_string()),
   "(" <ExprReset> ")",
-  <ident:Ident> "(" <args: Comma<ExprReset>> ")" => SimplExpr::FunctionCall(ident, args),
 
+  #[precedence(level="1")] #[assoc(side="right")]
+  <l:@L> <ident:"identifier"> "(" <args: Comma<ExprReset>> ")" <r:@R> => FunctionCall(Span(l, r), ident, args),
+  <l:@L> <value:Expr>         "[" <index: ExprReset>       "]" <r:@R> => JsonAccess(Span(l, r), b(value), b(index)),
 
-  #[precedence(level="1")] #[assoc(side="left")]
-  "!" <Expr> => SimplExpr::UnaryOp(UnaryOp::Not, Box::new(<>))
+  <l:@L> <value:Expr> "." <lit_l:@L> <index:"identifier"> <r:@R> => {
+    JsonAccess(Span(l, r), b(value), b(Literal(Span(lit_l, r), index)))
+  },
 
-
-  #[precedence(level="2")] #[assoc(side="left")]
-  <l:Expr> "*" <r:Expr> => SimplExpr::BinOp(Box::new(l), BinOp::Times, Box::new(r)),
-  <l:Expr> "/" <r:Expr> => SimplExpr::BinOp(Box::new(l), BinOp::Div, Box::new(r)),
-  <l:Expr> "%" <r:Expr> => SimplExpr::BinOp(Box::new(l), BinOp::Mod, Box::new(r)),
+  #[precedence(level="2")] #[assoc(side="right")]
+  <l:@L> "!" <e:Expr> <r:@R> => UnaryOp(Span(l, r), Not, b(e)),
 
   #[precedence(level="3")] #[assoc(side="left")]
-  <l:Expr> "+" <r:Expr> => SimplExpr::BinOp(Box::new(l), BinOp::Plus, Box::new(r)),
-  <l:Expr> "-" <r:Expr> => SimplExpr::BinOp(Box::new(l), BinOp::Minus, Box::new(r)),
+  <l:@L> <le:Expr> "*"  <re:Expr> <r:@R> => BinOp(Span(l, r), b(le), Times,       b(re)),
+  <l:@L> <le:Expr> "/"  <re:Expr> <r:@R> => BinOp(Span(l, r), b(le), Div,         b(re)),
+  <l:@L> <le:Expr> "%"  <re:Expr> <r:@R> => BinOp(Span(l, r), b(le), Mod,         b(re)),
 
   #[precedence(level="4")] #[assoc(side="left")]
-  <l:Expr> "==" <r:Expr> => SimplExpr::BinOp(Box::new(l), BinOp::Equals, Box::new(r)),
-  <l:Expr> "!=" <r:Expr> => SimplExpr::BinOp(Box::new(l), BinOp::NotEquals, Box::new(r)),
-  <l:Expr> "<"  <r:Expr> => SimplExpr::BinOp(Box::new(l), BinOp::GT, Box::new(r)),
-  <l:Expr> ">"  <r:Expr> => SimplExpr::BinOp(Box::new(l), BinOp::LT, Box::new(r)),
-  <l:Expr> "=~" <r:Expr> => SimplExpr::BinOp(Box::new(l), BinOp::RegexMatch, Box::new(r)),
+  <l:@L> <le:Expr> "+"  <re:Expr> <r:@R> => BinOp(Span(l, r), b(le), Plus,        b(re)),
+  <l:@L> <le:Expr> "-"  <re:Expr> <r:@R> => BinOp(Span(l, r), b(le), Minus,       b(re)),
 
   #[precedence(level="5")] #[assoc(side="left")]
-  <l:Expr> "&&"  <r:Expr> => SimplExpr::BinOp(Box::new(l), BinOp::And, Box::new(r)),
-  <l:Expr> "||"  <r:Expr> => SimplExpr::BinOp(Box::new(l), BinOp::Or, Box::new(r)),
-  <l:Expr> "?:"  <r:Expr> => SimplExpr::BinOp(Box::new(l), BinOp::Elvis, Box::new(r)),
+  <l:@L> <le:Expr> "==" <re:Expr> <r:@R> => BinOp(Span(l, r), b(le), Equals,     b(re)),
+  <l:@L> <le:Expr> "!=" <re:Expr> <r:@R> => BinOp(Span(l, r), b(le), NotEquals,  b(re)),
+  <l:@L> <le:Expr> "<"  <re:Expr> <r:@R> => BinOp(Span(l, r), b(le), GT,         b(re)),
+  <l:@L> <le:Expr> ">"  <re:Expr> <r:@R> => BinOp(Span(l, r), b(le), LT,         b(re)),
+  <l:@L> <le:Expr> "=~" <re:Expr> <r:@R> => BinOp(Span(l, r), b(le), RegexMatch, b(re)),
 
-  #[precedence(level="6")] #[assoc(side="right")]
-  <cond:Expr> "?" <then:ExprReset> ":" <els:Expr> => SimplExpr::IfElse(Box::new(cond), Box::new(then), Box::new(els)),
+  #[precedence(level="6")] #[assoc(side="left")]
+  <l:@L> <le:Expr> "&&" <re:Expr> <r:@R> => BinOp(Span(l, r), b(le), And,        b(re)),
+  <l:@L> <le:Expr> "||" <re:Expr> <r:@R> => BinOp(Span(l, r), b(le), Or,         b(re)),
+  <l:@L> <le:Expr> "?:" <re:Expr> <r:@R> => BinOp(Span(l, r), b(le), Elvis,      b(re)),
+
+  #[precedence(level="7")] #[assoc(side="right")]
+  <l:@L> <cond:Expr> "?" <then:ExprReset> ":" <els:Expr> <r:@R> => {
+    IfElse(Span(l, r), b(cond), b(then), b(els))
+  },
 };
 
 ExprReset = <Expr>;
 
-Number: SimplExpr = r"[+-]?(?:[0-9]+[.])?[0-9]+" => SimplExpr::Literal(<>.to_string());
-Ident: String = r"[a-zA-Z_][^\s{}\(\)]*" => <>.to_string();
+Literal: SimplExpr = {
+  <l:@L> <x:StrLit>   <r:@R> => Literal(Span(l, r), x),
+  <l:@L> <x:"number"> <r:@R> => Literal(Span(l, r), x.to_string()),
+  <l:@L> "true"       <r:@R> => Literal(Span(l, r), "true".to_string()),
+  <l:@L> "false"      <r:@R> => Literal(Span(l, r), "false".to_string()),
+}
+
+StrLit: String = {
+    <x:"string"> => x[1..x.len() - 1].to_owned(),
+};
