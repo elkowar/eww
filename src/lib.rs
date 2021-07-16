@@ -1,4 +1,5 @@
 pub mod ast;
+pub mod dynval;
 pub mod error;
 mod lalrpop_helpers;
 mod lexer;
