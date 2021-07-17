@@ -3,7 +3,6 @@ use crate::{
     dynval,
     parser::lexer::{self, LexicalError},
 };
-use codespan_reporting::diagnostic;
 
 pub type Result<T> = std::result::Result<T, Error>;
 #[derive(thiserror::Error, Debug)]
@@ -41,32 +40,6 @@ impl Error {
             Self::ConversionError(err) => err.span(),
             _ => None,
         }
-    }
-
-    pub fn pretty_diagnostic(&self) -> diagnostic::Diagnostic<usize> {
-        let diag = diagnostic::Diagnostic::error().with_message(format!("{}", self));
-        if let Some(span) = self.get_span() {
-            diag.with_labels(vec![diagnostic::Label::primary(0, span.0..span.1)])
-        } else {
-            diag
-        }
-    }
-}
-
-pub trait ErrorExt {
-    fn at(self, span: Span) -> Error;
-}
-impl ErrorExt for Box<dyn std::error::Error> {
-    fn at(self, span: Span) -> Error {
-        Error::Spanned(span, self)
-    }
-}
-pub trait ResultExt<T> {
-    fn at(self, span: Span) -> std::result::Result<T, Error>;
-}
-impl<T, E: std::error::Error + 'static> ResultExt<T> for std::result::Result<T, E> {
-    fn at(self, span: Span) -> std::result::Result<T, Error> {
-        self.map_err(|x| Error::Spanned(span, Box::new(x)))
     }
 }
 

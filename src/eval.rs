@@ -51,7 +51,7 @@ type VarName = String;
 
 pub trait FunctionSource {
     type Err;
-    fn run_fn(&self, name: &str, args: &Vec<DynVal>) -> Result<DynVal, Self::Err>;
+    fn run_fn(&self, name: &str, args: &[DynVal]) -> Result<DynVal, Self::Err>;
 }
 
 impl SimplExpr {
@@ -139,6 +139,7 @@ impl SimplExpr {
                     BinOp::Mod => DynVal::from(a.as_f64()? % b.as_f64()?),
                     BinOp::GT => DynVal::from(a.as_f64()? > b.as_f64()?),
                     BinOp::LT => DynVal::from(a.as_f64()? < b.as_f64()?),
+                    #[allow(clippy::useless_conversion)]
                     BinOp::Elvis => DynVal::from(if a.0.is_empty() { b } else { a }),
                     BinOp::RegexMatch => {
                         let regex = regex::Regex::new(&b.as_string()?)?;

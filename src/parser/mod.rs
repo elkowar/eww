@@ -9,7 +9,7 @@ use crate::{
 pub fn parse_string(s: &str) -> Result<SimplExpr> {
     let lexer = lexer::Lexer::new(s);
     let parser = crate::simplexpr_parser::ExprParser::new();
-    Ok(parser.parse(lexer).map_err(|e| Error::from_parse_error(e))?)
+    parser.parse(lexer).map_err(Error::from_parse_error)
 }
 
 #[cfg(test)]

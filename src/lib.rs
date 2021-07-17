@@ -9,7 +9,10 @@ pub mod parser;
 use ast::SimplExpr;
 use lalrpop_util::lalrpop_mod;
 
-lalrpop_mod!(pub simplexpr_parser);
+lalrpop_mod!(
+    #[allow(clippy::all)]
+    pub simplexpr_parser
+);
 
 pub fn parse_string(s: &str) -> Result<SimplExpr, error::Error> {
     parser::parse_string(s)

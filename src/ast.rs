@@ -5,20 +5,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Eq, PartialEq, Clone, Copy, Serialize, Deserialize)]
 pub struct Span(pub usize, pub usize);
 
-pub trait MaybeSpanned {
-    fn try_span(&self) -> Option<Span>;
-}
-
-impl MaybeSpanned for Span {
-    fn try_span(&self) -> Option<Span> {
-        Some(*self)
-    }
-}
-
-pub fn span_between(a: impl MaybeSpanned, b: impl MaybeSpanned) -> Option<Span> {
-    Some(Span(a.try_span()?.0, b.try_span()?.1))
-}
-
 impl std::fmt::Display for Span {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}..{}", self.0, self.1)
@@ -64,11 +50,6 @@ pub enum SimplExpr {
     IfElse(Span, Box<SimplExpr>, Box<SimplExpr>, Box<SimplExpr>),
     JsonAccess(Span, Box<SimplExpr>, Box<SimplExpr>),
     FunctionCall(Span, String, Vec<SimplExpr>),
-}
-impl MaybeSpanned for SimplExpr {
-    fn try_span(&self) -> Option<Span> {
-        Some(self.span())
-    }
 }
 
 impl std::fmt::Display for SimplExpr {

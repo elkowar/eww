@@ -1,4 +1,4 @@
-use crate::ast::{MaybeSpanned, Span};
+use crate::ast::Span;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::{convert::TryFrom, fmt, iter::FromIterator};
@@ -25,12 +25,6 @@ impl ConversionError {
 
 #[derive(Clone, Deserialize, Serialize, Default, Eq)]
 pub struct DynVal(pub String, pub Option<Span>);
-
-impl MaybeSpanned for DynVal {
-    fn try_span(&self) -> Option<Span> {
-        self.1
-    }
-}
 
 impl From<String> for DynVal {
     fn from(s: String) -> Self {
@@ -98,7 +92,7 @@ impl_try_from!(impl From<DynVal> {
     for f64 => |x| x.as_f64();
     for i32 => |x| x.as_i32();
     for bool => |x| x.as_bool();
-    for Vec<String> => |x| x.as_vec();
+    //for Vec<String> => |x| x.as_vec();
 });
 
 impl_primval_from!(bool, i32, u32, f32, u8, f64, &str);
@@ -145,26 +139,24 @@ impl DynVal {
         self.0.parse().map_err(|e| ConversionError::new(self.clone(), "bool", Box::new(e)))
     }
 
-    pub fn as_vec(&self) -> Result<Vec<String>> {
-        match self.0.strip_prefix('[').and_then(|x| x.strip_suffix(']')) {
-            Some(content) => {
-                let mut items: Vec<String> = content.split(',').map(|x: &str| x.to_string()).collect();
-                let mut removed = 0;
-                for times_ran in 0..items.len() {
-                    // escapes `,` if there's a `\` before em
-                    if items[times_ran - removed].ends_with('\\') {
-                        items[times_ran - removed].pop();
-                        let it = items.remove((times_ran + 1) - removed);
-                        items[times_ran - removed] += ",";
-                        items[times_ran - removed] += &it;
-                        removed += 1;
-                    }
-                }
-                Ok(items)
-            }
-            None => Err(ConversionError { value: self.clone(), target_type: "vec", source: None }),
-        }
-    }
+    // pub fn as_vec(&self) -> Result<Vec<String>> {
+    // match self.0.strip_prefix('[').and_then(|x| x.strip_suffix(']')) {
+    // Some(content) => {
+    // let mut items: Vec<String> = content.split(',').map(|x: &str| x.to_string()).collect();
+    // let mut removed = 0;
+    // for times_ran in 0..items.len() {
+    //// escapes `,` if there's a `\` before em
+    // if items[times_ran - removed].ends_with('\\') {
+    // items[times_ran - removed].pop();
+    // let it = items.remove((times_ran + 1) - removed);
+    // items[times_ran - removed] += ",";
+    // items[times_ran - removed] += &it;
+    // removed += 1;
+    //}
+    // Ok(items)
+    //}
+    // None => Err(ConversionError { value: self.clone(), target_type: "vec", source: None }),
+    //}
 
     pub fn as_json_value(&self) -> Result<serde_json::Value> {
         serde_json::from_str::<serde_json::Value>(&self.0)
