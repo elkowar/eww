@@ -1,22 +1,28 @@
 use std::str::FromStr;
-use crate::lexer::{Token, LexicalError};
+use crate::lexer::{Token};
 use crate::ast::{Ast, Span};
+use simplexpr::ast::SimplExpr;
+use simplexpr;
+use lalrpop_util::ParseError;
 
 grammar(file_id: usize);
 
 extern {
     type Location = usize;
-    type Error = LexicalError;
+    type Error = crate::parse_error::ParseError;
 
     enum Token {
         "(" => Token::LPren,
         ")" => Token::RPren,
+        "[" => Token::LBrack,
+        "]" => Token::RBrack,
         "true" => Token::True,
         "false" => Token::False,
         "string" => Token::StrLit(<String>),
         "number" => Token::NumLit(<String>),
         "symbol" => Token::Symbol(<String>),
         "keyword" => Token::Keyword(<String>),
+        "simplexpr" => Token::SimplExpr(<String>),
         "comment" => Token::Comment,
     }
 }
@@ -24,6 +30,8 @@ extern {
 
 pub Ast: Ast = {
     <l:@L> "(" <elems:(<Ast>)+> ")" <r:@R> => Ast::List(Span(l, r, file_id), elems),
+    <l:@L> "[" <elems:(<Ast>)+> "]" <r:@R> => Ast::Array(Span(l, r, file_id), elems),
+    <l:@L> <expr:SimplExpr> <r:@R> => Ast::SimplExpr(Span(l, r, file_id), expr),
     <x:Keyword> => x,
     <x:Symbol> => x,
     <l:@L> <x:Value> <r:@R> => Ast::Value(Span(l, r, file_id), x),
@@ -44,6 +52,15 @@ StrLit: String = {
       x[1..x.len() - 1].to_owned()
     },
 };
+
+SimplExpr: SimplExpr = {
+   <l:@L> <x:"simplexpr"> =>? {
+       let expr = x[1..x.len() - 1].to_string();
+       simplexpr::parse_string(&expr).map_err(|e| {
+           let span = e.get_span().map(|simplexpr::Span(simpl_l, simpl_r)| Span(1 + l + simpl_l, 1 + l + simpl_r, file_id));
+           ParseError::User { error: crate::parse_error::ParseError::SimplExpr(span, e) }})
+   }
+}
 
 
 Num: String = <"number"> => <>.to_string();

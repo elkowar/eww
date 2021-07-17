@@ -1,13 +1,13 @@
 use crate::{
     ast::{Ast, AstType, Span},
-    lexer,
+    lexer, parse_error,
 };
 use codespan_reporting::{diagnostic, files};
 use thiserror::Error;
 
 pub type AstResult<T> = Result<T, AstError>;
 
-#[derive(Debug, PartialEq, Eq, Error)]
+#[derive(Debug, Error)]
 pub enum AstError {
     #[error("Definition invalid")]
     InvalidDefinition(Option<Span>),
@@ -17,7 +17,7 @@ pub enum AstError {
     WrongExprType(Option<Span>, AstType, AstType),
 
     #[error("Parse error: {source}")]
-    ParseError { file_id: Option<usize>, source: lalrpop_util::ParseError<usize, lexer::Token, lexer::LexicalError> },
+    ParseError { file_id: Option<usize>, source: lalrpop_util::ParseError<usize, lexer::Token, parse_error::ParseError> },
 }
 
 impl AstError {
@@ -39,21 +39,27 @@ impl AstError {
         }
     }
 
-    pub fn from_parse_error(file_id: usize, err: lalrpop_util::ParseError<usize, lexer::Token, lexer::LexicalError>) -> AstError {
+    pub fn from_parse_error(
+        file_id: usize,
+        err: lalrpop_util::ParseError<usize, lexer::Token, parse_error::ParseError>,
+    ) -> AstError {
         AstError::ParseError { file_id: Some(file_id), source: err }
     }
 }
 
 fn get_parse_error_span(
     file_id: usize,
-    err: &lalrpop_util::ParseError<usize, lexer::Token, lexer::LexicalError>,
+    err: &lalrpop_util::ParseError<usize, lexer::Token, parse_error::ParseError>,
 ) -> Option<Span> {
     match err {
         lalrpop_util::ParseError::InvalidToken { location } => Some(Span(*location, *location, file_id)),
         lalrpop_util::ParseError::UnrecognizedEOF { location, expected } => Some(Span(*location, *location, file_id)),
         lalrpop_util::ParseError::UnrecognizedToken { token, expected } => Some(Span(token.0, token.2, file_id)),
         lalrpop_util::ParseError::ExtraToken { token } => Some(Span(token.0, token.2, file_id)),
-        lalrpop_util::ParseError::User { error } => None,
+        lalrpop_util::ParseError::User { error } => match error {
+            parse_error::ParseError::SimplExpr(span, error) => *span,
+            parse_error::ParseError::LexicalError(span) => Some(*span),
+        },
     }
 }
 

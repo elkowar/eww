@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use simplexpr::ast::SimplExpr;
 use std::collections::HashMap;
 
 use crate::{config::FromAst, error::*};
@@ -22,9 +23,11 @@ impl std::fmt::Debug for Span {
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum AstType {
     List,
+    Array,
     Keyword,
     Symbol,
     Value,
+    SimplExpr,
     Comment,
 }
 
@@ -37,10 +40,11 @@ impl Display for AstType {
 #[derive(PartialEq, Eq, Clone)]
 pub enum Ast {
     List(Span, Vec<Ast>),
-    // ArgList(Span, Vec<Ast>),
+    Array(Span, Vec<Ast>),
     Keyword(Span, String),
     Symbol(Span, String),
     Value(Span, String),
+    SimplExpr(Span, SimplExpr),
     Comment(Span),
 }
 
@@ -74,9 +78,11 @@ impl Ast {
     pub fn expr_type(&self) -> AstType {
         match self {
             Ast::List(..) => AstType::List,
+            Ast::Array(..) => AstType::Array,
             Ast::Keyword(..) => AstType::Keyword,
             Ast::Symbol(..) => AstType::Symbol,
             Ast::Value(..) => AstType::Value,
+            Ast::SimplExpr(..) => AstType::SimplExpr,
             Ast::Comment(_) => AstType::Comment,
         }
     }
@@ -84,9 +90,11 @@ impl Ast {
     pub fn span(&self) -> Span {
         match self {
             Ast::List(span, _) => *span,
+            Ast::Array(span, _) => *span,
             Ast::Keyword(span, _) => *span,
             Ast::Symbol(span, _) => *span,
             Ast::Value(span, _) => *span,
+            Ast::SimplExpr(span, _) => *span,
             Ast::Comment(span) => *span,
         }
     }
@@ -104,9 +112,11 @@ impl std::fmt::Display for Ast {
         use Ast::*;
         match self {
             List(_, x) => write!(f, "({})", x.iter().map(|e| format!("{}", e)).join(" ")),
+            Array(_, x) => write!(f, "({})", x.iter().map(|e| format!("{}", e)).join(" ")),
             Keyword(_, x) => write!(f, "{}", x),
             Symbol(_, x) => write!(f, "{}", x),
             Value(_, x) => write!(f, "{}", x),
+            SimplExpr(_, x) => write!(f, "{{{}}}", x),
             Comment(_) => write!(f, ""),
         }
     }
@@ -116,9 +126,11 @@ impl std::fmt::Debug for Ast {
         use Ast::*;
         match self {
             List(span, x) => f.debug_tuple(&format!("List<{}>", span)).field(x).finish(),
+            Array(span, x) => f.debug_tuple(&format!("Array<{}>", span)).field(x).finish(),
             Keyword(span, x) => write!(f, "Number<{}>({})", span, x),
             Symbol(span, x) => write!(f, "Symbol<{}>({})", span, x),
             Value(span, x) => write!(f, "Value<{}>({})", span, x),
+            SimplExpr(span, x) => write!(f, "SimplExpr<{}>({})", span, x),
             Comment(span) => write!(f, "Comment<{}>", span),
         }
     }
