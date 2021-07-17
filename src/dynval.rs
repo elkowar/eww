@@ -8,9 +8,9 @@ pub type Result<T> = std::result::Result<T, ConversionError>;
 #[derive(Debug, thiserror::Error)]
 #[error("Failed to turn {value} into a {target_type}")]
 pub struct ConversionError {
-    value: DynVal,
-    target_type: &'static str,
-    source: Option<Box<dyn std::error::Error>>,
+    pub value: DynVal,
+    pub target_type: &'static str,
+    pub source: Option<Box<dyn std::error::Error>>,
 }
 
 impl ConversionError {

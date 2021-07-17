@@ -1,6 +1,7 @@
 use crate::ast::{SimplExpr::{self, *}, Span, BinOp::*, UnaryOp::*};
 use crate::parser::lexer::{Token, LexicalError};
 use crate::parser::lalrpop_helpers::*;
+use lalrpop_util::ParseError;
 
 
 grammar;
@@ -42,6 +43,8 @@ extern {
     "number"     => Token::NumLit(<String>),
     "string"     => Token::StrLit(<String>),
 
+    "lexer_error" => Token::Error,
+
   }
 }
 
@@ -56,7 +59,12 @@ Comma<T>: Vec<T> = {
 };
 
 pub Expr: SimplExpr = {
+
   #[precedence(level="0")]
+  <l:@L> "lexer_error" <r:@R> =>? {
+    Err(ParseError::User { error: LexicalError(l, r) })
+  },
+
   <Literal>,
   <l:@L> <ident:"identifier"> <r:@R> => VarRef(Span(l, r), ident.to_string()),
   "(" <ExprReset> ")",

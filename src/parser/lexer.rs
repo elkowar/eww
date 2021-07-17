@@ -44,7 +44,7 @@ pub enum Token {
 }
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
-pub struct LexicalError(usize, usize);
+pub struct LexicalError(pub usize, pub usize);
 
 impl std::fmt::Display for LexicalError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
