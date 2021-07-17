@@ -25,7 +25,7 @@ lalrpop_mod!(
 );
 
 pub fn parse_string(file_id: usize, s: &str) -> AstResult<Ast> {
-    let lexer = lexer::Lexer::new(file_id, s);
+    let lexer = lexer::Lexer::new(file_id, s.to_string());
     let parser = parser::AstParser::new();
     parser.parse(file_id, lexer).map_err(|e| AstError::from_parse_error(file_id, e))
 }
@@ -37,7 +37,7 @@ macro_rules! test_parser {
 
         ::insta::with_settings!({sort_maps => true}, {
             $(
-                ::insta::assert_debug_snapshot!(p.parse(0, Lexer::new(0, $text)));
+                ::insta::assert_debug_snapshot!(p.parse(0, Lexer::new(0, $text.to_string())));
             )*
         });
     }}
