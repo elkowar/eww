@@ -4,7 +4,10 @@ fn main() {
     let mut files = codespan_reporting::files::SimpleFiles::new();
 
     let input = r#"
-        (hi :bar 22 :baz {(foo == bar ? 12.K : 12)} (foo) (baz))"#;
+        (heyho :foo { "foo \" } bar " }
+               :baz {(foo == bar ? 12.2 : 12)}
+          (foo)
+          (baz))"#;
 
     let file_id = files.add("foo.eww", input);
     let ast = eww_config::parse_string(file_id, input);

@@ -238,7 +238,6 @@ dependencies = [
  "lalrpop",
  "lalrpop-util",
  "lazy_static",
- "logos",
  "maplit",
  "pretty_assertions",
  "regex",

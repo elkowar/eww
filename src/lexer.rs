@@ -1,45 +1,22 @@
-use logos::Logos;
+use regex::{Regex, RegexSet};
 
 use crate::{ast::Span, parse_error};
 
-#[derive(Logos, Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Token {
-    #[token("(")]
     LPren,
-    #[token(")")]
     RPren,
-    #[token("[")]
     LBrack,
-    #[token("]")]
     RBrack,
-
-    #[token("true")]
     True,
-
-    #[token("false")]
     False,
-
-    #[regex(r#""(?:[^"\\]|\\.)*""#, |x| x.slice().to_string())]
     StrLit(String),
-
-    #[regex(r#"[+-]?(?:[0-9]+[.])?[0-9]+"#, priority = 2, callback = |x| x.slice().to_string())]
     NumLit(String),
-
-    #[regex(r#"[a-zA-Z_!\?<>/.*-+][^\s{}\(\)]*"#, |x| x.slice().to_string())]
     Symbol(String),
-
-    #[regex(r#":\S+"#, |x| x.slice().to_string())]
     Keyword(String),
-
-    #[regex(r#"\{[^}]*\}"#, |x| x.slice().to_string())]
     SimplExpr(String),
-
-    #[regex(r#";.*"#)]
     Comment,
-
-    #[error]
-    #[regex(r"[ \t\n\f]+", logos::skip)]
-    Error,
+    Skip,
 }
 
 impl std::fmt::Display for Token {
@@ -57,33 +34,142 @@ impl std::fmt::Display for Token {
             Token::Keyword(x) => write!(f, "{}", x),
             Token::SimplExpr(x) => write!(f, "{{{}}}", x),
             Token::Comment => write!(f, ""),
-            Token::Error => write!(f, ""),
+            Token::Skip => write!(f, ""),
         }
     }
 }
 
-pub type SpannedResult<Tok, Loc, Error> = Result<(Loc, Tok, Loc), Error>;
-
-pub struct Lexer<'input> {
-    file_id: usize,
-    lexer: logos::SpannedIter<'input, Token>,
+pub struct LexIterator {
+    source: String,
+    pos: usize,
 }
 
-impl<'input> Lexer<'input> {
-    pub fn new(file_id: usize, text: &'input str) -> Self {
-        Lexer { file_id, lexer: logos::Lexer::new(text).spanned() }
+macro_rules! regex_rules {
+    ($($regex:literal => $token:expr),*) => {
+        lazy_static::lazy_static! {
+            static ref LEXER_REGEX_SET: RegexSet = RegexSet::new(&[
+                $(format!("^{}", $regex)),*
+            ]).unwrap();
+            static ref LEXER_REGEXES: Vec<Regex> = vec![
+                $(Regex::new(&format!("^{}", $regex)).unwrap()),*
+            ];
+            static ref LEXER_FNS: Vec<Box<dyn Fn(String) -> Token + Sync>> = vec![
+                $(Box::new($token)),*
+            ];
+        }
     }
 }
 
-impl<'input> Iterator for Lexer<'input> {
+regex_rules! {
+        r"\(" => |_| Token::LPren,
+        r"\)" => |_| Token::RPren,
+        r"\[" => |_| Token::LBrack,
+        r"\]" => |_| Token::LBrack,
+        r"true" => |_| Token::True,
+        r"false" => |_| Token::False,
+        r#""(?:[^"\\]|\\.)*""# => |x| Token::StrLit(x),
+        r#"[+-]?(?:[0-9]+[.])?[0-9]+"# => |x| Token::NumLit(x),
+        r#"[a-zA-Z_!\?<>/.*-+][^\s{}\(\)]*"# => |x| Token::Symbol(x),
+        r#":\S+"# => |x| Token::Keyword(x),
+        r#";.*"# => |_| Token::Comment,
+        r"[ \t\n\f]+" => |_| Token::Skip
+}
+
+impl Iterator for LexIterator {
+    type Item = (usize, Token, usize);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if self.pos >= self.source.len() {
+                return None;
+            }
+            let string = &self.source[self.pos..];
+
+            if string.starts_with('{') {
+                self.pos += 1;
+                let expr_start = self.pos;
+                let mut in_string = false;
+                loop {
+                    if self.pos >= self.source.len() {
+                        return None;
+                    }
+                    let string = &self.source[self.pos..];
+
+                    if string.starts_with('}') && !in_string {
+                        let tok_str = &self.source[expr_start..self.pos];
+                        self.pos += 1;
+                        return Some((expr_start, Token::SimplExpr(tok_str.to_string()), self.pos - 1));
+                    } else if string.starts_with('"') {
+                        self.pos += 1;
+                        in_string = !in_string;
+                    } else if string.starts_with("\\\"") {
+                        self.pos += 2;
+                    } else {
+                        self.pos += 1;
+                    }
+                }
+            } else {
+                let match_set = LEXER_REGEX_SET.matches(string);
+                let (len, i) = match_set
+                    .into_iter()
+                    .map(|i: usize| {
+                        let m = LEXER_REGEXES[i].find(string).unwrap();
+                        (m.end(), i)
+                    })
+                    .next()
+                    .unwrap();
+
+                let tok_str = &self.source[self.pos..self.pos + len];
+                let old_pos = self.pos;
+                self.pos += len;
+                match LEXER_FNS[i](tok_str.to_string()) {
+                    Token::Skip => {}
+                    token => return Some((old_pos, token, self.pos)),
+                }
+            }
+        }
+    }
+}
+
+macro_rules! test_lexer {
+    ($($text:literal),*) => {{
+        ::insta::with_settings!({sort_maps => true}, {
+            $(
+            ::insta::assert_debug_snapshot!(
+                LexIterator { pos: 0, source: $text.to_string() }.map(|x| x.1).collect::<Vec<_>>()
+            );
+            )*
+        });
+    }}
+}
+
+#[test]
+fn test() {
+    test_lexer!(r#"(test "h\"i")"#, r#"(foo { "}" })"#);
+}
+
+pub type SpannedResult<Tok, Loc, Error> = Result<(Loc, Tok, Loc), Error>;
+
+pub struct Lexer {
+    file_id: usize,
+    lexer: LexIterator,
+}
+
+impl Lexer {
+    pub fn new(file_id: usize, text: &str) -> Self {
+        Lexer { file_id, lexer: LexIterator { source: text.to_string(), pos: 0 } }
+    }
+}
+
+impl Iterator for Lexer {
     type Item = SpannedResult<Token, usize, parse_error::ParseError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let (token, range) = self.lexer.next()?;
-        if token == Token::Error {
-            Some(Err(parse_error::ParseError::LexicalError(Span(range.start, range.end, self.file_id))))
+        let (l, token, r) = self.lexer.next()?;
+        if token == Token::Skip {
+            Some(Err(parse_error::ParseError::LexicalError(Span(l, r, self.file_id))))
         } else {
-            Some(Ok((range.start, token, range.end)))
+            Some(Ok((l, token, r)))
         }
     }
 }

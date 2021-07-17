@@ -1,0 +1,10 @@
+---
+source: src/lexer.rs
+expression: "LexIterator{pos: 0,\n            source: \"-1.2\".to_string(),}.map(|x| x.1).collect::<Vec<_>>()"
+
+---
+[
+    NumLit(
+        "-1.2",
+    ),
+]

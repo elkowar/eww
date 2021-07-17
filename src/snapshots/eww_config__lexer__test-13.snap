@@ -1,0 +1,15 @@
+---
+source: src/lexer.rs
+expression: "LexIterator{pos: 0,\n            source:\n                r#\"(test \" hi \")\"#.to_string(),}.map(|x|\n                                                         x.1).collect::<Vec<_>>()"
+
+---
+[
+    LPren,
+    Symbol(
+        "test",
+    ),
+    StrLit(
+        "\" hi \"",
+    ),
+    RPren,
+]

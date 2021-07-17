@@ -15,7 +15,6 @@ itertools = "0.10"
 thiserror = "1.0"
 maplit = "1.0"
 codespan-reporting = "0.11"
-logos = "0.12"
 
 derive_more = "0.99"
 smart-default = "0.6"
