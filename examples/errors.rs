@@ -1,9 +1,10 @@
-use eww_config::{ast::*, config::*};
+use eww_config::{ast::*, config::*, format_diagnostic::ToDiagnostic};
 
 fn main() {
     let mut files = codespan_reporting::files::SimpleFiles::new();
 
-    let input = r#"(hi :bar 22 :baz {"hi" asdfasdf * 2} (foo) (baz))"#;
+    let input = r#"
+        (hi :bar 22 :baz {(foo == bar ? 12.K : 12)} (foo) (baz))"#;
 
     let file_id = files.add("foo.eww", input);
     let ast = eww_config::parse_string(file_id, input);
@@ -12,10 +13,12 @@ fn main() {
             println!("{:?}", ast);
         }
         Err(err) => {
-            let diag = err.pretty_diagnostic(&files);
+            dbg!(&err);
+            let diag = err.to_diagnostic(&files);
             use codespan_reporting::term;
+            let config = term::Config::default();
             let mut writer = term::termcolor::StandardStream::stderr(term::termcolor::ColorChoice::Always);
-            term::emit(&mut writer, &term::Config::default(), &files, &diag).unwrap();
+            term::emit(&mut writer, &config, &files, &diag).unwrap();
         }
     }
 }

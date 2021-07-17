@@ -5,9 +5,11 @@
 pub mod ast;
 pub mod config;
 pub mod error;
+pub mod format_diagnostic;
 mod lexer;
 mod parse_error;
 pub mod value;
+
 use ast::Ast;
 use error::{AstError, AstResult};
 
