@@ -648,7 +648,6 @@ checksum = "1ad1d488a557b235fc46dae55512ffbfc429d2482b08b4d9435ab07384ca8aec"
 name = "simplexpr"
 version = "0.1.0"
 dependencies = [
- "codespan-reporting",
  "itertools",
  "lalrpop",
  "lalrpop-util",

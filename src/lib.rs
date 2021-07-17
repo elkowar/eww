@@ -19,12 +19,15 @@ use itertools::Itertools;
 
 use lalrpop_util::lalrpop_mod;
 
-lalrpop_mod!(pub parser);
+lalrpop_mod!(
+    #[allow(clippy::all)]
+    pub parser
+);
 
 pub fn parse_string(file_id: usize, s: &str) -> AstResult<Ast> {
     let lexer = lexer::Lexer::new(file_id, s);
     let parser = parser::AstParser::new();
-    Ok(parser.parse(file_id, lexer).map_err(|e| AstError::from_parse_error(file_id, e))?)
+    parser.parse(file_id, lexer).map_err(|e| AstError::from_parse_error(file_id, e))
 }
 
 macro_rules! test_parser {

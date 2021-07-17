@@ -64,7 +64,7 @@ impl FromStr for Coords {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let (x, y) = s
             .split_once(|x: char| x.to_ascii_lowercase() == 'x' || x.to_ascii_lowercase() == '*')
-            .ok_or_else(|| Error::MalformedCoords)?;
+            .ok_or(Error::MalformedCoords)?;
         Coords::from_strs(x, y)
     }
 }
