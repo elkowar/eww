@@ -1,7 +1,7 @@
 use logos::Logos;
 
 #[rustfmt::skip]
-#[derive(Logos, Debug, PartialEq, Eq, Clone, strum::Display)]
+#[derive(Logos, Debug, PartialEq, Eq, Clone, strum::Display, strum::EnumString)]
 pub enum Token {
     #[strum(serialize = "+") ] #[token("+") ] Plus,
     #[strum(serialize = "-") ] #[token("-") ] Minus,

@@ -23,7 +23,7 @@ impl ConversionError {
     }
 }
 
-#[derive(Clone, Deserialize, Serialize, Default)]
+#[derive(Clone, Deserialize, Serialize, Default, Eq)]
 pub struct DynVal(pub String, pub Option<Span>);
 
 impl MaybeSpanned for DynVal {

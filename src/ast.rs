@@ -32,7 +32,7 @@ impl std::fmt::Debug for Span {
 }
 
 #[rustfmt::skip]
-#[derive(Clone, PartialEq, Serialize, Deserialize, Debug, strum::EnumString, strum::Display)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Debug, strum::EnumString, strum::Display)]
 pub enum BinOp {
     #[strum(serialize = "+") ] Plus,
     #[strum(serialize = "-") ] Minus,
@@ -49,13 +49,13 @@ pub enum BinOp {
     #[strum(serialize = "=~")] RegexMatch,
 }
 
-#[derive(Clone, PartialEq, Serialize, Deserialize, Debug, strum::EnumString, strum::Display)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Debug, strum::EnumString, strum::Display)]
 pub enum UnaryOp {
     #[strum(serialize = "!")]
     Not,
 }
 
-#[derive(Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SimplExpr {
     Literal(Span, DynVal),
     VarRef(Span, String),
