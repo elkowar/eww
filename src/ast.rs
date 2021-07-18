@@ -2,8 +2,9 @@ use crate::dynval::DynVal;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
+/// stores the left and right end of a span, and a given file identifier.
 #[derive(Eq, PartialEq, Clone, Copy, Serialize, Deserialize)]
-pub struct Span(pub usize, pub usize);
+pub struct Span(pub usize, pub usize, pub usize);
 
 impl std::fmt::Display for Span {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

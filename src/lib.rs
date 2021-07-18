@@ -6,7 +6,9 @@ pub mod dynval;
 pub mod error;
 pub mod eval;
 pub mod parser;
-use ast::SimplExpr;
+
+pub use ast::{SimplExpr, Span};
+
 use lalrpop_util::lalrpop_mod;
 
 lalrpop_mod!(
@@ -14,7 +16,6 @@ lalrpop_mod!(
     pub simplexpr_parser
 );
 
-pub fn parse_string(s: &str) -> Result<SimplExpr, error::Error> {
-    parser::parse_string(s)
+pub fn parse_string(file_id: usize, s: &str) -> Result<SimplExpr, error::Error> {
+    parser::parse_string(file_id, s)
 }
-pub use ast::Span;

@@ -4,7 +4,7 @@ use crate::parser::lalrpop_helpers::*;
 use lalrpop_util::ParseError;
 
 
-grammar;
+grammar(fid: usize);
 
 extern {
   type Location = usize;
@@ -66,54 +66,54 @@ pub Expr: SimplExpr = {
   },
 
   <Literal>,
-  <l:@L> <ident:"identifier"> <r:@R> => VarRef(Span(l, r), ident.to_string()),
+  <l:@L> <ident:"identifier"> <r:@R> => VarRef(Span(l, r, fid), ident.to_string()),
   "(" <ExprReset> ")",
 
   #[precedence(level="1")] #[assoc(side="right")]
-  <l:@L> <ident:"identifier"> "(" <args: Comma<ExprReset>> ")" <r:@R> => FunctionCall(Span(l, r), ident, args),
-  <l:@L> <value:Expr>         "[" <index: ExprReset>       "]" <r:@R> => JsonAccess(Span(l, r), b(value), b(index)),
+  <l:@L> <ident:"identifier"> "(" <args: Comma<ExprReset>> ")" <r:@R> => FunctionCall(Span(l, r, fid), ident, args),
+  <l:@L> <value:Expr>         "[" <index: ExprReset>       "]" <r:@R> => JsonAccess(Span(l, r, fid), b(value), b(index)),
 
   <l:@L> <value:Expr> "." <lit_l:@L> <index:"identifier"> <r:@R> => {
-    JsonAccess(Span(l, r), b(value), b(Literal(Span(lit_l, r), index.into())))
+    JsonAccess(Span(l, r, fid), b(value), b(Literal(Span(lit_l, r, fid), index.into())))
   },
 
   #[precedence(level="2")] #[assoc(side="right")]
-  <l:@L> "!" <e:Expr> <r:@R> => UnaryOp(Span(l, r), Not, b(e)),
+  <l:@L> "!" <e:Expr> <r:@R> => UnaryOp(Span(l, r, fid), Not, b(e)),
 
   #[precedence(level="3")] #[assoc(side="left")]
-  <l:@L> <le:Expr> "*"  <re:Expr> <r:@R> => BinOp(Span(l, r), b(le), Times,       b(re)),
-  <l:@L> <le:Expr> "/"  <re:Expr> <r:@R> => BinOp(Span(l, r), b(le), Div,         b(re)),
-  <l:@L> <le:Expr> "%"  <re:Expr> <r:@R> => BinOp(Span(l, r), b(le), Mod,         b(re)),
+  <l:@L> <le:Expr> "*"  <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), Times,       b(re)),
+  <l:@L> <le:Expr> "/"  <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), Div,         b(re)),
+  <l:@L> <le:Expr> "%"  <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), Mod,         b(re)),
 
   #[precedence(level="4")] #[assoc(side="left")]
-  <l:@L> <le:Expr> "+"  <re:Expr> <r:@R> => BinOp(Span(l, r), b(le), Plus,        b(re)),
-  <l:@L> <le:Expr> "-"  <re:Expr> <r:@R> => BinOp(Span(l, r), b(le), Minus,       b(re)),
+  <l:@L> <le:Expr> "+"  <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), Plus,        b(re)),
+  <l:@L> <le:Expr> "-"  <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), Minus,       b(re)),
 
   #[precedence(level="5")] #[assoc(side="left")]
-  <l:@L> <le:Expr> "==" <re:Expr> <r:@R> => BinOp(Span(l, r), b(le), Equals,     b(re)),
-  <l:@L> <le:Expr> "!=" <re:Expr> <r:@R> => BinOp(Span(l, r), b(le), NotEquals,  b(re)),
-  <l:@L> <le:Expr> "<"  <re:Expr> <r:@R> => BinOp(Span(l, r), b(le), GT,         b(re)),
-  <l:@L> <le:Expr> ">"  <re:Expr> <r:@R> => BinOp(Span(l, r), b(le), LT,         b(re)),
-  <l:@L> <le:Expr> "=~" <re:Expr> <r:@R> => BinOp(Span(l, r), b(le), RegexMatch, b(re)),
+  <l:@L> <le:Expr> "==" <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), Equals,     b(re)),
+  <l:@L> <le:Expr> "!=" <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), NotEquals,  b(re)),
+  <l:@L> <le:Expr> "<"  <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), GT,         b(re)),
+  <l:@L> <le:Expr> ">"  <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), LT,         b(re)),
+  <l:@L> <le:Expr> "=~" <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), RegexMatch, b(re)),
 
   #[precedence(level="6")] #[assoc(side="left")]
-  <l:@L> <le:Expr> "&&" <re:Expr> <r:@R> => BinOp(Span(l, r), b(le), And,        b(re)),
-  <l:@L> <le:Expr> "||" <re:Expr> <r:@R> => BinOp(Span(l, r), b(le), Or,         b(re)),
-  <l:@L> <le:Expr> "?:" <re:Expr> <r:@R> => BinOp(Span(l, r), b(le), Elvis,      b(re)),
+  <l:@L> <le:Expr> "&&" <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), And,        b(re)),
+  <l:@L> <le:Expr> "||" <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), Or,         b(re)),
+  <l:@L> <le:Expr> "?:" <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), Elvis,      b(re)),
 
   #[precedence(level="7")] #[assoc(side="right")]
   <l:@L> <cond:Expr> "?" <then:ExprReset> ":" <els:Expr> <r:@R> => {
-    IfElse(Span(l, r), b(cond), b(then), b(els))
+    IfElse(Span(l, r, fid), b(cond), b(then), b(els))
   },
 };
 
 ExprReset = <Expr>;
 
 Literal: SimplExpr = {
-  <l:@L> <x:StrLit>   <r:@R> => SimplExpr::literal(Span(l, r), x),
-  <l:@L> <x:"number"> <r:@R> => SimplExpr::literal(Span(l, r), x),
-  <l:@L> "true"       <r:@R> => SimplExpr::literal(Span(l, r), "true".into()),
-  <l:@L> "false"      <r:@R> => SimplExpr::literal(Span(l, r), "false".into()),
+  <l:@L> <x:StrLit>   <r:@R> => SimplExpr::literal(Span(l, r, fid), x),
+  <l:@L> <x:"number"> <r:@R> => SimplExpr::literal(Span(l, r, fid), x),
+  <l:@L> "true"       <r:@R> => SimplExpr::literal(Span(l, r, fid), "true".into()),
+  <l:@L> "false"      <r:@R> => SimplExpr::literal(Span(l, r, fid), "false".into()),
 }
 
 StrLit: String = {
