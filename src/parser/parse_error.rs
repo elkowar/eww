@@ -1,4 +1,4 @@
-use crate::ast::Span;
+use super::ast::Span;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ParseError {

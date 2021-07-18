@@ -1,4 +1,4 @@
-use crate::{
+use crate::parser::{
     ast::{Ast, AstType, Span},
     lexer, parse_error,
 };

@@ -1,8 +1,5 @@
-use crate::{
-    ast::{Ast, AstIterator, AstType, Span},
-    error::*,
-    parser, spanned,
-};
+use super::ast::{Ast, AstIterator, AstType, Span};
+use crate::{error::*, parser, spanned};
 use itertools::Itertools;
 use std::{
     collections::{HashMap, LinkedList},
@@ -49,13 +46,17 @@ impl<C: FromAst, A: FromAst> FromAst for Element<C, A> {
 #[cfg(test)]
 mod test {
 
-    use super::*;
-    use crate::lexer;
+    use super::super::{
+        ast::Ast,
+        element::{Element, FromAst},
+        lexer,
+    };
+
     use insta;
 
     #[test]
     fn test() {
-        let parser = parser::AstParser::new();
+        let parser = super::parser::parser::AstParser::new();
         insta::with_settings!({sort_maps => true}, {
             let lexer = lexer::Lexer::new(0, "(box :bar 12 :baz \"hi\" foo (bar))".to_string());
             insta::assert_debug_snapshot!(

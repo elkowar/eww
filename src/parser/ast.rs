@@ -2,8 +2,10 @@ use itertools::Itertools;
 use simplexpr::ast::SimplExpr;
 use std::collections::HashMap;
 
-use crate::{config::FromAst, error::*};
 use std::fmt::Display;
+
+use super::element::FromAst;
+use crate::error::{AstError, AstResult};
 
 #[derive(Eq, PartialEq, Clone, Copy)]
 pub struct Span(pub usize, pub usize, pub usize);
@@ -124,15 +126,16 @@ impl std::fmt::Display for Ast {
 impl std::fmt::Debug for Ast {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use Ast::*;
-        match self {
-            List(span, x) => f.debug_tuple(&format!("List<{}>", span)).field(x).finish(),
-            Array(span, x) => f.debug_tuple(&format!("Array<{}>", span)).field(x).finish(),
-            Keyword(span, x) => write!(f, "Number<{}>({})", span, x),
-            Symbol(span, x) => write!(f, "Symbol<{}>({})", span, x),
-            Value(span, x) => write!(f, "Value<{}>({})", span, x),
-            SimplExpr(span, x) => write!(f, "SimplExpr<{}>({})", span, x),
-            Comment(span) => write!(f, "Comment<{}>", span),
-        }
+        write!(f, "{}", self)
+        // match self {
+        // List(span, x) => f.debug_tuple(&format!("List<{}>", span)).field(x).finish(),
+        // Array(span, x) => f.debug_tuple(&format!("Array<{}>", span)).field(x).finish(),
+        // Keyword(span, x) => write!(f, "Number<{}>({})", span, x),
+        // Symbol(span, x) => write!(f, "Symbol<{}>({})", span, x),
+        // Value(span, x) => write!(f, "Value<{}>({})", span, x),
+        // SimplExpr(span, x) => write!(f, "SimplExpr<{}>({})", span, x),
+        // Comment(span) => write!(f, "Comment<{}>", span),
+        //}
     }
 }
 

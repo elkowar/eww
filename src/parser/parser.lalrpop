@@ -1,6 +1,5 @@
 use std::str::FromStr;
-use crate::lexer::{Token};
-use crate::ast::{Ast, Span};
+use crate::parser::{lexer::{Token}, ast::{Ast, Span}, parse_error};
 use simplexpr::ast::SimplExpr;
 use simplexpr;
 use lalrpop_util::ParseError;
@@ -9,7 +8,7 @@ grammar(file_id: usize);
 
 extern {
     type Location = usize;
-    type Error = crate::parse_error::ParseError;
+    type Error = parse_error::ParseError;
 
     enum Token {
         "(" => Token::LPren,
@@ -58,7 +57,7 @@ SimplExpr: SimplExpr = {
        let expr = x[1..x.len() - 1].to_string();
        simplexpr::parse_string(&expr).map_err(|e| {
            let span = e.get_span().map(|simplexpr::Span(simpl_l, simpl_r)| Span(1 + l + simpl_l, 1 + l + simpl_r, file_id));
-           ParseError::User { error: crate::parse_error::ParseError::SimplExpr(span, e) }})
+           ParseError::User { error: parse_error::ParseError::SimplExpr(span, e) }})
    }
 }
 

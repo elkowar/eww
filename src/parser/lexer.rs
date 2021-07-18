@@ -1,6 +1,6 @@
 use regex::{Regex, RegexSet};
 
-use crate::{ast::Span, parse_error};
+use super::{ast::Span, parse_error};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Token {
