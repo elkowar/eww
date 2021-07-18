@@ -12,8 +12,8 @@ pub type AstResult<T> = Result<T, AstError>;
 
 #[derive(Debug, Error)]
 pub enum AstError {
-    #[error("Definition invalid")]
-    InvalidDefinition(Option<Span>),
+    #[error("Unknown toplevel declaration `{1}`")]
+    UnknownToplevel(Option<Span>, String),
     #[error("Expected another element, but got nothing")]
     MissingNode(Option<Span>),
     #[error("Wrong type of expression: Expected {1} but got {2}")]
@@ -31,7 +31,7 @@ pub enum AstError {
 impl AstError {
     pub fn get_span(&self) -> Option<Span> {
         match self {
-            AstError::InvalidDefinition(span) => *span,
+            AstError::UnknownToplevel(span, _) => *span,
             AstError::MissingNode(span) => *span,
             AstError::WrongExprType(span, ..) => *span,
             AstError::NotAValue(span, ..) => *span,
@@ -67,7 +67,7 @@ fn get_parse_error_span(
 pub fn spanned(span: Span, err: impl Into<AstError>) -> AstError {
     use AstError::*;
     match err.into() {
-        AstError::InvalidDefinition(None) => AstError::InvalidDefinition(Some(span)),
+        AstError::UnknownToplevel(None, x) => AstError::UnknownToplevel(Some(span), x),
         AstError::MissingNode(None) => AstError::MissingNode(Some(span)),
         AstError::WrongExprType(None, x, y) => AstError::WrongExprType(Some(span), x, y),
         x => x,

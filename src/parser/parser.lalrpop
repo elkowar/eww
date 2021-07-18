@@ -26,10 +26,13 @@ extern {
     }
 }
 
+pub Toplevel: Vec<Ast> = {
+    <(<Ast>)*> => <>
+}
 
 pub Ast: Ast = {
-    <l:@L> "(" <elems:(<Ast>)+> ")" <r:@R> => Ast::List(Span(l, r, file_id), elems),
-    <l:@L> "[" <elems:(<Ast>)+> "]" <r:@R> => Ast::Array(Span(l, r, file_id), elems),
+    <l:@L> "(" <elems:(<Ast>)*> ")" <r:@R> => Ast::List(Span(l, r, file_id), elems),
+    <l:@L> "[" <elems:(<Ast>)*> "]" <r:@R> => Ast::Array(Span(l, r, file_id), elems),
     <l:@L> <expr:SimplExpr> <r:@R> => Ast::SimplExpr(Span(l, r, file_id), expr),
     <x:Keyword> => x,
     <x:Symbol> => x,

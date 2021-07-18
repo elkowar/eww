@@ -1,5 +1,4 @@
 use eww_config::{
-    config::*,
     format_diagnostic::ToDiagnostic,
     parser::{ast::*, element::FromAst},
 };

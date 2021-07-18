@@ -2,7 +2,7 @@ use eww_config::{
     config::{widget_definition::WidgetDefinition, widget_use::WidgetUse, *},
     error::AstError,
     format_diagnostic::ToDiagnostic,
-    parser::{ast::*, element::FromAst},
+    parser::element::FromAst,
 };
 
 fn main() {

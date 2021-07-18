@@ -52,8 +52,7 @@ impl ToDiagnostic for AstError {
             }
         } else if let Some(span) = self.get_span() {
             match self {
-                AstError::InvalidDefinition(_) => todo!(),
-
+                AstError::UnknownToplevel(_, name) => gen_diagnostic!(format!("{}", self), span),
                 AstError::MissingNode(_) => gen_diagnostic! {
                     msg = "Expected another element",
                     label = span => "Expected another element here",
