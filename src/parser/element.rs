@@ -1,15 +1,12 @@
 use super::ast::{Ast, AstIterator, AstType, Span};
-use crate::{error::*, parser, spanned};
+use crate::{error::*, parser, spanned, value::AttrName};
 use itertools::Itertools;
+use simplexpr::ast::SimplExpr;
 use std::{
     collections::{HashMap, LinkedList},
     iter::FromIterator,
     str::FromStr,
 };
-
-type VarName = String;
-type AttrValue = String;
-type AttrName = String;
 
 pub trait FromAst: Sized {
     fn from_ast(e: Ast) -> AstResult<Self>;
@@ -18,6 +15,17 @@ pub trait FromAst: Sized {
 impl FromAst for Ast {
     fn from_ast(e: Ast) -> AstResult<Self> {
         Ok(e)
+    }
+}
+
+impl FromAst for SimplExpr {
+    fn from_ast(e: Ast) -> AstResult<Self> {
+        match e {
+            Ast::Symbol(span, x) => Ok(SimplExpr::VarRef(span.into(), x)),
+            Ast::Value(span, x) => Ok(SimplExpr::Literal(span.into(), x)),
+            Ast::SimplExpr(span, x) => Ok(x),
+            _ => Err(AstError::NotAValue(Some(e.span()), e.expr_type())),
+        }
     }
 }
 
@@ -36,7 +44,7 @@ impl<C: FromAst, A: FromAst> FromAst for Element<C, A> {
             let list = e.as_list()?;
             let mut iter = AstIterator::new(list.into_iter());
             let (_, name) = iter.expect_symbol()?;
-            let attrs = iter.expect_key_values()?;
+            let attrs = iter.expect_key_values()?.into_iter().map(|(k, v)| (AttrName(k), v)).collect();
             let children = iter.map(C::from_ast).collect::<AstResult<Vec<_>>>()?;
             Element { span, name, attrs, children }
         })

@@ -33,7 +33,7 @@ pub Ast: Ast = {
     <l:@L> <expr:SimplExpr> <r:@R> => Ast::SimplExpr(Span(l, r, file_id), expr),
     <x:Keyword> => x,
     <x:Symbol> => x,
-    <l:@L> <x:Value> <r:@R> => Ast::Value(Span(l, r, file_id), x),
+    <l:@L> <x:Value> <r:@R> => Ast::Value(Span(l, r, file_id), x.into()),
     <l:@L> "comment" <r:@R> => Ast::Comment(Span(l, r, file_id)),
 };
 
@@ -55,8 +55,8 @@ StrLit: String = {
 SimplExpr: SimplExpr = {
    <l:@L> <x:"simplexpr"> =>? {
        let expr = x[1..x.len() - 1].to_string();
-       simplexpr::parse_string(&expr).map_err(|e| {
-           let span = e.get_span().map(|simplexpr::Span(simpl_l, simpl_r)| Span(1 + l + simpl_l, 1 + l + simpl_r, file_id));
+       simplexpr::parse_string(file_id, &expr).map_err(|e| {
+           let span = e.get_span().map(|simplexpr::Span(simpl_l, simpl_r, file_id)| Span(1 + l + simpl_l, 1 + l + simpl_r, file_id));
            ParseError::User { error: parse_error::ParseError::SimplExpr(span, e) }})
    }
 }

@@ -16,8 +16,8 @@ macro_rules! gen_diagnostic {
         Diagnostic::error()
             $(.with_message($msg))?
             $(.with_labels(vec![
-                    Label::primary($span.2, $span.0..$span.1)
-                        $(.with_message($label))?
+                Label::primary($span.2, $span.0..$span.1)
+                    $(.with_message($label))?
             ]))?
             $(.with_notes(vec![$note]))?
     };
@@ -34,15 +34,29 @@ pub trait ToDiagnostic {
 
 impl ToDiagnostic for AstError {
     fn to_diagnostic(&self) -> Diagnostic<usize> {
-        let diag = Diagnostic::error();
-        if let Some(span) = self.get_span() {
-            use lalrpop_util::ParseError::*;
+        if let AstError::ValidationError(error) = self {
+            match error {
+                crate::config::validate::ValidationError::UnknownWidget(span, name) => gen_diagnostic! {
+                    msg = format!("No widget named {} exists", name),
+                    label = span => "Used here",
+                },
+                crate::config::validate::ValidationError::MissingAttr { widget_name, arg_name, arg_list_span, use_span } => {
+                    let diag = gen_diagnostic! {
+                        msg = format!("{}", error),
+                    };
+                    diag.with_labels(vec![
+                        Label::secondary(use_span.2, use_span.0..use_span.1).with_message("Argument missing here"),
+                        Label::secondary(arg_list_span.2, arg_list_span.0..arg_list_span.1).with_message("but is required here"),
+                    ])
+                }
+            }
+        } else if let Some(span) = self.get_span() {
             match self {
                 AstError::InvalidDefinition(_) => todo!(),
 
-                AstError::MissingNode(_, expected) => gen_diagnostic! {
-                    msg = format!("Missing {}", expected),
-                    label = span => format!("Expected `{}` here", expected),
+                AstError::MissingNode(_) => gen_diagnostic! {
+                    msg = "Expected another element",
+                    label = span => "Expected another element here",
                 },
 
                 AstError::WrongExprType(_, expected, actual) => gen_diagnostic! {
@@ -50,14 +64,20 @@ impl ToDiagnostic for AstError {
                     label = span => format!("Expected a `{}` here", expected),
                     note = format!("Expected: {}\nGot: {}", expected, actual),
                 },
+                AstError::NotAValue(_, actual) => gen_diagnostic! {
+                    msg = format!("Expected value, but got {}", actual),
+                    label = span => "Expected some value here",
+                    note = format!("Got: {}", actual),
+                },
 
                 AstError::ParseError { file_id, source } => lalrpop_error_to_diagnostic(source, span, |error| match error {
                     parse_error::ParseError::SimplExpr(_, error) => simplexpr_error_to_diagnostic(error, span),
                     parse_error::ParseError::LexicalError(_) => lexical_error_to_diagnostic(span),
                 }),
+                _ => panic!(),
             }
         } else {
-            diag.with_message(format!("{}", self))
+            Diagnostic::error().with_message(format!("{}", self))
         }
     }
 }
@@ -86,7 +106,7 @@ fn lalrpop_error_to_diagnostic<T: std::fmt::Display, E>(
 fn simplexpr_error_to_diagnostic(error: &simplexpr::error::Error, span: Span) -> Diagnostic<usize> {
     use simplexpr::error::Error::*;
     match error {
-        ParseError { source } => lalrpop_error_to_diagnostic(source, span, move |error| lexical_error_to_diagnostic(span)),
+        ParseError { source, .. } => lalrpop_error_to_diagnostic(source, span, move |error| lexical_error_to_diagnostic(span)),
         ConversionError(error) => conversion_error_to_diagnostic(error, span),
         Eval(error) => gen_diagnostic!(format!("{}", error), span),
         Other(error) => gen_diagnostic!(format!("{}", error), span),

@@ -1,14 +1,20 @@
 use itertools::Itertools;
-use simplexpr::ast::SimplExpr;
+use simplexpr::{ast::SimplExpr, dynval::DynVal};
 use std::collections::HashMap;
 
 use std::fmt::Display;
 
 use super::element::FromAst;
-use crate::error::{AstError, AstResult};
+use crate::error::{AstError, AstResult, OptionAstErrorExt};
 
 #[derive(Eq, PartialEq, Clone, Copy)]
 pub struct Span(pub usize, pub usize, pub usize);
+
+impl Into<simplexpr::Span> for Span {
+    fn into(self) -> simplexpr::Span {
+        simplexpr::Span(self.0, self.1, self.2)
+    }
+}
 
 impl std::fmt::Display for Span {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -45,7 +51,7 @@ pub enum Ast {
     Array(Span, Vec<Ast>),
     Keyword(Span, String),
     Symbol(Span, String),
-    Value(Span, String),
+    Value(Span, DynVal),
     SimplExpr(Span, SimplExpr),
     Comment(Span),
 }
@@ -69,7 +75,7 @@ macro_rules! as_func {
 }
 
 impl Ast {
-    as_func!(AstType::Value, as_value as_value_ref<String> = Ast::Value(_, x) => x);
+    as_func!(AstType::Value, as_value as_value_ref<DynVal> = Ast::Value(_, x) => x);
 
     as_func!(AstType::Symbol, as_symbol as_symbol_ref<String> = Ast::Symbol(_, x) => x);
 
@@ -155,7 +161,7 @@ macro_rules! return_or_put_back {
                     self.iter.put_back(other);
                     Err(AstError::WrongExprType(Some(span), expr_type, actual_type))
                 }
-                None => Err(AstError::MissingNode(None, expr_type)),
+                None => Err(AstError::MissingNode(None)),
             }
         }
     };
@@ -164,12 +170,18 @@ macro_rules! return_or_put_back {
 impl<I: Iterator<Item = Ast>> AstIterator<I> {
     return_or_put_back!(expect_symbol, AstType::Symbol, (Span, String) = Ast::Symbol(span, x) => (span, x));
 
-    return_or_put_back!(expect_string, AstType::Value, (Span, String) = Ast::Value(span, x) => (span, x));
+    return_or_put_back!(expect_value, AstType::Value, (Span, DynVal) = Ast::Value(span, x) => (span, x));
 
     return_or_put_back!(expect_list, AstType::List, (Span, Vec<Ast>) = Ast::List(span, x) => (span, x));
 
+    return_or_put_back!(expect_array, AstType::Array, (Span, Vec<Ast>) = Ast::Array(span, x) => (span, x));
+
     pub fn new(iter: I) -> Self {
         AstIterator { iter: itertools::put_back(iter) }
+    }
+
+    pub fn expect_any<T: FromAst>(&mut self) -> AstResult<T> {
+        self.iter.next().or_missing().and_then(T::from_ast)
     }
 
     pub fn expect_key_values<T: FromAst>(&mut self) -> AstResult<HashMap<String, T>> {

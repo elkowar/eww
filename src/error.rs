@@ -1,6 +1,9 @@
-use crate::parser::{
-    ast::{Ast, AstType, Span},
-    lexer, parse_error,
+use crate::{
+    config::validate::ValidationError,
+    parser::{
+        ast::{Ast, AstType, Span},
+        lexer, parse_error,
+    },
 };
 use codespan_reporting::{diagnostic, files};
 use thiserror::Error;
@@ -11,10 +14,15 @@ pub type AstResult<T> = Result<T, AstError>;
 pub enum AstError {
     #[error("Definition invalid")]
     InvalidDefinition(Option<Span>),
-    #[error("Expected a {1}, but got nothing")]
-    MissingNode(Option<Span>, AstType),
+    #[error("Expected another element, but got nothing")]
+    MissingNode(Option<Span>),
     #[error("Wrong type of expression: Expected {1} but got {2}")]
     WrongExprType(Option<Span>, AstType, AstType),
+    #[error("Expected to get a value, but got {1}")]
+    NotAValue(Option<Span>, AstType),
+
+    #[error(transparent)]
+    ValidationError(#[from] ValidationError),
 
     #[error("Parse error: {source}")]
     ParseError { file_id: Option<usize>, source: lalrpop_util::ParseError<usize, lexer::Token, parse_error::ParseError> },
@@ -24,8 +32,10 @@ impl AstError {
     pub fn get_span(&self) -> Option<Span> {
         match self {
             AstError::InvalidDefinition(span) => *span,
-            AstError::MissingNode(span, _) => *span,
+            AstError::MissingNode(span) => *span,
             AstError::WrongExprType(span, ..) => *span,
+            AstError::NotAValue(span, ..) => *span,
+            AstError::ValidationError(error) => None, // TODO none here is stupid
             AstError::ParseError { file_id, source } => file_id.and_then(|id| get_parse_error_span(id, source)),
         }
     }
@@ -58,18 +68,18 @@ pub fn spanned(span: Span, err: impl Into<AstError>) -> AstError {
     use AstError::*;
     match err.into() {
         AstError::InvalidDefinition(None) => AstError::InvalidDefinition(Some(span)),
-        AstError::MissingNode(None, x) => AstError::MissingNode(Some(span), x),
+        AstError::MissingNode(None) => AstError::MissingNode(Some(span)),
         AstError::WrongExprType(None, x, y) => AstError::WrongExprType(Some(span), x, y),
         x => x,
     }
 }
 
 pub trait OptionAstErrorExt<T> {
-    fn or_missing(self, t: AstType) -> Result<T, AstError>;
+    fn or_missing(self) -> Result<T, AstError>;
 }
 impl<T> OptionAstErrorExt<T> for Option<T> {
-    fn or_missing(self, t: AstType) -> Result<T, AstError> {
-        self.ok_or(AstError::MissingNode(None, t))
+    fn or_missing(self) -> Result<T, AstError> {
+        self.ok_or(AstError::MissingNode(None))
     }
 }
 
@@ -87,7 +97,7 @@ impl<T, E: Into<AstError>> AstResultExt<T> for Result<T, E> {
 macro_rules! spanned {
     ($span:expr, $block:expr) => {{
         let span = $span;
-        let result: Result<_, AstError> = try { $block };
-        result.at(span)
+        let result: Result<_, crate::error::AstError> = try { $block };
+        crate::error::AstResultExt::at(result, span)
     }};
 }

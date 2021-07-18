@@ -61,12 +61,12 @@ regex_rules! {
     r"\(" => |_| Token::LPren,
     r"\)" => |_| Token::RPren,
     r"\[" => |_| Token::LBrack,
-    r"\]" => |_| Token::LBrack,
+    r"\]" => |_| Token::RBrack,
     r"true" => |_| Token::True,
     r"false" => |_| Token::False,
     r#""(?:[^"\\]|\\.)*""# => |x| Token::StrLit(x),
     r#"[+-]?(?:[0-9]+[.])?[0-9]+"# => |x| Token::NumLit(x),
-    r#"[a-zA-Z_!\?<>/.*-+][^\s{}\(\)]*"# => |x| Token::Symbol(x),
+    r#"[a-zA-Z_!\?<>/.*-+][^\s{}\(\)\[\](){}]*"# => |x| Token::Symbol(x),
     r#":\S+"# => |x| Token::Keyword(x),
     r#";.*"# => |_| Token::Comment,
     r"[ \t\n\f]+" => |_| Token::Skip
@@ -141,7 +141,9 @@ impl Iterator for Lexer {
                 self.pos += len;
                 match LEXER_FNS[i](tok_str.to_string()) {
                     Token::Skip => {}
-                    token => return Some(Ok((old_pos, token, self.pos))),
+                    token => {
+                        return Some(Ok((old_pos, token, self.pos)));
+                    }
                 }
             }
         }
