@@ -6,8 +6,8 @@ expression: "Element::<Ast, Ast>::from_ast(parser.parse(0, lexer).unwrap()).unwr
 Element {
     name: "box",
     attrs: {
-        ":bar": "12",
-        ":baz": "hi",
+        "baz": "hi",
+        "bar": "12",
     },
     children: [
         foo,

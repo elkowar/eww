@@ -12,7 +12,7 @@ use crate::{
     value::{AttrName, VarName},
 };
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub enum ScriptVarDefinition {
     Poll(PollScriptVar),
     Tail(TailScriptVar),
@@ -27,13 +27,14 @@ impl ScriptVarDefinition {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub enum VarSource {
     // TODO allow for other executors? (python, etc)
     Shell(String),
+    #[serde(skip)]
     Function(fn() -> Result<DynVal, Box<dyn std::error::Error>>),
 }
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub struct PollScriptVar {
     pub name: VarName,
     pub command: VarSource,
@@ -55,7 +56,7 @@ impl FromAstElementContent for PollScriptVar {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub struct TailScriptVar {
     pub name: VarName,
     pub command: String,

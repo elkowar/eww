@@ -13,7 +13,7 @@ use crate::{
 };
 
 use super::widget_use::WidgetUse;
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
 pub struct WidgetDefinition {
     pub name: String,
     pub expected_args: Vec<AttrName>,

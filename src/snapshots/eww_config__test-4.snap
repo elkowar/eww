@@ -1,8 +1,0 @@
----
-source: src/lib.rs
-expression: "p.parse(0, lexer::Lexer::new(\"-1.2\"))"
-
----
-Ok(
-    Value<0..4>(-1.2),
-)

@@ -54,7 +54,7 @@ fn test() {
         r#"(test "h\"i")"#,
         r#"(test " hi ")"#,
         "(+ (1 2 (* 2 5)))",
-        r#"; test"#,
+        r#"foo ; test"#,
         r#"(f arg ; test
         arg2)"#,
         "\"h\\\"i\""

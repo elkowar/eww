@@ -20,7 +20,7 @@ impl FromAst for Ast {
 
 impl FromAst for String {
     fn from_ast(e: Ast) -> AstResult<Self> {
-        Ok(e.as_value()?.to_string())
+        Ok(e.as_value()?.as_string().unwrap())
     }
 }
 
@@ -76,28 +76,5 @@ impl<C: FromAst, A: FromAst> FromAst for Element<C, A> {
             let children = iter.map(C::from_ast).collect::<AstResult<Vec<_>>>()?;
             Element { span, name, attrs, children }
         })
-    }
-}
-
-#[cfg(test)]
-mod test {
-
-    use super::super::{
-        ast::Ast,
-        element::{Element, FromAst},
-        lexer,
-    };
-
-    use insta;
-
-    #[test]
-    fn test() {
-        let parser = super::parser::parser::AstParser::new();
-        insta::with_settings!({sort_maps => true}, {
-            let lexer = lexer::Lexer::new(0, "(box :bar 12 :baz \"hi\" foo (bar))".to_string());
-            insta::assert_debug_snapshot!(
-                Element::<Ast, Ast>::from_ast(parser.parse(0, lexer).unwrap()).unwrap()
-            );
-        });
     }
 }

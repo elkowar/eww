@@ -66,8 +66,8 @@ regex_rules! {
     r"false" => |_| Token::False,
     r#""(?:[^"\\]|\\.)*""# => |x| Token::StrLit(x),
     r#"[+-]?(?:[0-9]+[.])?[0-9]+"# => |x| Token::NumLit(x),
-    r#"[a-zA-Z_!\?<>/.*-+][^\s{}\(\)\[\](){}]*"# => |x| Token::Symbol(x),
-    r#":\S+"# => |x| Token::Keyword(x),
+    r#":[^\s\)\]}]+"# => |x| Token::Keyword(x),
+    r#"[a-zA-Z_!\?<>/\.\*-\+][^\s{}\(\)\[\](){}]*"# => |x| Token::Symbol(x),
     r#";.*"# => |_| Token::Comment,
     r"[ \t\n\f]+" => |_| Token::Skip
 }
@@ -126,7 +126,7 @@ impl Iterator for Lexer {
                         let m = LEXER_REGEXES[i].find(string).unwrap();
                         (m.end(), i)
                     })
-                    .next();
+                    .min_by_key(|(_, x)| *x);
 
                 let (len, i) = match matched_token {
                     Some(x) => x,
@@ -140,7 +140,7 @@ impl Iterator for Lexer {
                 let old_pos = self.pos;
                 self.pos += len;
                 match LEXER_FNS[i](tok_str.to_string()) {
-                    Token::Skip => {}
+                    Token::Skip | Token::Comment => {}
                     token => {
                         return Some(Ok((old_pos, token, self.pos)));
                     }

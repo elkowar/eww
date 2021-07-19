@@ -1,8 +1,0 @@
----
-source: src/lib.rs
-expression: "p.parse(0, lexer::Lexer::new(r#\"; test\"#))"
-
----
-Ok(
-    Comment<0..6>,
-)

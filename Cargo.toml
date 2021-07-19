@@ -32,4 +32,4 @@ simplexpr = { path = "../../projects/simplexpr" }
 lalrpop = "0.19.5"
 
 [dev-dependencies]
-insta = "1.7"
+insta = { version = "1.7", features = ["ron"]}

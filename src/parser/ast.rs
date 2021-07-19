@@ -7,7 +7,7 @@ use std::fmt::Display;
 use super::element::FromAst;
 use crate::error::{AstError, AstResult, OptionAstErrorExt};
 
-#[derive(Eq, PartialEq, Clone, Copy)]
+#[derive(Eq, PartialEq, Clone, Copy, serde::Serialize)]
 pub struct Span(pub usize, pub usize, pub usize);
 
 impl Into<simplexpr::Span> for Span {
@@ -121,9 +121,9 @@ impl std::fmt::Display for Ast {
         match self {
             List(_, x) => write!(f, "({})", x.iter().map(|e| format!("{}", e)).join(" ")),
             Array(_, x) => write!(f, "({})", x.iter().map(|e| format!("{}", e)).join(" ")),
-            Keyword(_, x) => write!(f, "{}", x),
+            Keyword(_, x) => write!(f, ":{}", x),
             Symbol(_, x) => write!(f, "{}", x),
-            Value(_, x) => write!(f, "{}", x),
+            Value(_, x) => write!(f, "\"{}\"", x),
             SimplExpr(_, x) => write!(f, "{{{}}}", x),
             Comment(_) => write!(f, ""),
         }

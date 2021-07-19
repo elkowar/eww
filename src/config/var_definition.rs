@@ -12,7 +12,7 @@ use crate::{
     value::{AttrName, VarName},
 };
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
 pub struct VarDefinition {
     pub name: VarName,
     pub initial_value: DynVal,

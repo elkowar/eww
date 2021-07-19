@@ -11,7 +11,7 @@ use crate::{
     spanned,
     value::AttrName,
 };
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
 pub struct WidgetUse {
     pub name: String,
     pub attrs: HashMap<AttrName, SimplExpr>,
