@@ -23,6 +23,8 @@ serde_json = "1.0"
 lazy_static = "1.4"
 pretty_assertions = "0.7"
 
+anyhow = "1"
+
 
 simplexpr = { path = "../../projects/simplexpr" }
 

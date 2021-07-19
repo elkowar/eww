@@ -1,7 +1,7 @@
 use super::ast::{Ast, AstIterator, AstType, Span};
 use crate::{error::*, parser, spanned, value::AttrName};
 use itertools::Itertools;
-use simplexpr::ast::SimplExpr;
+use simplexpr::{ast::SimplExpr, dynval::DynVal};
 use std::{
     collections::{HashMap, LinkedList},
     iter::FromIterator,
@@ -15,6 +15,34 @@ pub trait FromAst: Sized {
 impl FromAst for Ast {
     fn from_ast(e: Ast) -> AstResult<Self> {
         Ok(e)
+    }
+}
+
+impl FromAst for String {
+    fn from_ast(e: Ast) -> AstResult<Self> {
+        Ok(e.as_value()?.to_string())
+    }
+}
+
+/// A trait that allows creating a type from the tail of a list-node.
+/// I.e. to parse (foo [a b] (c d)), [from_tail] would just get [a b] (c d).
+pub trait FromAstElementContent: Sized {
+    fn get_element_name() -> &'static str;
+    fn from_tail<I: Iterator<Item = Ast>>(span: Span, iter: AstIterator<I>) -> AstResult<Self>;
+}
+
+impl<T: FromAstElementContent> FromAst for T {
+    fn from_ast(e: Ast) -> AstResult<Self> {
+        let span = e.span();
+        spanned!(e.span(), {
+            let list = e.as_list()?;
+            let mut iter = AstIterator::new(list.into_iter());
+            let (_, element_name) = iter.expect_symbol()?;
+            if Self::get_element_name() != element_name {
+                return Err(AstError::MismatchedElementName(Some(span), Self::get_element_name().to_string(), element_name));
+            }
+            Self::from_tail(span, iter)?
+        })
     }
 }
 

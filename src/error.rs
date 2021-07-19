@@ -20,6 +20,10 @@ pub enum AstError {
     WrongExprType(Option<Span>, AstType, AstType),
     #[error("Expected to get a value, but got {1}")]
     NotAValue(Option<Span>, AstType),
+    #[error("Expected element {1}, but read {2}")]
+    MismatchedElementName(Option<Span>, String, String),
+    #[error("{1}")]
+    Other(Option<Span>, Box<dyn std::error::Error>),
 
     #[error(transparent)]
     ValidationError(#[from] ValidationError),
@@ -35,6 +39,8 @@ impl AstError {
             AstError::MissingNode(span) => *span,
             AstError::WrongExprType(span, ..) => *span,
             AstError::NotAValue(span, ..) => *span,
+            AstError::MismatchedElementName(span, ..) => *span,
+            AstError::Other(span, ..) => *span,
             AstError::ValidationError(error) => None, // TODO none here is stupid
             AstError::ParseError { file_id, source } => file_id.and_then(|id| get_parse_error_span(id, source)),
         }
@@ -67,9 +73,14 @@ fn get_parse_error_span(
 pub fn spanned(span: Span, err: impl Into<AstError>) -> AstError {
     use AstError::*;
     match err.into() {
-        AstError::UnknownToplevel(None, x) => AstError::UnknownToplevel(Some(span), x),
-        AstError::MissingNode(None) => AstError::MissingNode(Some(span)),
-        AstError::WrongExprType(None, x, y) => AstError::WrongExprType(Some(span), x, y),
+        UnknownToplevel(None, x) => UnknownToplevel(Some(span), x),
+        MissingNode(None) => MissingNode(Some(span)),
+        WrongExprType(None, x, y) => WrongExprType(Some(span), x, y),
+        UnknownToplevel(None, x) => UnknownToplevel(Some(span), x),
+        MissingNode(None) => MissingNode(Some(span)),
+        NotAValue(None, x) => NotAValue(Some(span), x),
+        MismatchedElementName(None, x, y) => MismatchedElementName(Some(span), x, y),
+        Other(None, x) => Other(Some(span), x),
         x => x,
     }
 }

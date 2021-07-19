@@ -6,7 +6,7 @@ use crate::{
     error::AstResult,
     parser::{
         ast::{Ast, AstIterator, Span},
-        element::{Element, FromAst},
+        element::{Element, FromAst, FromAstElementContent},
     },
     spanned,
     value::{AttrName, VarName},
@@ -22,23 +22,18 @@ pub struct WidgetDefinition {
     pub args_span: Span,
 }
 
-impl FromAst for WidgetDefinition {
-    fn from_ast(e: Ast) -> AstResult<Self> {
-        let span = e.span();
-        spanned!(e.span(), {
-            let list = e.as_list()?;
-            let mut iter = AstIterator::new(list.into_iter());
+impl FromAstElementContent for WidgetDefinition {
+    fn get_element_name() -> &'static str {
+        "defwidget"
+    }
 
-            let (_, def_type) = iter.expect_symbol()?;
-            assert!(def_type == "defwidget");
-
-            let (_, name) = iter.expect_symbol()?;
-            let (args_span, expected_args) = iter.expect_array()?;
-            let expected_args = expected_args.into_iter().map(|x| x.as_symbol().map(AttrName)).collect::<AstResult<_>>()?;
-            let widget = iter.expect_any().and_then(WidgetUse::from_ast)?;
-            // TODO verify that this was the last element in the list
-            // iter.expect_done()?;
-            Self { name, expected_args, widget, span, args_span }
-        })
+    fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> AstResult<Self> {
+        let (_, name) = iter.expect_symbol()?;
+        let (args_span, expected_args) = iter.expect_array()?;
+        let expected_args = expected_args.into_iter().map(|x| x.as_symbol().map(AttrName)).collect::<AstResult<_>>()?;
+        let widget = iter.expect_any().and_then(WidgetUse::from_ast)?;
+        // TODO verify that this was the last element in the list
+        // iter.expect_done()?;
+        Ok(Self { name, expected_args, widget, span, args_span })
     }
 }
