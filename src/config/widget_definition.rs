@@ -6,7 +6,7 @@ use crate::{
     error::AstResult,
     parser::{
         ast::{Ast, AstIterator, Span},
-        element::{Element, FromAst, FromAstElementContent},
+        from_ast::{FromAst, FromAstElementContent},
     },
     spanned,
     value::{AttrName, VarName},

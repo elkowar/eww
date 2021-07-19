@@ -6,7 +6,7 @@ use crate::{
     error::AstResult,
     parser::{
         ast::{Ast, AstIterator, Span},
-        element::{Element, FromAst},
+        from_ast::FromAst,
     },
     spanned,
     value::AttrName,
@@ -23,7 +23,7 @@ impl FromAst for WidgetUse {
     fn from_ast(e: Ast) -> AstResult<Self> {
         let span = e.span();
         spanned!(e.span(), {
-            if let Ok(text) = e.as_value_ref() {
+            if let Ok(text) = e.as_literal_ref() {
                 Self {
                     name: "text".to_string(),
                     attrs: maplit::hashmap! { AttrName("text".to_string()) => SimplExpr::Literal(span.into(), text.clone()) },

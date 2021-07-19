@@ -6,7 +6,7 @@ use crate::{
     error::{AstError, AstResult},
     parser::{
         ast::{Ast, AstIterator, Span},
-        element::{Element, FromAst, FromAstElementContent},
+        from_ast::{FromAst, FromAstElementContent},
     },
     spanned,
     value::{AttrName, VarName},
@@ -51,7 +51,7 @@ impl FromAstElementContent for PollScriptVar {
         let attrs: HashMap<String, String> = iter.expect_key_values()?;
         let interval = attrs.get("interval").unwrap();
         let interval = crate::util::parse_duration(interval).map_err(|e| AstError::Other(Some(span), e.into()))?;
-        let (_, script) = iter.expect_value()?;
+        let (_, script) = iter.expect_literal()?;
         Ok(Self { name: VarName(name), command: VarSource::Shell(script.to_string()), interval })
     }
 }
@@ -68,7 +68,7 @@ impl FromAstElementContent for TailScriptVar {
 
     fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> AstResult<Self> {
         let (_, name) = iter.expect_symbol()?;
-        let (_, script) = iter.expect_value()?;
+        let (_, script) = iter.expect_literal()?;
         Ok(Self { name: VarName(name), command: script.to_string() })
     }
 }

@@ -36,14 +36,14 @@ pub Ast: Ast = {
     <l:@L> <expr:SimplExpr> <r:@R> => Ast::SimplExpr(Span(l, r, file_id), expr),
     <x:Keyword> => x,
     <x:Symbol> => x,
-    <l:@L> <x:Value> <r:@R> => Ast::Value(Span(l, r, file_id), x.into()),
+    <l:@L> <x:Literal> <r:@R> => Ast::Literal(Span(l, r, file_id), x.into()),
     <l:@L> "comment" <r:@R> => Ast::Comment(Span(l, r, file_id)),
 };
 
 Keyword: Ast = <l:@L> <x:"keyword"> <r:@R> => Ast::Keyword(Span(l, r, file_id), x[1..].to_string());
 Symbol: Ast = <l:@L> <x:"symbol"> <r:@R> => Ast::Symbol(Span(l, r, file_id), x.to_string());
 
-Value: String = {
+Literal: String = {
     <StrLit> => <>,
     <Num> => <>,
     <Bool> => <>,

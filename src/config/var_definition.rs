@@ -6,7 +6,7 @@ use crate::{
     error::AstResult,
     parser::{
         ast::{Ast, AstIterator, Span},
-        element::{Element, FromAst, FromAstElementContent},
+        from_ast::{FromAst, FromAstElementContent},
     },
     spanned,
     value::{AttrName, VarName},
@@ -26,7 +26,7 @@ impl FromAstElementContent for VarDefinition {
 
     fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> AstResult<Self> {
         let (_, name) = iter.expect_symbol()?;
-        let (_, initial_value) = iter.expect_value()?;
+        let (_, initial_value) = iter.expect_literal()?;
         Ok(Self { name: VarName(name), initial_value, span })
     }
 }

@@ -3,7 +3,7 @@ use crate::{
     parser::{
         self,
         ast::{Ast, Span},
-        element::FromAst,
+        from_ast::FromAst,
         lexer::Lexer,
     },
 };

@@ -1,6 +1,6 @@
 use eww_config::{
     format_diagnostic::ToDiagnostic,
-    parser::{ast::*, element::FromAst},
+    parser::{ast::*, from_ast::FromAst},
 };
 
 fn main() {
@@ -15,17 +15,16 @@ fn main() {
 
     let file_id = files.add("foo.eww", input);
     let ast = eww_config::parser::parse_string(file_id, input);
-    match ast.and_then(eww_config::parser::element::Element::<Ast, Ast>::from_ast) {
-        Ok(ast) => {
-            println!("{:?}", ast);
-        }
-        Err(err) => {
-            dbg!(&err);
-            let diag = err.to_diagnostic();
-            use codespan_reporting::term;
-            let config = term::Config::default();
-            let mut writer = term::termcolor::StandardStream::stderr(term::termcolor::ColorChoice::Always);
-            term::emit(&mut writer, &config, &files, &diag).unwrap();
-        }
-    }
+    // match ast.and_then(eww_config::parser::from_ast::Element::<Ast, Ast>::from_ast) {
+    // Ok(ast) => {
+    // println!("{:?}", ast);
+    //}
+    // Err(err) => {
+    // dbg!(&err);
+    // let diag = err.to_diagnostic();
+    // use codespan_reporting::term;
+    // let config = term::Config::default();
+    // let mut writer = term::termcolor::StandardStream::stderr(term::termcolor::ColorChoice::Always);
+    // term::emit(&mut writer, &config, &files, &diag).unwrap();
+    //}
 }
