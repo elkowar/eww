@@ -18,6 +18,13 @@ fn test_config() {
         (defvar some_var "bla")
         (defpollvar stuff :interval "12s" "date")
         (deftailvar stuff "tail -f stuff")
+        (defwindow some-window
+                   :stacking "fg"
+                   :monitor 12
+                   :resizable true
+                   :geometry (geometry :width "12%" :height "20px")
+                   :reserve (struts :side "left" :distance "30px")
+            (foo :arg "bla"))
     "#;
 
     let lexer = Lexer::new(0, input.to_string());

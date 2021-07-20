@@ -4,7 +4,7 @@ use simplexpr::SimplExpr;
 
 use super::{
     script_var_definition::ScriptVarDefinition, var_definition::VarDefinition, widget_definition::WidgetDefinition,
-    widget_use::WidgetUse,
+    widget_use::WidgetUse, window_definition::WindowDefinition,
 };
 use crate::{
     config::script_var_definition::{PollScriptVar, TailScriptVar},
@@ -21,6 +21,7 @@ pub enum TopLevel {
     VarDefinition(VarDefinition),
     ScriptVarDefinition(ScriptVarDefinition),
     WidgetDefinition(WidgetDefinition),
+    WindowDefinition(WindowDefinition),
 }
 
 impl FromAst for TopLevel {
@@ -40,6 +41,9 @@ impl FromAst for TopLevel {
                 x if x == TailScriptVar::get_element_name() => {
                     Self::ScriptVarDefinition(ScriptVarDefinition::Tail(TailScriptVar::from_tail(span, iter)?))
                 }
+                x if x == WindowDefinition::get_element_name() => {
+                    Self::WindowDefinition(WindowDefinition::from_tail(span, iter)?)
+                }
                 x => return Err(AstError::UnknownToplevel(Some(sym_span), x.to_string())),
             }
         })
@@ -49,6 +53,7 @@ impl FromAst for TopLevel {
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
 pub struct Config {
     widget_definitions: HashMap<String, WidgetDefinition>,
+    window_definitions: HashMap<String, WindowDefinition>,
     var_definitions: HashMap<VarName, VarDefinition>,
     script_vars: HashMap<VarName, ScriptVarDefinition>,
 }
@@ -56,8 +61,12 @@ pub struct Config {
 impl FromAst for Config {
     fn from_ast(e: Ast) -> AstResult<Self> {
         let list = e.as_list()?;
-        let mut config =
-            Self { widget_definitions: HashMap::new(), var_definitions: HashMap::new(), script_vars: HashMap::new() };
+        let mut config = Self {
+            widget_definitions: HashMap::new(),
+            window_definitions: HashMap::new(),
+            var_definitions: HashMap::new(),
+            script_vars: HashMap::new(),
+        };
         for element in list {
             match TopLevel::from_ast(element)? {
                 TopLevel::VarDefinition(x) => {
@@ -68,6 +77,9 @@ impl FromAst for Config {
                 }
                 TopLevel::WidgetDefinition(x) => {
                     config.widget_definitions.insert(x.name.clone(), x);
+                }
+                TopLevel::WindowDefinition(x) => {
+                    config.window_definitions.insert(x.name.clone(), x);
                 }
             }
         }

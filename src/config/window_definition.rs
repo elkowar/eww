@@ -12,20 +12,20 @@ use crate::{
     value::{AttrName, NumWithUnit, VarName},
 };
 
-use super::{widget_use::WidgetUse, window_geometry::WindowGeometry};
+use super::{backend_window_options::BackendWindowOptions, widget_use::WidgetUse, window_geometry::WindowGeometry};
 
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct EwwWindowDefinition {
+#[derive(Debug, Clone, serde::Serialize, PartialEq, Eq)]
+pub struct WindowDefinition {
     pub name: String,
     pub geometry: Option<WindowGeometry>,
     pub stacking: WindowStacking,
     pub monitor_number: Option<i32>,
     pub widget: WidgetUse,
     pub resizable: bool,
-    // pub backend_options: BackendWindowOptions,
+    pub backend_options: BackendWindowOptions,
 }
 
-impl FromAstElementContent for EwwWindowDefinition {
+impl FromAstElementContent for WindowDefinition {
     fn get_element_name() -> &'static str {
         "defwindow"
     }
@@ -37,8 +37,9 @@ impl FromAstElementContent for EwwWindowDefinition {
         let resizable = attrs.primitive_optional("resizable")?.unwrap_or(true);
         let stacking = attrs.primitive_optional("stacking")?.unwrap_or(WindowStacking::Foreground);
         let geometry = attrs.ast_optional("geometry")?;
+        let backend_options = BackendWindowOptions::from_attrs(&mut attrs)?;
         let widget = iter.expect_any()?;
-        Ok(Self { name, monitor_number, resizable, widget, stacking, geometry })
+        Ok(Self { name, monitor_number, resizable, widget, stacking, geometry, backend_options })
     }
 }
 
@@ -74,69 +75,6 @@ macro_rules! enum_parse {
             })
         }
     };
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, smart_default::SmartDefault)]
-pub enum EwwWindowType {
-    #[default]
-    Dock,
-    Dialog,
-    Toolbar,
-    Normal,
-    Utility,
-}
-impl FromStr for EwwWindowType {
-    type Err = EnumParseError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        enum_parse! { "window type", s,
-            "dock" => Self::Dock,
-            "toolbar" => Self::Toolbar,
-            "dialog" => Self::Dialog,
-            "normal" => Self::Normal,
-            "utility" => Self::Utility,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq, smart_default::SmartDefault)]
-pub enum Side {
-    #[default]
-    Top,
-    Left,
-    Right,
-    Bottom,
-}
-
-impl std::str::FromStr for Side {
-    type Err = EnumParseError;
-
-    fn from_str(s: &str) -> Result<Side, Self::Err> {
-        enum_parse! { "side", s,
-            "l" | "left" => Side::Left,
-            "r" | "right" => Side::Right,
-            "t" | "top" => Side::Top,
-            "b" | "bottom" => Side::Bottom,
-        }
-    }
-}
-
-// Surface definition if the backend for X11 is enable
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
-pub struct StrutDefinition {
-    pub side: Side,
-    pub dist: NumWithUnit,
-}
-
-impl FromAstElementContent for StrutDefinition {
-    fn get_element_name() -> &'static str {
-        "struts"
-    }
-
-    fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> AstResult<Self> {
-        let mut attrs = iter.expect_key_values()?;
-        Ok(StrutDefinition { side: attrs.primitive_required("side")?, dist: attrs.primitive_required("distance")? })
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, derive_more::Display, smart_default::SmartDefault, serde::Serialize)]
