@@ -8,6 +8,9 @@ use std::collections::HashMap;
 
 #[derive(Debug, thiserror::Error)]
 pub enum EvalError {
+    #[error("Tried to reference variable `{0}`, but we cannot access variables here")]
+    NoVariablesAllowed(String),
+
     #[error("Invalid regex: {0}")]
     InvalidRegex(#[from] regex::Error),
 
@@ -114,12 +117,20 @@ impl SimplExpr {
         }
     }
 
-    pub fn eval(self, values: &HashMap<VarName, DynVal>) -> Result<DynVal, EvalError> {
+    pub fn eval_no_vars(&self) -> Result<DynVal, EvalError> {
+        match self.eval(&HashMap::new()) {
+            Ok(x) => Ok(x),
+            Err(EvalError::UnknownVariable(name)) => Err(EvalError::NoVariablesAllowed(name)),
+            Err(x) => Err(x),
+        }
+    }
+
+    pub fn eval(&self, values: &HashMap<VarName, DynVal>) -> Result<DynVal, EvalError> {
         let span = self.span();
         let value = match self {
-            SimplExpr::Literal(_, x) => Ok(x),
+            SimplExpr::Literal(_, x) => Ok(x.clone()),
             SimplExpr::VarRef(span, ref name) => {
-                Ok(values.get(name).cloned().ok_or_else(|| EvalError::UnresolvedVariable(name.to_string()).at(span))?.at(span))
+                Ok(values.get(name).cloned().ok_or_else(|| EvalError::UnresolvedVariable(name.to_string()).at(*span))?.at(*span))
             }
             SimplExpr::BinOp(_, a, op, b) => {
                 let a = a.eval(values)?;
@@ -176,12 +187,12 @@ impl SimplExpr {
                             .unwrap_or(&serde_json::Value::Null);
                         Ok(DynVal::from(indexed_value))
                     }
-                    _ => Err(EvalError::CannotIndex(format!("{}", val)).at(span)),
+                    _ => Err(EvalError::CannotIndex(format!("{}", val)).at(*span)),
                 }
             }
             SimplExpr::FunctionCall(span, function_name, args) => {
                 let args = args.into_iter().map(|a| a.eval(values)).collect::<Result<_, EvalError>>()?;
-                call_expr_function(&function_name, args).map_err(|e| e.at(span))
+                call_expr_function(&function_name, args).map_err(|e| e.at(*span))
             }
         };
         Ok(value?.at(span))

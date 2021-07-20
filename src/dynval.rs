@@ -1,7 +1,7 @@
 use crate::ast::Span;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use std::{convert::TryFrom, fmt, iter::FromIterator};
+use std::{fmt, iter::FromIterator, str::FromStr};
 
 pub type Result<T> = std::result::Result<T, ConversionError>;
 
@@ -34,7 +34,7 @@ impl From<String> for DynVal {
 
 impl fmt::Display for DynVal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "\"{}\"", self.0)
+        write!(f, "{}", self.0)
     }
 }
 impl fmt::Debug for DynVal {
@@ -70,32 +70,46 @@ impl std::str::FromStr for DynVal {
     }
 }
 
-macro_rules! impl_try_from {
-    (impl From<$typ:ty> {
-        $(for $for:ty => |$arg:ident| $code:expr);*;
-    }) => {
-        $(impl TryFrom<$typ> for $for {
-            type Error = ConversionError;
-            fn try_from($arg: $typ) -> std::result::Result<Self, Self::Error> { $code }
+pub trait FromDynVal: Sized {
+    type Err;
+    fn from_dynval(x: &DynVal) -> std::result::Result<Self, Self::Err>;
+}
+
+impl<E, T: FromStr<Err = E>> FromDynVal for T {
+    type Err = E;
+
+    fn from_dynval(x: &DynVal) -> std::result::Result<Self, Self::Err> {
+        x.0.parse()
+    }
+}
+
+macro_rules! impl_from_dynval {
+    (
+        $(for $for:ty => |$name:ident| $code:expr);*;
+    ) => {
+        $(impl FromDynVal for $for {
+            type Err = ConversionError;
+            fn from_dynval($name: DynVal) -> std::result::Result<Self, Self::Err> { $code }
         })*
     };
 }
-macro_rules! impl_primval_from {
+macro_rules! impl_dynval_from {
     ($($t:ty),*) => {
         $(impl From<$t> for DynVal {
             fn from(x: $t) -> Self { DynVal(x.to_string(), None) }
         })*
     };
 }
-impl_try_from!(impl From<DynVal> {
-    for String => |x| x.as_string();
-    for f64 => |x| x.as_f64();
-    for i32 => |x| x.as_i32();
-    for bool => |x| x.as_bool();
-    //for Vec<String> => |x| x.as_vec();
-});
 
-impl_primval_from!(bool, i32, u32, f32, u8, f64, &str);
+// impl_from_dynval! {
+// for String => |x| x.as_string();
+// for f64 => |x| x.as_f64();
+// for i32 => |x| x.as_i32();
+// for bool => |x| x.as_bool();
+////for Vec<String> => |x| x.as_vec();
+//}
+
+impl_dynval_from!(bool, i32, u32, f32, u8, f64, &str);
 
 impl From<&serde_json::Value> for DynVal {
     fn from(v: &serde_json::Value) -> Self {
@@ -116,6 +130,10 @@ impl DynVal {
 
     pub fn from_string(s: String) -> Self {
         DynVal(s, None)
+    }
+
+    pub fn read_as<E, T: FromDynVal<Err = E>>(&self) -> std::result::Result<T, E> {
+        T::from_dynval(self)
     }
 
     pub fn into_inner(self) -> String {
