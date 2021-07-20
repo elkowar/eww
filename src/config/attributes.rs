@@ -23,19 +23,19 @@ pub enum AttrError {
     #[error("Missing required attribute {0}")]
     MissingRequiredAttr(Span, AttrName),
 
-    #[error("Failed to parse attribute value {0} in this context")]
-    AttrTypeError(Span, AttrName),
-
     #[error("{1}")]
     EvaluationError(Span, EvalError),
+
+    #[error("{1}")]
+    Other(Span, Box<dyn std::error::Error>),
 }
 
 impl AttrError {
     pub fn span(&self) -> Span {
         match self {
             AttrError::MissingRequiredAttr(span, _) => *span,
-            AttrError::AttrTypeError(span, _) => *span,
             AttrError::EvaluationError(span, _) => *span,
+            AttrError::Other(span, _) => *span,
         }
     }
 }
@@ -84,16 +84,24 @@ impl Attributes {
         }
     }
 
-    pub fn primitive_required<T: FromDynVal>(&mut self, key: &str) -> Result<T, AstError> {
+    pub fn primitive_required<T, E>(&mut self, key: &str) -> Result<T, AstError>
+    where
+        E: std::error::Error + 'static,
+        T: FromDynVal<Err = E>,
+    {
         let ast: SimplExpr = self.ast_required(&key)?;
         Ok(ast
             .eval_no_vars()
             .map_err(|err| AttrError::EvaluationError(ast.span().into(), err))?
             .read_as()
-            .map_err(|_| AttrError::AttrTypeError(ast.span().into(), AttrName(key.to_string())))?)
+            .map_err(|e| AttrError::Other(ast.span().into(), Box::new(e)))?)
     }
 
-    pub fn primitive_optional<T: FromDynVal>(&mut self, key: &str) -> Result<Option<T>, AstError> {
+    pub fn primitive_optional<T, E>(&mut self, key: &str) -> Result<Option<T>, AstError>
+    where
+        E: std::error::Error + 'static,
+        T: FromDynVal<Err = E>,
+    {
         let ast: SimplExpr = match self.ast_optional(key)? {
             Some(ast) => ast,
             None => return Ok(None),
@@ -102,7 +110,7 @@ impl Attributes {
             ast.eval_no_vars()
                 .map_err(|err| AttrError::EvaluationError(ast.span().into(), err))?
                 .read_as()
-                .map_err(|_| AttrError::AttrTypeError(ast.span().into(), AttrName(key.to_string())))?,
+                .map_err(|e| AttrError::Other(ast.span().into(), Box::new(e)))?,
         ))
     }
 
