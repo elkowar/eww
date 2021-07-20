@@ -252,7 +252,7 @@ fn parse_key_values(iter: &mut AstIterator<impl Iterator<Item = Ast>>) -> AstRes
             Some(Ast::Keyword(key_span, kw)) => match iter.next() {
                 Some(value) => {
                     attrs_span.1 = iter.remaining_span.0;
-                    let attr_value = AttrEntry { key_span, value: value.as_simplexpr()? };
+                    let attr_value = AttrEntry { key_span, value };
                     data.insert(AttrName(kw), attr_value);
                 }
                 None => {

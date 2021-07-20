@@ -222,6 +222,7 @@ dependencies = [
  "serde_json",
  "simplexpr",
  "smart-default",
+ "strum",
  "thiserror",
 ]
 

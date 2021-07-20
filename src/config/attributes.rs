@@ -3,9 +3,14 @@ use std::{
     convert::{TryFrom, TryInto},
 };
 
-use simplexpr::{dynval::DynVal, eval::EvalError, SimplExpr};
+use simplexpr::{
+    dynval::{DynVal, FromDynVal},
+    eval::EvalError,
+    SimplExpr,
+};
 
 use crate::{
+    error::AstError,
     parser::{
         ast::{Ast, Span},
         from_ast::FromAst,
@@ -44,11 +49,11 @@ pub struct UnusedAttrs {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct AttrEntry {
     pub key_span: Span,
-    pub value: SimplExpr,
+    pub value: Ast,
 }
 
 impl AttrEntry {
-    pub fn new(key_span: Span, value: SimplExpr) -> AttrEntry {
+    pub fn new(key_span: Span, value: Ast) -> AttrEntry {
         AttrEntry { key_span, value }
     }
 }
@@ -64,51 +69,42 @@ impl Attributes {
         Attributes { span, attrs }
     }
 
-    pub fn eval_required<T: TryFrom<DynVal>>(&mut self, key: &str) -> Result<T, AttrError> {
+    pub fn ast_required<T: FromAst>(&mut self, key: &str) -> Result<T, AstError> {
         let key = AttrName(key.to_string());
         match self.attrs.remove(&key) {
-            Some(AttrEntry { key_span, value }) => {
-                let value_span = value.span();
-                let dynval = value.eval_no_vars().map_err(|err| AttrError::EvaluationError(value_span.into(), err))?;
-                T::try_from(dynval).map_err(|_| AttrError::AttrTypeError(value_span.into(), key.clone()))
-            }
-            None => Err(AttrError::MissingRequiredAttr(self.span, key.clone())),
+            Some(AttrEntry { key_span, value }) => T::from_ast(value),
+            None => Err(AttrError::MissingRequiredAttr(self.span, key.clone()).into()),
         }
     }
 
-    pub fn eval_optional<T: TryFrom<DynVal>>(&mut self, key: &str) -> Result<Option<T>, AttrError> {
-        let key = AttrName(key.to_string());
-        match self.attrs.remove(&key) {
-            Some(AttrEntry { key_span, value }) => {
-                let value_span = value.span();
-                let dynval = value.eval_no_vars().map_err(|err| AttrError::EvaluationError(value_span.into(), err))?;
-                T::try_from(dynval).map(Some).map_err(|_| AttrError::AttrTypeError(value_span.into(), key.clone()))
-            }
+    pub fn ast_optional<T: FromAst>(&mut self, key: &str) -> Result<Option<T>, AstError> {
+        match self.attrs.remove(&AttrName(key.to_string())) {
+            Some(AttrEntry { key_span, value }) => T::from_ast(value).map(Some),
             None => Ok(None),
         }
     }
 
-    // pub fn parse_required<T: TryFrom<SimplExpr>>(&mut self, key: &str) -> Result<T, AttrError> {
-    // let key = AttrName(key.to_string());
-    // match self.attrs.remove(&key) {
-    // Some(value) => match value.value.try_into() {
-    // Ok(value) => Ok(value),
-    // Err(_) => Err(AttrError::AttrTypeError(value.value.span().into(), key.clone())),
-    // },
-    // None => Err(AttrError::MissingRequiredAttr(self.span, key.clone())),
-    // }
-    // }
-    //
-    // pub fn parse_optional<T: TryFrom<SimplExpr>>(&mut self, key: &str) -> Result<Option<T>, AttrError> {
-    // let key = AttrName(key.to_string());
-    // match self.attrs.remove(&key) {
-    // Some(value) => match value.value.try_into() {
-    // Ok(value) => Ok(Some(value)),
-    // Err(_) => Err(AttrError::AttrTypeError(value.value.span().into(), key.clone())),
-    // },
-    // None => Ok(None),
-    // }
-    // }
+    pub fn primitive_required<T: FromDynVal>(&mut self, key: &str) -> Result<T, AstError> {
+        let ast: SimplExpr = self.ast_required(&key)?;
+        Ok(ast
+            .eval_no_vars()
+            .map_err(|err| AttrError::EvaluationError(ast.span().into(), err))?
+            .read_as()
+            .map_err(|_| AttrError::AttrTypeError(ast.span().into(), AttrName(key.to_string())))?)
+    }
+
+    pub fn primitive_optional<T: FromDynVal>(&mut self, key: &str) -> Result<Option<T>, AstError> {
+        let ast: SimplExpr = match self.ast_optional(key)? {
+            Some(ast) => ast,
+            None => return Ok(None),
+        };
+        Ok(Some(
+            ast.eval_no_vars()
+                .map_err(|err| AttrError::EvaluationError(ast.span().into(), err))?
+                .read_as()
+                .map_err(|_| AttrError::AttrTypeError(ast.span().into(), AttrName(key.to_string())))?,
+        ))
+    }
 
     /// Consumes the attributes to return a list of unused attributes which may be used to emit a warning.
     /// TODO actually use this and implement warnings,... lol

@@ -35,7 +35,7 @@ impl FromAst for WidgetUse {
                         maplit::hashmap! {
                             AttrName("text".to_string()) => AttrEntry::new(
                                 span.into(),
-                                SimplExpr::Literal(span.into(), text.clone())
+                                Ast::Literal(span.into(), text.clone())
                             )
                         },
                     ),

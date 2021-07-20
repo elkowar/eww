@@ -9,3 +9,4 @@ pub mod var_definition;
 pub mod widget_definition;
 pub mod widget_use;
 pub mod window_definition;
+pub mod window_geometry;
