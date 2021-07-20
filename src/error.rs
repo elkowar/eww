@@ -1,5 +1,5 @@
 use crate::{
-    config::validate::ValidationError,
+    config::{attributes::AttrError, validate::ValidationError},
     parser::{
         ast::{Ast, AstType, Span},
         lexer, parse_error,
@@ -22,9 +22,20 @@ pub enum AstError {
     NotAValue(Option<Span>, AstType),
     #[error("Expected element {1}, but read {2}")]
     MismatchedElementName(Option<Span>, String, String),
+
     #[error("{1}")]
     Other(Option<Span>, Box<dyn std::error::Error>),
 
+    #[error(transparent)]
+    AttrError(#[from] AttrError),
+
+    //#[error("{msg}: {source}")]
+    // Context {
+    // span: Option<Span>,
+    //#[source]
+    // source: Box<dyn std::error::Error>,
+    // msg: String,
+    //},
     #[error(transparent)]
     ValidationError(#[from] ValidationError),
 
@@ -40,7 +51,9 @@ impl AstError {
             AstError::WrongExprType(span, ..) => *span,
             AstError::NotAValue(span, ..) => *span,
             AstError::MismatchedElementName(span, ..) => *span,
+            AstError::AttrError(err) => Some(err.span()),
             AstError::Other(span, ..) => *span,
+            // AstError::Context { span, .. } => *span,
             AstError::ValidationError(error) => None, // TODO none here is stupid
             AstError::ParseError { file_id, source } => file_id.and_then(|id| get_parse_error_span(id, source)),
         }
@@ -80,6 +93,7 @@ pub fn spanned(span: Span, err: impl Into<AstError>) -> AstError {
         MissingNode(None) => MissingNode(Some(span)),
         NotAValue(None, x) => NotAValue(Some(span), x),
         MismatchedElementName(None, x, y) => MismatchedElementName(Some(span), x, y),
+        // Context { span: None, source, msg } => Context { span: Some(span), source, msg },
         Other(None, x) => Other(Some(span), x),
         x => x,
     }
@@ -98,11 +112,20 @@ pub trait AstResultExt<T> {
     fn at(self, span: Span) -> Result<T, AstError>;
 }
 
+pub trait Context<T> {
+    fn context(self, span: Span, msg: String) -> Result<T, AstError>;
+}
+
 impl<T, E: Into<AstError>> AstResultExt<T> for Result<T, E> {
     fn at(self, span: Span) -> Result<T, AstError> {
         self.map_err(|err| spanned(span, err))
     }
 }
+
+// impl<T, E: std::error::Error + 'static> Context<T> for Result<T, E> {
+// fn context(self, span: Span, msg: String) -> Result<T, AstError> {
+// self.map_err(|x| AstError::Context { msg, span: Some(span), source: Box::new(x) })
+//}
 
 #[macro_export]
 macro_rules! spanned {

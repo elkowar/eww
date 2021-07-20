@@ -27,8 +27,7 @@ impl FromAst for TopLevel {
     fn from_ast(e: Ast) -> AstResult<Self> {
         let span = e.span();
         spanned!(e.span(), {
-            let list = e.as_list()?;
-            let mut iter = AstIterator::new(list.into_iter());
+            let mut iter = e.try_ast_iter()?;
             let (sym_span, element_name) = iter.expect_symbol()?;
             match element_name.as_str() {
                 x if x == WidgetDefinition::get_element_name() => {

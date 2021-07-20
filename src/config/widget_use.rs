@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use simplexpr::SimplExpr;
 
 use crate::{
+    config::attributes::AttrEntry,
     error::AstResult,
     parser::{
         ast::{Ast, AstIterator, Span},
@@ -11,10 +12,13 @@ use crate::{
     spanned,
     value::AttrName,
 };
+
+use super::attributes::Attributes;
+
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
 pub struct WidgetUse {
     pub name: String,
-    pub attrs: HashMap<AttrName, SimplExpr>,
+    pub attrs: Attributes,
     pub children: Vec<WidgetUse>,
     pub span: Span,
 }
@@ -26,15 +30,22 @@ impl FromAst for WidgetUse {
             if let Ok(text) = e.as_literal_ref() {
                 Self {
                     name: "text".to_string(),
-                    attrs: maplit::hashmap! { AttrName("text".to_string()) => SimplExpr::Literal(span.into(), text.clone()) },
+                    attrs: Attributes::new(
+                        span.into(),
+                        maplit::hashmap! {
+                            AttrName("text".to_string()) => AttrEntry::new(
+                                span.into(),
+                                SimplExpr::Literal(span.into(), text.clone())
+                            )
+                        },
+                    ),
                     children: Vec::new(),
                     span,
                 }
             } else {
-                let list = e.as_list()?;
-                let mut iter = AstIterator::new(list.into_iter());
+                let mut iter = e.try_ast_iter()?;
                 let (_, name) = iter.expect_symbol()?;
-                let attrs = iter.expect_key_values()?.into_iter().map(|(k, v)| (AttrName(k), v)).collect();
+                let attrs = iter.expect_key_values()?;
                 let children = iter.map(WidgetUse::from_ast).collect::<AstResult<Vec<_>>>()?;
                 Self { name, attrs, children, span }
             }

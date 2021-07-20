@@ -5,14 +5,43 @@ use std::collections::HashMap;
 use std::fmt::Display;
 
 use super::from_ast::FromAst;
-use crate::error::{AstError, AstResult, OptionAstErrorExt};
+use crate::{
+    config::attributes::{AttrEntry, Attributes},
+    error::{AstError, AstResult, OptionAstErrorExt},
+    value::AttrName,
+};
 
 #[derive(Eq, PartialEq, Clone, Copy, serde::Serialize)]
 pub struct Span(pub usize, pub usize, pub usize);
 
+impl Span {
+    /// Get the span that includes this and the other span completely.
+    /// Will panic if the spans are from different file_ids.
+    pub fn to(mut self, other: Span) -> Self {
+        assert!(other.2 == self.2);
+        self.1 = other.1;
+        self
+    }
+
+    pub fn ending_at(mut self, end: usize) -> Self {
+        self.1 = end;
+        self
+    }
+
+    pub fn with_length(mut self, end: usize) -> Self {
+        self.1 = self.0;
+        self
+    }
+}
+
 impl Into<simplexpr::Span> for Span {
     fn into(self) -> simplexpr::Span {
         simplexpr::Span(self.0, self.1, self.2)
+    }
+}
+impl From<simplexpr::Span> for Span {
+    fn from(x: simplexpr::Span) -> Span {
+        Span(x.0, x.1, x.2)
     }
 }
 
@@ -47,7 +76,7 @@ impl Display for AstType {
     }
 }
 
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, serde::Serialize)]
 pub enum Ast {
     List(Span, Vec<Ast>),
     Array(Span, Vec<Ast>),
@@ -119,6 +148,12 @@ impl Ast {
             _ => Err(AstError::WrongExprType(Some(self.span()), AstType::IntoPrimitive, self.expr_type())),
         }
     }
+
+    pub fn try_ast_iter(self) -> AstResult<AstIterator<impl Iterator<Item = Ast>>> {
+        let span = self.span();
+        let list = self.as_list()?;
+        Ok(AstIterator::new(span, list.into_iter()))
+    }
 }
 
 impl std::fmt::Display for Ast {
@@ -152,6 +187,7 @@ impl std::fmt::Debug for Ast {
 }
 
 pub struct AstIterator<I: Iterator<Item = Ast>> {
+    remaining_span: Span,
     iter: itertools::PutBack<I>,
 }
 
@@ -160,7 +196,11 @@ macro_rules! return_or_put_back {
         pub fn $name(&mut self) -> AstResult<$t> {
             let expr_type = $expr_type;
             match self.next() {
-                Some($p) => Ok($ret),
+                Some($p) => {
+                    let (span, value) = $ret;
+                    self.remaining_span.1 = span.1;
+                    Ok((span, value))
+                }
                 Some(other) => {
                     let span = other.span();
                     let actual_type = other.expr_type();
@@ -182,16 +222,16 @@ impl<I: Iterator<Item = Ast>> AstIterator<I> {
 
     return_or_put_back!(expect_array, AstType::Array, (Span, Vec<Ast>) = Ast::Array(span, x) => (span, x));
 
-    pub fn new(iter: I) -> Self {
-        AstIterator { iter: itertools::put_back(iter) }
+    pub fn new(span: Span, iter: I) -> Self {
+        AstIterator { remaining_span: span, iter: itertools::put_back(iter) }
     }
 
     pub fn expect_any<T: FromAst>(&mut self) -> AstResult<T> {
         self.iter.next().or_missing().and_then(T::from_ast)
     }
 
-    pub fn expect_key_values<T: FromAst>(&mut self) -> AstResult<HashMap<String, T>> {
-        parse_key_values(&mut self.iter)
+    pub fn expect_key_values(&mut self) -> AstResult<Attributes> {
+        parse_key_values(self)
     }
 }
 
@@ -203,25 +243,31 @@ impl<I: Iterator<Item = Ast>> Iterator for AstIterator<I> {
     }
 }
 
-/// Parse consecutive `:keyword value` pairs from an expression iterator into a HashMap. Transforms the keys using the FromExpr trait.
-fn parse_key_values<T: FromAst, I: Iterator<Item = Ast>>(iter: &mut itertools::PutBack<I>) -> AstResult<HashMap<String, T>> {
+/// Parse consecutive `:keyword value` pairs from an expression iterator into an [Attributes].
+fn parse_key_values(iter: &mut AstIterator<impl Iterator<Item = Ast>>) -> AstResult<Attributes> {
     let mut data = HashMap::new();
+    let mut attrs_span = Span(iter.remaining_span.0, iter.remaining_span.0, iter.remaining_span.1);
     loop {
         match iter.next() {
-            Some(Ast::Keyword(span, kw)) => match iter.next() {
+            Some(Ast::Keyword(key_span, kw)) => match iter.next() {
                 Some(value) => {
-                    data.insert(kw, T::from_ast(value)?);
+                    attrs_span.1 = iter.remaining_span.0;
+                    let attr_value = AttrEntry { key_span, value: value.as_simplexpr()? };
+                    data.insert(AttrName(kw), attr_value);
                 }
                 None => {
-                    iter.put_back(Ast::Keyword(span, kw));
-                    return Ok(data);
+                    iter.iter.put_back(Ast::Keyword(key_span, kw));
+                    attrs_span.1 = iter.remaining_span.0;
+                    return Ok(Attributes::new(attrs_span, data));
                 }
             },
-            Some(expr) => {
-                iter.put_back(expr);
-                return Ok(data);
+            next => {
+                if let Some(expr) = next {
+                    iter.iter.put_back(expr);
+                }
+                attrs_span.1 = iter.remaining_span.0;
+                return Ok(Attributes::new(attrs_span, data));
             }
-            None => return Ok(data),
         }
     }
 }

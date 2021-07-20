@@ -35,8 +35,7 @@ impl<T: FromAstElementContent> FromAst for T {
     fn from_ast(e: Ast) -> AstResult<Self> {
         let span = e.span();
         spanned!(e.span(), {
-            let list = e.as_list()?;
-            let mut iter = AstIterator::new(list.into_iter());
+            let mut iter = e.try_ast_iter()?;
             let (_, element_name) = iter.expect_symbol()?;
             if Self::get_element_name() != element_name {
                 return Err(AstError::MismatchedElementName(Some(span), Self::get_element_name().to_string(), element_name));

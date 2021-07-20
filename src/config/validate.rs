@@ -26,7 +26,7 @@ pub enum ValidationError {
 pub fn validate(defs: &HashMap<String, WidgetDefinition>, content: &WidgetUse) -> Result<(), ValidationError> {
     if let Some(def) = defs.get(&content.name) {
         for expected in def.expected_args.iter() {
-            if !content.attrs.contains_key(expected) {
+            if !content.attrs.attrs.contains_key(expected) {
                 return Err(ValidationError::MissingAttr {
                     widget_name: def.name.to_string(),
                     arg_name: expected.clone(),
