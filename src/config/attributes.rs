@@ -76,6 +76,18 @@ impl Attributes {
         }
     }
 
+    pub fn eval_optional<T: TryFrom<DynVal>>(&mut self, key: &str) -> Result<Option<T>, AttrError> {
+        let key = AttrName(key.to_string());
+        match self.attrs.remove(&key) {
+            Some(AttrEntry { key_span, value }) => {
+                let value_span = value.span();
+                let dynval = value.eval_no_vars().map_err(|err| AttrError::EvaluationError(value_span.into(), err))?;
+                T::try_from(dynval).map(Some).map_err(|_| AttrError::AttrTypeError(value_span.into(), key.clone()))
+            }
+            None => Ok(None),
+        }
+    }
+
     // pub fn parse_required<T: TryFrom<SimplExpr>>(&mut self, key: &str) -> Result<T, AttrError> {
     // let key = AttrName(key.to_string());
     // match self.attrs.remove(&key) {
