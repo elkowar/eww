@@ -1,4 +1,7 @@
-use super::ast::{Ast, AstIterator, AstType, Span};
+use super::{
+    ast::{Ast, AstType, Span},
+    ast_iterator::AstIterator,
+};
 use crate::{error::*, parser, spanned, util, value::AttrName};
 use itertools::Itertools;
 use simplexpr::{ast::SimplExpr, dynval::DynVal};

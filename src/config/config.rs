@@ -10,7 +10,8 @@ use crate::{
     config::script_var_definition::{PollScriptVar, TailScriptVar},
     error::{AstError, AstResult, OptionAstErrorExt},
     parser::{
-        ast::{Ast, AstIterator, Span},
+        ast::{Ast, Span},
+        ast_iterator::AstIterator,
         from_ast::{FromAst, FromAstElementContent},
     },
     spanned,

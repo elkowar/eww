@@ -8,6 +8,7 @@ use std::{fmt::Display, ops::Deref};
 use itertools::Itertools;
 
 pub mod ast;
+pub mod ast_iterator;
 pub mod from_ast;
 pub(crate) mod lexer;
 pub(crate) mod parse_error;

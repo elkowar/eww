@@ -5,7 +5,8 @@ use simplexpr::{dynval::DynVal, SimplExpr};
 use crate::{
     error::AstResult,
     parser::{
-        ast::{Ast, AstIterator, Span},
+        ast::{Ast, Span},
+        ast_iterator::AstIterator,
         from_ast::{FromAst, FromAstElementContent},
     },
     spanned,
