@@ -206,7 +206,7 @@ The `<windows>` config should look something like this:
 
 ```xml
 <windows>
-    <window name="main_window" stacking="fg" focusable="false" screen="1">
+    <window name="main_window" stacking="fg" screen="1" windowtype="dock">
         <geometry anchor="top left" x="300px" y="50%" width="25%" height="20px"/>
         <reserve side="left" distance="50px"/>
         <widget>
@@ -220,7 +220,7 @@ For Wayland users the `<reserve/>` block is replaced by the exclusive field in `
 The previous `<window>` block would look like this.
 
 ```xml
-    <window name="main_window" stacking="fg" focusable="false" screen="1" exclusive="true" windowtype="normal">
+    <window name="main_window" stacking="fg" focusable="false" screen="1" exclusive="true">
         <geometry anchor="top left" x="300px" y="50%" width="25%" height="20px"/>
         <widget>
             <main/>
@@ -237,9 +237,6 @@ There are a couple things you can optionally configure on the window itself:
 - `stacking`: stacking describes on what "layer" of the screen the window is shown.
   Possible values on the X11 backend: `foreground "fg"`, `background "bg"`. Default: `"fg"`
   Possible values on the Wayland backend: `foreground "fg"`, `bottom "bt"`, `background "bg"`, `overlay "ov"`. Default: `"fg"`
-- `focusable`: whether the window should be focusable by the windowmanager.
-  This is necessary for things like text-input-fields to work properly.
-  Possible values: `"true"`, `"false"`. Default: `"false"`
 - `screen`: Specifies on which display to show the window in a multi-monitor setup.
   This can be any number, representing the index of your monitor.
 - `exclusive`: Specifies whether or not a surface can be occupied by another.
@@ -247,10 +244,34 @@ There are a couple things you can optionally configure on the window itself:
   The details on how it is actually implemented are left to the compositor.
   This option is only valid on Wayland.
   Possible values: `"true"`, `"false"`. Default: `"false"`
+- `focusable`: (Wayland only) whether the window should be able to capture keyboard input.
+  Possible values: `"true"`, `"false"`. Default: `"false"`
+- `wm-ignore`: (X11 only) wether the window should be managed by the window manager.
+  For a centered widget setup this is recommended to be set to true. For a bar, set the windowtype to `dock` instead.
+  Note that setting `wm-ignore` will make some other options not work, as those rely on the window manager.
+  Possible values: `"true"`, `"false"`. Default: `"true"` except if `<reserve>` is set.
 - `windowtype`: (X11 only) Can be used in determining the decoration, stacking position and other behavior of the window.
-  Possible values: 
+  Window managers tend to interpret these differently, so play around with which one works for your usecase!
+  Possible values:
     - `"normal"`: indicates that this is a normal, top-level window
-    - `"dock"`: indicates a dock or panel feature
+    - `"dock"`: indicates a bar, dock, or panel window
+    - `"utility"`: indicates a pinned utility window
     - `"toolbar"`: toolbars "torn off" from the main application
     - `"dialog"`: indicates that this is a dialog window
-    - Default: `"dock"` if reserve is set, else `"normal"` 
+    - Default: `"dock"`
+- `sticky`: (X11 only) If the window should show up on all workspaces. Note that this may not have any effect, depending on your window manager and the window type.
+  Possible values: `"true"`, `"false"`. Default: `"true"`
+- `resizable`: (X11 only) If the window should be resizable. Note that this may not have any effect, depending on your window manager and the window type.
+  Possible values: `"true"`, `"false"`. Default: `"true"`
+
+
+### Recommendations for different use-cases on X
+
+Window positioning is... weird on X11. Different window-managers handle things differently, and some things are just not compatible.
+Thus, the following setups are recommendations that will _probably_ work. If they don't try to play around with different settings for any of the X11 only properties.
+
+- For a bar:
+  - Set `windowtype` to `dock`, and provide a `reserve` configuration to match your window geometry to make the WM reserve space.
+  - Set `wm-ignore` to `false`.
+- For a centered, full-screen widget setup:
+  - Set `wm-ignore` to `true`.
