@@ -1,0 +1,17 @@
+---
+source: src/parser/element.rs
+expression: "Element::<Ast, Ast>::from_ast(parser.parse(0, lexer).unwrap()).unwrap()"
+
+---
+Element {
+    name: "box",
+    attrs: {
+        "baz": "hi",
+        "bar": "12",
+    },
+    children: [
+        foo,
+        (bar),
+    ],
+    span: 0..33,
+}

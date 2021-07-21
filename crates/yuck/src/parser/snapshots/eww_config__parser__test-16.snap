@@ -1,0 +1,8 @@
+---
+source: src/parser/mod.rs
+expression: "p.parse(0, Lexer::new(0, r#\"(f arg ; test\n        arg2)\"#.to_string()))"
+
+---
+Ok(
+    (f arg arg2),
+)

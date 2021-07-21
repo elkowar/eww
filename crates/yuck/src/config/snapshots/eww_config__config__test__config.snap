@@ -1,0 +1,112 @@
+---
+source: src/config/test.rs
+expression: config.unwrap()
+
+---
+Config(
+  widget_definitions: {
+    "bar": WidgetDefinition(
+      name: "bar",
+      expected_args: [
+        AttrName("arg"),
+        AttrName("arg2"),
+      ],
+      widget: WidgetUse(
+        name: "text",
+        attrs: Attributes(
+          span: Span(99, 104, 0),
+          attrs: {
+            AttrName("text"): AttrEntry(
+              key_span: Span(99, 104, 0),
+              value: Literal(Span(99, 104, 0), DynVal("bla", None)),
+            ),
+          },
+        ),
+        children: [],
+        span: Span(99, 104, 0),
+      ),
+      span: Span(61, 105, 0),
+      args_span: Span(76, 86, 0),
+    ),
+    "foo": WidgetDefinition(
+      name: "foo",
+      expected_args: [
+        AttrName("arg"),
+      ],
+      widget: WidgetUse(
+        name: "text",
+        attrs: Attributes(
+          span: Span(44, 51, 0),
+          attrs: {
+            AttrName("text"): AttrEntry(
+              key_span: Span(44, 51, 0),
+              value: Literal(Span(44, 51, 0), DynVal("heyho", None)),
+            ),
+          },
+        ),
+        children: [],
+        span: Span(44, 51, 0),
+      ),
+      span: Span(11, 52, 0),
+      args_span: Span(26, 31, 0),
+    ),
+  },
+  window_definitions: {
+    "some-window": WindowDefinition(
+      name: "some-window",
+      geometry: Some(WindowGeometry(
+        anchor_point: AnchorPoint(
+          x: START,
+          y: START,
+        ),
+        offset: Coords(
+          x: Pixels(0),
+          y: Pixels(0),
+        ),
+        size: Coords(
+          x: Percent(12),
+          y: Pixels(20),
+        ),
+      )),
+      stacking: Foreground,
+      monitor_number: Some(12),
+      widget: WidgetUse(
+        name: "foo",
+        attrs: Attributes(
+          span: Span(509, 509, 513),
+          attrs: {
+            AttrName("arg"): AttrEntry(
+              key_span: Span(514, 518, 0),
+              value: Literal(Span(519, 524, 0), DynVal("bla", None)),
+            ),
+          },
+        ),
+        children: [],
+        span: Span(509, 525, 0),
+      ),
+      resizable: true,
+      backend_options: X11WindowOptions(
+        wm_ignore: false,
+        sticky: true,
+        window_type: Dock,
+        struts: StrutDefinition(
+          side: Left,
+          dist: Pixels(30),
+        ),
+      ),
+    ),
+  },
+  var_definitions: {
+    VarName("some_var"): VarDefinition(
+      name: VarName("some_var"),
+      initial_value: DynVal("bla", None),
+      span: Span(114, 137, 0),
+    ),
+  },
+  script_vars: {
+    VarName("stuff"): Tail(TailScriptVar(
+      name: VarName("stuff"),
+      command: "tail -f stuff",
+    )),
+  },
+)
