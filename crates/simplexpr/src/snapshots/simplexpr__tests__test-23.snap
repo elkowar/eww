@@ -1,0 +1,12 @@
+---
+source: src/lib.rs
+expression: "Lexer::new(\"foo.bar.baz\").filter_map(|x|\n                                         x.ok()).map(|(_, x, _)|\n                                                         match x {\n                                                             Token::Ident(x) |\n                                                             Token::NumLit(x)\n                                                             |\n                                                             Token::StrLit(x)\n                                                             =>\n                                                             format!(\"{}\", x),\n                                                             x =>\n                                                             format!(\"{}\", x),\n                                                         }).collect::<Vec<_>>()"
+
+---
+[
+    "foo",
+    "Dot",
+    "bar",
+    "Dot",
+    "baz",
+]

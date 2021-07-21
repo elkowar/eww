@@ -1,0 +1,22 @@
+---
+source: src/lib.rs
+expression: "p.parse(Lexer::new(\"! false || ! true\"))"
+
+---
+Ok(
+    BinOp(
+        UnaryOp(
+            Not,
+            Literal(
+                "false",
+            ),
+        ),
+        Or,
+        UnaryOp(
+            Not,
+            Literal(
+                "true",
+            ),
+        ),
+    ),
+)

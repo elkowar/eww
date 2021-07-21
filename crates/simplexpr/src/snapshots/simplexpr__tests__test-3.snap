@@ -1,0 +1,8 @@
+---
+source: src/lib.rs
+expression: "p.parse(Lexer::new(\"2 * 5 + 1 * 1 + 3\"))"
+
+---
+Ok(
+    ((("2" * "5") + ("1" * "1")) + "3"),
+)

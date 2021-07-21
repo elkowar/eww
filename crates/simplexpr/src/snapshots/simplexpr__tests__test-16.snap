@@ -1,0 +1,18 @@
+---
+source: src/lib.rs
+expression: "p.parse(Lexer::new(\"foo(1, 2)\"))"
+
+---
+Ok(
+    FunctionCall(
+        "foo",
+        [
+            Literal(
+                "1",
+            ),
+            Literal(
+                "2",
+            ),
+        ],
+    ),
+)
