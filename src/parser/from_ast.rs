@@ -2,7 +2,7 @@ use super::{
     ast::{Ast, AstType, Span},
     ast_iterator::AstIterator,
 };
-use crate::{error::*, parser, spanned, util, value::AttrName};
+use crate::{error::*, parser, util, value::AttrName};
 use itertools::Itertools;
 use simplexpr::{ast::SimplExpr, dynval::DynVal};
 use std::{
@@ -37,14 +37,12 @@ pub trait FromAstElementContent: Sized {
 impl<T: FromAstElementContent> FromAst for T {
     fn from_ast(e: Ast) -> AstResult<Self> {
         let span = e.span();
-        spanned!(e.span(), {
-            let mut iter = e.try_ast_iter()?;
-            let (_, element_name) = iter.expect_symbol()?;
-            if Self::get_element_name() != element_name {
-                return Err(AstError::MismatchedElementName(Some(span), Self::get_element_name().to_string(), element_name));
-            }
-            Self::from_tail(span, iter)?
-        })
+        let mut iter = e.try_ast_iter()?;
+        let (_, element_name) = iter.expect_symbol()?;
+        if Self::get_element_name() != element_name {
+            return Err(AstError::MismatchedElementName(span, Self::get_element_name().to_string(), element_name));
+        }
+        Self::from_tail(span, iter)
     }
 }
 
@@ -54,7 +52,7 @@ impl FromAst for SimplExpr {
             Ast::Symbol(span, x) => Ok(SimplExpr::VarRef(span.into(), x)),
             Ast::Literal(span, x) => Ok(SimplExpr::Literal(span.into(), x)),
             Ast::SimplExpr(span, x) => Ok(x),
-            _ => Err(AstError::NotAValue(Some(e.span()), e.expr_type())),
+            _ => Err(AstError::NotAValue(e.span(), e.expr_type())),
         }
     }
 }

@@ -23,19 +23,18 @@ macro_rules! return_or_put_back {
     ($name:ident, $expr_type:expr, $t:ty = $p:pat => $ret:expr) => {
         pub fn $name(&mut self) -> AstResult<$t> {
             let expr_type = $expr_type;
-            match self.next() {
-                Some($p) => {
+            match self.expect_any()? {
+                $p => {
                     let (span, value) = $ret;
                     self.remaining_span.1 = span.1;
                     Ok((span, value))
                 }
-                Some(other) => {
+                other => {
                     let span = other.span();
                     let actual_type = other.expr_type();
                     self.iter.put_back(other);
-                    Err(AstError::WrongExprType(Some(span), expr_type, actual_type))
+                    Err(AstError::WrongExprType(span, expr_type, actual_type))
                 }
-                None => Err(AstError::MissingNode(None)),
             }
         }
     };
@@ -55,7 +54,7 @@ impl<I: Iterator<Item = Ast>> AstIterator<I> {
     }
 
     pub fn expect_any<T: FromAst>(&mut self) -> AstResult<T> {
-        self.iter.next().or_missing().and_then(T::from_ast)
+        self.iter.next().or_missing(self.remaining_span.with_length(0)).and_then(T::from_ast)
     }
 
     pub fn expect_key_values(&mut self) -> AstResult<Attributes> {

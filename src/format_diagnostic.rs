@@ -14,7 +14,7 @@ macro_rules! gen_diagnostic {
         $(, note = $note:expr)? $(,)?
     ) => {
         Diagnostic::error()
-            $(.with_message($msg))?
+            $(.with_message($msg.to_string()))?
             $(.with_labels(vec![
                 Label::primary($span.2, $span.0..$span.1)
                     $(.with_message($label))?
@@ -23,7 +23,7 @@ macro_rules! gen_diagnostic {
     };
     ($msg:expr $(, $span:expr $(,)?)?) => {{
         Diagnostic::error()
-            .with_message($msg)
+            .with_message($msg.to_string())
             $(.with_labels(vec![Label::primary($span.2, $span.0..$span.1)]))?
     }};
 }
@@ -64,7 +64,7 @@ impl ToDiagnostic for AstError {
                     note = format!("Expected: {}\nGot: {}", expected, actual),
                 },
                 AstError::NotAValue(_, actual) => gen_diagnostic! {
-                    msg = format!("Expected value, but got {}", actual),
+                    msg = format!("Expected value, but got `{}`", actual),
                     label = span => "Expected some value here",
                     note = format!("Got: {}", actual),
                 },
@@ -73,7 +73,15 @@ impl ToDiagnostic for AstError {
                     parse_error::ParseError::SimplExpr(_, error) => simplexpr_error_to_diagnostic(error, span),
                     parse_error::ParseError::LexicalError(_) => lexical_error_to_diagnostic(span),
                 }),
-                _ => panic!(),
+                AstError::MismatchedElementName(_, expected, got) => gen_diagnostic! {
+                    msg = format!("Expected element `{}`, but found `{}`", expected, got),
+                    label = span => format!("Expected `{}` here", expected),
+                    note = format!("Expected: {}\nGot: {}", expected, got),
+                },
+                AstError::ConversionError(err) => conversion_error_to_diagnostic(err, span),
+                AstError::Other(_, source) => gen_diagnostic!(source, span),
+                AstError::AttrError(source) => gen_diagnostic!(source, span),
+                AstError::ValidationError(_) => todo!(),
             }
         } else {
             Diagnostic::error().with_message(format!("{}", self))
@@ -107,9 +115,9 @@ fn simplexpr_error_to_diagnostic(error: &simplexpr::error::Error, span: Span) ->
     match error {
         ParseError { source, .. } => lalrpop_error_to_diagnostic(source, span, move |error| lexical_error_to_diagnostic(span)),
         ConversionError(error) => conversion_error_to_diagnostic(error, span),
-        Eval(error) => gen_diagnostic!(format!("{}", error), span),
-        Other(error) => gen_diagnostic!(format!("{}", error), span),
-        Spanned(_, error) => gen_diagnostic!(format!("{}", error), span),
+        Eval(error) => gen_diagnostic!(error, span),
+        Other(error) => gen_diagnostic!(error, span),
+        Spanned(_, error) => gen_diagnostic!(error, span),
     }
 }
 

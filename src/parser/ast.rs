@@ -92,14 +92,14 @@ macro_rules! as_func {
         pub fn $name(self) -> Result<$t, AstError> {
             match self {
                 $p => Ok($value),
-                x => Err(AstError::WrongExprType(Some(x.span()), $exprtype, x.expr_type())),
+                x => Err(AstError::WrongExprType(x.span(), $exprtype, x.expr_type())),
             }
         }
 
         pub fn $nameref(&self) -> Result<&$t, AstError> {
             match self {
                 $p => Ok($value),
-                x => Err(AstError::WrongExprType(Some(x.span()), $exprtype, x.expr_type())),
+                x => Err(AstError::WrongExprType(x.span(), $exprtype, x.expr_type())),
             }
         }
     };
@@ -145,7 +145,7 @@ impl Ast {
             // Ast::Symbol(_, _) => todo!(),
             Ast::Literal(span, x) => Ok(SimplExpr::Literal(span.into(), x)),
             Ast::SimplExpr(span, x) => Ok(x),
-            _ => Err(AstError::WrongExprType(Some(self.span()), AstType::IntoPrimitive, self.expr_type())),
+            _ => Err(AstError::WrongExprType(self.span(), AstType::IntoPrimitive, self.expr_type())),
         }
     }
 

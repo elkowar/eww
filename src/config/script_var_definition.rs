@@ -9,7 +9,6 @@ use crate::{
         ast_iterator::AstIterator,
         from_ast::{FromAst, FromAstElementContent},
     },
-    spanned,
     value::{AttrName, VarName},
 };
 
@@ -50,8 +49,8 @@ impl FromAstElementContent for PollScriptVar {
     fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> AstResult<Self> {
         let (_, name) = iter.expect_symbol()?;
         let mut attrs = iter.expect_key_values()?;
-        let interval: String = attrs.primitive_required("interval")?;
-        let interval = crate::util::parse_duration(&interval).map_err(|e| AstError::Other(Some(span), e.into()))?;
+        let interval = attrs.primitive_required::<DynVal, _>("interval")?.as_duration()?;
+        // let interval = interval.as_duration()?;
         let (_, script) = iter.expect_literal()?;
         Ok(Self { name: VarName(name), command: VarSource::Shell(script.to_string()), interval })
     }

@@ -14,7 +14,6 @@ use crate::{
         ast_iterator::AstIterator,
         from_ast::{FromAst, FromAstElementContent},
     },
-    spanned,
     value::{AttrName, VarName},
 };
 
@@ -28,25 +27,19 @@ pub enum TopLevel {
 impl FromAst for TopLevel {
     fn from_ast(e: Ast) -> AstResult<Self> {
         let span = e.span();
-        spanned!(e.span(), {
-            let mut iter = e.try_ast_iter()?;
-            let (sym_span, element_name) = iter.expect_symbol()?;
-            match element_name.as_str() {
-                x if x == WidgetDefinition::get_element_name() => {
-                    Self::WidgetDefinition(WidgetDefinition::from_tail(span, iter)?)
-                }
-                x if x == VarDefinition::get_element_name() => Self::VarDefinition(VarDefinition::from_tail(span, iter)?),
-                x if x == PollScriptVar::get_element_name() => {
-                    Self::ScriptVarDefinition(ScriptVarDefinition::Poll(PollScriptVar::from_tail(span, iter)?))
-                }
-                x if x == TailScriptVar::get_element_name() => {
-                    Self::ScriptVarDefinition(ScriptVarDefinition::Tail(TailScriptVar::from_tail(span, iter)?))
-                }
-                x if x == WindowDefinition::get_element_name() => {
-                    Self::WindowDefinition(WindowDefinition::from_tail(span, iter)?)
-                }
-                x => return Err(AstError::UnknownToplevel(Some(sym_span), x.to_string())),
+        let mut iter = e.try_ast_iter()?;
+        let (sym_span, element_name) = iter.expect_symbol()?;
+        Ok(match element_name.as_str() {
+            x if x == WidgetDefinition::get_element_name() => Self::WidgetDefinition(WidgetDefinition::from_tail(span, iter)?),
+            x if x == VarDefinition::get_element_name() => Self::VarDefinition(VarDefinition::from_tail(span, iter)?),
+            x if x == PollScriptVar::get_element_name() => {
+                Self::ScriptVarDefinition(ScriptVarDefinition::Poll(PollScriptVar::from_tail(span, iter)?))
             }
+            x if x == TailScriptVar::get_element_name() => {
+                Self::ScriptVarDefinition(ScriptVarDefinition::Tail(TailScriptVar::from_tail(span, iter)?))
+            }
+            x if x == WindowDefinition::get_element_name() => Self::WindowDefinition(WindowDefinition::from_tail(span, iter)?),
+            x => return Err(AstError::UnknownToplevel(sym_span, x.to_string())),
         })
     }
 }

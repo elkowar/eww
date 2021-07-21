@@ -5,7 +5,7 @@ use simplexpr::{dynval::DynVal, SimplExpr};
 use crate::{enum_parse, error::{AstError, AstResult}, parser::{
         ast::{Ast,  Span}, ast_iterator::AstIterator,
         from_ast::{FromAst, FromAstElementContent},
-    }, spanned, value::{AttrName, Coords, VarName}};
+    }, value::{AttrName, Coords, VarName}};
 
 use super::{widget_use::WidgetUse, window_definition::EnumParseError};
 use serde::{Serialize, Deserialize};

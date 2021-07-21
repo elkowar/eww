@@ -10,7 +10,6 @@ use crate::{
         ast_iterator::AstIterator,
         from_ast::FromAst,
     },
-    spanned,
     value::AttrName,
 };
 
@@ -27,29 +26,27 @@ pub struct WidgetUse {
 impl FromAst for WidgetUse {
     fn from_ast(e: Ast) -> AstResult<Self> {
         let span = e.span();
-        spanned!(e.span(), {
-            if let Ok(text) = e.as_literal_ref() {
-                Self {
-                    name: "text".to_string(),
-                    attrs: Attributes::new(
-                        span.into(),
-                        maplit::hashmap! {
-                            AttrName("text".to_string()) => AttrEntry::new(
-                                span.into(),
-                                Ast::Literal(span.into(), text.clone())
-                            )
-                        },
-                    ),
-                    children: Vec::new(),
-                    span,
-                }
-            } else {
-                let mut iter = e.try_ast_iter()?;
-                let (_, name) = iter.expect_symbol()?;
-                let attrs = iter.expect_key_values()?;
-                let children = iter.map(WidgetUse::from_ast).collect::<AstResult<Vec<_>>>()?;
-                Self { name, attrs, children, span }
-            }
-        })
+        if let Ok(text) = e.as_literal_ref() {
+            Ok(Self {
+                name: "text".to_string(),
+                attrs: Attributes::new(
+                    span.into(),
+                    maplit::hashmap! {
+                        AttrName("text".to_string()) => AttrEntry::new(
+                            span.into(),
+                            Ast::Literal(span.into(), text.clone())
+                        )
+                    },
+                ),
+                children: Vec::new(),
+                span,
+            })
+        } else {
+            let mut iter = e.try_ast_iter()?;
+            let (_, name) = iter.expect_symbol()?;
+            let attrs = iter.expect_key_values()?;
+            let children = iter.map(WidgetUse::from_ast).collect::<AstResult<Vec<_>>>()?;
+            Ok(Self { name, attrs, children, span })
+        }
     }
 }

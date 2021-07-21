@@ -9,7 +9,6 @@ use crate::{
         ast_iterator::AstIterator,
         from_ast::{FromAst, FromAstElementContent},
     },
-    spanned,
     value::{AttrName, NumWithUnit, VarName},
 };
 

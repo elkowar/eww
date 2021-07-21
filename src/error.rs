@@ -6,6 +6,7 @@ use crate::{
     },
 };
 use codespan_reporting::{diagnostic, files};
+use simplexpr::dynval;
 use thiserror::Error;
 
 pub type AstResult<T> = Result<T, AstError>;
@@ -13,15 +14,18 @@ pub type AstResult<T> = Result<T, AstError>;
 #[derive(Debug, Error)]
 pub enum AstError {
     #[error("Unknown toplevel declaration `{1}`")]
-    UnknownToplevel(Option<Span>, String),
+    UnknownToplevel(Span, String),
     #[error("Expected another element, but got nothing")]
-    MissingNode(Option<Span>),
+    MissingNode(Span),
     #[error("Wrong type of expression: Expected {1} but got {2}")]
-    WrongExprType(Option<Span>, AstType, AstType),
+    WrongExprType(Span, AstType, AstType),
     #[error("Expected to get a value, but got {1}")]
-    NotAValue(Option<Span>, AstType),
+    NotAValue(Span, AstType),
     #[error("Expected element {1}, but read {2}")]
-    MismatchedElementName(Option<Span>, String, String),
+    MismatchedElementName(Span, String, String),
+
+    #[error(transparent)]
+    ConversionError(#[from] dynval::ConversionError),
 
     #[error("{1}")]
     Other(Option<Span>, Box<dyn std::error::Error>),
@@ -29,13 +33,6 @@ pub enum AstError {
     #[error(transparent)]
     AttrError(#[from] AttrError),
 
-    //#[error("{msg}: {source}")]
-    // Context {
-    // span: Option<Span>,
-    //#[source]
-    // source: Box<dyn std::error::Error>,
-    // msg: String,
-    //},
     #[error(transparent)]
     ValidationError(#[from] ValidationError),
 
@@ -46,14 +43,14 @@ pub enum AstError {
 impl AstError {
     pub fn get_span(&self) -> Option<Span> {
         match self {
-            AstError::UnknownToplevel(span, _) => *span,
-            AstError::MissingNode(span) => *span,
-            AstError::WrongExprType(span, ..) => *span,
-            AstError::NotAValue(span, ..) => *span,
-            AstError::MismatchedElementName(span, ..) => *span,
+            AstError::UnknownToplevel(span, _) => Some(*span),
+            AstError::MissingNode(span) => Some(*span),
+            AstError::WrongExprType(span, ..) => Some(*span),
+            AstError::NotAValue(span, ..) => Some(*span),
+            AstError::MismatchedElementName(span, ..) => Some(*span),
             AstError::AttrError(err) => Some(err.span()),
             AstError::Other(span, ..) => *span,
-            // AstError::Context { span, .. } => *span,
+            AstError::ConversionError(err) => err.value.span().map(|x| x.into()),
             AstError::ValidationError(error) => None, // TODO none here is stupid
             AstError::ParseError { file_id, source } => file_id.and_then(|id| get_parse_error_span(id, source)),
         }
@@ -83,55 +80,25 @@ fn get_parse_error_span(
     }
 }
 
-pub fn spanned(span: Span, err: impl Into<AstError>) -> AstError {
-    use AstError::*;
-    match err.into() {
-        UnknownToplevel(None, x) => UnknownToplevel(Some(span), x),
-        MissingNode(None) => MissingNode(Some(span)),
-        WrongExprType(None, x, y) => WrongExprType(Some(span), x, y),
-        UnknownToplevel(None, x) => UnknownToplevel(Some(span), x),
-        MissingNode(None) => MissingNode(Some(span)),
-        NotAValue(None, x) => NotAValue(Some(span), x),
-        MismatchedElementName(None, x, y) => MismatchedElementName(Some(span), x, y),
-        // Context { span: None, source, msg } => Context { span: Some(span), source, msg },
-        Other(None, x) => Other(Some(span), x),
-        x => x,
-    }
-}
-
-pub trait OptionAstErrorExt<T> {
-    fn or_missing(self) -> Result<T, AstError>;
-}
-impl<T> OptionAstErrorExt<T> for Option<T> {
-    fn or_missing(self) -> Result<T, AstError> {
-        self.ok_or(AstError::MissingNode(None))
-    }
-}
-
-pub trait AstResultExt<T> {
-    fn at(self, span: Span) -> Result<T, AstError>;
-}
-
-pub trait Context<T> {
-    fn context(self, span: Span, msg: String) -> Result<T, AstError>;
-}
-
-impl<T, E: Into<AstError>> AstResultExt<T> for Result<T, E> {
-    fn at(self, span: Span) -> Result<T, AstError> {
-        self.map_err(|err| spanned(span, err))
-    }
-}
-
-// impl<T, E: std::error::Error + 'static> Context<T> for Result<T, E> {
-// fn context(self, span: Span, msg: String) -> Result<T, AstError> {
-// self.map_err(|x| AstError::Context { msg, span: Some(span), source: Box::new(x) })
+// pub fn spanned(span: Span, err: impl Into<AstError>) -> AstError {
+// use AstError::*;
+// match err.into() {
+// UnknownToplevel(s, x) => UnknownToplevel(Some(s.unwrap_or(span)), x),
+// MissingNode(s) => MissingNode(Some(s.unwrap_or(span))),
+// WrongExprType(s, x, y) => WrongExprType(Some(s.unwrap_or(span)), x, y),
+// UnknownToplevel(s, x) => UnknownToplevel(Some(s.unwrap_or(span)), x),
+// MissingNode(s) => MissingNode(Some(s.unwrap_or(span))),
+// NotAValue(s, x) => NotAValue(Some(s.unwrap_or(span)), x),
+// MismatchedElementName(s, expected, got) => MismatchedElementName(Some(s.unwrap_or(span)), expected, got),
+// Other(s, x) => Other(Some(s.unwrap_or(span)), x),
+// x @ ConversionError(_) | x @ AttrError(_) | x @ ValidationError(_) | x @ ParseError { .. } => x,
 //}
 
-#[macro_export]
-macro_rules! spanned {
-    ($span:expr, $block:expr) => {{
-        let span = $span;
-        let result: Result<_, crate::error::AstError> = try { $block };
-        crate::error::AstResultExt::at(result, span)
-    }};
+pub trait OptionAstErrorExt<T> {
+    fn or_missing(self, span: Span) -> Result<T, AstError>;
+}
+impl<T> OptionAstErrorExt<T> for Option<T> {
+    fn or_missing(self, span: Span) -> Result<T, AstError> {
+        self.ok_or(AstError::MissingNode(span))
+    }
 }
