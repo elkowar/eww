@@ -1,22 +1,20 @@
-use crate::{
-    config::window_definition::WindowName,
-    dynval::{AttrName, AttrValElement, VarName},
-};
 use anyhow::*;
 use std::{collections::HashMap, sync::Arc};
+use yuck::value::{AttrName, VarName};
 
-use crate::dynval::{AttrVal, DynVal};
+use simplexpr::{dynval::DynVal, SimplExpr};
 
 /// Handler that gets executed to apply the necessary parts of the eww state to
 /// a gtk widget. These are created and initialized in EwwState::resolve.
 pub struct StateChangeHandler {
     func: Box<dyn Fn(HashMap<AttrName, DynVal>) -> Result<()> + 'static>,
-    unresolved_values: HashMap<AttrName, AttrVal>,
+    unresolved_values: HashMap<AttrName, SimplExpr>,
 }
 
 impl StateChangeHandler {
-    fn used_variables(&self) -> impl Iterator<Item = &VarName> {
-        self.unresolved_values.iter().flat_map(|(_, value)| value.var_refs())
+    fn used_variables(&self) -> impl Iterator<Item = VarName> + '_ {
+        // TODO fix this clone
+        self.unresolved_values.iter().flat_map(|(_, value)| value.var_refs()).map(|x| VarName(x.to_string()))
     }
 
     /// Run the StateChangeHandler.
@@ -60,7 +58,7 @@ impl EwwWindowState {
 /// window-specific state-change handlers.
 #[derive(Default)]
 pub struct EwwState {
-    windows: HashMap<WindowName, EwwWindowState>,
+    windows: HashMap<String, EwwWindowState>,
     variables_state: HashMap<VarName, DynVal>,
 }
 
@@ -80,7 +78,7 @@ impl EwwState {
     }
 
     /// remove all state stored specific to one window
-    pub fn clear_window_state(&mut self, window_name: &WindowName) {
+    pub fn clear_window_state(&mut self, window_name: &str) {
         self.windows.remove(window_name);
     }
 
@@ -108,22 +106,17 @@ impl EwwState {
     }
 
     /// resolves a value if possible, using the current eww_state.
-    pub fn resolve_once<'a>(&'a self, value: &'a AttrVal) -> Result<DynVal> {
-        value
-            .iter()
-            .map(|element| match element {
-                AttrValElement::Primitive(primitive) => Ok(primitive.clone()),
-                AttrValElement::Expr(expr) => expr.clone().eval(&self.variables_state),
-            })
-            .collect()
+    pub fn resolve_once<'a>(&'a self, value: &'a SimplExpr) -> Result<DynVal> {
+        // TODO fix this clone
+        Ok(value.clone().eval(&self.variables_state.into_iter().map(|(k, v)| (k.0, v)).collect())?)
     }
 
     /// Resolve takes a function that applies a set of fully resolved attribute
     /// values to it's gtk widget.
     pub fn resolve<F: Fn(HashMap<AttrName, DynVal>) -> Result<()> + 'static + Clone>(
         &mut self,
-        window_name: &WindowName,
-        required_attributes: HashMap<AttrName, AttrVal>,
+        window_name: &str,
+        required_attributes: HashMap<AttrName, SimplExpr>,
         set_value: F,
     ) {
         let handler = StateChangeHandler { func: Box::new(set_value), unresolved_values: required_attributes };
@@ -132,7 +125,7 @@ impl EwwState {
 
         // only store the handler if at least one variable is being used
         if handler.used_variables().next().is_some() {
-            self.windows.entry(window_name.clone()).or_insert_with(EwwWindowState::default).put_handler(handler);
+            self.windows.entry(window_name.to_string()).or_insert_with(EwwWindowState::default).put_handler(handler);
         }
     }
 
@@ -140,7 +133,7 @@ impl EwwState {
         self.windows.values().flat_map(|w| w.state_change_handlers.keys())
     }
 
-    pub fn vars_referenced_in(&self, window_name: &WindowName) -> std::collections::HashSet<&VarName> {
+    pub fn vars_referenced_in(&self, window_name: &str) -> std::collections::HashSet<&VarName> {
         self.windows.get(window_name).map(|window| window.state_change_handlers.keys().collect()).unwrap_or_default()
     }
 }

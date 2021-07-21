@@ -21,7 +21,7 @@ pub type BackendWindowOptions = X11WindowOptions;
 pub struct X11WindowOptions {
     pub wm_ignore: bool,
     pub sticky: bool,
-    pub window_type: EwwWindowType,
+    pub window_type: WindowType,
     pub struts: StrutDefinition,
 }
 
@@ -39,7 +39,7 @@ impl X11WindowOptions {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, smart_default::SmartDefault, serde::Serialize)]
-pub enum EwwWindowType {
+pub enum WindowType {
     #[default]
     Dock,
     Dialog,
@@ -47,7 +47,7 @@ pub enum EwwWindowType {
     Normal,
     Utility,
 }
-impl FromStr for EwwWindowType {
+impl FromStr for WindowType {
     type Err = EnumParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {

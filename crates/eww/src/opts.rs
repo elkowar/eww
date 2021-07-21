@@ -1,12 +1,13 @@
 use anyhow::*;
 use serde::{Deserialize, Serialize};
+use simplexpr::dynval::DynVal;
 use structopt::StructOpt;
-
-use crate::{
-    app,
-    config::{AnchorPoint, WindowName},
-    dynval::{Coords, DynVal, VarName},
+use yuck::{
+    config::window_geometry::AnchorPoint,
+    value::{Coords, VarName},
 };
+
+use crate::app;
 
 /// Struct that gets generated from `RawOpt`.
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -68,7 +69,7 @@ pub enum ActionWithServer {
     #[structopt(name = "open", alias = "o")]
     OpenWindow {
         /// Name of the window you want to open.
-        window_name: WindowName,
+        window_name: String,
 
         /// Monitor-index the window should open on
         #[structopt(short, long)]
@@ -90,11 +91,11 @@ pub enum ActionWithServer {
     /// Open multiple windows at once.
     /// NOTE: This will in the future be part of eww open, and will then be removed.
     #[structopt(name = "open-many")]
-    OpenMany { windows: Vec<WindowName> },
+    OpenMany { windows: Vec<String> },
 
     /// Close the window with the given name
     #[structopt(name = "close", alias = "c")]
-    CloseWindow { window_name: WindowName },
+    CloseWindow { window_name: String },
 
     /// Reload the configuration
     #[structopt(name = "reload", alias = "r")]

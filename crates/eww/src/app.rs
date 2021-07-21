@@ -1,9 +1,7 @@
 use crate::{
-    config,
-    config::{window_definition::WindowName, AnchorPoint},
+    config::{self, EwwConfig},
     display_backend, eww_state,
     script_var_handler::*,
-    dynval::{Coords, NumWithUnit, DynVal, VarName},
     EwwPaths,
 };
 use anyhow::*;
@@ -11,8 +9,13 @@ use debug_stub_derive::*;
 use gdk::WindowExt;
 use gtk::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt};
 use itertools::Itertools;
+use simplexpr::dynval::DynVal;
 use std::collections::HashMap;
 use tokio::sync::mpsc::UnboundedSender;
+use yuck::{
+    config::window_geometry::{AnchorPoint, WindowGeometry},
+    value::{Coords, VarName},
+};
 
 /// Response that the app may send as a response to a event.
 /// This is used in `DaemonCommand`s that contain a response sender.
@@ -43,11 +46,11 @@ pub enum DaemonCommand {
     UpdateConfig(config::EwwConfig),
     UpdateCss(String),
     OpenMany {
-        windows: Vec<WindowName>,
+        windows: Vec<String>,
         sender: DaemonResponseSender,
     },
     OpenWindow {
-        window_name: WindowName,
+        window_name: String,
         pos: Option<Coords>,
         size: Option<Coords>,
         anchor: Option<AnchorPoint>,
@@ -55,7 +58,7 @@ pub enum DaemonCommand {
         sender: DaemonResponseSender,
     },
     CloseWindow {
-        window_name: WindowName,
+        window_name: String,
         sender: DaemonResponseSender,
     },
     KillServer,
@@ -70,7 +73,7 @@ pub enum DaemonCommand {
 
 #[derive(Debug, Clone)]
 pub struct EwwWindow {
-    pub name: WindowName,
+    pub name: String,
     pub definition: config::EwwWindowDefinition,
     pub gtk_window: gtk::Window,
 }
@@ -85,7 +88,7 @@ impl EwwWindow {
 pub struct App {
     pub eww_state: eww_state::EwwState,
     pub eww_config: config::EwwConfig,
-    pub open_windows: HashMap<WindowName, EwwWindow>,
+    pub open_windows: HashMap<String, EwwWindow>,
     pub css_provider: gtk::CssProvider,
 
     #[debug_stub = "ScriptVarHandler(...)"]
@@ -109,27 +112,30 @@ impl App {
                     }
                 }
                 DaemonCommand::ReloadConfigAndCss(sender) => {
-                    let mut errors = Vec::new();
 
-                    let config_result = config::RawEwwConfig::read_from_file(&self.paths.get_eww_xml_path())
-                        .and_then(config::EwwConfig::generate);
-                    match config_result {
-                        Ok(new_config) => self.handle_command(DaemonCommand::UpdateConfig(new_config)),
-                        Err(e) => errors.push(e),
-                    }
+                    // TODO implement this
+                    //let mut errors = Vec::new();
+                    todo!()
 
-                    let css_result = crate::util::parse_scss_from_file(&self.paths.get_eww_scss_path());
-                    match css_result {
-                        Ok(new_css) => self.handle_command(DaemonCommand::UpdateCss(new_css)),
-                        Err(e) => errors.push(e),
-                    }
+                    //let config_result =
+                        //EwwConfig::read_from_file(&self.paths.get_eww_xml_path()).and_then(config::EwwConfig::generate);
+                    //match config_result {
+                        //Ok(new_config) => self.handle_command(DaemonCommand::UpdateConfig(new_config)),
+                        //Err(e) => errors.push(e),
+                    //}
 
-                    let errors = errors.into_iter().map(|e| format!("{:?}", e)).join("\n");
-                    if errors.is_empty() {
-                        sender.send(DaemonResponse::Success(String::new()))?;
-                    } else {
-                        sender.send(DaemonResponse::Failure(errors))?;
-                    }
+                    //let css_result = crate::util::parse_scss_from_file(&self.paths.get_eww_scss_path());
+                    //match css_result {
+                        //Ok(new_css) => self.handle_command(DaemonCommand::UpdateCss(new_css)),
+                        //Err(e) => errors.push(e),
+                    //}
+
+                    //let errors = errors.into_iter().map(|e| format!("{:?}", e)).join("\n");
+                    //if errors.is_empty() {
+                        //sender.send(DaemonResponse::Success(String::new()))?;
+                    //} else {
+                        //sender.send(DaemonResponse::Failure(errors))?;
+                    //}
                 }
                 DaemonCommand::UpdateConfig(config) => {
                     self.load_config(config)?;
@@ -203,7 +209,7 @@ impl App {
         self.eww_state.update_variable(fieldname, value)
     }
 
-    fn close_window(&mut self, window_name: &WindowName) -> Result<()> {
+    fn close_window(&mut self, window_name: &String) -> Result<()> {
         for unused_var in self.variables_only_used_in(window_name) {
             log::info!("stopping for {}", &unused_var);
             self.script_var_handler.stop_for_variable(unused_var.clone());
@@ -220,11 +226,11 @@ impl App {
 
     fn open_window(
         &mut self,
-        window_name: &WindowName,
+        window_name: &String,
         pos: Option<Coords>,
         size: Option<Coords>,
         monitor: Option<i32>,
-        anchor: Option<config::AnchorPoint>,
+        anchor: Option<AnchorPoint>,
     ) -> Result<()> {
         // remove and close existing window with the same name
         let _ = self.close_window(window_name);
@@ -238,7 +244,7 @@ impl App {
         root_widget.get_style_context().add_class(&window_name.to_string());
 
         let monitor_geometry =
-            get_monitor_geometry(monitor.or(window_def.screen_number).unwrap_or_else(get_default_monitor_index));
+            get_monitor_geometry(monitor.or(window_def.monitor_number).unwrap_or_else(get_default_monitor_index));
         let eww_window = initialize_window(monitor_geometry, root_widget, window_def)?;
 
         self.open_windows.insert(window_name.clone(), eww_window);
@@ -281,7 +287,7 @@ impl App {
     }
 
     /// Get all variables mapped to a list of windows they are being used in.
-    pub fn currently_used_variables<'a>(&'a self) -> HashMap<&'a VarName, Vec<&'a WindowName>> {
+    pub fn currently_used_variables<'a>(&'a self) -> HashMap<&'a VarName, Vec<&'a String>> {
         let mut vars: HashMap<&'a VarName, Vec<_>> = HashMap::new();
         for window_name in self.open_windows.keys() {
             for var in self.eww_state.vars_referenced_in(window_name) {
@@ -292,7 +298,7 @@ impl App {
     }
 
     /// Get all variables that are only used in the given window.
-    pub fn variables_only_used_in<'a>(&'a self, window: &'a WindowName) -> impl Iterator<Item = &'a VarName> {
+    pub fn variables_only_used_in<'a>(&'a self, window: &'a String) -> impl Iterator<Item = &'a VarName> {
         self.currently_used_variables()
             .into_iter()
             .filter(move |(_, wins)| wins.len() == 1 && wins.contains(&window))
@@ -306,14 +312,14 @@ fn initialize_window(
     window_def: config::EwwWindowDefinition,
 ) -> Result<EwwWindow> {
     let window = display_backend::initialize_window(&window_def, monitor_geometry)
-        .with_context(|| format!("monitor {} is unavailable", window_def.screen_number.unwrap()))?;
+        .with_context(|| format!("monitor {} is unavailable", window_def.monitor_number.unwrap()))?;
 
     window.set_title(&format!("Eww - {}", window_def.name));
     window.set_position(gtk::WindowPosition::None);
     window.set_gravity(gdk::Gravity::Center);
 
     if let Some(geometry) = window_def.geometry {
-        let actual_window_rect = geometry.get_window_rectangle(monitor_geometry);
+        let actual_window_rect = get_window_rectangle(geometry, monitor_geometry);
         window.set_size_request(actual_window_rect.width, actual_window_rect.height);
         window.set_default_size(actual_window_rect.width, actual_window_rect.height);
     }
@@ -345,13 +351,13 @@ fn initialize_window(
 
 /// Apply the provided window-positioning rules to the window.
 fn apply_window_position(
-    mut window_geometry: config::EwwWindowGeometry,
+    mut window_geometry: WindowGeometry,
     monitor_geometry: gdk::Rectangle,
     window: &gtk::Window,
 ) -> Result<()> {
     let gdk_window = window.get_window().context("Failed to get gdk window from gtk window")?;
     window_geometry.size = Coords::from_pixels(window.get_size());
-    let actual_window_rect = window_geometry.get_window_rectangle(monitor_geometry);
+    let actual_window_rect = get_window_rectangle(window_geometry, monitor_geometry);
     gdk_window.move_(actual_window_rect.x, actual_window_rect.y);
     Ok(())
 }
@@ -381,4 +387,12 @@ fn respond_with_error<T>(sender: DaemonResponseSender, result: Result<T>) -> Res
         Err(e) => sender.send(DaemonResponse::Failure(format!("{:?}", e))),
     }
     .context("sending response from main thread")
+}
+
+pub fn get_window_rectangle(geometry: WindowGeometry, screen_rect: gdk::Rectangle) -> gdk::Rectangle {
+    let (offset_x, offset_y) = geometry.offset.relative_to(screen_rect.width, screen_rect.height);
+    let (width, height) = geometry.size.relative_to(screen_rect.width, screen_rect.height);
+    let x = screen_rect.x + offset_x + geometry.anchor_point.x.alignment_to_coordinate(width, screen_rect.width);
+    let y = screen_rect.y + offset_y + geometry.anchor_point.y.alignment_to_coordinate(height, screen_rect.height);
+    gdk::Rectangle { x, y, width, height }
 }

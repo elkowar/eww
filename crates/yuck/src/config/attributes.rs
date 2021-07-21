@@ -58,6 +58,7 @@ impl AttrEntry {
     }
 }
 
+// TODO maybe make this generic over the contained content
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize)]
 pub struct Attributes {
     pub span: Span,

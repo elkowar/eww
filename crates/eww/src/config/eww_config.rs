@@ -1,9 +1,7 @@
 use anyhow::*;
 use std::collections::HashMap;
 use yuck::{
-    config::{
-        script_var_definition::ScriptVarDefinition, widget_definition::WidgetDefinition, window_definition::WindowDefinition,
-    },
+    config::{script_var_definition::ScriptVarDefinition, widget_definition::WidgetDefinition},
     parser::from_ast::FromAst,
     value::VarName,
 };
@@ -12,11 +10,13 @@ use simplexpr::dynval::DynVal;
 
 use std::path::PathBuf;
 
+use super::{script_var, EwwWindowDefinition};
+
 /// Eww configuration structure.
 #[derive(Debug, Clone)]
 pub struct EwwConfig {
     widgets: HashMap<String, WidgetDefinition>,
-    windows: HashMap<String, WindowDefinition>,
+    windows: HashMap<String, EwwWindowDefinition>,
     initial_variables: HashMap<VarName, DynVal>,
     script_vars: HashMap<VarName, ScriptVarDefinition>,
     pub filepath: PathBuf,
@@ -37,7 +37,7 @@ impl EwwConfig {
                 .map(|(name, window)| {
                     Ok((
                         name,
-                        WindowDefinition::generate(&config.widget_definitions, window)
+                        EwwWindowDefinition::generate(&config.widget_definitions, window)
                             .context("Failed expand window definition")?,
                     ))
                 })
@@ -51,21 +51,24 @@ impl EwwConfig {
 
     // TODO this is kinda ugly
     pub fn generate_initial_state(&self) -> Result<HashMap<VarName, DynVal>> {
-        let mut vars =
-            self.script_vars.iter().map(|var| Ok((var.0.clone(), var.1.initial_value()?))).collect::<Result<HashMap<_, _>>>()?;
+        let mut vars = self
+            .script_vars
+            .iter()
+            .map(|(name, var)| Ok((name.clone(), script_var::initial_value(var)?)))
+            .collect::<Result<HashMap<_, _>>>()?;
         vars.extend(self.initial_variables.clone());
         Ok(vars)
     }
 
-    pub fn get_windows(&self) -> &HashMap<WindowName, EwwWindowDefinition> {
+    pub fn get_windows(&self) -> &HashMap<String, EwwWindowDefinition> {
         &self.windows
     }
 
-    pub fn get_window(&self, name: &WindowName) -> Result<&EwwWindowDefinition> {
+    pub fn get_window(&self, name: &String) -> Result<&EwwWindowDefinition> {
         self.windows.get(name).with_context(|| format!("No window named '{}' exists", name))
     }
 
-    pub fn get_script_var(&self, name: &VarName) -> Result<&ScriptVar> {
+    pub fn get_script_var(&self, name: &VarName) -> Result<&ScriptVarDefinition> {
         self.script_vars.get(name).with_context(|| format!("No script var named '{}' exists", name))
     }
 

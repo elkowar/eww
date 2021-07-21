@@ -91,7 +91,6 @@ mod platform {
 
 #[cfg(feature = "x11")]
 mod platform {
-    use crate::config::{EwwWindowDefinition, EwwWindowType, Side, WindowStacking};
     use anyhow::*;
     use gdkx11;
     use gtk::{self, prelude::*};
@@ -103,6 +102,12 @@ mod platform {
         protocol::xproto::*,
         rust_connection::{DefaultStream, RustConnection},
     };
+    use yuck::config::{
+        backend_window_options::{Side, WindowType},
+        window_definition::WindowStacking,
+    };
+
+    use crate::config::EwwWindowDefinition;
 
     pub fn initialize_window(window_def: &EwwWindowDefinition, _monitor: gdk::Rectangle) -> Option<gtk::Window> {
         let window_type = if window_def.backend_options.wm_ignore { gtk::WindowType::Popup } else { gtk::WindowType::Toplevel };
@@ -208,11 +213,11 @@ mod platform {
                 self.atoms._NET_WM_WINDOW_TYPE,
                 self.atoms.ATOM,
                 &[match window_def.backend_options.window_type {
-                    EwwWindowType::Dock => self.atoms._NET_WM_WINDOW_TYPE_DOCK,
-                    EwwWindowType::Normal => self.atoms._NET_WM_WINDOW_TYPE_NORMAL,
-                    EwwWindowType::Dialog => self.atoms._NET_WM_WINDOW_TYPE_DIALOG,
-                    EwwWindowType::Toolbar => self.atoms._NET_WM_WINDOW_TYPE_TOOLBAR,
-                    EwwWindowType::Utility => self.atoms._NET_WM_WINDOW_TYPE_UTILITY,
+                    WindowType::Dock => self.atoms._NET_WM_WINDOW_TYPE_DOCK,
+                    WindowType::Normal => self.atoms._NET_WM_WINDOW_TYPE_NORMAL,
+                    WindowType::Dialog => self.atoms._NET_WM_WINDOW_TYPE_DIALOG,
+                    WindowType::Toolbar => self.atoms._NET_WM_WINDOW_TYPE_TOOLBAR,
+                    WindowType::Utility => self.atoms._NET_WM_WINDOW_TYPE_UTILITY,
                 }],
             )?
             .check()?;

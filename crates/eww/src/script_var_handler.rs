@@ -1,17 +1,16 @@
 use std::collections::HashMap;
 
-use crate::{
-    app, config,
-    dynval::{DynVal, VarName},
-};
+use crate::app;
 use anyhow::*;
 use app::DaemonCommand;
 
+use simplexpr::dynval::DynVal;
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
     sync::mpsc::UnboundedSender,
 };
 use tokio_util::sync::CancellationToken;
+use yuck::{config::script_var_definition::{PollScriptVar, ScriptVarDefinition, TailScriptVar}, value::VarName};
 
 /// Initialize the script var handler, and return a handle to that handler, which can be used to control
 /// the script var execution.
@@ -53,7 +52,7 @@ pub struct ScriptVarHandlerHandle {
 
 impl ScriptVarHandlerHandle {
     /// Add a new script-var that should be executed.
-    pub fn add(&self, script_var: config::ScriptVar) {
+    pub fn add(&self, script_var: ScriptVarDefinition) {
         crate::print_result_err!(
             "while forwarding instruction to script-var handler",
             self.msg_send.send(ScriptVarHandlerMsg::AddVar(script_var))
@@ -80,22 +79,22 @@ impl ScriptVarHandlerHandle {
 /// Message enum used by the ScriptVarHandlerHandle to communicate to the ScriptVarHandler
 #[derive(Debug, Eq, PartialEq)]
 enum ScriptVarHandlerMsg {
-    AddVar(config::ScriptVar),
+    AddVar(ScriptVarDefinition),
     Stop(VarName),
     StopAll,
 }
 
-/// Handler that manages running and updating [ScriptVar]s
+/// Handler that manages running and updating [ScriptVarDefinition]s
 struct ScriptVarHandler {
     tail_handler: TailVarHandler,
     poll_handler: PollVarHandler,
 }
 
 impl ScriptVarHandler {
-    async fn add(&mut self, script_var: config::ScriptVar) {
+    async fn add(&mut self, script_var: ScriptVarDefinition) {
         match script_var {
-            config::ScriptVar::Poll(var) => self.poll_handler.start(var).await,
-            config::ScriptVar::Tail(var) => self.tail_handler.start(var).await,
+            ScriptVarDefinition::Poll(var) => self.poll_handler.start(var).await,
+            ScriptVarDefinition::Tail(var) => self.tail_handler.start(var).await,
         };
     }
 
@@ -126,14 +125,14 @@ impl PollVarHandler {
         Ok(handler)
     }
 
-    async fn start(&mut self, var: config::PollScriptVar) {
+    async fn start(&mut self, var: PollScriptVar) {
         log::debug!("starting poll var {}", &var.name);
         let cancellation_token = CancellationToken::new();
         self.poll_handles.insert(var.name.clone(), cancellation_token.clone());
         let evt_send = self.evt_send.clone();
         tokio::spawn(async move {
             let result: Result<_> = try {
-                evt_send.send(app::DaemonCommand::UpdateVars(vec![(var.name.clone(), var.run_once()?)]))?;
+                evt_send.send(app::DaemonCommand::UpdateVars(vec![(var.name.clone(), run_poll_once(&var)?)]))?;
             };
             crate::print_result_err!("while running script-var command", &result);
 
@@ -141,7 +140,7 @@ impl PollVarHandler {
                 _ = cancellation_token.cancelled() => break,
                 _ = tokio::time::sleep(var.interval) => {
                     let result: Result<_> = try {
-                        evt_send.send(app::DaemonCommand::UpdateVars(vec![(var.name.clone(), var.run_once()?)]))?;
+                        evt_send.send(app::DaemonCommand::UpdateVars(vec![(var.name.clone(), run_poll_once(&var)?)]))?;
                     };
                     crate::print_result_err!("while running script-var command", &result);
                 }
@@ -158,6 +157,13 @@ impl PollVarHandler {
 
     fn stop_all(&mut self) {
         self.poll_handles.drain().for_each(|(_, token)| token.cancel());
+    }
+}
+
+fn run_poll_once(var: &PollScriptVar) -> Result<DynVal> {
+    match &var.command {
+        yuck::config::script_var_definition::VarSource::Shell(x) => crate::config::script_var::run_command(x),
+        yuck::config::script_var_definition::VarSource::Function(x) => x().map_err(|e| anyhow!(e)),
     }
 }
 
@@ -178,7 +184,7 @@ impl TailVarHandler {
         Ok(handler)
     }
 
-    async fn start(&mut self, var: config::TailScriptVar) {
+    async fn start(&mut self, var: TailScriptVar) {
         log::debug!("starting poll var {}", &var.name);
         let cancellation_token = CancellationToken::new();
         self.tail_process_handles.insert(var.name.clone(), cancellation_token.clone());

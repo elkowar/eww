@@ -45,7 +45,9 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<Option<gtk
 pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Widget) {
     let css_provider = gtk::CssProvider::new();
 
-    if let Ok(visible) = bargs.widget.get_attr("visible").and_then(|v| bargs.eww_state.resolve_once(v)?.as_bool()) {
+    if let Ok(visible) =
+        bargs.widget.get_attr("visible").and_then(|v| bargs.eww_state.resolve_once(v)?.as_bool().map_err(|e| anyhow!(e)))
+    {
         connect_first_map(gtk_widget, move |w| {
             if visible {
                 w.show();

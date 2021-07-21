@@ -1,12 +1,9 @@
-use crate::{
-    config::{element::WidgetDefinition, window_definition::WindowName},
-    eww_state::*,
-};
+use crate::eww_state::*;
 use anyhow::*;
 use gtk::prelude::*;
 use itertools::Itertools;
 use std::collections::HashMap;
-use yuck::value::AttrName;
+use yuck::{config::widget_definition::WidgetDefinition, value::AttrName};
 
 use std::process::Command;
 use widget_definitions::*;
@@ -45,7 +42,7 @@ struct BuilderArgs<'a, 'b, 'c, 'd, 'e> {
     eww_state: &'a mut EwwState,
     widget: &'b widget_node::Generic,
     unhandled_attrs: Vec<&'c AttrName>,
-    window_name: &'d WindowName,
+    window_name: &'d str,
     widget_definitions: &'e HashMap<String, WidgetDefinition>,
 }
 
@@ -60,7 +57,7 @@ struct BuilderArgs<'a, 'b, 'c, 'd, 'e> {
 /// widget name.
 fn build_builtin_gtk_widget(
     eww_state: &mut EwwState,
-    window_name: &WindowName,
+    window_name: &str,
     widget_definitions: &HashMap<String, WidgetDefinition>,
     widget: &widget_node::Generic,
 ) -> Result<Option<gtk::Widget>> {
@@ -72,7 +69,7 @@ fn build_builtin_gtk_widget(
             return result.with_context(|| {
                 format!(
                     "{}Error building widget {}",
-                    bargs.widget.text_pos.map(|x| format!("{} |", x)).unwrap_or_default(),
+                    bargs.widget.span.map(|x| format!("{} |", x)).unwrap_or_default(),
                     bargs.widget.name,
                 )
             })
@@ -87,7 +84,7 @@ fn build_builtin_gtk_widget(
             let child_widget = child.render(bargs.eww_state, window_name, widget_definitions).with_context(|| {
                 format!(
                     "{}error while building child '{:#?}' of '{}'",
-                    widget.text_pos.map(|x| format!("{} |", x)).unwrap_or_default(),
+                    widget.span.map(|x| format!("{} |", x)).unwrap_or_default(),
                     &child,
                     &gtk_widget.get_widget_name()
                 )
@@ -108,7 +105,7 @@ fn build_builtin_gtk_widget(
     if !bargs.unhandled_attrs.is_empty() {
         log::error!(
             "{}: Unknown attribute used in {}: {}",
-            widget.text_pos.map(|x| format!("{} | ", x)).unwrap_or_default(),
+            widget.span.map(|x| format!("{} | ", x)).unwrap_or_default(),
             widget.name,
             bargs.unhandled_attrs.iter().map(|x| x.to_string()).join(", ")
         )
