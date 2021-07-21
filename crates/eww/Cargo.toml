@@ -1,0 +1,73 @@
+[package]
+name = "eww"
+version = "0.1.0"
+authors = ["elkowar <5300871+elkowar@users.noreply.github.com>"]
+edition = "2018"
+description= "Widget system for everyone!"
+license = "MIT"
+repository = "https://github.com/elkowar/eww"
+homepage = "https://github.com/elkowar/eww"
+
+
+[features]
+default = ["x11"]
+x11 = ["gdkx11", "x11rb"]
+wayland = ["gtk-layer-shell", "gtk-layer-shell-sys"]
+no-x11-wayland = []
+[dependencies.cairo-sys-rs]
+version = "0.10.0"
+
+[dependencies]
+gtk = { version = "0.9", features = [ "v3_22" ] }
+gdk = { version = "*", features = ["v3_22"] }
+gio = { version = "*", features = ["v2_44"] }
+glib = { version = "*", features = ["v2_44"] }
+
+gdk-pixbuf = "0.9"
+
+gtk-layer-shell = { version="0.2.0", optional=true }
+gtk-layer-shell-sys = { version="0.2.0", optional=true }
+gdkx11 = { version = "0.9", optional = true }
+x11rb = { version = "0.8", features = ["randr"], optional = true }
+
+regex = "1"
+bincode = "1.3"
+anyhow = "1.0"
+derive_more = "0.99"
+maplit = "1"
+structopt = "0.3"
+serde = {version = "1.0", features = ["derive"]}
+serde_json = "1.0"
+extend = "1"
+grass = "0.10"
+num = "0.4"
+roxmltree = "0.14"
+itertools = "0.10"
+debug_stub_derive = "0.3"
+log = "0.4"
+pretty_env_logger = "0.4"
+lazy_static = "1.4.0"
+libc = "0.2"
+nix = "0.20"
+smart-default = "0.6"
+simple-signal = "1.1"
+unescape = "0.1"
+
+tokio = { version = "1.0", features = ["full"] }
+tokio-stream = "0.1"
+async-stream = "0.3"
+futures-core = "0.3"
+futures-util = "0.3"
+tokio-util = "0.6"
+
+sysinfo = "0.16.1"
+
+nom = "6.1"
+dyn-clone = "1.0"
+base64 = "0.13"
+wait-timeout = "0.2"
+
+notify = "5.0.0-pre.7"
+
+[dev-dependencies]
+pretty_assertions = "0.7.1"
