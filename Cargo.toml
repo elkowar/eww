@@ -1,4 +1,6 @@
 [workspace]
 members = [
-    "crates/eww"
+    "crates/eww",
+    "crates/simplexpr",
+    "crates/yuck"
 ]

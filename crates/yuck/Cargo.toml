@@ -1,12 +1,10 @@
 [package]
-name = "eww_config"
+name = "yuck"
 version = "0.1.0"
 authors = ["elkowar <5300871+elkowar@users.noreply.github.com>"]
 edition = "2018"
 
-
 build = "build.rs"
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 lalrpop-util = "0.19.5"
@@ -27,7 +25,7 @@ strum = { version = "0.21", features = ["derive"] }
 anyhow = "1"
 
 
-simplexpr = { path = "../../projects/simplexpr" }
+simplexpr = { path = "../simplexpr" }
 
 [build-dependencies]
 lalrpop = "0.19.5"
