@@ -1,4 +1,4 @@
-use eww_config::{
+use yuck::{
     config::{widget_definition::WidgetDefinition, widget_use::WidgetUse, *},
     error::AstError,
     format_diagnostic::ToDiagnostic,
@@ -19,8 +19,8 @@ fn main() {
 
     let file_id_use = files.add("use.eww", input_use);
     let file_id_def = files.add("def.eww", input_def);
-    let parsed_use = WidgetUse::from_ast(eww_config::parser::parse_string(file_id_use, input_use).unwrap()).unwrap();
-    let parsed_def = WidgetDefinition::from_ast(eww_config::parser::parse_string(file_id_def, input_def).unwrap()).unwrap();
+    let parsed_use = WidgetUse::from_ast(yuck::parser::parse_string(file_id_use, input_use).unwrap()).unwrap();
+    let parsed_def = WidgetDefinition::from_ast(yuck::parser::parse_string(file_id_def, input_def).unwrap()).unwrap();
     let defs = maplit::hashmap! {
         "foo".to_string() => parsed_def,
     };

@@ -29,7 +29,6 @@ pub mod opts;
 pub mod script_var_handler;
 pub mod server;
 pub mod util;
-pub mod value;
 pub mod widgets;
 
 fn main() {

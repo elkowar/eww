@@ -10,11 +10,11 @@ pub type Result<T> = std::result::Result<T, ConversionError>;
 pub struct ConversionError {
     pub value: DynVal,
     pub target_type: &'static str,
-    pub source: Option<Box<dyn std::error::Error>>,
+    pub source: Option<Box<dyn std::error::Error + Sync + Send + 'static>>,
 }
 
 impl ConversionError {
-    fn new(value: DynVal, target_type: &'static str, source: impl std::error::Error + 'static) -> Self {
+    fn new(value: DynVal, target_type: &'static str, source: impl std::error::Error + 'static + Sync + Send) -> Self {
         ConversionError { value, target_type, source: Some(Box::new(source)) }
     }
 

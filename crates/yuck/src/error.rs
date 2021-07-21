@@ -28,7 +28,7 @@ pub enum AstError {
     ConversionError(#[from] dynval::ConversionError),
 
     #[error("{1}")]
-    Other(Option<Span>, Box<dyn std::error::Error>),
+    Other(Option<Span>, Box<dyn std::error::Error + Sync + Send + 'static>),
 
     #[error(transparent)]
     AttrError(#[from] AttrError),
@@ -39,6 +39,10 @@ pub enum AstError {
     #[error("Parse error: {source}")]
     ParseError { file_id: Option<usize>, source: lalrpop_util::ParseError<usize, lexer::Token, parse_error::ParseError> },
 }
+
+// static_assertions::assert_impl_all!(AstError: Send, Sync);
+// static_assertions::assert_impl_all!(dynval::ConversionError: Send, Sync);
+// static_assertions::assert_impl_all!(lalrpop_util::ParseError < usize, lexer::Token, parse_error::ParseError>: Send, Sync);
 
 impl AstError {
     pub fn get_span(&self) -> Option<Span> {

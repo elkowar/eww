@@ -27,7 +27,7 @@ pub enum AttrError {
     EvaluationError(Span, EvalError),
 
     #[error("{1}")]
-    Other(Span, Box<dyn std::error::Error>),
+    Other(Span, Box<dyn std::error::Error + Sync + Send + 'static>),
 }
 
 impl AttrError {
@@ -86,7 +86,7 @@ impl Attributes {
 
     pub fn primitive_required<T, E>(&mut self, key: &str) -> Result<T, AstError>
     where
-        E: std::error::Error + 'static,
+        E: std::error::Error + 'static + Sync + Send,
         T: FromDynVal<Err = E>,
     {
         let ast: SimplExpr = self.ast_required(&key)?;
@@ -99,7 +99,7 @@ impl Attributes {
 
     pub fn primitive_optional<T, E>(&mut self, key: &str) -> Result<Option<T>, AstError>
     where
-        E: std::error::Error + 'static,
+        E: std::error::Error + 'static + Sync + Send,
         T: FromDynVal<Err = E>,
     {
         let ast: SimplExpr = match self.ast_optional(key)? {

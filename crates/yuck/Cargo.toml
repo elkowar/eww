@@ -23,6 +23,7 @@ pretty_assertions = "0.7"
 
 strum = { version = "0.21", features = ["derive"] }
 anyhow = "1"
+static_assertions = "1.1"
 
 
 simplexpr = { path = "../simplexpr" }

@@ -46,10 +46,10 @@ impl FromAst for TopLevel {
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
 pub struct Config {
-    widget_definitions: HashMap<String, WidgetDefinition>,
-    window_definitions: HashMap<String, WindowDefinition>,
-    var_definitions: HashMap<VarName, VarDefinition>,
-    script_vars: HashMap<VarName, ScriptVarDefinition>,
+    pub widget_definitions: HashMap<String, WidgetDefinition>,
+    pub window_definitions: HashMap<String, WindowDefinition>,
+    pub var_definitions: HashMap<VarName, VarDefinition>,
+    pub script_vars: HashMap<VarName, ScriptVarDefinition>,
 }
 
 impl FromAst for Config {

@@ -3,7 +3,6 @@ use super::{run_command, BuilderArgs};
 use crate::{
     config, enum_parse, eww_state, resolve_block,
     util::{list_difference, parse_duration},
-    value::AttrVal,
     widgets::widget_node,
 };
 use anyhow::*;

@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 /// stores the left and right end of a span, and a given file identifier.
 #[derive(Eq, PartialEq, Clone, Copy, Serialize, Deserialize)]
 pub struct Span(pub usize, pub usize, pub usize);
+pub static DUMMY_SPAN: Span = Span(usize::MAX, usize::MAX, usize::MAX);
 
 impl std::fmt::Display for Span {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -71,6 +72,11 @@ impl std::fmt::Display for SimplExpr {
 impl SimplExpr {
     pub fn literal(span: Span, s: String) -> Self {
         Self::Literal(span, DynVal(s, Some(span)))
+    }
+
+    /// Construct a synthetic simplexpr from a literal value, without adding any relevant span information (uses [DUMMY_SPAN])
+    pub fn synth_literal(s: String) -> Self {
+        Self::Literal(DUMMY_SPAN, DynVal(s, Some(DUMMY_SPAN)))
     }
 
     pub fn span(&self) -> Span {

@@ -1,16 +1,16 @@
 use crate::{
     config::window_definition::WindowName,
-    value::{AttrName, AttrValElement, VarName},
+    dynval::{AttrName, AttrValElement, VarName},
 };
 use anyhow::*;
 use std::{collections::HashMap, sync::Arc};
 
-use crate::value::{AttrVal, PrimVal};
+use crate::dynval::{AttrVal, DynVal};
 
 /// Handler that gets executed to apply the necessary parts of the eww state to
 /// a gtk widget. These are created and initialized in EwwState::resolve.
 pub struct StateChangeHandler {
-    func: Box<dyn Fn(HashMap<AttrName, PrimVal>) -> Result<()> + 'static>,
+    func: Box<dyn Fn(HashMap<AttrName, DynVal>) -> Result<()> + 'static>,
     unresolved_values: HashMap<AttrName, AttrVal>,
 }
 
@@ -21,7 +21,7 @@ impl StateChangeHandler {
 
     /// Run the StateChangeHandler.
     /// [`state`] should be the global [EwwState::state].
-    fn run_with_state(&self, state: &HashMap<VarName, PrimVal>) {
+    fn run_with_state(&self, state: &HashMap<VarName, DynVal>) {
         let resolved_attrs = self
             .unresolved_values
             .clone()
@@ -61,7 +61,7 @@ impl EwwWindowState {
 #[derive(Default)]
 pub struct EwwState {
     windows: HashMap<WindowName, EwwWindowState>,
-    variables_state: HashMap<VarName, PrimVal>,
+    variables_state: HashMap<VarName, DynVal>,
 }
 
 impl std::fmt::Debug for EwwState {
@@ -71,11 +71,11 @@ impl std::fmt::Debug for EwwState {
 }
 
 impl EwwState {
-    pub fn from_default_vars(defaults: HashMap<VarName, PrimVal>) -> Self {
+    pub fn from_default_vars(defaults: HashMap<VarName, DynVal>) -> Self {
         EwwState { variables_state: defaults, ..EwwState::default() }
     }
 
-    pub fn get_variables(&self) -> &HashMap<VarName, PrimVal> {
+    pub fn get_variables(&self) -> &HashMap<VarName, DynVal> {
         &self.variables_state
     }
 
@@ -91,7 +91,7 @@ impl EwwState {
 
     /// Update the value of a variable, running all registered
     /// [StateChangeHandler]s.
-    pub fn update_variable(&mut self, key: VarName, value: PrimVal) {
+    pub fn update_variable(&mut self, key: VarName, value: DynVal) {
         self.variables_state.insert(key.clone(), value);
 
         // run all of the handlers
@@ -103,12 +103,12 @@ impl EwwState {
     }
 
     /// Look up a single variable in the eww state, returning an `Err` when the value is not found.
-    pub fn lookup(&self, var_name: &VarName) -> Result<&PrimVal> {
+    pub fn lookup(&self, var_name: &VarName) -> Result<&DynVal> {
         self.variables_state.get(var_name).with_context(|| format!("Unknown variable '{}' referenced", var_name))
     }
 
     /// resolves a value if possible, using the current eww_state.
-    pub fn resolve_once<'a>(&'a self, value: &'a AttrVal) -> Result<PrimVal> {
+    pub fn resolve_once<'a>(&'a self, value: &'a AttrVal) -> Result<DynVal> {
         value
             .iter()
             .map(|element| match element {
@@ -120,7 +120,7 @@ impl EwwState {
 
     /// Resolve takes a function that applies a set of fully resolved attribute
     /// values to it's gtk widget.
-    pub fn resolve<F: Fn(HashMap<AttrName, PrimVal>) -> Result<()> + 'static + Clone>(
+    pub fn resolve<F: Fn(HashMap<AttrName, DynVal>) -> Result<()> + 'static + Clone>(
         &mut self,
         window_name: &WindowName,
         required_attributes: HashMap<AttrName, AttrVal>,

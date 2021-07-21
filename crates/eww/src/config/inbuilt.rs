@@ -1,6 +1,6 @@
 use crate::{
     config::{system_stats::*, PollScriptVar, ScriptVar, VarSource},
-    value::{PrimVal as PrimitiveValue, VarName},
+    dynval::{DynVal as PrimitiveValue, VarName},
 };
 use std::{collections::HashMap, time::Duration};
 
@@ -20,16 +20,16 @@ macro_rules! builtin_vars {
 pub fn get_inbuilt_vars() -> HashMap<VarName, ScriptVar> {
     builtin_vars! {Duration::new(2, 0),
         // @desc EWW_TEMPS - Heat of the components in Celcius\nExample: `{{(CPU_TEMPS.core_1 + CPU_TEMPS.core_2) / 2}}`
-        "EWW_TEMPS" => || Ok(PrimitiveValue::from(cores())),
+        "EWW_TEMPS" => || Ok(Primitivedynval::from(cores())),
 
         // @desc EWW_RAM - The current RAM + Swap usage
-        "EWW_RAM" => || Ok(PrimitiveValue::from(format!("{:.2}", ram()))),
+        "EWW_RAM" => || Ok(Primitivedynval::from(format!("{:.2}", ram()))),
 
         // @desc EWW_DISK - Information on on all mounted partitions (Might report inaccurately on some filesystems, like btrfs)\nExample: `{{EWW_DISK["/"]}}`
-        "EWW_DISK" => || Ok(PrimitiveValue::from(disk())),
+        "EWW_DISK" => || Ok(Primitivedynval::from(disk())),
 
         // @desc EWW_BATTERY - Battery capacity in procent of the main battery
-        "EWW_BATTERY" => || Ok(PrimitiveValue::from(
+        "EWW_BATTERY" => || Ok(Primitivedynval::from(
             match get_battery_capacity() {
                 Err(e) => {
                     log::error!("Couldn't get the battery capacity: {:?}", e);
@@ -40,9 +40,9 @@ pub fn get_inbuilt_vars() -> HashMap<VarName, ScriptVar> {
         )),
 
         // @desc EWW_CPU_USAGE - Average CPU usage (all cores) since the last update (No MacOS support)
-        "EWW_CPU_USAGE" => || Ok(PrimitiveValue::from(get_avg_cpu_usage())),
+        "EWW_CPU_USAGE" => || Ok(Primitivedynval::from(get_avg_cpu_usage())),
 
         // @desc EWW_NET - Bytes up/down on all interfaces
-        "EWW_NET" => || Ok(PrimitiveValue::from(net())),
+        "EWW_NET" => || Ok(Primitivedynval::from(net())),
     }
 }

@@ -9,7 +9,7 @@ use super::*;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum VarSource {
     Shell(String),
-    Function(fn() -> Result<PrimVal>),
+    Function(fn() -> Result<DynVal>),
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PollScriptVar {
@@ -19,7 +19,7 @@ pub struct PollScriptVar {
 }
 
 impl PollScriptVar {
-    pub fn run_once(&self) -> Result<PrimVal> {
+    pub fn run_once(&self) -> Result<DynVal> {
         match &self.command {
             VarSource::Shell(x) => run_command(x),
             VarSource::Function(x) => x(),
@@ -47,7 +47,7 @@ impl ScriptVar {
         }
     }
 
-    pub fn initial_value(&self) -> Result<PrimVal> {
+    pub fn initial_value(&self) -> Result<DynVal> {
         match self {
             ScriptVar::Poll(x) => match &x.command {
                 VarSource::Function(f) => f().with_context(|| format!("Failed to compute initial value for {}", &self.name())),
@@ -55,7 +55,7 @@ impl ScriptVar {
                     run_command(f).with_context(|| format!("Failed to compute initial value for {}", &self.name()))
                 }
             },
-            ScriptVar::Tail(_) => Ok(PrimVal::from_string(String::new())),
+            ScriptVar::Tail(_) => Ok(DynVal::from_string(String::new())),
         }
     }
 
@@ -74,9 +74,9 @@ impl ScriptVar {
 }
 
 /// Run a command and get the output
-fn run_command(cmd: &str) -> Result<PrimVal> {
+fn run_command(cmd: &str) -> Result<DynVal> {
     log::debug!("Running command: {}", cmd);
     let output = String::from_utf8(Command::new("/bin/sh").arg("-c").arg(cmd).output()?.stdout)?;
     let output = output.trim_matches('\n');
-    Ok(PrimVal::from(output))
+    Ok(DynVal::from(output))
 }

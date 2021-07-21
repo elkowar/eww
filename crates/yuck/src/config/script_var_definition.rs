@@ -32,7 +32,7 @@ pub enum VarSource {
     // TODO allow for other executors? (python, etc)
     Shell(String),
     #[serde(skip)]
-    Function(fn() -> Result<DynVal, Box<dyn std::error::Error>>),
+    Function(fn() -> Result<DynVal, Box<dyn std::error::Error + Sync>>),
 }
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub struct PollScriptVar {

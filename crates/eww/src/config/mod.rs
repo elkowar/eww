@@ -1,6 +1,6 @@
 use crate::{
     util,
-    value::{PrimVal, VarName},
+    dynval::{DynVal, VarName},
 };
 
 use anyhow::*;

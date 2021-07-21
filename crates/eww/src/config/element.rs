@@ -4,7 +4,7 @@ use regex::Regex;
 use std::ops::Range;
 
 use crate::{
-    value::{AttrName, AttrVal},
+    dynval::{AttrName, AttrVal},
     with_text_pos_context,
 };
 use maplit::hashmap;

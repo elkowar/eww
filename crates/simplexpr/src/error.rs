@@ -14,13 +14,13 @@ pub enum Error {
     ConversionError(#[from] dynval::ConversionError),
 
     #[error("{1}")]
-    Spanned(Span, Box<dyn std::error::Error>),
+    Spanned(Span, Box<dyn std::error::Error + Send + Sync>),
 
     #[error(transparent)]
     Eval(#[from] crate::eval::EvalError),
 
     #[error(transparent)]
-    Other(#[from] Box<dyn std::error::Error>),
+    Other(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
 
 impl Error {

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     app, config,
-    value::{PrimVal, VarName},
+    dynval::{DynVal, VarName},
 };
 use anyhow::*;
 use app::DaemonCommand;
@@ -197,7 +197,7 @@ impl TailVarHandler {
                     _ = handle.wait() => break,
                     _ = cancellation_token.cancelled() => break,
                     Ok(Some(line)) = stdout_lines.next_line() => {
-                        let new_value = PrimVal::from_string(line.to_owned());
+                        let new_value = DynVal::from_string(line.to_owned());
                         evt_send.send(DaemonCommand::UpdateVars(vec![(var.name.to_owned(), new_value)]))?;
                     }
                     else => break,

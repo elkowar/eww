@@ -1,12 +1,12 @@
 use crate::{
     config::{element::WidgetDefinition, window_definition::WindowName},
     eww_state::*,
-    value::AttrName,
 };
 use anyhow::*;
 use gtk::prelude::*;
 use itertools::Itertools;
 use std::collections::HashMap;
+use yuck::value::AttrName;
 
 use std::process::Command;
 use widget_definitions::*;
@@ -132,7 +132,7 @@ macro_rules! resolve_block {
             let attr_map: Result<_> = try {
                 ::maplit::hashmap! {
                     $(
-                        crate::value::AttrName(::std::stringify!($attr_name).to_owned()) =>
+                        yuck::value::AttrName(::std::stringify!($attr_name).to_owned()) =>
                             resolve_block!(@get_value $args, &::std::stringify!($attr_name).replace('_', "-"), $(= $default)?)
                     ),*
                 }
@@ -154,7 +154,7 @@ macro_rules! resolve_block {
     };
 
     (@get_value $args:ident, $name:expr, = $default:expr) => {
-        $args.widget.get_attr($name).cloned().unwrap_or(AttrVal::from_primitive($default))
+        $args.widget.get_attr($name).cloned().unwrap_or(simplexpr::SimplExpr::synth_literal($default))
     };
 
     (@get_value $args:ident, $name:expr,) => {

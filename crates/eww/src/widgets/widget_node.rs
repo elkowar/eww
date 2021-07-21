@@ -5,7 +5,7 @@ use crate::{
         WindowName,
     },
     eww_state::EwwState,
-    value::{AttrName, AttrVal, VarName},
+    dynval::{AttrName, AttrVal, VarName},
 };
 use anyhow::*;
 use dyn_clone;
