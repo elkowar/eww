@@ -6,7 +6,7 @@ use std::{fmt, iter::FromIterator, str::FromStr};
 pub type Result<T> = std::result::Result<T, ConversionError>;
 
 #[derive(Debug, thiserror::Error)]
-#[error("Failed to turn {value} into a {target_type}")]
+#[error("Failed to turn {value} into a value of type {target_type}")]
 pub struct ConversionError {
     pub value: DynVal,
     pub target_type: &'static str,
@@ -14,8 +14,8 @@ pub struct ConversionError {
 }
 
 impl ConversionError {
-    fn new(value: DynVal, target_type: &'static str, source: Box<dyn std::error::Error>) -> Self {
-        ConversionError { value, target_type, source: Some(source) }
+    fn new(value: DynVal, target_type: &'static str, source: impl std::error::Error + 'static) -> Self {
+        ConversionError { value, target_type, source: Some(Box::new(source)) }
     }
 
     pub fn span(&self) -> Option<Span> {
@@ -83,16 +83,6 @@ impl<E, T: FromStr<Err = E>> FromDynVal for T {
     }
 }
 
-macro_rules! impl_from_dynval {
-    (
-        $(for $for:ty => |$name:ident| $code:expr);*;
-    ) => {
-        $(impl FromDynVal for $for {
-            type Err = ConversionError;
-            fn from_dynval($name: DynVal) -> std::result::Result<Self, Self::Err> { $code }
-        })*
-    };
-}
 macro_rules! impl_dynval_from {
     ($($t:ty),*) => {
         $(impl From<$t> for DynVal {
@@ -100,14 +90,6 @@ macro_rules! impl_dynval_from {
         })*
     };
 }
-
-// impl_from_dynval! {
-// for String => |x| x.as_string();
-// for f64 => |x| x.as_f64();
-// for i32 => |x| x.as_i32();
-// for bool => |x| x.as_bool();
-////for Vec<String> => |x| x.as_vec();
-//}
 
 impl_dynval_from!(bool, i32, u32, f32, u8, f64, &str);
 
@@ -128,6 +110,10 @@ impl DynVal {
         DynVal(self.0, Some(span))
     }
 
+    pub fn span(&self) -> Option<Span> {
+        self.1
+    }
+
     pub fn from_string(s: String) -> Self {
         DynVal(s, None)
     }
@@ -146,15 +132,39 @@ impl DynVal {
     }
 
     pub fn as_f64(&self) -> Result<f64> {
-        self.0.parse().map_err(|e| ConversionError::new(self.clone(), "f64", Box::new(e)))
+        self.0.parse().map_err(|e| ConversionError::new(self.clone(), "f64", e))
     }
 
     pub fn as_i32(&self) -> Result<i32> {
-        self.0.parse().map_err(|e| ConversionError::new(self.clone(), "i32", Box::new(e)))
+        self.0.parse().map_err(|e| ConversionError::new(self.clone(), "i32", e))
     }
 
     pub fn as_bool(&self) -> Result<bool> {
-        self.0.parse().map_err(|e| ConversionError::new(self.clone(), "bool", Box::new(e)))
+        self.0.parse().map_err(|e| ConversionError::new(self.clone(), "bool", e))
+    }
+
+    pub fn as_duration(&self) -> Result<std::time::Duration> {
+        use std::time::Duration;
+        let s = &self.0;
+        if s.ends_with("ms") {
+            Ok(Duration::from_millis(
+                s.trim_end_matches("ms").parse().map_err(|e| ConversionError::new(self.clone(), "integer", e))?,
+            ))
+        } else if s.ends_with('s') {
+            Ok(Duration::from_secs(
+                s.trim_end_matches('s').parse().map_err(|e| ConversionError::new(self.clone(), "integer", e))?,
+            ))
+        } else if s.ends_with('m') {
+            Ok(Duration::from_secs(
+                s.trim_end_matches('m').parse::<u64>().map_err(|e| ConversionError::new(self.clone(), "integer", e))? * 60,
+            ))
+        } else if s.ends_with('h') {
+            Ok(Duration::from_secs(
+                s.trim_end_matches('h').parse::<u64>().map_err(|e| ConversionError::new(self.clone(), "integer", e))? * 60 * 60,
+            ))
+        } else {
+            Err(ConversionError { value: self.clone(), target_type: "duration", source: None })
+        }
     }
 
     // pub fn as_vec(&self) -> Result<Vec<String>> {
