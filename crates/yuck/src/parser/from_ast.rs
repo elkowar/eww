@@ -1,8 +1,9 @@
 use super::{
-    ast::{Ast, AstType, Span},
+    ast::{Ast, AstType},
     ast_iterator::AstIterator,
 };
-use crate::{error::*, parser, util, value::AttrName};
+use crate::{error::*, parser, util};
+use eww_shared_util::{AttrName, Span, VarName};
 use itertools::Itertools;
 use simplexpr::{ast::SimplExpr, dynval::DynVal};
 use std::{
@@ -49,7 +50,7 @@ impl<T: FromAstElementContent> FromAst for T {
 impl FromAst for SimplExpr {
     fn from_ast(e: Ast) -> AstResult<Self> {
         match e {
-            Ast::Symbol(span, x) => Ok(SimplExpr::VarRef(span.into(), x)),
+            Ast::Symbol(span, x) => Ok(SimplExpr::VarRef(span.into(), VarName(x))),
             Ast::Literal(span, x) => Ok(SimplExpr::Literal(span.into(), x)),
             Ast::SimplExpr(span, x) => Ok(x),
             _ => Err(AstError::NotAValue(e.span(), e.expr_type())),

@@ -5,7 +5,8 @@ use diagnostic::*;
 
 use crate::error::AstError;
 
-use super::parser::{ast::Span, parse_error};
+use super::parser::parse_error;
+use eww_shared_util::{AttrName, Span, VarName};
 
 macro_rules! gen_diagnostic {
     (

@@ -1,8 +1,8 @@
 use crate::{
-    ast::Span,
     dynval,
     parser::lexer::{self, LexicalError},
 };
+use eww_shared_util::Span;
 
 pub type Result<T> = std::result::Result<T, Error>;
 #[derive(thiserror::Error, Debug)]

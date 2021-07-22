@@ -6,6 +6,7 @@ use crate::{
 };
 use anyhow::*;
 use debug_stub_derive::*;
+use eww_shared_util::VarName;
 use gdk::WindowExt;
 use gtk::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt};
 use itertools::Itertools;
@@ -14,7 +15,7 @@ use std::collections::HashMap;
 use tokio::sync::mpsc::UnboundedSender;
 use yuck::{
     config::window_geometry::{AnchorPoint, WindowGeometry},
-    value::{Coords, VarName},
+    value::Coords,
 };
 
 /// Response that the app may send as a response to a event.
@@ -112,30 +113,26 @@ impl App {
                     }
                 }
                 DaemonCommand::ReloadConfigAndCss(sender) => {
+                    let mut errors = Vec::new();
 
-                    // TODO implement this
-                    //let mut errors = Vec::new();
-                    todo!()
+                    let config_result = EwwConfig::read_from_file(&self.paths.get_yuck_path());
+                    match config_result {
+                        Ok(new_config) => self.handle_command(DaemonCommand::UpdateConfig(new_config)),
+                        Err(e) => errors.push(e),
+                    }
 
-                    //let config_result =
-                        //EwwConfig::read_from_file(&self.paths.get_eww_xml_path()).and_then(config::EwwConfig::generate);
-                    //match config_result {
-                        //Ok(new_config) => self.handle_command(DaemonCommand::UpdateConfig(new_config)),
-                        //Err(e) => errors.push(e),
-                    //}
+                    let css_result = crate::util::parse_scss_from_file(&self.paths.get_eww_scss_path());
+                    match css_result {
+                        Ok(new_css) => self.handle_command(DaemonCommand::UpdateCss(new_css)),
+                        Err(e) => errors.push(e),
+                    }
 
-                    //let css_result = crate::util::parse_scss_from_file(&self.paths.get_eww_scss_path());
-                    //match css_result {
-                        //Ok(new_css) => self.handle_command(DaemonCommand::UpdateCss(new_css)),
-                        //Err(e) => errors.push(e),
-                    //}
-
-                    //let errors = errors.into_iter().map(|e| format!("{:?}", e)).join("\n");
-                    //if errors.is_empty() {
-                        //sender.send(DaemonResponse::Success(String::new()))?;
-                    //} else {
-                        //sender.send(DaemonResponse::Failure(errors))?;
-                    //}
+                    let errors = errors.into_iter().map(|e| format!("{:?}", e)).join("\n");
+                    if errors.is_empty() {
+                        sender.send(DaemonResponse::Success(String::new()))?;
+                    } else {
+                        sender.send(DaemonResponse::Failure(errors))?;
+                    }
                 }
                 DaemonCommand::UpdateConfig(config) => {
                     self.load_config(config)?;

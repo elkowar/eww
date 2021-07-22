@@ -1,6 +1,7 @@
 use regex::{Regex, RegexSet};
 
-use super::{ast::Span, parse_error};
+use super::parse_error;
+use eww_shared_util::{AttrName, Span, VarName};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Token {

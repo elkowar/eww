@@ -1,6 +1,6 @@
 use anyhow::*;
+use eww_shared_util::{AttrName, VarName};
 use std::{collections::HashMap, sync::Arc};
-use yuck::value::{AttrName, VarName};
 
 use simplexpr::{dynval::DynVal, SimplExpr};
 
@@ -12,9 +12,8 @@ pub struct StateChangeHandler {
 }
 
 impl StateChangeHandler {
-    fn used_variables(&self) -> impl Iterator<Item = VarName> + '_ {
-        // TODO fix this clone
-        self.unresolved_values.iter().flat_map(|(_, value)| value.var_refs()).map(|x| VarName(x.to_string()))
+    fn used_variables(&self) -> impl Iterator<Item = &VarName> {
+        self.unresolved_values.iter().flat_map(|(_, value)| value.var_refs())
     }
 
     /// Run the StateChangeHandler.
@@ -24,7 +23,7 @@ impl StateChangeHandler {
             .unresolved_values
             .clone()
             .into_iter()
-            .map(|(attr_name, value)| Ok((attr_name, value.resolve_fully(state)?)))
+            .map(|(attr_name, value)| Ok((attr_name, value.eval(state)?)))
             .collect::<Result<_>>();
 
         match resolved_attrs {
@@ -107,8 +106,7 @@ impl EwwState {
 
     /// resolves a value if possible, using the current eww_state.
     pub fn resolve_once<'a>(&'a self, value: &'a SimplExpr) -> Result<DynVal> {
-        // TODO fix this clone
-        Ok(value.clone().eval(&self.variables_state.into_iter().map(|(k, v)| (k.0, v)).collect())?)
+        Ok(value.clone().eval(&self.variables_state)?)
     }
 
     /// Resolve takes a function that applies a set of fully resolved attribute

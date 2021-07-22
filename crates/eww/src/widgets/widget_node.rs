@@ -1,13 +1,10 @@
 use crate::eww_state::EwwState;
 use anyhow::*;
 use dyn_clone;
+use eww_shared_util::{AttrName, Span, VarName};
 use simplexpr::SimplExpr;
 use std::collections::HashMap;
-use yuck::{
-    config::{widget_definition::WidgetDefinition, widget_use::WidgetUse},
-    parser::ast::Span,
-    value::{AttrName, VarName},
-};
+use yuck::config::{widget_definition::WidgetDefinition, widget_use::WidgetUse};
 
 pub trait WidgetNode: std::fmt::Debug + dyn_clone::DynClone + Send + Sync {
     fn get_name(&self) -> &str;
@@ -70,9 +67,8 @@ impl Generic {
     }
 
     /// returns all the variables that are referenced in this widget
-    pub fn referenced_vars(&self) -> impl Iterator<Item = VarName> + '_ {
-        // TODO fix this clone
-        self.attrs.iter().flat_map(|(_, value)| value.var_refs()).map(|x| VarName(x.to_string()))
+    pub fn referenced_vars(&self) -> impl Iterator<Item = &VarName> {
+        self.attrs.iter().flat_map(|(_, value)| value.var_refs())
     }
 }
 
@@ -108,12 +104,7 @@ pub fn generate_generic_widget_node(
             .attrs
             .attrs
             .into_iter()
-            .map(|(name, value)| {
-                Ok((
-                    VarName(name.0),
-                    SimplExpr::Literal(value.value.span().into(), value.value.as_simplexpr()?.resolve_one_level(local_env)?),
-                ))
-            })
+            .map(|(name, value)| Ok((VarName(name.0), value.value.as_simplexpr()?.resolve_one_level(local_env))))
             .collect::<Result<HashMap<VarName, _>>>()?;
 
         let content = generate_generic_widget_node(defs, &new_local_env, def.widget.clone())?;
@@ -126,13 +117,8 @@ pub fn generate_generic_widget_node(
                 .attrs
                 .attrs
                 .into_iter()
-                .map(|(name, value)| {
-                    Ok((
-                        VarName(name.0),
-                        SimplExpr::Literal(value.value.span().into(), value.value.as_simplexpr()?.resolve_one_level(local_env)?),
-                    ))
-                })
-                .collect()?,
+                .map(|(name, value)| Ok((name, value.value.as_simplexpr()?.resolve_one_level(local_env))))
+                .collect::<Result<HashMap<_, _>>>()?,
 
             children: w
                 .children

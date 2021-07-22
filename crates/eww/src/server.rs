@@ -27,7 +27,7 @@ pub fn initialize_server(paths: EwwPaths) -> Result<()> {
         .with_context(|| format!("Failed to change working directory to {}", paths.get_config_dir().display()))?;
 
     log::info!("Loading paths: {}", &paths);
-    let eww_config = config::EwwConfig::read_from_file(&paths.get_eww_xml_path())?;
+    let eww_config = config::EwwConfig::read_from_file(&paths.get_yuck_path())?;
 
     gtk::init()?;
 

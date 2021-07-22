@@ -4,13 +4,14 @@ use crate::app;
 use anyhow::*;
 use app::DaemonCommand;
 
+use eww_shared_util::VarName;
 use simplexpr::dynval::DynVal;
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
     sync::mpsc::UnboundedSender,
 };
 use tokio_util::sync::CancellationToken;
-use yuck::{config::script_var_definition::{PollScriptVar, ScriptVarDefinition, TailScriptVar}, value::VarName};
+use yuck::config::script_var_definition::{PollScriptVar, ScriptVarDefinition, TailScriptVar};
 
 /// Initialize the script var handler, and return a handle to that handler, which can be used to control
 /// the script var execution.

@@ -1,4 +1,4 @@
-use crate::ast::Span;
+use eww_shared_util::Span;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::{fmt, iter::FromIterator, str::FromStr};

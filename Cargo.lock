@@ -436,6 +436,7 @@ dependencies = [
  "debug_stub_derive",
  "derive_more",
  "dyn-clone",
+ "eww_shared_util",
  "extend",
  "futures-core",
  "futures-util",
@@ -473,6 +474,14 @@ dependencies = [
  "wait-timeout",
  "x11rb",
  "yuck",
+]
+
+[[package]]
+name = "eww_shared_util"
+version = "0.1.0"
+dependencies = [
+ "derive_more",
+ "serde",
 ]
 
 [[package]]
@@ -1874,6 +1883,7 @@ dependencies = [
 name = "simplexpr"
 version = "0.1.0"
 dependencies = [
+ "eww_shared_util",
  "insta",
  "itertools 0.10.1",
  "lalrpop",
@@ -2374,6 +2384,7 @@ dependencies = [
  "anyhow",
  "codespan-reporting",
  "derive_more",
+ "eww_shared_util",
  "insta",
  "itertools 0.10.1",
  "lalrpop",

@@ -5,13 +5,9 @@ use simplexpr::SimplExpr;
 use crate::{
     config::attributes::AttrEntry,
     error::AstResult,
-    parser::{
-        ast::{Ast, Span},
-        ast_iterator::AstIterator,
-        from_ast::FromAst,
-    },
-    value::AttrName,
+    parser::{ast::Ast, ast_iterator::AstIterator, from_ast::FromAst},
 };
+use eww_shared_util::{AttrName, Span, VarName};
 
 use super::attributes::Attributes;
 
@@ -28,7 +24,7 @@ impl FromAst for WidgetUse {
         let span = e.span();
         if let Ok(text) = e.as_literal_ref() {
             Ok(Self {
-                name: "text".to_string(),
+                name: "label".to_string(),
                 attrs: Attributes::new(
                     span.into(),
                     maplit::hashmap! {

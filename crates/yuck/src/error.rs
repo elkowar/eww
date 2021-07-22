@@ -1,11 +1,12 @@
 use crate::{
     config::{attributes::AttrError, validate::ValidationError},
     parser::{
-        ast::{Ast, AstType, Span},
+        ast::{Ast, AstType},
         lexer, parse_error,
     },
 };
 use codespan_reporting::{diagnostic, files};
+use eww_shared_util::{AttrName, Span, VarName};
 use simplexpr::dynval;
 use thiserror::Error;
 

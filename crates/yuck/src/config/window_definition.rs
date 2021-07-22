@@ -5,12 +5,13 @@ use simplexpr::{dynval::DynVal, SimplExpr};
 use crate::{
     error::{AstError, AstResult},
     parser::{
-        ast::{Ast, Span},
+        ast::Ast,
         ast_iterator::AstIterator,
         from_ast::{FromAst, FromAstElementContent},
     },
-    value::{AttrName, NumWithUnit, VarName},
+    value::NumWithUnit,
 };
+use eww_shared_util::{AttrName, Span, VarName};
 
 use super::{backend_window_options::BackendWindowOptions, widget_use::WidgetUse, window_geometry::WindowGeometry};
 

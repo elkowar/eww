@@ -10,12 +10,12 @@ use crate::{
     config::script_var_definition::{PollScriptVar, TailScriptVar},
     error::{AstError, AstResult, OptionAstErrorExt},
     parser::{
-        ast::{Ast, Span},
+        ast::Ast,
         ast_iterator::AstIterator,
         from_ast::{FromAst, FromAstElementContent},
     },
-    value::{AttrName, VarName},
 };
+use eww_shared_util::{AttrName, Span, VarName};
 
 pub enum TopLevel {
     VarDefinition(VarDefinition),

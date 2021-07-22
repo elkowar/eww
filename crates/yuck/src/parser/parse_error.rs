@@ -1,4 +1,4 @@
-use super::ast::Span;
+use eww_shared_util::{AttrName, Span, VarName};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ParseError {

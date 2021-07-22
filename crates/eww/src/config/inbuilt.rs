@@ -1,12 +1,10 @@
 use std::{collections::HashMap, time::Duration};
 
 use simplexpr::dynval::DynVal;
-use yuck::{
-    config::script_var_definition::{PollScriptVar, ScriptVarDefinition, VarSource},
-    value::VarName,
-};
+use yuck::config::script_var_definition::{PollScriptVar, ScriptVarDefinition, VarSource};
 
 use crate::config::system_stats::*;
+use eww_shared_util::VarName;
 
 macro_rules! builtin_vars {
     ($interval:expr, $($name:literal => $fun:expr),*$(,)?) => {{

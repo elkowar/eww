@@ -1,9 +1,10 @@
 use itertools::Itertools;
 
 use crate::{
-    ast::{BinOp, SimplExpr, Span, UnaryOp},
+    ast::{BinOp, SimplExpr, UnaryOp},
     dynval::{ConversionError, DynVal},
 };
+use eww_shared_util::{Span, VarName};
 use std::collections::HashMap;
 
 #[derive(Debug, thiserror::Error)]
@@ -50,13 +51,6 @@ impl EvalError {
     }
 }
 
-type VarName = String;
-
-pub trait FunctionSource {
-    type Err;
-    fn run_fn(&self, name: &str, args: &[DynVal]) -> Result<DynVal, Self::Err>;
-}
-
 impl SimplExpr {
     pub fn map_terminals_into(self, f: impl Fn(Self) -> Self) -> Self {
         use SimplExpr::*;
@@ -68,6 +62,36 @@ impl SimplExpr {
             FunctionCall(span, name, args) => FunctionCall(span, name, args.into_iter().map(f).collect()),
             other => f(other),
         }
+    }
+
+    /// map over all of the variable references, replacing them with whatever expression the provided function returns.
+    /// Returns [Err] when the provided function fails with an [Err]
+    pub fn try_map_var_refs<E, F: Fn(Span, VarName) -> Result<SimplExpr, E> + Copy>(self, f: F) -> Result<Self, E> {
+        use SimplExpr::*;
+        Ok(match self {
+            BinOp(span, box a, op, box b) => BinOp(span, box a.try_map_var_refs(f)?, op, box b.try_map_var_refs(f)?),
+            UnaryOp(span, op, box a) => UnaryOp(span, op, box a.try_map_var_refs(f)?),
+            IfElse(span, box a, box b, box c) => {
+                IfElse(span, box a.try_map_var_refs(f)?, box b.try_map_var_refs(f)?, box c.try_map_var_refs(f)?)
+            }
+            JsonAccess(span, box a, box b) => JsonAccess(span, box a.try_map_var_refs(f)?, box b.try_map_var_refs(f)?),
+            FunctionCall(span, name, args) => {
+                FunctionCall(span, name, args.into_iter().map(|x| x.try_map_var_refs(f)).collect::<Result<_, _>>()?)
+            }
+            VarRef(span, name) => f(span, name)?,
+            x @ Literal(..) => x,
+        })
+    }
+
+    pub fn map_var_refs(self, f: impl Fn(Span, VarName) -> SimplExpr) -> Self {
+        self.try_map_var_refs(|span, var| Ok::<_, !>(f(span, var))).into_ok()
+    }
+
+    /// resolve partially.
+    /// If a var-ref links to another var-ref, that other var-ref is used.
+    /// If a referenced variable is not found in the given hashmap, returns the var-ref unchanged.
+    pub fn resolve_one_level(self, variables: &HashMap<VarName, SimplExpr>) -> Self {
+        self.map_var_refs(|span, name| variables.get(&name).cloned().unwrap_or_else(|| Self::VarRef(span, name)))
     }
 
     /// resolve variable references in the expression. Fails if a variable cannot be resolved.
@@ -96,7 +120,7 @@ impl SimplExpr {
         }
     }
 
-    pub fn var_refs(&self) -> Vec<&String> {
+    pub fn var_refs(&self) -> Vec<&VarName> {
         use SimplExpr::*;
         match self {
             Literal(..) => Vec::new(),
@@ -130,7 +154,7 @@ impl SimplExpr {
         let value = match self {
             SimplExpr::Literal(_, x) => Ok(x.clone()),
             SimplExpr::VarRef(span, ref name) => {
-                Ok(values.get(name).cloned().ok_or_else(|| EvalError::UnresolvedVariable(name.to_string()).at(*span))?.at(*span))
+                Ok(values.get(name).cloned().ok_or_else(|| EvalError::UnresolvedVariable(name.clone()).at(*span))?.at(*span))
             }
             SimplExpr::BinOp(_, a, op, b) => {
                 let a = a.eval(values)?;

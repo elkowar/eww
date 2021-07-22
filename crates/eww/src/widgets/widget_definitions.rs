@@ -1,7 +1,7 @@
 #![allow(clippy::option_map_unit_fn)]
 use super::{run_command, BuilderArgs};
 use crate::{
-    config, enum_parse, eww_state, resolve_block,
+    enum_parse, eww_state, resolve_block,
     util::{list_difference, parse_duration},
     widgets::widget_node,
 };
@@ -10,6 +10,7 @@ use gdk::WindowExt;
 use glib;
 use gtk::{self, prelude::*, ImageExt};
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use yuck::parser::from_ast::FromAst;
 
 // TODO figure out how to
 // TODO https://developer.gnome.org/gtk3/stable/GtkFixed.html
@@ -244,12 +245,13 @@ fn build_gtk_combo_box_text(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText
     let on_change_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
     resolve_block!(bargs, gtk_widget, {
         // @prop items - Items that should be displayed in the combo box
-        prop(items: as_vec) {
-            gtk_widget.remove_all();
-            for i in items {
-                gtk_widget.append_text(&i);
-            }
-        },
+        // TODO reimplement, obviously
+        //prop(items: as_vec) {
+            //gtk_widget.remove_all();
+            //for i in items {
+                //gtk_widget.append_text(&i);
+            //}
+        //},
         // @prop onchange - runs the code when a item was selected, replacing {} with the item as a string
         prop(onchange: as_string) {
             let old_id = on_change_handler_id.replace(Some(
@@ -518,15 +520,16 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
     gtk_widget.set_widget_name("literal");
 
     // TODO these clones here are dumdum
-    let window_name = bargs.window_name.clone();
+    let window_name = bargs.window_name.to_string();
     let widget_definitions = bargs.widget_definitions.clone();
+
     resolve_block!(bargs, gtk_widget, {
         // @prop content - inline Eww XML that will be rendered as a widget.
         prop(content: as_string) {
             gtk_widget.get_children().iter().for_each(|w| gtk_widget.remove(w));
             if !content.is_empty() {
-                let document = roxmltree::Document::parse(&content).map_err(|e| anyhow!("Failed to parse eww xml literal: {:?}", e))?;
-                let content_widget_use = config::element::WidgetUse::from_xml_node(document.root_element().into())?;
+                let ast = yuck::parser::parse_string(usize::MAX, &content)?;
+                let content_widget_use = yuck::config::widget_use::WidgetUse::from_ast(ast)?;
 
                 let widget_node = &*widget_node::generate_generic_widget_node(&widget_definitions, &HashMap::new(), content_widget_use)?;
                 let child_widget = widget_node.render(&mut eww_state::EwwState::default(), &window_name, &widget_definitions)?;

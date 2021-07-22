@@ -1,14 +1,12 @@
 use anyhow::*;
+use eww_shared_util::VarName;
 use std::collections::HashMap;
 use yuck::{
     config::{script_var_definition::ScriptVarDefinition, widget_definition::WidgetDefinition},
     parser::from_ast::FromAst,
-    value::VarName,
 };
 
 use simplexpr::dynval::DynVal;
-
-use std::path::PathBuf;
 
 use super::{script_var, EwwWindowDefinition};
 
@@ -19,33 +17,30 @@ pub struct EwwConfig {
     windows: HashMap<String, EwwWindowDefinition>,
     initial_variables: HashMap<VarName, DynVal>,
     script_vars: HashMap<VarName, ScriptVarDefinition>,
-    pub filepath: PathBuf,
 }
 impl EwwConfig {
     pub fn read_from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self> {
         let content = std::fs::read_to_string(path)?;
-        let ast = yuck::parser::parse_string(0, &content)?;
+        let ast = yuck::parser::parse_toplevel(0, &content)?;
         let config = yuck::config::Config::from_ast(ast)?;
         Self::generate(config)
     }
 
     pub fn generate(config: yuck::config::Config) -> Result<Self> {
+        let yuck::config::Config { widget_definitions, window_definitions, var_definitions, script_vars } = config;
         Ok(EwwConfig {
-            windows: config
-                .window_definitions
+            windows: window_definitions
                 .into_iter()
                 .map(|(name, window)| {
                     Ok((
                         name,
-                        EwwWindowDefinition::generate(&config.widget_definitions, window)
-                            .context("Failed expand window definition")?,
+                        EwwWindowDefinition::generate(&widget_definitions, window).context("Failed expand window definition")?,
                     ))
                 })
                 .collect::<Result<HashMap<_, _>>>()?,
-            widgets: config.widget_definitions,
-            initial_variables: config.var_definitions.into_iter().map(|(k, v)| (k, v.initial_value)).collect(),
-            script_vars: config.script_vars,
-            filepath: todo!(),
+            widgets: widget_definitions,
+            initial_variables: var_definitions.into_iter().map(|(k, v)| (k, v.initial_value)).collect(),
+            script_vars,
         })
     }
 

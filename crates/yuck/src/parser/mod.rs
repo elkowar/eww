@@ -25,6 +25,13 @@ pub fn parse_string(file_id: usize, s: &str) -> AstResult<Ast> {
     parser.parse(file_id, lexer).map_err(|e| AstError::from_parse_error(file_id, e))
 }
 
+/// Parse multiple toplevel nodes into an [Ast::List]
+pub fn parse_toplevel(file_id: usize, s: &str) -> AstResult<Ast> {
+    let lexer = lexer::Lexer::new(file_id, s.to_string());
+    let parser = parser::ToplevelParser::new();
+    parser.parse(file_id, lexer).map(|(span, nodes)| Ast::List(span, nodes)).map_err(|e| AstError::from_parse_error(file_id, e))
+}
+
 macro_rules! test_parser {
     ($($text:literal),*) => {{
         let p = parser::AstParser::new();

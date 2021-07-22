@@ -2,5 +2,6 @@
 members = [
     "crates/eww",
     "crates/simplexpr",
-    "crates/yuck"
+    "crates/yuck",
+    "crates/eww_shared_util"
 ]

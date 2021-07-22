@@ -1,11 +1,9 @@
 use anyhow::*;
+use eww_shared_util::VarName;
 use serde::{Deserialize, Serialize};
 use simplexpr::dynval::DynVal;
 use structopt::StructOpt;
-use yuck::{
-    config::window_geometry::AnchorPoint,
-    value::{Coords, VarName},
-};
+use yuck::{config::window_geometry::AnchorPoint, value::Coords};
 
 use crate::app;
 
@@ -23,7 +21,7 @@ struct RawOpt {
     #[structopt(long = "debug", global = true)]
     log_debug: bool,
 
-    /// override path to configuration directory (directory that contains eww.xml and eww.scss)
+    /// override path to configuration directory (directory that contains eww.yuck and eww.scss)
     #[structopt(short, long, global = true)]
     config: Option<std::path::PathBuf>,
 
@@ -153,7 +151,7 @@ fn parse_var_update_arg(s: &str) -> Result<(VarName, DynVal)> {
 impl ActionWithServer {
     pub fn into_daemon_command(self) -> (app::DaemonCommand, Option<app::DaemonResponseReceiver>) {
         let command = match self {
-            ActionWithServer::Update { mappings } => app::DaemonCommand::UpdateVars(mappings.into_iter().collect()),
+            ActionWithServer::Update { mappings } => app::DaemonCommand::UpdateVars(mappings),
 
             ActionWithServer::KillServer => app::DaemonCommand::KillServer,
             ActionWithServer::CloseAll => app::DaemonCommand::CloseAll,

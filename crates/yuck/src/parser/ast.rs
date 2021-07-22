@@ -2,60 +2,14 @@ use itertools::Itertools;
 use simplexpr::{ast::SimplExpr, dynval::DynVal};
 use std::collections::HashMap;
 
+use eww_shared_util::Span;
 use std::fmt::Display;
 
 use super::{ast_iterator::AstIterator, from_ast::FromAst};
 use crate::{
     config::attributes::{AttrEntry, Attributes},
     error::{AstError, AstResult, OptionAstErrorExt},
-    value::AttrName,
 };
-
-#[derive(Eq, PartialEq, Clone, Copy, serde::Serialize)]
-pub struct Span(pub usize, pub usize, pub usize);
-
-impl Span {
-    /// Get the span that includes this and the other span completely.
-    /// Will panic if the spans are from different file_ids.
-    pub fn to(mut self, other: Span) -> Self {
-        assert!(other.2 == self.2);
-        self.1 = other.1;
-        self
-    }
-
-    pub fn ending_at(mut self, end: usize) -> Self {
-        self.1 = end;
-        self
-    }
-
-    pub fn with_length(mut self, end: usize) -> Self {
-        self.1 = self.0;
-        self
-    }
-}
-
-impl Into<simplexpr::Span> for Span {
-    fn into(self) -> simplexpr::Span {
-        simplexpr::Span(self.0, self.1, self.2)
-    }
-}
-impl From<simplexpr::Span> for Span {
-    fn from(x: simplexpr::Span) -> Span {
-        Span(x.0, x.1, x.2)
-    }
-}
-
-impl std::fmt::Display for Span {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}..{}", self.0, self.1)
-    }
-}
-
-impl std::fmt::Debug for Span {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}..{}", self.0, self.1)
-    }
-}
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum AstType {

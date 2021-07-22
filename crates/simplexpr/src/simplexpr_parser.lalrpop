@@ -1,4 +1,5 @@
-use crate::ast::{SimplExpr::{self, *}, Span, BinOp::*, UnaryOp::*};
+use crate::ast::{SimplExpr::{self, *}, BinOp::*, UnaryOp::*};
+use eww_shared_util::{Span, VarName};
 use crate::parser::lexer::{Token, LexicalError};
 use crate::parser::lalrpop_helpers::*;
 use lalrpop_util::ParseError;
@@ -66,7 +67,7 @@ pub Expr: SimplExpr = {
   },
 
   <Literal>,
-  <l:@L> <ident:"identifier"> <r:@R> => VarRef(Span(l, r, fid), ident.to_string()),
+  <l:@L> <ident:"identifier"> <r:@R> => VarRef(Span(l, r, fid), VarName(ident.to_string())),
   "(" <ExprReset> ")",
 
   #[precedence(level="1")] #[assoc(side="right")]

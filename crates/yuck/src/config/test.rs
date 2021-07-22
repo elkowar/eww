@@ -1,16 +1,11 @@
 use crate::{
     config::config::Config,
-    parser::{
-        self,
-        ast::{Ast, Span},
-        from_ast::FromAst,
-        lexer::Lexer,
-    },
+    parser::{self, ast::Ast, from_ast::FromAst, lexer::Lexer},
 };
 
 #[test]
 fn test_config() {
-    let input = r#"  
+    let input = r#"
         (defwidget foo [arg]
             "heyho")
         (defwidget bar [arg arg2]

@@ -11,12 +11,9 @@ use simplexpr::{
 
 use crate::{
     error::AstError,
-    parser::{
-        ast::{Ast, Span},
-        from_ast::FromAst,
-    },
-    value::AttrName,
+    parser::{ast::Ast, from_ast::FromAst},
 };
+use eww_shared_util::{AttrName, Span, VarName};
 
 #[derive(Debug, thiserror::Error)]
 pub enum AttrError {

@@ -1,23 +1,9 @@
 use crate::dynval::DynVal;
+use eww_shared_util::{Span, DUMMY_SPAN};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-/// stores the left and right end of a span, and a given file identifier.
-#[derive(Eq, PartialEq, Clone, Copy, Serialize, Deserialize)]
-pub struct Span(pub usize, pub usize, pub usize);
-pub static DUMMY_SPAN: Span = Span(usize::MAX, usize::MAX, usize::MAX);
-
-impl std::fmt::Display for Span {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}..{}", self.0, self.1)
-    }
-}
-
-impl std::fmt::Debug for Span {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}..{}", self.0, self.1)
-    }
-}
+use eww_shared_util::VarName;
 
 #[rustfmt::skip]
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Debug, strum::EnumString, strum::Display)]
@@ -46,7 +32,7 @@ pub enum UnaryOp {
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SimplExpr {
     Literal(Span, DynVal),
-    VarRef(Span, String),
+    VarRef(Span, VarName),
     BinOp(Span, Box<SimplExpr>, BinOp, Box<SimplExpr>),
     UnaryOp(Span, UnaryOp, Box<SimplExpr>),
     IfElse(Span, Box<SimplExpr>, Box<SimplExpr>, Box<SimplExpr>),

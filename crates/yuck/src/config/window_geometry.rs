@@ -2,13 +2,20 @@ use std::collections::HashMap;
 
 use simplexpr::{dynval::DynVal, SimplExpr};
 
-use crate::{enum_parse, error::{AstError, AstResult}, parser::{
-        ast::{Ast,  Span}, ast_iterator::AstIterator,
+use crate::{
+    enum_parse,
+    error::{AstError, AstResult},
+    parser::{
+        ast::Ast,
+        ast_iterator::AstIterator,
         from_ast::{FromAst, FromAstElementContent},
-    }, value::{AttrName, Coords, VarName}};
+    },
+    value::Coords,
+};
 
 use super::{widget_use::WidgetUse, window_definition::EnumParseError};
-use serde::{Serialize, Deserialize};
+use eww_shared_util::{AttrName, Span, VarName};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, smart_default::SmartDefault, Serialize, Deserialize, strum::Display)]
 pub enum AnchorAlignment {
@@ -84,7 +91,6 @@ pub enum AnchorPointParseError {
     EnumParseError(#[from] EnumParseError),
 }
 
-
 impl std::str::FromStr for AnchorPoint {
     type Err = AnchorPointParseError;
 
@@ -92,9 +98,7 @@ impl std::str::FromStr for AnchorPoint {
         if s == "center" {
             Ok(AnchorPoint { x: AnchorAlignment::CENTER, y: AnchorAlignment::CENTER })
         } else {
-            let (first, second) = s
-                .split_once(' ')
-                .ok_or_else(|| AnchorPointParseError::WrongFormat(s.to_string()))?;
+            let (first, second) = s.split_once(' ').ok_or_else(|| AnchorPointParseError::WrongFormat(s.to_string()))?;
             let x_y_result: Result<_, EnumParseError> = try {
                 AnchorPoint { x: AnchorAlignment::from_x_alignment(first)?, y: AnchorAlignment::from_y_alignment(second)? }
             };

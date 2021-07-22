@@ -162,8 +162,8 @@ impl EwwPaths {
         self.config_dir.as_path()
     }
 
-    pub fn get_eww_xml_path(&self) -> PathBuf {
-        self.config_dir.join("eww.xml")
+    pub fn get_yuck_path(&self) -> PathBuf {
+        self.config_dir.join("eww.yuck")
     }
 
     pub fn get_eww_scss_path(&self) -> PathBuf {

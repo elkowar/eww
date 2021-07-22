@@ -1,9 +1,10 @@
 use crate::eww_state::*;
 use anyhow::*;
+use eww_shared_util::AttrName;
 use gtk::prelude::*;
 use itertools::Itertools;
 use std::collections::HashMap;
-use yuck::{config::widget_definition::WidgetDefinition, value::AttrName};
+use yuck::config::widget_definition::WidgetDefinition;
 
 use std::process::Command;
 use widget_definitions::*;
@@ -129,7 +130,7 @@ macro_rules! resolve_block {
             let attr_map: Result<_> = try {
                 ::maplit::hashmap! {
                     $(
-                        yuck::value::AttrName(::std::stringify!($attr_name).to_owned()) =>
+                        eww_shared_util::AttrName(::std::stringify!($attr_name).to_owned()) =>
                             resolve_block!(@get_value $args, &::std::stringify!($attr_name).replace('_', "-"), $(= $default)?)
                     ),*
                 }

@@ -5,13 +5,10 @@ use anyhow::*;
 use crate::{
     enum_parse,
     error::AstResult,
-    parser::{
-        ast::{Ast, Span},
-        ast_iterator::AstIterator,
-        from_ast::FromAstElementContent,
-    },
+    parser::{ast::Ast, ast_iterator::AstIterator, from_ast::FromAstElementContent},
     value::NumWithUnit,
 };
+use eww_shared_util::Span;
 
 use super::{attributes::Attributes, window_definition::EnumParseError};
 

@@ -5,14 +5,14 @@ use std::collections::HashMap;
 use std::fmt::Display;
 
 use super::{
-    ast::{Ast, AstType, Span},
+    ast::{Ast, AstType},
     from_ast::FromAst,
 };
 use crate::{
     config::attributes::{AttrEntry, Attributes},
     error::{AstError, AstResult, OptionAstErrorExt},
-    value::AttrName,
 };
+use eww_shared_util::{AttrName, Span, VarName};
 
 pub struct AstIterator<I: Iterator<Item = Ast>> {
     remaining_span: Span,
@@ -54,7 +54,7 @@ impl<I: Iterator<Item = Ast>> AstIterator<I> {
     }
 
     pub fn expect_any<T: FromAst>(&mut self) -> AstResult<T> {
-        self.iter.next().or_missing(self.remaining_span.with_length(0)).and_then(T::from_ast)
+        self.iter.next().or_missing(self.remaining_span.point_span()).and_then(T::from_ast)
     }
 
     pub fn expect_key_values(&mut self) -> AstResult<Attributes> {

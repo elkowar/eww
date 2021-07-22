@@ -1,13 +1,16 @@
 #![feature(box_patterns)]
 #![feature(box_syntax)]
 #![feature(try_blocks)]
+#![feature(unwrap_infallible)]
+#![feature(never_type)]
+
 pub mod ast;
 pub mod dynval;
 pub mod error;
 pub mod eval;
 pub mod parser;
 
-pub use ast::{SimplExpr, Span};
+pub use ast::SimplExpr;
 
 use lalrpop_util::lalrpop_mod;
 

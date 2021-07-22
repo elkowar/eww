@@ -27,6 +27,7 @@ static_assertions = "1.1"
 
 
 simplexpr = { path = "../simplexpr" }
+eww_shared_util = { path = "../eww_shared_util" }
 
 [build-dependencies]
 lalrpop = "0.19.5"

@@ -4,15 +4,11 @@ use simplexpr::SimplExpr;
 
 use crate::{
     error::AstResult,
-    parser::{
-        ast::{Ast, Span},
-        ast_iterator::AstIterator,
-        from_ast::FromAst,
-    },
-    value::{AttrName, VarName},
+    parser::{ast::Ast, ast_iterator::AstIterator, from_ast::FromAst},
 };
 
 use super::{widget_definition::WidgetDefinition, widget_use::WidgetUse};
+use eww_shared_util::{AttrName, Span, VarName};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ValidationError {

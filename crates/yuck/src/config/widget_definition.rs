@@ -5,12 +5,12 @@ use simplexpr::SimplExpr;
 use crate::{
     error::AstResult,
     parser::{
-        ast::{Ast, Span},
+        ast::Ast,
         ast_iterator::AstIterator,
         from_ast::{FromAst, FromAstElementContent},
     },
-    value::{AttrName, VarName},
 };
+use eww_shared_util::{AttrName, Span, VarName};
 
 use super::widget_use::WidgetUse;
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
