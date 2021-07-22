@@ -1,4 +1,4 @@
-use crate::{app, config, eww_state::*, ipc_server, script_var_handler, util, EwwPaths};
+use crate::{EwwPaths, app, config, error_handling_ctx, eww_state::*, ipc_server, script_var_handler, util};
 use anyhow::*;
 use yuck::config::file_provider::FsYuckFiles;
 use std::{collections::HashMap, os::unix::io::AsRawFd, path::Path};
@@ -29,9 +29,10 @@ pub fn initialize_server(paths: EwwPaths) -> Result<()> {
 
     log::info!("Loading paths: {}", &paths);
 
-    let mut yuck_files = FsYuckFiles::new();
 
-    let eww_config = config::EwwConfig::read_from_file(&mut yuck_files, &paths.get_yuck_path())?;
+    error_handling_ctx::clear_files();
+
+    let eww_config = config::EwwConfig::read_from_file(&mut error_handling_ctx::ERROR_HANDLING_CTX.lock().unwrap(), &paths.get_yuck_path())?;
 
     gtk::init()?;
 

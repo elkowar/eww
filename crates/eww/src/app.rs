@@ -1,6 +1,6 @@
 use crate::{
     config::{self, EwwConfig},
-    display_backend, eww_state,
+    display_backend, error_handling_ctx, eww_state,
     script_var_handler::*,
     EwwPaths,
 };
@@ -118,8 +118,11 @@ impl App {
                 DaemonCommand::ReloadConfigAndCss(sender) => {
                     let mut errors = Vec::new();
 
-                    let mut yuck_files = FsYuckFiles::new();
-                    let config_result = EwwConfig::read_from_file(&mut yuck_files, &self.paths.get_yuck_path());
+                    error_handling_ctx::clear_files();
+                    let config_result = config::EwwConfig::read_from_file(
+                        &mut error_handling_ctx::ERROR_HANDLING_CTX.lock().unwrap(),
+                        &self.paths.get_yuck_path(),
+                    );
                     match config_result {
                         Ok(new_config) => self.handle_command(DaemonCommand::UpdateConfig(new_config)),
                         Err(e) => {
@@ -133,7 +136,7 @@ impl App {
                         Err(e) => errors.push(e),
                     }
 
-                    let errors = errors.into_iter().map(|e| format!("{:?}", e)).join("\n");
+                    let errors = errors.into_iter().map(|e| error_handling_ctx::format_error(e)).join("\n");
                     if errors.is_empty() {
                         sender.send(DaemonResponse::Success(String::new()))?;
                     } else {
@@ -394,7 +397,7 @@ fn get_monitor_geometry(n: i32) -> gdk::Rectangle {
 fn respond_with_error<T>(sender: DaemonResponseSender, result: Result<T>) -> Result<()> {
     match result {
         Ok(_) => sender.send(DaemonResponse::Success(String::new())),
-        Err(e) => sender.send(DaemonResponse::Failure(format!("{:?}", e))),
+        Err(e) => sender.send(DaemonResponse::Failure(error_handling_ctx::format_error(e))),
     }
     .context("sending response from main thread")
 }

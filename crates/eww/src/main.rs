@@ -17,11 +17,13 @@ use std::{
     path::{Path, PathBuf},
 };
 
+
 pub mod app;
 pub mod application_lifecycle;
 pub mod client;
 pub mod config;
 pub mod display_backend;
+mod error_handling_ctx;
 pub mod eww_state;
 pub mod geometry;
 pub mod ipc_server;
@@ -92,7 +94,7 @@ fn main() {
     };
 
     if let Err(e) = result {
-        log::error!("{:?}", e);
+        error_handling_ctx::print_error(e);
         std::process::exit(1);
     }
 }
@@ -163,7 +165,6 @@ impl EwwPaths {
     pub fn get_yuck_path(&self) -> PathBuf {
         self.config_dir.join("eww.yuck")
     }
-
 
     pub fn get_eww_scss_path(&self) -> PathBuf {
         self.config_dir.join("eww.scss")
