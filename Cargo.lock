@@ -433,6 +433,7 @@ dependencies = [
  "base64",
  "bincode",
  "cairo-sys-rs",
+ "codespan-reporting",
  "debug_stub_derive",
  "derive_more",
  "dyn-clone",

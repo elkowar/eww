@@ -1,5 +1,6 @@
 use crate::{app, config, eww_state::*, ipc_server, script_var_handler, util, EwwPaths};
 use anyhow::*;
+use yuck::config::file_provider::FsYuckFiles;
 use std::{collections::HashMap, os::unix::io::AsRawFd, path::Path};
 use tokio::sync::mpsc::*;
 
@@ -27,7 +28,10 @@ pub fn initialize_server(paths: EwwPaths) -> Result<()> {
         .with_context(|| format!("Failed to change working directory to {}", paths.get_config_dir().display()))?;
 
     log::info!("Loading paths: {}", &paths);
-    let eww_config = config::EwwConfig::read_from_file(&paths.get_yuck_path())?;
+
+    let mut yuck_files = FsYuckFiles::new();
+
+    let eww_config = config::EwwConfig::read_from_file(&mut yuck_files, &paths.get_yuck_path())?;
 
     gtk::init()?;
 

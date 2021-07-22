@@ -105,7 +105,7 @@ fn check_server_running(socket_path: impl AsRef<Path>) -> bool {
     response.is_some()
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct EwwPaths {
     log_file: PathBuf,
     ipc_socket_file: PathBuf,
@@ -115,11 +115,9 @@ pub struct EwwPaths {
 impl EwwPaths {
     pub fn from_config_dir<P: AsRef<Path>>(config_dir: P) -> Result<Self> {
         let config_dir = config_dir.as_ref();
-        let config_dir = if config_dir.is_file() {
-            config_dir.parent().context("Given config file did not have a parent directory")?
-        } else {
-            config_dir
-        };
+        if config_dir.is_file() {
+            bail!("Please provide the path to the config directory, not a file within it")
+        }
 
         if !config_dir.exists() {
             bail!("Configuration directory {} does not exist", config_dir.display());
@@ -165,6 +163,7 @@ impl EwwPaths {
     pub fn get_yuck_path(&self) -> PathBuf {
         self.config_dir.join("eww.yuck")
     }
+
 
     pub fn get_eww_scss_path(&self) -> PathBuf {
         self.config_dir.join("eww.scss")

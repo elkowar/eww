@@ -8,6 +8,10 @@ use crate::error::AstError;
 use super::parser::parse_error;
 use eww_shared_util::{AttrName, Span, VarName};
 
+fn span_to_secondary_label(span: Span) -> Label<usize> {
+    Label::secondary(span.2, span.0..span.1)
+}
+
 macro_rules! gen_diagnostic {
     (
         $(msg = $msg:expr)?
@@ -82,6 +86,11 @@ impl ToDiagnostic for AstError {
                 AstError::ConversionError(err) => conversion_error_to_diagnostic(err, span),
                 AstError::Other(_, source) => gen_diagnostic!(source, span),
                 AstError::AttrError(source) => gen_diagnostic!(source, span),
+                AstError::IncludedFileNotFound(include) => gen_diagnostic!(
+                    msg = format!("Included file `{}` not found", include.path),
+                    label = include.path_span => "Included here",
+                ),
+
                 AstError::ValidationError(_) => todo!(),
             }
         } else {

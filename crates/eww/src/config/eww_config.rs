@@ -1,9 +1,8 @@
 use anyhow::*;
 use eww_shared_util::VarName;
 use std::collections::HashMap;
-use yuck::{
-    config::{script_var_definition::ScriptVarDefinition, widget_definition::WidgetDefinition},
-    parser::from_ast::FromAst,
+use yuck::config::{
+    file_provider::FsYuckFiles, script_var_definition::ScriptVarDefinition, widget_definition::WidgetDefinition, Config,
 };
 
 use simplexpr::dynval::DynVal;
@@ -17,30 +16,21 @@ pub struct EwwConfig {
     windows: HashMap<String, EwwWindowDefinition>,
     initial_variables: HashMap<VarName, DynVal>,
     script_vars: HashMap<VarName, ScriptVarDefinition>,
+    // files: FsYuckFiles,
 }
 impl EwwConfig {
-    pub fn read_from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self> {
-        let content = std::fs::read_to_string(path)?;
-        let ast = yuck::parser::parse_toplevel(0, &content)?;
-        let config = yuck::config::Config::from_ast(ast)?;
-        Self::generate(config)
-    }
-
-    pub fn generate(config: yuck::config::Config) -> Result<Self> {
-        let yuck::config::Config { widget_definitions, window_definitions, var_definitions, script_vars } = config;
+    pub fn read_from_file<P: AsRef<std::path::Path>>(files: &mut FsYuckFiles, path: P) -> Result<Self> {
+        let config = Config::generate_from_main_file(files, path.as_ref().to_str().context("Failed to decode path")?)?;
+        let Config { widget_definitions, window_definitions, var_definitions, script_vars } = config;
         Ok(EwwConfig {
             windows: window_definitions
                 .into_iter()
-                .map(|(name, window)| {
-                    Ok((
-                        name,
-                        EwwWindowDefinition::generate(&widget_definitions, window).context("Failed expand window definition")?,
-                    ))
-                })
+                .map(|(name, window)| Ok((name, EwwWindowDefinition::generate(&widget_definitions, window)?)))
                 .collect::<Result<HashMap<_, _>>>()?,
             widgets: widget_definitions,
             initial_variables: var_definitions.into_iter().map(|(k, v)| (k, v.initial_value)).collect(),
             script_vars,
+            // files,
         })
     }
 
@@ -71,41 +61,3 @@ impl EwwConfig {
         &self.widgets
     }
 }
-
-// Raw Eww configuration, before expanding widget usages.
-//#[derive(Debug, Clone)]
-// pub struct RawEwwConfig {
-// widgets: HashMap<String, WidgetDefinition>,
-// windows: HashMap<WindowName, RawEwwWindowDefinition>,
-// initial_variables: HashMap<VarName, DynVal>,
-// script_vars: HashMap<VarName, ScriptVar>,
-// pub filepath: PathBuf,
-//}
-
-// impl RawEwwConfig {
-// pub fn merge_includes(mut eww_config: RawEwwConfig, includes: Vec<RawEwwConfig>) -> Result<RawEwwConfig> {
-// let config_path = eww_config.filepath.clone();
-// let log_conflict = |what: &str, conflict: &str, included_path: &std::path::PathBuf| {
-// log::error!(
-//"{} '{}' defined twice (defined in {} and in {})",
-// what,
-// conflict,
-// config_path.display(),
-// included_path.display()
-//);
-//};
-// for included_config in includes {
-// for conflict in util::extend_safe(&mut eww_config.widgets, included_config.widgets) {
-// log_conflict("widget", &conflict, &included_config.filepath)
-//}
-// for conflict in util::extend_safe(&mut eww_config.windows, included_config.windows) {
-// log_conflict("window", &conflict.to_string(), &included_config.filepath)
-//}
-// for conflict in util::extend_safe(&mut eww_config.script_vars, included_config.script_vars) {
-// log_conflict("script-var", &conflict.to_string(), &included_config.filepath)
-//}
-// for conflict in util::extend_safe(&mut eww_config.initial_variables, included_config.initial_variables) {
-// log_conflict("var", &conflict.to_string(), &included_config.filepath)
-//}
-// Ok(eww_config)
-//}

@@ -14,7 +14,10 @@ use simplexpr::dynval::DynVal;
 use std::collections::HashMap;
 use tokio::sync::mpsc::UnboundedSender;
 use yuck::{
-    config::window_geometry::{AnchorPoint, WindowGeometry},
+    config::{
+        file_provider::FsYuckFiles,
+        window_geometry::{AnchorPoint, WindowGeometry},
+    },
     value::Coords,
 };
 
@@ -115,10 +118,13 @@ impl App {
                 DaemonCommand::ReloadConfigAndCss(sender) => {
                     let mut errors = Vec::new();
 
-                    let config_result = EwwConfig::read_from_file(&self.paths.get_yuck_path());
+                    let mut yuck_files = FsYuckFiles::new();
+                    let config_result = EwwConfig::read_from_file(&mut yuck_files, &self.paths.get_yuck_path());
                     match config_result {
                         Ok(new_config) => self.handle_command(DaemonCommand::UpdateConfig(new_config)),
-                        Err(e) => errors.push(e),
+                        Err(e) => {
+                            errors.push(e);
+                        }
                     }
 
                     let css_result = crate::util::parse_scss_from_file(&self.paths.get_eww_scss_path());
@@ -192,6 +198,13 @@ impl App {
                 }
             }
         };
+
+        // if let Err(err) = result {
+        // if let Some(ast_error) = err.root_cause().downcast_ref::<AstError>() {
+        // println!("ast error: {:?}", ast_error);
+        //} else {
+        // dbg!(err.root_cause());
+        //}
 
         crate::print_result_err!("while handling event", &result);
     }

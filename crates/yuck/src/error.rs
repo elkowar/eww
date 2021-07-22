@@ -1,5 +1,5 @@
 use crate::{
-    config::{attributes::AttrError, validate::ValidationError},
+    config::{attributes::AttrError, config::Include, validate::ValidationError},
     parser::{
         ast::{Ast, AstType},
         lexer, parse_error,
@@ -24,6 +24,9 @@ pub enum AstError {
     NotAValue(Span, AstType),
     #[error("Expected element {1}, but read {2}")]
     MismatchedElementName(Span, String, String),
+
+    #[error("Included file not found {}", .0.path)]
+    IncludedFileNotFound(Include),
 
     #[error(transparent)]
     ConversionError(#[from] dynval::ConversionError),
@@ -56,6 +59,7 @@ impl AstError {
             AstError::AttrError(err) => Some(err.span()),
             AstError::Other(span, ..) => *span,
             AstError::ConversionError(err) => err.value.span().map(|x| x.into()),
+            AstError::IncludedFileNotFound(include) => Some(include.path_span),
             AstError::ValidationError(error) => None, // TODO none here is stupid
             AstError::ParseError { file_id, source } => file_id.and_then(|id| get_parse_error_span(id, source)),
         }
