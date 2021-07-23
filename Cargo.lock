@@ -1889,6 +1889,7 @@ dependencies = [
  "itertools 0.10.1",
  "lalrpop",
  "lalrpop-util",
+ "lazy_static",
  "logos",
  "maplit",
  "regex",

@@ -58,6 +58,10 @@ macro_rules! regex_rules {
     }
 }
 
+lazy_static::lazy_static! {
+    static ref ESCAPE_REPLACE_REGEX: Regex = Regex::new(r"\\(.)").unwrap();
+}
+
 regex_rules! {
     r"\(" => |_| Token::LPren,
     r"\)" => |_| Token::RPren,
@@ -65,10 +69,10 @@ regex_rules! {
     r"\]" => |_| Token::RBrack,
     r"true" => |_| Token::True,
     r"false" => |_| Token::False,
-    r#""(?:[^"\\]|\\.)*""# => |x| Token::StrLit(x),
+    r#""(?:[^"\\]|\\.)*""# => |x| Token::StrLit(ESCAPE_REPLACE_REGEX.replace_all(&x, "$1").to_string()),
     r#"[+-]?(?:[0-9]+[.])?[0-9]+"# => |x| Token::NumLit(x),
     r#":[^\s\)\]}]+"# => |x| Token::Keyword(x),
-    r#"[a-zA-Z_!\?<>/\.\*-\+][^\s{}\(\)\[\](){}]*"# => |x| Token::Symbol(x),
+    r#"[a-zA-Z_!\?<>/\.\*-\+\-][^\s{}\(\)\[\](){}]*"# => |x| Token::Symbol(x),
     r#";.*"# => |_| Token::Comment,
     r"[ \t\n\f]+" => |_| Token::Skip
 }
@@ -133,6 +137,7 @@ impl Iterator for Lexer {
                     Some(x) => x,
                     None => {
                         self.failed = true;
+                        dbg!(&string);
                         return Some(Err(parse_error::ParseError::LexicalError(Span(self.pos, self.pos, self.file_id))));
                     }
                 };
@@ -149,4 +154,13 @@ impl Iterator for Lexer {
             }
         }
     }
+}
+
+#[cfg(test)]
+#[test]
+fn test_yuck_lexer() {
+    use itertools::Itertools;
+    insta::assert_debug_snapshot!(Lexer::new(0, r#"(foo + - "text" )"#.to_string()).collect_vec());
+    insta::assert_debug_snapshot!(Lexer::new(0, r#"{ bla "} \" }" " \" "}"#.to_string()).collect_vec());
+    insta::assert_debug_snapshot!(Lexer::new(0, r#""< \" >""#.to_string()).collect_vec());
 }

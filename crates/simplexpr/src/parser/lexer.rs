@@ -1,4 +1,9 @@
 use logos::Logos;
+use regex::Regex;
+
+lazy_static::lazy_static! {
+    static ref ESCAPE_REPLACE_REGEX: Regex = Regex::new(r"\\(.)").unwrap();
+}
 
 #[rustfmt::skip]
 #[derive(Logos, Debug, PartialEq, Eq, Clone, strum::Display, strum::EnumString)]
@@ -34,7 +39,7 @@ pub enum Token {
     Ident(String),
     #[regex(r"[+-]?(?:[0-9]+[.])?[0-9]+", |x| x.slice().to_string())]
     NumLit(String),
-    #[regex(r#""(?:[^"\\]|\\.)*""#, |x| x.slice().to_string())]
+    #[regex(r#""(?:[^"\\]|\\.)*""#, |x| ESCAPE_REPLACE_REGEX.replace_all(x.slice(), "$1").to_string())]
     StrLit(String),
 
 
@@ -77,4 +82,11 @@ impl<'input> Iterator for Lexer<'input> {
             Some(Ok((range.0, token, range.1)))
         }
     }
+}
+
+#[cfg(test)]
+#[test]
+fn test_simplexpr_lexer() {
+    use itertools::Itertools;
+    insta::assert_debug_snapshot!(Lexer::new(0, r#"(foo + - "()" "a\"b" true false [] 12.2)"#).collect_vec());
 }

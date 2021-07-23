@@ -47,7 +47,7 @@ impl std::fmt::Display for SimplExpr {
             SimplExpr::Literal(_, x) => write!(f, "\"{}\"", x),
             SimplExpr::BinOp(_, l, op, r) => write!(f, "({} {} {})", l, op, r),
             SimplExpr::UnaryOp(_, op, x) => write!(f, "{}{}", op, x),
-            SimplExpr::IfElse(_, a, b, c) => write!(f, "(if {} then {} else {})", a, b, c),
+            SimplExpr::IfElse(_, a, b, c) => write!(f, "({} ? {} : {})", a, b, c),
             SimplExpr::JsonAccess(_, value, index) => write!(f, "{}[{}]", value, index),
             SimplExpr::FunctionCall(_, function_name, args) => {
                 write!(f, "{}({})", function_name, args.iter().join(", "))
