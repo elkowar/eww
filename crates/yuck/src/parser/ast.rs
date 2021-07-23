@@ -2,7 +2,7 @@ use itertools::Itertools;
 use simplexpr::{ast::SimplExpr, dynval::DynVal};
 use std::collections::HashMap;
 
-use eww_shared_util::Span;
+use eww_shared_util::{Span, VarName};
 use std::fmt::Display;
 
 use super::{ast_iterator::AstIterator, from_ast::FromAst};
@@ -94,10 +94,10 @@ impl Ast {
 
     pub fn as_simplexpr(self) -> AstResult<SimplExpr> {
         match self {
-            // do I do this?
-            // Ast::Array(_, _) => todo!(),
-            // Ast::Symbol(_, _) => todo!(),
-            Ast::Literal(span, x) => Ok(SimplExpr::Literal(span.into(), x)),
+            // TODO do I do this?
+            // Ast::Array(span, elements) => todo!()
+            Ast::Symbol(span, x) => Ok(SimplExpr::VarRef(span, VarName(x))),
+            Ast::Literal(span, x) => Ok(SimplExpr::Literal(span, x)),
             Ast::SimplExpr(span, x) => Ok(x),
             _ => Err(AstError::WrongExprType(self.span(), AstType::IntoPrimitive, self.expr_type())),
         }
@@ -126,16 +126,6 @@ impl std::fmt::Display for Ast {
 }
 impl std::fmt::Debug for Ast {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use Ast::*;
         write!(f, "{}", self)
-        // match self {
-        // List(span, x) => f.debug_tuple(&format!("List<{}>", span)).field(x).finish(),
-        // Array(span, x) => f.debug_tuple(&format!("Array<{}>", span)).field(x).finish(),
-        // Keyword(span, x) => write!(f, "Number<{}>({})", span, x),
-        // Symbol(span, x) => write!(f, "Symbol<{}>({})", span, x),
-        // Value(span, x) => write!(f, "Value<{}>({})", span, x),
-        // SimplExpr(span, x) => write!(f, "SimplExpr<{}>({})", span, x),
-        // Comment(span) => write!(f, "Comment<{}>", span),
-        //}
     }
 }

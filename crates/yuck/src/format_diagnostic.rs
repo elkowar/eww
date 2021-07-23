@@ -33,6 +33,20 @@ macro_rules! gen_diagnostic {
     }};
 }
 
+pub trait DiagnosticExt: Sized {
+    fn with_opt_label(self, label: Option<Label<usize>>) -> Self;
+}
+
+impl DiagnosticExt for Diagnostic<usize> {
+    fn with_opt_label(self, label: Option<Label<usize>>) -> Self {
+        if let Some(label) = label {
+            self.with_labels(vec![label])
+        } else {
+            self
+        }
+    }
+}
+
 pub trait ToDiagnostic {
     fn to_diagnostic(&self) -> Diagnostic<usize>;
 }
@@ -49,10 +63,8 @@ impl ToDiagnostic for AstError {
                     let diag = gen_diagnostic! {
                         msg = format!("{}", error),
                     };
-                    diag.with_labels(vec![
-                        Label::secondary(use_span.2, use_span.0..use_span.1).with_message("Argument missing here"),
-                        Label::secondary(arg_list_span.2, arg_list_span.0..arg_list_span.1).with_message("but is required here"),
-                    ])
+                    diag.with_opt_label(Some(span_to_secondary_label(*use_span).with_message("Argument missing here")))
+                        .with_opt_label(arg_list_span.map(|s| span_to_secondary_label(s).with_message("but is required here")))
                 }
             }
         } else if let Some(span) = self.get_span() {
@@ -76,7 +88,7 @@ impl ToDiagnostic for AstError {
 
                 AstError::ParseError { file_id, source } => lalrpop_error_to_diagnostic(source, span, |error| match error {
                     parse_error::ParseError::SimplExpr(_, error) => simplexpr_error_to_diagnostic(error, span),
-                    parse_error::ParseError::LexicalError(_) => lexical_error_to_diagnostic(span),
+                    parse_error::ParseError::LexicalError(span) => lexical_error_to_diagnostic(*span),
                 }),
                 AstError::MismatchedElementName(_, expected, got) => gen_diagnostic! {
                     msg = format!("Expected element `{}`, but found `{}`", expected, got),
@@ -120,15 +132,21 @@ fn lalrpop_error_to_diagnostic<T: std::fmt::Display, E>(
     }
 }
 
-fn simplexpr_error_to_diagnostic(error: &simplexpr::error::Error, span: Span) -> Diagnostic<usize> {
+// TODO this needs a lot of improvement
+pub fn simplexpr_error_to_diagnostic(error: &simplexpr::error::Error, span: Span) -> Diagnostic<usize> {
     use simplexpr::error::Error::*;
     match error {
         ParseError { source, .. } => lalrpop_error_to_diagnostic(source, span, move |error| lexical_error_to_diagnostic(span)),
         ConversionError(error) => conversion_error_to_diagnostic(error, span),
-        Eval(error) => gen_diagnostic!(error, span),
+        Eval(error) => eval_error_to_diagnostic(error, span),
         Other(error) => gen_diagnostic!(error, span),
-        Spanned(_, error) => gen_diagnostic!(error, span),
+        Spanned(span, error) => gen_diagnostic!(error, span),
     }
+}
+
+// TODO this needs a lot of improvement
+pub fn eval_error_to_diagnostic(error: &simplexpr::eval::EvalError, span: Span) -> Diagnostic<usize> {
+    gen_diagnostic!(error, error.span().unwrap_or(span))
 }
 
 fn conversion_error_to_diagnostic(error: &dynval::ConversionError, span: Span) -> Diagnostic<usize> {

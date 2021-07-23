@@ -6,7 +6,7 @@ use std::{fmt, iter::FromIterator, str::FromStr};
 pub type Result<T> = std::result::Result<T, ConversionError>;
 
 #[derive(Debug, thiserror::Error)]
-#[error("Failed to turn {value} into a value of type {target_type}")]
+#[error("Failed to turn `{value}` into a value of type {target_type}")]
 pub struct ConversionError {
     pub value: DynVal,
     pub target_type: &'static str,
@@ -92,6 +92,12 @@ macro_rules! impl_dynval_from {
 }
 
 impl_dynval_from!(bool, i32, u32, f32, u8, f64, &str);
+
+impl From<std::time::Duration> for DynVal {
+    fn from(d: std::time::Duration) -> Self {
+        DynVal(format!("{}ms", d.as_millis()), None)
+    }
+}
 
 impl From<&serde_json::Value> for DynVal {
     fn from(v: &serde_json::Value) -> Self {

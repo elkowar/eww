@@ -64,18 +64,7 @@ fn build_builtin_gtk_widget(
 ) -> Result<Option<gtk::Widget>> {
     let mut bargs =
         BuilderArgs { eww_state, widget, window_name, unhandled_attrs: widget.attrs.keys().collect(), widget_definitions };
-    let gtk_widget = match widget_to_gtk_widget(&mut bargs) {
-        Ok(Some(gtk_widget)) => gtk_widget,
-        result => {
-            return result.with_context(|| {
-                format!(
-                    "{}Error building widget {}",
-                    bargs.widget.span.map(|x| format!("{} |", x)).unwrap_or_default(),
-                    bargs.widget.name,
-                )
-            })
-        }
-    };
+    let gtk_widget = widget_to_gtk_widget(&mut bargs)?;
 
     // run resolve functions for superclasses such as range, orientable, and widget
 
@@ -85,7 +74,7 @@ fn build_builtin_gtk_widget(
             let child_widget = child.render(bargs.eww_state, window_name, widget_definitions).with_context(|| {
                 format!(
                     "{}error while building child '{:#?}' of '{}'",
-                    widget.span.map(|x| format!("{} |", x)).unwrap_or_default(),
+                    format!("{} | ", widget.span),
                     &child,
                     &gtk_widget.get_widget_name()
                 )
@@ -106,7 +95,7 @@ fn build_builtin_gtk_widget(
     if !bargs.unhandled_attrs.is_empty() {
         log::error!(
             "{}: Unknown attribute used in {}: {}",
-            widget.span.map(|x| format!("{} | ", x)).unwrap_or_default(),
+            format!("{} | ", widget.span),
             widget.name,
             bargs.unhandled_attrs.iter().map(|x| x.to_string()).join(", ")
         )

@@ -56,11 +56,12 @@ pub type SpannedResult<Tok, Loc, Error> = Result<(Loc, Tok, Loc), Error>;
 
 pub struct Lexer<'input> {
     lexer: logos::SpannedIter<'input, Token>,
+    byte_offset: usize,
 }
 
 impl<'input> Lexer<'input> {
-    pub fn new(text: &'input str) -> Self {
-        Lexer { lexer: logos::Lexer::new(text).spanned() }
+    pub fn new(byte_offset: usize, text: &'input str) -> Self {
+        Lexer { lexer: logos::Lexer::new(text).spanned(), byte_offset }
     }
 }
 
@@ -69,10 +70,11 @@ impl<'input> Iterator for Lexer<'input> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let (token, range) = self.lexer.next()?;
+        let range = (range.start + self.byte_offset, range.end + self.byte_offset);
         if token == Token::Error {
-            Some(Err(LexicalError(range.start, range.end)))
+            Some(Err(LexicalError(range.0, range.1)))
         } else {
-            Some(Ok((range.start, token, range.end)))
+            Some(Ok((range.0, token, range.1)))
         }
     }
 }

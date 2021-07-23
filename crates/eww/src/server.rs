@@ -1,7 +1,12 @@
-use crate::{EwwPaths, app, config, error_handling_ctx, eww_state::*, ipc_server, script_var_handler, util};
+use crate::{app, config, error_handling_ctx, eww_state::*, ipc_server, script_var_handler, util, EwwPaths};
 use anyhow::*;
-use yuck::config::file_provider::FsYuckFiles;
-use std::{collections::HashMap, os::unix::io::AsRawFd, path::Path};
+
+use std::{
+    collections::HashMap,
+    os::unix::io::AsRawFd,
+    path::Path,
+    sync::{atomic::Ordering, Arc},
+};
 use tokio::sync::mpsc::*;
 
 pub fn initialize_server(paths: EwwPaths) -> Result<()> {
@@ -29,10 +34,10 @@ pub fn initialize_server(paths: EwwPaths) -> Result<()> {
 
     log::info!("Loading paths: {}", &paths);
 
-
+    // disgusting global state, I hate this, but https://github.com/buffet told me that this is what I should do for peak maintainability
     error_handling_ctx::clear_files();
-
-    let eww_config = config::EwwConfig::read_from_file(&mut error_handling_ctx::ERROR_HANDLING_CTX.lock().unwrap(), &paths.get_yuck_path())?;
+    let eww_config =
+        config::EwwConfig::read_from_file(&mut error_handling_ctx::ERROR_HANDLING_CTX.lock().unwrap(), &paths.get_yuck_path())?;
 
     gtk::init()?;
 
@@ -109,27 +114,36 @@ fn init_async_part(paths: EwwPaths, ui_send: UnboundedSender<app::DaemonCommand>
 
 /// Watch configuration files for changes, sending reload events to the eww app when the files change.
 async fn run_filewatch<P: AsRef<Path>>(config_dir: P, evt_send: UnboundedSender<app::DaemonCommand>) -> Result<()> {
-    use notify::Watcher;
+    use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-    let mut watcher: notify::RecommendedWatcher =
-        notify::Watcher::new_immediate(move |res: notify::Result<notify::Event>| match res {
-            Ok(event) => {
-                if let Err(err) = tx.send(event.paths) {
+    let mut watcher: RecommendedWatcher = Watcher::new_immediate(move |res: notify::Result<notify::Event>| match res {
+        Ok(event) => {
+            let relevant_files_changed = event.paths.iter().any(|path| {
+                let ext = path.extension().unwrap_or_default();
+                ext == "yuck" || ext == "scss"
+            });
+            if !relevant_files_changed {
+                if let Err(err) = tx.send(()) {
                     log::warn!("Error forwarding file update event: {:?}", err);
                 }
             }
-            Err(e) => log::error!("Encountered Error While Watching Files: {}", e),
-        })?;
-    watcher.watch(&config_dir, notify::RecursiveMode::Recursive)?;
+        }
+        Err(e) => log::error!("Encountered Error While Watching Files: {}", e),
+    })?;
+    watcher.watch(&config_dir, RecursiveMode::Recursive)?;
+
+    // make sure to not trigger reloads too much by only accepting one reload every 500ms.
+    let debounce_done = Arc::new(std::sync::atomic::AtomicBool::new(true));
 
     crate::loop_select_exiting! {
-        Some(paths) = rx.recv() => {
-            for path in paths {
-                let extension = path.extension().unwrap_or_default();
-                if extension != "xml" && extension != "scss" {
-                    continue;
-                }
+        Some(()) = rx.recv() => {
+            let debounce_done = debounce_done.clone();
+            if debounce_done.swap(false, Ordering::SeqCst) {
+                tokio::spawn(async move {
+                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                    debounce_done.store(true, Ordering::SeqCst);
+                });
 
                 let (daemon_resp_sender, mut daemon_resp_response) = tokio::sync::mpsc::unbounded_channel();
                 evt_send.send(app::DaemonCommand::ReloadConfigAndCss(daemon_resp_sender))?;

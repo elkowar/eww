@@ -97,7 +97,7 @@ impl Iterator for Lexer {
             let string = &self.source[self.pos..];
 
             if string.starts_with('{') {
-                self.pos += 1;
+                // self.pos += 1;
                 let expr_start = self.pos;
                 let mut in_string = false;
                 loop {
@@ -107,8 +107,8 @@ impl Iterator for Lexer {
                     let string = &self.source[self.pos..];
 
                     if string.starts_with('}') && !in_string {
-                        let tok_str = &self.source[expr_start..self.pos];
                         self.pos += 1;
+                        let tok_str = &self.source[expr_start..self.pos];
                         return Some(Ok((expr_start, Token::SimplExpr(tok_str.to_string()), self.pos - 1)));
                     } else if string.starts_with('"') {
                         self.pos += 1;

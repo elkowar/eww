@@ -89,20 +89,6 @@ fn get_parse_error_span(
     }
 }
 
-// pub fn spanned(span: Span, err: impl Into<AstError>) -> AstError {
-// use AstError::*;
-// match err.into() {
-// UnknownToplevel(s, x) => UnknownToplevel(Some(s.unwrap_or(span)), x),
-// MissingNode(s) => MissingNode(Some(s.unwrap_or(span))),
-// WrongExprType(s, x, y) => WrongExprType(Some(s.unwrap_or(span)), x, y),
-// UnknownToplevel(s, x) => UnknownToplevel(Some(s.unwrap_or(span)), x),
-// MissingNode(s) => MissingNode(Some(s.unwrap_or(span))),
-// NotAValue(s, x) => NotAValue(Some(s.unwrap_or(span)), x),
-// MismatchedElementName(s, expected, got) => MismatchedElementName(Some(s.unwrap_or(span)), expected, got),
-// Other(s, x) => Other(Some(s.unwrap_or(span)), x),
-// x @ ConversionError(_) | x @ AttrError(_) | x @ ValidationError(_) | x @ ParseError { .. } => x,
-//}
-
 pub trait OptionAstErrorExt<T> {
     fn or_missing(self, span: Span) -> Result<T, AstError>;
 }

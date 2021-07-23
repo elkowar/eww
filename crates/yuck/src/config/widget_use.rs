@@ -17,20 +17,22 @@ pub struct WidgetUse {
     pub attrs: Attributes,
     pub children: Vec<WidgetUse>,
     pub span: Span,
+    pub name_span: Span,
 }
 
 impl FromAst for WidgetUse {
     fn from_ast(e: Ast) -> AstResult<Self> {
         let span = e.span();
-        if let Ok(text) = e.as_literal_ref() {
+        if let Ok(value) = e.clone().as_simplexpr() {
             Ok(Self {
                 name: "label".to_string(),
+                name_span: span.point_span(),
                 attrs: Attributes::new(
-                    span.into(),
+                    span,
                     maplit::hashmap! {
                         AttrName("text".to_string()) => AttrEntry::new(
-                            span.into(),
-                            Ast::Literal(span.into(), text.clone())
+                            span,
+                            Ast::SimplExpr(span.into(), value.clone())
                         )
                     },
                 ),
@@ -39,10 +41,10 @@ impl FromAst for WidgetUse {
             })
         } else {
             let mut iter = e.try_ast_iter()?;
-            let (_, name) = iter.expect_symbol()?;
+            let (name_span, name) = iter.expect_symbol()?;
             let attrs = iter.expect_key_values()?;
             let children = iter.map(WidgetUse::from_ast).collect::<AstResult<Vec<_>>>()?;
-            Ok(Self { name, attrs, children, span })
+            Ok(Self { name, attrs, children, span, name_span })
         }
     }
 }

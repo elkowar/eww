@@ -1,23 +1,19 @@
 #![allow(clippy::option_map_unit_fn)]
 use super::{run_command, BuilderArgs};
-use crate::{
-    enum_parse, eww_state, resolve_block,
-    util::{list_difference, parse_duration},
-    widgets::widget_node,
-};
+use crate::{enum_parse, eww_state, resolve_block, util::list_difference, widgets::widget_node};
 use anyhow::*;
 use gdk::WindowExt;
 use glib;
 use gtk::{self, prelude::*, ImageExt};
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
-use yuck::parser::from_ast::FromAst;
+use std::{cell::RefCell, collections::HashMap, rc::Rc, time::Duration};
+use yuck::{config::validate::ValidationError, error::AstError, parser::from_ast::FromAst};
 
 // TODO figure out how to
 // TODO https://developer.gnome.org/gtk3/stable/GtkFixed.html
 
 //// widget definitions
 
-pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<Option<gtk::Widget>> {
+pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::Widget> {
     let gtk_widget = match bargs.widget.name.as_str() {
         "box" => build_gtk_box(bargs)?.upcast(),
         "scale" => build_gtk_scale(bargs)?.upcast(),
@@ -35,9 +31,11 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<Option<gtk
         "checkbox" => build_gtk_checkbox(bargs)?.upcast(),
         "revealer" => build_gtk_revealer(bargs)?.upcast(),
         "if-else" => build_if_else(bargs)?.upcast(),
-        _ => return Ok(None),
+        _ => {
+            Err(AstError::ValidationError(ValidationError::UnknownWidget(bargs.widget.name_span, bargs.widget.name.to_string())))?
+        }
     };
-    Ok(Some(gtk_widget))
+    Ok(gtk_widget)
 }
 
 /// attributes that apply to all widgets
@@ -287,7 +285,7 @@ fn build_gtk_revealer(bargs: &mut BuilderArgs) -> Result<gtk::Revealer> {
         // @prop reveal - sets if the child is revealed or not
         prop(reveal: as_bool) { gtk_widget.set_reveal_child(reveal); },
         // @prop duration - the duration of the reveal transition
-        prop(duration: as_string = "500ms") { gtk_widget.set_transition_duration(parse_duration(&duration)?.as_millis() as u32); },
+        prop(duration: as_duration = Duration::from_millis(500)) { gtk_widget.set_transition_duration(duration.as_millis() as u32); },
     });
     Ok(gtk_widget)
 }

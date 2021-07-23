@@ -19,6 +19,4 @@ lalrpop_mod!(
     pub simplexpr_parser
 );
 
-pub fn parse_string(file_id: usize, s: &str) -> Result<SimplExpr, error::Error> {
-    parser::parse_string(file_id, s)
-}
+pub use parser::parse_string;

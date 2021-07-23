@@ -4,7 +4,10 @@ use dyn_clone;
 use eww_shared_util::{AttrName, Span, VarName};
 use simplexpr::SimplExpr;
 use std::collections::HashMap;
-use yuck::config::{widget_definition::WidgetDefinition, widget_use::WidgetUse};
+use yuck::{
+    config::{validate::ValidationError, widget_definition::WidgetDefinition, widget_use::WidgetUse},
+    error::AstError,
+};
 
 pub trait WidgetNode: std::fmt::Debug + dyn_clone::DynClone + Send + Sync {
     fn get_name(&self) -> &str;
@@ -14,9 +17,8 @@ pub trait WidgetNode: std::fmt::Debug + dyn_clone::DynClone + Send + Sync {
     ///
     /// Also registers all the necessary state-change handlers in the eww_state.
     ///
-    /// This may return `Err` in case there was an actual error while parsing or
-    /// resolving the widget, Or `Ok(None)` if the widget_use just didn't match any
-    /// widget name.
+    /// This may return `Err` in case there was an actual error while parsing
+    /// or when the widget_use did not match any widget name
     fn render(
         &self,
         eww_state: &mut EwwState,
@@ -56,14 +58,23 @@ impl WidgetNode for UserDefined {
 #[derive(Debug, Clone)]
 pub struct Generic {
     pub name: String,
-    pub span: Option<Span>,
+    pub name_span: Span,
+    pub span: Span,
     pub children: Vec<Box<dyn WidgetNode>>,
     pub attrs: HashMap<AttrName, SimplExpr>,
 }
 
 impl Generic {
     pub fn get_attr(&self, key: &str) -> Result<&SimplExpr> {
-        self.attrs.get(key).context(format!("attribute '{}' missing from use of '{}'", key, &self.name))
+        Ok(self.attrs.get(key).ok_or_else(|| {
+            AstError::ValidationError(ValidationError::MissingAttr {
+                widget_name: self.name.to_string(),
+                arg_name: AttrName(key.to_string()),
+                use_span: self.span,
+                // TODO set this when available
+                arg_list_span: None,
+            })
+        })?)
     }
 
     /// returns all the variables that are referenced in this widget
@@ -78,7 +89,7 @@ impl WidgetNode for Generic {
     }
 
     fn get_span(&self) -> Option<Span> {
-        self.span
+        Some(self.span)
     }
 
     fn render(
@@ -87,8 +98,9 @@ impl WidgetNode for Generic {
         window_name: &str,
         widget_definitions: &HashMap<String, WidgetDefinition>,
     ) -> Result<gtk::Widget> {
-        crate::widgets::build_builtin_gtk_widget(eww_state, window_name, widget_definitions, self)?
-            .with_context(|| format!("Unknown widget '{}'", self.get_name()))
+        Ok(crate::widgets::build_builtin_gtk_widget(eww_state, window_name, widget_definitions, self)?.ok_or_else(|| {
+            AstError::ValidationError(ValidationError::UnknownWidget(self.name_span, self.get_name().to_string()))
+        })?)
     }
 }
 
@@ -112,7 +124,8 @@ pub fn generate_generic_widget_node(
     } else {
         Ok(Box::new(Generic {
             name: w.name,
-            span: Some(w.span),
+            name_span: w.name_span,
+            span: w.span,
             attrs: w
                 .attrs
                 .attrs

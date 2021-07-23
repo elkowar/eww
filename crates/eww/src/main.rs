@@ -38,7 +38,6 @@ fn main() {
 
     let log_level_filter = if opts.log_debug { log::LevelFilter::Debug } else { log::LevelFilter::Info };
     if std::env::var("RUST_LOG").is_ok() {
-        println!("hey");
         pretty_env_logger::init_timed();
     } else {
         pretty_env_logger::formatted_timed_builder().filter(Some("eww"), log_level_filter).init();
@@ -94,7 +93,7 @@ fn main() {
     };
 
     if let Err(e) = result {
-        error_handling_ctx::print_error(e);
+        error_handling_ctx::print_error(&e);
         std::process::exit(1);
     }
 }

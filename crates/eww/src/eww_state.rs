@@ -4,6 +4,8 @@ use std::{collections::HashMap, sync::Arc};
 
 use simplexpr::{dynval::DynVal, SimplExpr};
 
+use crate::error_handling_ctx;
+
 /// Handler that gets executed to apply the necessary parts of the eww state to
 /// a gtk widget. These are created and initialized in EwwState::resolve.
 pub struct StateChangeHandler {
@@ -28,9 +30,13 @@ impl StateChangeHandler {
 
         match resolved_attrs {
             Ok(resolved_attrs) => {
-                crate::print_result_err!("while updating UI based after state change", &(self.func)(resolved_attrs))
+                if let Err(err) = &(self.func)(resolved_attrs).context("Error while updating UI after state change") {
+                    error_handling_ctx::print_error(&err);
+                }
             }
-            Err(err) => log::error!("Error while resolving attributes: {:?}", err),
+            Err(err) => {
+                error_handling_ctx::print_error(&err);
+            }
         }
     }
 }

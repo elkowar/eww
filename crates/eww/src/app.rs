@@ -1,9 +1,4 @@
-use crate::{
-    config::{self, EwwConfig},
-    display_backend, error_handling_ctx, eww_state,
-    script_var_handler::*,
-    EwwPaths,
-};
+use crate::{config, display_backend, error_handling_ctx, eww_state, script_var_handler::*, EwwPaths};
 use anyhow::*;
 use debug_stub_derive::*;
 use eww_shared_util::VarName;
@@ -14,10 +9,7 @@ use simplexpr::dynval::DynVal;
 use std::collections::HashMap;
 use tokio::sync::mpsc::UnboundedSender;
 use yuck::{
-    config::{
-        file_provider::FsYuckFiles,
-        window_geometry::{AnchorPoint, WindowGeometry},
-    },
+    config::window_geometry::{AnchorPoint, WindowGeometry},
     value::Coords,
 };
 
@@ -123,20 +115,18 @@ impl App {
                         &mut error_handling_ctx::ERROR_HANDLING_CTX.lock().unwrap(),
                         &self.paths.get_yuck_path(),
                     );
-                    match config_result {
-                        Ok(new_config) => self.handle_command(DaemonCommand::UpdateConfig(new_config)),
-                        Err(e) => {
-                            errors.push(e);
-                        }
-                    }
-
-                    let css_result = crate::util::parse_scss_from_file(&self.paths.get_eww_scss_path());
-                    match css_result {
-                        Ok(new_css) => self.handle_command(DaemonCommand::UpdateCss(new_css)),
+                    match config_result.and_then(|new_config| self.load_config(new_config)) {
+                        Ok(()) => {}
                         Err(e) => errors.push(e),
                     }
 
-                    let errors = errors.into_iter().map(|e| error_handling_ctx::format_error(e)).join("\n");
+                    let css_result = crate::util::parse_scss_from_file(&self.paths.get_eww_scss_path());
+                    match css_result.and_then(|css| self.load_css(&css)) {
+                        Ok(()) => {}
+                        Err(e) => errors.push(e),
+                    }
+
+                    let errors = errors.into_iter().map(|e| error_handling_ctx::format_error(&e)).join("\n");
                     if errors.is_empty() {
                         sender.send(DaemonResponse::Success(String::new()))?;
                     } else {
@@ -202,14 +192,9 @@ impl App {
             }
         };
 
-        // if let Err(err) = result {
-        // if let Some(ast_error) = err.root_cause().downcast_ref::<AstError>() {
-        // println!("ast error: {:?}", ast_error);
-        //} else {
-        // dbg!(err.root_cause());
-        //}
-
-        crate::print_result_err!("while handling event", &result);
+        if let Err(err) = result {
+            error_handling_ctx::print_error(&err);
+        }
     }
 
     fn stop_application(&mut self) {
@@ -397,7 +382,7 @@ fn get_monitor_geometry(n: i32) -> gdk::Rectangle {
 fn respond_with_error<T>(sender: DaemonResponseSender, result: Result<T>) -> Result<()> {
     match result {
         Ok(_) => sender.send(DaemonResponse::Success(String::new())),
-        Err(e) => sender.send(DaemonResponse::Failure(error_handling_ctx::format_error(e))),
+        Err(e) => sender.send(DaemonResponse::Failure(error_handling_ctx::format_error(&e))),
     }
     .context("sending response from main thread")
 }

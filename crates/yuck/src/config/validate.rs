@@ -16,7 +16,7 @@ pub enum ValidationError {
     UnknownWidget(Span, String),
 
     #[error("Missing attribute `{arg_name}` in use of widget `{widget_name}`")]
-    MissingAttr { widget_name: String, arg_name: AttrName, arg_list_span: Span, use_span: Span },
+    MissingAttr { widget_name: String, arg_name: AttrName, arg_list_span: Option<Span>, use_span: Span },
 }
 
 pub fn validate(defs: &HashMap<String, WidgetDefinition>, content: &WidgetUse) -> Result<(), ValidationError> {
@@ -26,7 +26,7 @@ pub fn validate(defs: &HashMap<String, WidgetDefinition>, content: &WidgetUse) -
                 return Err(ValidationError::MissingAttr {
                     widget_name: def.name.to_string(),
                     arg_name: expected.clone(),
-                    arg_list_span: def.args_span,
+                    arg_list_span: Some(def.args_span),
                     use_span: content.span,
                 });
             }
