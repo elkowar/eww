@@ -12,24 +12,25 @@ fn span_to_secondary_label(span: Span) -> Label<usize> {
     Label::secondary(span.2, span.0..span.1)
 }
 
+#[macro_export]
 macro_rules! gen_diagnostic {
     (
         $(msg = $msg:expr)?
         $(, label = $span:expr $(=> $label:expr)?)?
         $(, note = $note:expr)? $(,)?
     ) => {
-        Diagnostic::error()
+        ::codespan_reporting::diagnostic::Diagnostic::error()
             $(.with_message($msg.to_string()))?
             $(.with_labels(vec![
-                Label::primary($span.2, $span.0..$span.1)
+                ::codespan_reporting::diagnostic::Label::primary($span.2, $span.0..$span.1)
                     $(.with_message($label))?
             ]))?
             $(.with_notes(vec![$note]))?
     };
     ($msg:expr $(, $span:expr $(,)?)?) => {{
-        Diagnostic::error()
+        ::codespan_reporting::diagnostic::Diagnostic::error()
             .with_message($msg.to_string())
-            $(.with_labels(vec![Label::primary($span.2, $span.0..$span.1)]))?
+            $(.with_labels(vec![::codespan_reporting::diagnostic::Label::primary($span.2, $span.0..$span.1)]))?
     }};
 }
 

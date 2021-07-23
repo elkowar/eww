@@ -9,6 +9,8 @@ use yuck::{
     format_diagnostic::{eval_error_to_diagnostic, ToDiagnostic},
 };
 
+use crate::error::DiagError;
+
 lazy_static::lazy_static! {
     pub static ref ERROR_HANDLING_CTX: Arc<Mutex<FsYuckFiles>> = Arc::new(Mutex::new(FsYuckFiles::new()));
 }
@@ -18,29 +20,25 @@ pub fn clear_files() {
 }
 
 pub fn print_error(err: &anyhow::Error) {
-    match err.downcast_ref::<AstError>() {
-        Some(err) => {
-            eprintln!("{:?}\n{}", err, stringify_diagnostic(err.to_diagnostic()));
-        }
-        None => match err.downcast_ref::<EvalError>() {
-            Some(err) => {
-                eprintln!("{:?}\n{}", err, stringify_diagnostic(eval_error_to_diagnostic(err, err.span().unwrap_or(DUMMY_SPAN))));
-            }
-            None => {
-                log::error!("{:?}", err);
-            }
-        },
+    if let Some(err) = err.downcast_ref::<DiagError>() {
+        eprintln!("{:?}\n{}", err, stringify_diagnostic(&err.diag));
+    } else if let Some(err) = err.downcast_ref::<AstError>() {
+        eprintln!("{:?}\n{}", err, stringify_diagnostic(&err.to_diagnostic()));
+    } else if let Some(err) = err.downcast_ref::<EvalError>() {
+        eprintln!("{:?}\n{}", err, stringify_diagnostic(&eval_error_to_diagnostic(err, err.span().unwrap_or(DUMMY_SPAN))));
+    } else {
+        log::error!("{:?}", err);
     }
 }
 
 pub fn format_error(err: &anyhow::Error) -> String {
     match err.downcast_ref::<AstError>() {
-        Some(err) => stringify_diagnostic(err.to_diagnostic()),
+        Some(err) => stringify_diagnostic(&err.to_diagnostic()),
         None => format!("{:?}", err),
     }
 }
 
-pub fn stringify_diagnostic(diagnostic: Diagnostic<usize>) -> String {
+pub fn stringify_diagnostic(diagnostic: &Diagnostic<usize>) -> String {
     use codespan_reporting::term;
     let config = term::Config::default();
     let mut buf = Vec::new();

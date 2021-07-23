@@ -12,7 +12,7 @@ use super::{
     window_definition::WindowDefinition,
 };
 use crate::{
-    config::script_var_definition::{PollScriptVar, TailScriptVar},
+    config::script_var_definition::{ListenScriptVar, PollScriptVar},
     error::{AstError, AstResult, OptionAstErrorExt},
     parser::{
         ast::Ast,
@@ -59,8 +59,8 @@ impl FromAst for TopLevel {
             x if x == PollScriptVar::get_element_name() => {
                 Self::ScriptVarDefinition(ScriptVarDefinition::Poll(PollScriptVar::from_tail(span, iter)?))
             }
-            x if x == TailScriptVar::get_element_name() => {
-                Self::ScriptVarDefinition(ScriptVarDefinition::Tail(TailScriptVar::from_tail(span, iter)?))
+            x if x == ListenScriptVar::get_element_name() => {
+                Self::ScriptVarDefinition(ScriptVarDefinition::Listen(ListenScriptVar::from_tail(span, iter)?))
             }
             x if x == WindowDefinition::get_element_name() => Self::WindowDefinition(WindowDefinition::from_tail(span, iter)?),
             x => return Err(AstError::UnknownToplevel(sym_span, x.to_string())),

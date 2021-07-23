@@ -32,6 +32,7 @@ pub mod script_var_handler;
 pub mod server;
 pub mod util;
 pub mod widgets;
+pub mod error;
 
 fn main() {
     let opts: opts::Opt = opts::Opt::from_env();

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::app;
+use crate::{app, config::create_script_var_failed_error};
 use anyhow::*;
 use app::DaemonCommand;
 
@@ -11,7 +11,7 @@ use tokio::{
     sync::mpsc::UnboundedSender,
 };
 use tokio_util::sync::CancellationToken;
-use yuck::config::script_var_definition::{PollScriptVar, ScriptVarDefinition, TailScriptVar};
+use yuck::config::script_var_definition::{ListenScriptVar, PollScriptVar, ScriptVarDefinition, VarSource};
 
 /// Initialize the script var handler, and return a handle to that handler, which can be used to control
 /// the script var execution.
@@ -23,7 +23,7 @@ pub fn init(evt_send: UnboundedSender<DaemonCommand>) -> ScriptVarHandlerHandle 
         rt.block_on(async {
             let _: Result<_> = try {
                 let mut handler = ScriptVarHandler {
-                    tail_handler: TailVarHandler::new(evt_send.clone())?,
+                    listen_handler: ListenVarHandler::new(evt_send.clone())?,
                     poll_handler: PollVarHandler::new(evt_send)?,
                 };
                 crate::loop_select_exiting! {
@@ -87,7 +87,7 @@ enum ScriptVarHandlerMsg {
 
 /// Handler that manages running and updating [ScriptVarDefinition]s
 struct ScriptVarHandler {
-    tail_handler: TailVarHandler,
+    listen_handler: ListenVarHandler,
     poll_handler: PollVarHandler,
 }
 
@@ -95,14 +95,14 @@ impl ScriptVarHandler {
     async fn add(&mut self, script_var: ScriptVarDefinition) {
         match script_var {
             ScriptVarDefinition::Poll(var) => self.poll_handler.start(var).await,
-            ScriptVarDefinition::Tail(var) => self.tail_handler.start(var).await,
+            ScriptVarDefinition::Listen(var) => self.listen_handler.start(var).await,
         };
     }
 
     /// Stop the handler that is responsible for a given variable.
     fn stop_for_variable(&mut self, name: &VarName) -> Result<()> {
         log::debug!("Stopping script var process for variable {}", name);
-        self.tail_handler.stop_for_variable(name);
+        self.listen_handler.stop_for_variable(name);
         self.poll_handler.stop_for_variable(name);
         Ok(())
     }
@@ -110,7 +110,7 @@ impl ScriptVarHandler {
     /// stop all running scripts and schedules
     fn stop_all(&mut self) {
         log::debug!("Stopping script-var-handlers");
-        self.tail_handler.stop_all();
+        self.listen_handler.stop_all();
         self.poll_handler.stop_all();
     }
 }
@@ -163,8 +163,10 @@ impl PollVarHandler {
 
 fn run_poll_once(var: &PollScriptVar) -> Result<DynVal> {
     match &var.command {
-        yuck::config::script_var_definition::VarSource::Shell(x) => crate::config::script_var::run_command(x),
-        yuck::config::script_var_definition::VarSource::Function(x) => x().map_err(|e| anyhow!(e)),
+        VarSource::Shell(span, x) => crate::config::script_var::run_command(x).map_err(|_| {
+            anyhow!(create_script_var_failed_error(*span, &var.name))
+        }),
+        VarSource::Function(x) => x().map_err(|e| anyhow!(e)),
     }
 }
 
@@ -174,21 +176,21 @@ impl Drop for PollVarHandler {
     }
 }
 
-struct TailVarHandler {
+struct ListenVarHandler {
     evt_send: UnboundedSender<DaemonCommand>,
-    tail_process_handles: HashMap<VarName, CancellationToken>,
+    listen_process_handles: HashMap<VarName, CancellationToken>,
 }
 
-impl TailVarHandler {
+impl ListenVarHandler {
     fn new(evt_send: UnboundedSender<DaemonCommand>) -> Result<Self> {
-        let handler = TailVarHandler { evt_send, tail_process_handles: HashMap::new() };
+        let handler = ListenVarHandler { evt_send, listen_process_handles: HashMap::new() };
         Ok(handler)
     }
 
-    async fn start(&mut self, var: TailScriptVar) {
+    async fn start(&mut self, var: ListenScriptVar) {
         log::debug!("starting poll var {}", &var.name);
         let cancellation_token = CancellationToken::new();
-        self.tail_process_handles.insert(var.name.clone(), cancellation_token.clone());
+        self.listen_process_handles.insert(var.name.clone(), cancellation_token.clone());
 
         let evt_send = self.evt_send.clone();
         tokio::spawn(async move {
@@ -215,18 +217,18 @@ impl TailVarHandler {
     }
 
     fn stop_for_variable(&mut self, name: &VarName) {
-        if let Some(token) = self.tail_process_handles.remove(name) {
-            log::debug!("stopped tail var {}", name);
+        if let Some(token) = self.listen_process_handles.remove(name) {
+            log::debug!("stopped listen-var {}", name);
             token.cancel();
         }
     }
 
     fn stop_all(&mut self) {
-        self.tail_process_handles.drain().for_each(|(_, token)| token.cancel());
+        self.listen_process_handles.drain().for_each(|(_, token)| token.cancel());
     }
 }
 
-impl Drop for TailVarHandler {
+impl Drop for ListenVarHandler {
     fn drop(&mut self) {
         self.stop_all();
     }
