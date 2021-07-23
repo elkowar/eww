@@ -2,27 +2,27 @@ pub use platform::*;
 
 #[cfg(feature = "no-x11-wayland")]
 mod platform {
-    use crate::config::{EwwWindowDefinition, StrutDefinition, WindowStacking};
-    use anyhow::*;
-    use gtk::{self, prelude::*};
+    use crate::config::EwwWindowDefinition;
 
-    pub fn initialize_window(window_def: &EwwWindowDefinition, _monitor: gdk::Rectangle) -> Option<gtk::Window> {
+    pub fn initialize_window(_window_def: &EwwWindowDefinition, _monitor: gdk::Rectangle) -> Option<gtk::Window> {
         Some(gtk::Window::new(gtk::WindowType::Toplevel))
     }
 }
 
 #[cfg(feature = "wayland")]
 mod platform {
-    use crate::config::{AnchorAlignment, EwwWindowDefinition, WindowStacking};
     use gdk;
     use gtk::prelude::*;
+    use yuck::config::{window_definition::WindowStacking, window_geometry::AnchorAlignment};
+
+    use crate::config::EwwWindowDefinition;
 
     pub fn initialize_window(window_def: &EwwWindowDefinition, monitor: gdk::Rectangle) -> Option<gtk::Window> {
         let window = gtk::Window::new(gtk::WindowType::Toplevel);
         // Initialising a layer shell surface
         gtk_layer_shell::init_for_window(&window);
         // Sets the monitor where the surface is shown
-        match window_def.screen_number {
+        match window_def.monitor_number {
             Some(index) => {
                 if let Some(monitor) = gdk::Display::get_default().expect("could not get default display").get_monitor(index) {
                     gtk_layer_shell::set_monitor(&window, &monitor);

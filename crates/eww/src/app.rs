@@ -348,6 +348,7 @@ fn initialize_window(
 }
 
 /// Apply the provided window-positioning rules to the window.
+#[cfg(feature = "x11")]
 fn apply_window_position(
     mut window_geometry: WindowGeometry,
     monitor_geometry: gdk::Rectangle,

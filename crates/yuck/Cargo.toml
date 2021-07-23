@@ -6,6 +6,12 @@ edition = "2018"
 
 build = "build.rs"
 
+[features]
+default = ["x11"]
+x11 = []
+wayland = []
+no-x11-wayland = []
+
 [dependencies]
 lalrpop-util = "0.19.5"
 regex = "1"
