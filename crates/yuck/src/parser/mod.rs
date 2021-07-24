@@ -33,6 +33,15 @@ pub fn parse_toplevel(file_id: usize, s: String) -> AstResult<(Span, Vec<Ast>)> 
     parser.parse(file_id, lexer).map_err(|e| AstError::from_parse_error(file_id, e))
 }
 
+/// get a single ast node from a list of asts, returning an Err if the length is not exactly 1.
+pub fn require_single_toplevel(span: Span, mut asts: Vec<Ast>) -> AstResult<Ast> {
+    match asts.len() {
+        0 => Err(AstError::MissingNode(span)),
+        1 => Ok(asts.remove(0)),
+        _ => Err(AstError::TooManyNodes(asts.get(1).unwrap().span().to(asts.last().unwrap().span()), 1)),
+    }
+}
+
 macro_rules! test_parser {
     ($($text:literal),*) => {{
         let p = parser::AstParser::new();

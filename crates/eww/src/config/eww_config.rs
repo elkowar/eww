@@ -1,8 +1,8 @@
 use anyhow::*;
 use eww_shared_util::VarName;
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 use yuck::config::{
-    file_provider::FsYuckFiles, script_var_definition::ScriptVarDefinition, widget_definition::WidgetDefinition, Config,
+    file_provider::YuckFiles, script_var_definition::ScriptVarDefinition, widget_definition::WidgetDefinition, Config,
 };
 
 use simplexpr::dynval::DynVal;
@@ -19,8 +19,8 @@ pub struct EwwConfig {
     // files: FsYuckFiles,
 }
 impl EwwConfig {
-    pub fn read_from_file<P: AsRef<std::path::Path>>(files: &mut FsYuckFiles, path: P) -> Result<Self> {
-        let config = Config::generate_from_main_file(files, path.as_ref().to_str().context("Failed to decode path")?)?;
+    pub fn read_from_file(files: &mut YuckFiles, path: impl AsRef<Path>) -> Result<Self> {
+        let config = Config::generate_from_main_file(files, path)?;
         let Config { widget_definitions, window_definitions, var_definitions, script_vars } = config;
         Ok(EwwConfig {
             windows: window_definitions

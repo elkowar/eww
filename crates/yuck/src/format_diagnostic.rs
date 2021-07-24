@@ -104,6 +104,10 @@ impl ToDiagnostic for AstError {
                     label = include.path_span => "Included here",
                 ),
 
+                AstError::TooManyNodes(extra_nodes_span, expected) => gen_diagnostic! {
+                    msg = self,
+                    label = extra_nodes_span => "these elements must not be here. Consider nesting the elements in some container element.",
+                },
                 AstError::ValidationError(_) => todo!(),
             }
         } else {

@@ -18,6 +18,9 @@ pub enum AstError {
     UnknownToplevel(Span, String),
     #[error("Expected another element, but got nothing")]
     MissingNode(Span),
+    #[error("Too many elements, must be exactly {1}")]
+    TooManyNodes(Span, i32),
+
     #[error("Wrong type of expression: Expected {1} but got {2}")]
     WrongExprType(Span, AstType, AstType),
     #[error("Expected to get a value, but got {1}")]
@@ -60,6 +63,7 @@ impl AstError {
             AstError::Other(span, ..) => *span,
             AstError::ConversionError(err) => err.value.span().map(|x| x.into()),
             AstError::IncludedFileNotFound(include) => Some(include.path_span),
+            AstError::TooManyNodes(span, ..) => Some(*span),
             AstError::ValidationError(error) => None, // TODO none here is stupid
             AstError::ParseError { file_id, source } => file_id.and_then(|id| get_parse_error_span(id, source)),
         }

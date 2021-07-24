@@ -1,6 +1,6 @@
 #![allow(clippy::option_map_unit_fn)]
 use super::{run_command, BuilderArgs};
-use crate::{enum_parse, eww_state, resolve_block, util::list_difference, widgets::widget_node};
+use crate::{enum_parse, error_handling_ctx, eww_state, resolve_block, util::list_difference, widgets::widget_node};
 use anyhow::*;
 use gdk::WindowExt;
 use glib;
@@ -301,11 +301,7 @@ fn build_gtk_checkbox(bargs: &mut BuilderArgs) -> Result<gtk::CheckButton> {
        prop(onchecked: as_string = "", onunchecked: as_string = "") {
             let old_id = on_change_handler_id.replace(Some(
                 gtk_widget.connect_toggled(move |gtk_widget| {
-                    if gtk_widget.get_active() {
-                        run_command(&onchecked, "");
-                    } else {
-                        run_command(&onunchecked, "");
-                    }
+                    run_command(if gtk_widget.get_active() { &onchecked } else { &onunchecked }, "");
                 })
             ));
             old_id.map(|id| gtk_widget.disconnect(id));
@@ -496,17 +492,11 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
             gtk_widget.set_text(&text);
         },
         // @prop markup - Pango markup to display
-        prop(markup: as_string) {
-            gtk_widget.set_markup(&markup);
-        },
+        prop(markup: as_string) { gtk_widget.set_markup(&markup); },
         // @prop wrap - Wrap the text. This mainly makes sense if you set the width of this widget.
-        prop(wrap: as_bool) {
-            gtk_widget.set_line_wrap(wrap)
-        },
+        prop(wrap: as_bool) { gtk_widget.set_line_wrap(wrap) },
         // @prop angle - the angle of rotation for the label (between 0 - 360)
-        prop(angle: as_f64 = 0) {
-            gtk_widget.set_angle(angle)
-        }
+        prop(angle: as_f64 = 0) { gtk_widget.set_angle(angle) }
     });
     Ok(gtk_widget)
 }
@@ -521,12 +511,23 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
     let window_name = bargs.window_name.to_string();
     let widget_definitions = bargs.widget_definitions.clone();
 
+    // the file id the literal-content has been stored under, for error reporting.
+    let literal_file_id: Rc<RefCell<Option<usize>>> = Rc::new(RefCell::new(None));
+
     resolve_block!(bargs, gtk_widget, {
         // @prop content - inline Eww XML that will be rendered as a widget.
         prop(content: as_string) {
             gtk_widget.get_children().iter().for_each(|w| gtk_widget.remove(w));
             if !content.is_empty() {
-                let ast = yuck::parser::parse_string(usize::MAX, &content)?;
+                let ast = {
+                    let mut yuck_files = error_handling_ctx::ERROR_HANDLING_CTX.lock().unwrap();
+                    let (span, asts) = yuck_files.load_str("<literal-content>".to_string(), content)?;
+                    if let Some(file_id) = literal_file_id.replace(Some(span.2)) {
+                        yuck_files.unload(file_id);
+                    }
+                    yuck::parser::require_single_toplevel(span, asts)?
+                };
+
                 let content_widget_use = yuck::config::widget_use::WidgetUse::from_ast(ast)?;
 
                 let widget_node = &*widget_node::generate_generic_widget_node(&widget_definitions, &HashMap::new(), content_widget_use)?;

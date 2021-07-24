@@ -4,7 +4,7 @@ use codespan_reporting::diagnostic::Diagnostic;
 use eww_shared_util::DUMMY_SPAN;
 use simplexpr::eval::EvalError;
 use yuck::{
-    config::file_provider::FsYuckFiles,
+    config::file_provider::YuckFiles,
     error::AstError,
     format_diagnostic::{eval_error_to_diagnostic, ToDiagnostic},
 };
@@ -12,12 +12,13 @@ use yuck::{
 use crate::error::DiagError;
 
 lazy_static::lazy_static! {
-    pub static ref ERROR_HANDLING_CTX: Arc<Mutex<FsYuckFiles>> = Arc::new(Mutex::new(FsYuckFiles::new()));
+    pub static ref ERROR_HANDLING_CTX: Arc<Mutex<YuckFiles>> = Arc::new(Mutex::new(YuckFiles::new()));
 }
 
 pub fn clear_files() {
-    *ERROR_HANDLING_CTX.lock().unwrap() = FsYuckFiles::new();
+    *ERROR_HANDLING_CTX.lock().unwrap() = YuckFiles::new();
 }
+
 
 pub fn print_error(err: &anyhow::Error) {
     let result: anyhow::Result<_> = try {

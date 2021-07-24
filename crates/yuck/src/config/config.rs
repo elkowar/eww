@@ -1,4 +1,7 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
 use codespan_reporting::files::SimpleFiles;
 use simplexpr::SimplExpr;
@@ -77,7 +80,7 @@ pub struct Config {
 }
 
 impl Config {
-    fn append_toplevel(&mut self, files: &mut impl YuckFiles, toplevel: TopLevel) -> AstResult<()> {
+    fn append_toplevel(&mut self, files: &mut YuckFiles, toplevel: TopLevel) -> AstResult<()> {
         match toplevel {
             TopLevel::VarDefinition(x) => {
                 self.var_definitions.insert(x.name.clone(), x);
@@ -92,7 +95,7 @@ impl Config {
                 self.window_definitions.insert(x.name.clone(), x);
             }
             TopLevel::Include(include) => {
-                let (file_id, toplevels) = files.load(&include.path).map_err(|err| match err {
+                let (file_id, toplevels) = files.load_file(PathBuf::from(&include.path)).map_err(|err| match err {
                     FilesError::IoError(_) => AstError::IncludedFileNotFound(include),
                     FilesError::AstError(x) => x,
                 })?;
@@ -104,7 +107,7 @@ impl Config {
         Ok(())
     }
 
-    pub fn generate(files: &mut impl YuckFiles, elements: Vec<Ast>) -> AstResult<Self> {
+    pub fn generate(files: &mut YuckFiles, elements: Vec<Ast>) -> AstResult<Self> {
         let mut config = Self {
             widget_definitions: HashMap::new(),
             window_definitions: HashMap::new(),
@@ -117,8 +120,8 @@ impl Config {
         Ok(config)
     }
 
-    pub fn generate_from_main_file(files: &mut impl YuckFiles, path: &str) -> AstResult<Self> {
-        let (span, top_levels) = files.load(path).map_err(|err| match err {
+    pub fn generate_from_main_file(files: &mut YuckFiles, path: impl AsRef<Path>) -> AstResult<Self> {
+        let (span, top_levels) = files.load_file(path.as_ref().to_path_buf()).map_err(|err| match err {
             FilesError::IoError(err) => AstError::Other(None, Box::new(err)),
             FilesError::AstError(x) => x,
         })?;
