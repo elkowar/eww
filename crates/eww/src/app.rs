@@ -193,7 +193,7 @@ impl App {
         };
 
         if let Err(err) = result {
-            error_handling_ctx::print_error(&err);
+            error_handling_ctx::print_error(err);
         }
     }
 

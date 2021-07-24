@@ -21,6 +21,17 @@ impl Span {
         self.1 = self.0;
         self
     }
+
+    /// Turn this span into a span only highlighting the point it ends at, setting the length to 0.
+    pub fn point_span_at_end(mut self) -> Self {
+        self.0 = self.1;
+        self
+    }
+    pub fn shifted(mut self, n: isize) -> Self {
+        self.0 = isize::max(0, self.0 as isize + n) as usize;
+        self.1 = isize::max(0, self.0 as isize + n) as usize;
+        self
+    }
 }
 
 impl std::fmt::Display for Span {

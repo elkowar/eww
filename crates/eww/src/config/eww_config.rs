@@ -16,8 +16,8 @@ pub struct EwwConfig {
     windows: HashMap<String, EwwWindowDefinition>,
     initial_variables: HashMap<VarName, DynVal>,
     script_vars: HashMap<VarName, ScriptVarDefinition>,
-    // files: FsYuckFiles,
 }
+
 impl EwwConfig {
     pub fn read_from_file(files: &mut YuckFiles, path: impl AsRef<Path>) -> Result<Self> {
         let config = Config::generate_from_main_file(files, path)?;
@@ -30,7 +30,6 @@ impl EwwConfig {
             widgets: widget_definitions,
             initial_variables: var_definitions.into_iter().map(|(k, v)| (k, v.initial_value)).collect(),
             script_vars,
-            // files,
         })
     }
 

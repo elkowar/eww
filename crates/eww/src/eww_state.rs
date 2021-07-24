@@ -30,12 +30,12 @@ impl StateChangeHandler {
 
         match resolved_attrs {
             Ok(resolved_attrs) => {
-                if let Err(err) = &(self.func)(resolved_attrs).context("Error while updating UI after state change") {
-                    error_handling_ctx::print_error(&err);
+                if let Err(err) = (self.func)(resolved_attrs).context("Error while updating UI after state change") {
+                    error_handling_ctx::print_error(err);
                 }
             }
             Err(err) => {
-                error_handling_ctx::print_error(&err);
+                error_handling_ctx::print_error(err);
             }
         }
     }

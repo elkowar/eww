@@ -94,7 +94,7 @@ fn main() {
     };
 
     if let Err(e) = result {
-        error_handling_ctx::print_error(&e);
+        error_handling_ctx::print_error(e);
         std::process::exit(1);
     }
 }

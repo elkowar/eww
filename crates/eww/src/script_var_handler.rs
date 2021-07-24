@@ -135,7 +135,9 @@ impl PollVarHandler {
             let result: Result<_> = try {
                 evt_send.send(app::DaemonCommand::UpdateVars(vec![(var.name.clone(), run_poll_once(&var)?)]))?;
             };
-            crate::print_result_err!("while running script-var command", &result);
+            if let Err(err) = result {
+                crate::error_handling_ctx::print_error(err);
+            }
 
             crate::loop_select_exiting! {
                 _ = cancellation_token.cancelled() => break,
@@ -143,7 +145,10 @@ impl PollVarHandler {
                     let result: Result<_> = try {
                         evt_send.send(app::DaemonCommand::UpdateVars(vec![(var.name.clone(), run_poll_once(&var)?)]))?;
                     };
-                    crate::print_result_err!("while running script-var command", &result);
+
+                    if let Err(err) = result {
+                        crate::error_handling_ctx::print_error(err);
+                    }
                 }
             }
         });
@@ -163,9 +168,9 @@ impl PollVarHandler {
 
 fn run_poll_once(var: &PollScriptVar) -> Result<DynVal> {
     match &var.command {
-        VarSource::Shell(span, x) => crate::config::script_var::run_command(x).map_err(|_| {
-            anyhow!(create_script_var_failed_error(*span, &var.name))
-        }),
+        VarSource::Shell(span, x) => {
+            crate::config::script_var::run_command(x).map_err(|_| anyhow!(create_script_var_failed_error(*span, &var.name)))
+        }
         VarSource::Function(x) => x().map_err(|e| anyhow!(e)),
     }
 }

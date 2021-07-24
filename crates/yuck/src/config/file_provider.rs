@@ -93,7 +93,7 @@ impl YuckFiles {
         Ok(crate::parser::parse_toplevel(file_id, file_content)?)
     }
 
-    pub fn load_str(&mut self, name: String, content: String) -> Result<(Span, Vec<Ast>), FilesError> {
+    pub fn load_str(&mut self, name: String, content: String) -> Result<(Span, Vec<Ast>), AstError> {
         let line_starts = codespan_reporting::files::line_starts(&content).collect();
         let yuck_file =
             YuckFile { name, line_starts, source_len_bytes: content.len(), source: YuckSource::Literal(content.to_string()) };

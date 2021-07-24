@@ -6,7 +6,11 @@ use gdk::WindowExt;
 use glib;
 use gtk::{self, prelude::*, ImageExt};
 use std::{cell::RefCell, collections::HashMap, rc::Rc, time::Duration};
-use yuck::{config::validate::ValidationError, error::AstError, parser::from_ast::FromAst};
+use yuck::{
+    config::validate::ValidationError,
+    error::{AstError, AstResult, ResultExt},
+    parser::from_ast::FromAst,
+};
 
 // TODO figure out how to
 // TODO https://developer.gnome.org/gtk3/stable/GtkFixed.html
@@ -510,6 +514,7 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
     // TODO these clones here are dumdum
     let window_name = bargs.window_name.to_string();
     let widget_definitions = bargs.widget_definitions.clone();
+    let literal_use_span = bargs.widget.span;
 
     // the file id the literal-content has been stored under, for error reporting.
     let literal_file_id: Rc<RefCell<Option<usize>>> = Rc::new(RefCell::new(None));
@@ -519,19 +524,27 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
         prop(content: as_string) {
             gtk_widget.get_children().iter().for_each(|w| gtk_widget.remove(w));
             if !content.is_empty() {
-                let ast = {
-                    let mut yuck_files = error_handling_ctx::ERROR_HANDLING_CTX.lock().unwrap();
-                    let (span, asts) = yuck_files.load_str("<literal-content>".to_string(), content)?;
-                    if let Some(file_id) = literal_file_id.replace(Some(span.2)) {
-                        yuck_files.unload(file_id);
-                    }
-                    yuck::parser::require_single_toplevel(span, asts)?
+                let widget_node_result: AstResult<_> = try {
+                    let ast = {
+                        let mut yuck_files = error_handling_ctx::ERROR_HANDLING_CTX.lock().unwrap();
+                        let (span, asts) = yuck_files.load_str("<literal-content>".to_string(), content)?;
+                        if let Some(file_id) = literal_file_id.replace(Some(span.2)) {
+                            yuck_files.unload(file_id);
+                        }
+                        yuck::parser::require_single_toplevel(span, asts)?
+                    };
+
+                    let content_widget_use = yuck::config::widget_use::WidgetUse::from_ast(ast)?;
+                    widget_node::generate_generic_widget_node(&widget_definitions, &HashMap::new(), content_widget_use)?
                 };
 
-                let content_widget_use = yuck::config::widget_use::WidgetUse::from_ast(ast)?;
-
-                let widget_node = &*widget_node::generate_generic_widget_node(&widget_definitions, &HashMap::new(), content_widget_use)?;
-                let child_widget = widget_node.render(&mut eww_state::EwwState::default(), &window_name, &widget_definitions)?;
+                let widget_node = widget_node_result.context_label(literal_use_span, "Error in the literal used here")?;
+                let child_widget = widget_node.render(&mut eww_state::EwwState::default(), &window_name, &widget_definitions)
+                    .map_err(|e| AstError::ErrorContext {
+                        label_span: literal_use_span,
+                        context: "Error in the literal used here".to_string(),
+                        main_err: Box::new(error_handling_ctx::anyhow_err_to_diagnostic(&e))
+                    })?;
                 gtk_widget.add(&child_widget);
                 child_widget.show();
             }

@@ -20,6 +20,16 @@ pub struct WidgetUse {
     pub name_span: Span,
 }
 
+impl WidgetUse {
+    pub fn children_span(&self) -> Span {
+        if self.children.is_empty() {
+            self.span.point_span_at_end().shifted(-1)
+        } else {
+            self.children.first().unwrap().span.to(self.children.last().unwrap().span)
+        }
+    }
+}
+
 impl FromAst for WidgetUse {
     fn from_ast(e: Ast) -> AstResult<Self> {
         let span = e.span();

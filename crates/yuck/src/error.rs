@@ -1,5 +1,6 @@
 use crate::{
     config::{attributes::AttrError, config::Include, validate::ValidationError},
+    format_diagnostic::ToDiagnostic,
     parser::{
         ast::{Ast, AstType},
         lexer, parse_error,
@@ -31,6 +32,11 @@ pub enum AstError {
     #[error("Included file not found {}", .0.path)]
     IncludedFileNotFound(Include),
 
+    #[error("{}", .main_err.to_message())]
+    ErrorContext { label_span: Span, context: String, main_err: Box<dyn ToDiagnostic + Send + Sync + 'static> },
+    #[error("{1}")]
+    ErrorNote(String, #[source] Box<AstError>),
+
     #[error(transparent)]
     ConversionError(#[from] dynval::ConversionError),
 
@@ -47,11 +53,19 @@ pub enum AstError {
     ParseError { file_id: Option<usize>, source: lalrpop_util::ParseError<usize, lexer::Token, parse_error::ParseError> },
 }
 
-// static_assertions::assert_impl_all!(AstError: Send, Sync);
-// static_assertions::assert_impl_all!(dynval::ConversionError: Send, Sync);
-// static_assertions::assert_impl_all!(lalrpop_util::ParseError < usize, lexer::Token, parse_error::ParseError>: Send, Sync);
+static_assertions::assert_impl_all!(AstError: Send, Sync);
+static_assertions::assert_impl_all!(dynval::ConversionError: Send, Sync);
+static_assertions::assert_impl_all!(lalrpop_util::ParseError < usize, lexer::Token, parse_error::ParseError>: Send, Sync);
 
 impl AstError {
+    pub fn note(self, note: &str) -> Self {
+        AstError::ErrorNote(note.to_string(), Box::new(self))
+    }
+
+    pub fn context_label(self, label_span: Span, context: &str) -> Self {
+        AstError::ErrorContext { label_span, context: context.to_string(), main_err: Box::new(self) }
+    }
+
     pub fn get_span(&self) -> Option<Span> {
         match self {
             AstError::UnknownToplevel(span, _) => Some(*span),
@@ -64,8 +78,10 @@ impl AstError {
             AstError::ConversionError(err) => err.value.span().map(|x| x.into()),
             AstError::IncludedFileNotFound(include) => Some(include.path_span),
             AstError::TooManyNodes(span, ..) => Some(*span),
+            AstError::ErrorContext { label_span, .. } => Some(*label_span),
             AstError::ValidationError(error) => None, // TODO none here is stupid
             AstError::ParseError { file_id, source } => file_id.and_then(|id| get_parse_error_span(id, source)),
+            AstError::ErrorNote(_, err) => err.get_span(),
         }
     }
 
@@ -99,5 +115,15 @@ pub trait OptionAstErrorExt<T> {
 impl<T> OptionAstErrorExt<T> for Option<T> {
     fn or_missing(self, span: Span) -> Result<T, AstError> {
         self.ok_or(AstError::MissingNode(span))
+    }
+}
+
+pub trait ResultExt<T> {
+    fn context_label(self, label_span: Span, context: &str) -> AstResult<T>;
+}
+
+impl<T> ResultExt<T> for AstResult<T> {
+    fn context_label(self, label_span: Span, context: &str) -> AstResult<T> {
+        self.map_err(|e| AstError::ErrorContext { label_span, context: context.to_string(), main_err: Box::new(e) })
     }
 }

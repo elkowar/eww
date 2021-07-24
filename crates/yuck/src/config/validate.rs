@@ -12,7 +12,7 @@ use eww_shared_util::{AttrName, Span, VarName};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ValidationError {
-    #[error("Unknown widget referenced: {1}")]
+    #[error("Unknown widget `{1}` referenced")]
     UnknownWidget(Span, String),
 
     #[error("Missing attribute `{arg_name}` in use of widget `{widget_name}`")]

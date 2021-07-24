@@ -6,7 +6,7 @@ use simplexpr::SimplExpr;
 use std::collections::HashMap;
 use yuck::{
     config::{validate::ValidationError, widget_definition::WidgetDefinition, widget_use::WidgetUse},
-    error::AstError,
+    error::{AstError, AstResult},
 };
 
 pub trait WidgetNode: std::fmt::Debug + dyn_clone::DynClone + Send + Sync {
@@ -108,16 +108,18 @@ pub fn generate_generic_widget_node(
     defs: &HashMap<String, WidgetDefinition>,
     local_env: &HashMap<VarName, SimplExpr>,
     w: WidgetUse,
-) -> Result<Box<dyn WidgetNode>> {
+) -> AstResult<Box<dyn WidgetNode>> {
     if let Some(def) = defs.get(&w.name) {
-        ensure!(w.children.is_empty(), "User-defined widgets cannot be given children.");
+        if !w.children.is_empty() {
+            Err(AstError::TooManyNodes(w.children_span(), 0).note("User-defined widgets cannot be given children."))?
+        }
 
         let new_local_env = w
             .attrs
             .attrs
             .into_iter()
             .map(|(name, value)| Ok((VarName(name.0), value.value.as_simplexpr()?.resolve_one_level(local_env))))
-            .collect::<Result<HashMap<VarName, _>>>()?;
+            .collect::<AstResult<HashMap<VarName, _>>>()?;
 
         let content = generate_generic_widget_node(defs, &new_local_env, def.widget.clone())?;
         Ok(Box::new(UserDefined { name: w.name, span: Some(w.span), content }))
@@ -131,13 +133,13 @@ pub fn generate_generic_widget_node(
                 .attrs
                 .into_iter()
                 .map(|(name, value)| Ok((name, value.value.as_simplexpr()?.resolve_one_level(local_env))))
-                .collect::<Result<HashMap<_, _>>>()?,
+                .collect::<AstResult<HashMap<_, _>>>()?,
 
             children: w
                 .children
                 .into_iter()
                 .map(|child| generate_generic_widget_node(defs, local_env, child))
-                .collect::<Result<Vec<_>>>()?,
+                .collect::<AstResult<Vec<_>>>()?,
         }))
     }
 }
