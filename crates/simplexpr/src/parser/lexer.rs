@@ -48,6 +48,7 @@ pub enum Token {
     Error,
 }
 
+// TODO can i include the fileid here already?
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub struct LexicalError(pub usize, pub usize);
 

@@ -3,6 +3,10 @@ pub struct Span(pub usize, pub usize, pub usize);
 pub static DUMMY_SPAN: Span = Span(usize::MAX, usize::MAX, usize::MAX);
 
 impl Span {
+    pub fn point(loc: usize, file_id: usize) -> Self {
+        Span(loc, loc, file_id)
+    }
+
     /// Get the span that includes this and the other span completely.
     /// Will panic if the spans are from different file_ids.
     pub fn to(mut self, other: Span) -> Self {
@@ -31,6 +35,10 @@ impl Span {
         self.0 = isize::max(0, self.0 as isize + n) as usize;
         self.1 = isize::max(0, self.0 as isize + n) as usize;
         self
+    }
+
+    pub fn is_dummy(&self) -> bool {
+        *self == DUMMY_SPAN
     }
 }
 

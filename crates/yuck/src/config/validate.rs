@@ -19,6 +19,15 @@ pub enum ValidationError {
     MissingAttr { widget_name: String, arg_name: AttrName, arg_list_span: Option<Span>, use_span: Span },
 }
 
+impl ValidationError {
+    pub fn span(&self) -> Span {
+        match self {
+            ValidationError::UnknownWidget(span, _) => *span,
+            ValidationError::MissingAttr { use_span, .. } => *use_span,
+        }
+    }
+}
+
 pub fn validate(defs: &HashMap<String, WidgetDefinition>, content: &WidgetUse) -> Result<(), ValidationError> {
     if let Some(def) = defs.get(&content.name) {
         for expected in def.expected_args.iter() {

@@ -60,7 +60,7 @@ SimplExpr: SimplExpr = {
    <l:@L> <x:"simplexpr"> =>? {
        let expr = x[1..x.len() - 1].to_string();
        simplexpr::parse_string(l + 1, file_id, &expr).map_err(|e| {
-           ParseError::User { error: parse_error::ParseError::SimplExpr(e.get_span(), e) }})
+           ParseError::User { error: parse_error::ParseError::SimplExpr(e) }})
    }
 }
 

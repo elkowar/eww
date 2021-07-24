@@ -5,7 +5,7 @@ use diagnostic::*;
 
 use crate::{
     config::{attributes::AttrError, validate::ValidationError},
-    error::AstError,
+    error::{get_parse_error_span, AstError},
 };
 
 use super::parser::parse_error;
@@ -68,30 +68,27 @@ impl ToDiagnostic for AstError {
         // TODO this if let should be unnecessary
         if let AstError::ValidationError(error) = self {
             error.to_diagnostic()
-        } else if let Some(span) = self.get_span() {
+        } else {
             match self {
-                AstError::UnknownToplevel(_, name) => gen_diagnostic!(format!("{}", self), span),
-                AstError::MissingNode(_) => gen_diagnostic! {
+                AstError::UnknownToplevel(span, name) => gen_diagnostic!(self, span),
+                AstError::MissingNode(span) => gen_diagnostic! {
                     msg = "Expected another element",
                     label = span => "Expected another element here",
                 },
 
-                AstError::WrongExprType(_, expected, actual) => gen_diagnostic! {
+                AstError::WrongExprType(span, expected, actual) => gen_diagnostic! {
                     msg = "Wrong type of expression",
                     label = span => format!("Expected a `{}` here", expected),
                     note = format!("Expected: {}\nGot: {}", expected, actual),
                 },
-                AstError::NotAValue(_, actual) => gen_diagnostic! {
+                AstError::NotAValue(span, actual) => gen_diagnostic! {
                     msg = format!("Expected value, but got `{}`", actual),
                     label = span => "Expected some value here",
                     note = format!("Got: {}", actual),
                 },
 
-                AstError::ParseError { file_id, source } => lalrpop_error_to_diagnostic(source, span, |error| match error {
-                    parse_error::ParseError::SimplExpr(_, error) => simplexpr_error_to_diagnostic(error, span),
-                    parse_error::ParseError::LexicalError(span) => lexical_error_to_diagnostic(*span),
-                }),
-                AstError::MismatchedElementName(_, expected, got) => gen_diagnostic! {
+                AstError::ParseError { file_id, source } => lalrpop_error_to_diagnostic(source, *file_id, |error| error.to_diagnostic()),
+                AstError::MismatchedElementName(span, expected, got) => gen_diagnostic! {
                     msg = format!("Expected element `{}`, but found `{}`", expected, got),
                     label = span => format!("Expected `{}` here", expected),
                     note = format!("Expected: {}\nGot: {}", expected, got),
@@ -100,9 +97,10 @@ impl ToDiagnostic for AstError {
                     main_err.to_diagnostic().with_opt_label(Some(span_to_secondary_label(*label_span).with_message(context)))
                 }
 
-                AstError::ConversionError(err) => conversion_error_to_diagnostic(err, span),
-                AstError::Other(_, source) => gen_diagnostic!(source, span),
-                AstError::AttrError(source) => gen_diagnostic!(source, span),
+                AstError::ConversionError(source) => source.to_diagnostic(),
+                AstError::Other(Some(span), source) => gen_diagnostic!(source, span),
+                AstError::Other(None, source) => gen_diagnostic!(source),
+                AstError::AttrError(source) => source.to_diagnostic(),
                 AstError::IncludedFileNotFound(include) => gen_diagnostic!(
                     msg = format!("Included file `{}` not found", include.path),
                     label = include.path_span => "Included here",
@@ -116,8 +114,15 @@ impl ToDiagnostic for AstError {
                 AstError::ErrorNote(note, source) => source.to_diagnostic().with_notes(vec![note.to_string()]),
                 AstError::ValidationError(source) => source.to_diagnostic(),
             }
-        } else {
-            Diagnostic::error().with_message(format!("{}", self))
+        }
+    }
+}
+
+impl ToDiagnostic for parse_error::ParseError {
+    fn to_diagnostic(&self) -> Diagnostic<usize> {
+        match self {
+            parse_error::ParseError::SimplExpr(error) => error.to_diagnostic(),
+            parse_error::ParseError::LexicalError(span) => lexical_error_diagnostic(*span),
         }
     }
 }
@@ -128,7 +133,7 @@ impl ToDiagnostic for AttrError {
             AttrError::MissingRequiredAttr(span, attr_name) => {
                 gen_diagnostic!(format!("Missing attribute `{}`", attr_name), span)
             }
-            AttrError::EvaluationError(span, source) => eval_error_to_diagnostic(source, *span),
+            AttrError::EvaluationError(span, source) => source.to_diagnostic(),
             AttrError::Other(span, source) => gen_diagnostic!(source, span),
         }
     }
@@ -148,53 +153,77 @@ impl ToDiagnostic for ValidationError {
     }
 }
 
-fn lalrpop_error_to_diagnostic<T: std::fmt::Display, E>(
+fn lalrpop_error_to_diagnostic<T: std::fmt::Display, E: std::fmt::Display>(
     error: &lalrpop_util::ParseError<usize, T, E>,
-    span: Span,
+    file_id: usize,
     handle_user_error: impl FnOnce(&E) -> Diagnostic<usize>,
 ) -> Diagnostic<usize> {
     use lalrpop_util::ParseError::*;
-    match error {
-        InvalidToken { location } => gen_diagnostic! { msg = "Invalid token", label = span },
-        UnrecognizedEOF { location, expected } => gen_diagnostic! {
-            msg = "Input ended unexpectedly. Check if you have any unclosed delimiters",
-            label = span
-        },
-        UnrecognizedToken { token, expected } => gen_diagnostic! {
-            msg = format!("Unexpected token `{}` encountered", token.1),
-            label = span => "Token unexpected",
-        },
-        ExtraToken { token } => gen_diagnostic!(format!("Extra token encountered: `{}`", token.1)),
-        User { error } => handle_user_error(error),
-    }
-}
-
-// TODO this needs a lot of improvement
-pub fn simplexpr_error_to_diagnostic(error: &simplexpr::error::Error, span: Span) -> Diagnostic<usize> {
-    use simplexpr::error::Error::*;
-    match error {
-        ParseError { source, .. } => lalrpop_error_to_diagnostic(source, span, move |error| lexical_error_to_diagnostic(span)),
-        ConversionError(error) => conversion_error_to_diagnostic(error, span),
-        Eval(error) => eval_error_to_diagnostic(error, span),
-        Other(error) => gen_diagnostic!(error, span),
-        Spanned(span, error) => gen_diagnostic!(error, span),
-    }
-}
-
-// TODO this needs a lot of improvement
-pub fn eval_error_to_diagnostic(error: &simplexpr::eval::EvalError, span: Span) -> Diagnostic<usize> {
-    gen_diagnostic!(error, error.span().unwrap_or(span))
-}
-
-fn conversion_error_to_diagnostic(error: &dynval::ConversionError, span: Span) -> Diagnostic<usize> {
-    let diag = gen_diagnostic! {
-        msg = error,
-        label = span => format!("{} is not of type `{}`", error.value, error.target_type),
+    // None is okay here, as the case that would be affected by it (User { error }) is manually handled here anyways
+    let span = get_parse_error_span(file_id, error, |e| None);
+    let res: Option<_> = try {
+        match error {
+            InvalidToken { location } => gen_diagnostic!("Invalid token", span?),
+            UnrecognizedEOF { location, expected } => gen_diagnostic! {
+                "Input ended unexpectedly. Check if you have any unclosed delimiters",
+                span?
+            },
+            UnrecognizedToken { token, expected } => gen_diagnostic! {
+                msg = format!("Unexpected token `{}` encountered", token.1),
+                label = span? => "Token unexpected",
+            },
+            ExtraToken { token } => gen_diagnostic!(format!("Extra token encountered: `{}`", token.1)),
+            User { error } => handle_user_error(error),
+        }
     };
-    diag.with_notes(error.source.as_ref().map(|x| vec![format!("{}", x)]).unwrap_or_default())
+    res.unwrap_or_else(|| gen_diagnostic!(error))
 }
 
-fn lexical_error_to_diagnostic(span: Span) -> Diagnostic<usize> {
+impl ToDiagnostic for simplexpr::error::Error {
+    // TODO this needs a lot of improvement
+    fn to_diagnostic(&self) -> Diagnostic<usize> {
+        use simplexpr::error::Error::*;
+        let res: Option<_> = try {
+            match self {
+                ParseError { source, file_id } => {
+                    let span = get_parse_error_span(*file_id, source, |e| Some(Span(e.0, e.1, *file_id)))?;
+                    lalrpop_error_to_diagnostic(source, *file_id, move |error| lexical_error_diagnostic(span))
+                }
+                ConversionError(error) => error.to_diagnostic(),
+                Eval(error) => error.to_diagnostic(),
+                Other(error) => gen_diagnostic!(error),
+                Spanned(span, error) => gen_diagnostic!(error, span),
+            }
+        };
+        res.unwrap_or_else(|| gen_diagnostic!(self))
+    }
+}
+
+impl ToDiagnostic for simplexpr::eval::EvalError {
+    // TODO this needs a lot of improvement
+    fn to_diagnostic(&self) -> Diagnostic<usize> {
+        match self.span() {
+            Some(span) => gen_diagnostic!(self, span),
+            None => gen_diagnostic!(self),
+        }
+    }
+}
+
+impl ToDiagnostic for dynval::ConversionError {
+    fn to_diagnostic(&self) -> Diagnostic<usize> {
+        let diag = match self.span() {
+            Some(span) => gen_diagnostic! {
+                msg = self,
+                label = span => format!("`{}` is not of type `{}`", self.value, self.target_type),
+            },
+            None => gen_diagnostic!(self),
+        };
+        diag.with_notes(self.source.as_ref().map(|x| vec![format!("{}", x)]).unwrap_or_default())
+    }
+}
+
+/// Generate a simple diagnostic indicating a lexical error
+fn lexical_error_diagnostic(span: Span) -> Diagnostic<usize> {
     gen_diagnostic! {
         msg = "Invalid token",
         label = span => "Invalid token"

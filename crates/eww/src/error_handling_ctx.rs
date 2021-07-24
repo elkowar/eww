@@ -1,14 +1,9 @@
 use std::sync::{Arc, Mutex};
 
 use codespan_reporting::{diagnostic::Diagnostic, term, term::Chars};
-use eww_shared_util::DUMMY_SPAN;
+use eww_shared_util::Span;
 use simplexpr::eval::EvalError;
-use yuck::{
-    config::file_provider::YuckFiles,
-    error::AstError,
-    format_diagnostic::{eval_error_to_diagnostic, ToDiagnostic},
-    gen_diagnostic,
-};
+use yuck::{config::file_provider::YuckFiles, error::AstError, format_diagnostic::ToDiagnostic, gen_diagnostic};
 
 use crate::error::DiagError;
 
@@ -26,14 +21,14 @@ pub fn anyhow_err_to_diagnostic(err: &anyhow::Error) -> Diagnostic<usize> {
     } else if let Some(err) = err.downcast_ref::<AstError>() {
         err.to_diagnostic()
     } else if let Some(err) = err.downcast_ref::<EvalError>() {
-        eval_error_to_diagnostic(err, err.span().unwrap_or(DUMMY_SPAN))
+        err.to_diagnostic()
     } else {
         gen_diagnostic!(err)
     }
 }
 
 pub fn print_error(err: anyhow::Error) {
-    match stringify_diagnostic(&anyhow_err_to_diagnostic(&err)) {
+    match stringify_diagnostic(anyhow_err_to_diagnostic(&err)) {
         Ok(diag) => {
             eprintln!("{:?}\n{}", err, diag);
         }
@@ -48,12 +43,14 @@ pub fn format_error(err: &anyhow::Error) -> String {
         format!("chain: {}", err);
     }
     match err.downcast_ref::<AstError>() {
-        Some(err) => stringify_diagnostic(&err.to_diagnostic()).unwrap_or_else(|_| format!("{:?}", err)),
+        Some(err) => stringify_diagnostic(err.to_diagnostic()).unwrap_or_else(|_| format!("{:?}", err)),
         None => format!("{:?}", err),
     }
 }
 
-pub fn stringify_diagnostic(diagnostic: &codespan_reporting::diagnostic::Diagnostic<usize>) -> anyhow::Result<String> {
+pub fn stringify_diagnostic(mut diagnostic: codespan_reporting::diagnostic::Diagnostic<usize>) -> anyhow::Result<String> {
+    diagnostic.labels.drain_filter(|label| Span(label.range.start, label.range.end, label.file_id).is_dummy());
+
     let mut config = term::Config::default();
     let mut chars = Chars::box_drawing();
     chars.single_primary_caret = '─';

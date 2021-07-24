@@ -14,7 +14,7 @@ pub enum Error {
     ConversionError(#[from] dynval::ConversionError),
 
     #[error("{1}")]
-    Spanned(Span, Box<dyn std::error::Error + Send + Sync>),
+    Spanned(Span, Box<Error>),
 
     #[error(transparent)]
     Eval(#[from] crate::eval::EvalError),

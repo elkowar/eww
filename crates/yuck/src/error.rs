@@ -50,7 +50,7 @@ pub enum AstError {
     ValidationError(#[from] ValidationError),
 
     #[error("Parse error: {source}")]
-    ParseError { file_id: Option<usize>, source: lalrpop_util::ParseError<usize, lexer::Token, parse_error::ParseError> },
+    ParseError { file_id: usize, source: lalrpop_util::ParseError<usize, lexer::Token, parse_error::ParseError> },
 }
 
 static_assertions::assert_impl_all!(AstError: Send, Sync);
@@ -79,8 +79,8 @@ impl AstError {
             AstError::IncludedFileNotFound(include) => Some(include.path_span),
             AstError::TooManyNodes(span, ..) => Some(*span),
             AstError::ErrorContext { label_span, .. } => Some(*label_span),
-            AstError::ValidationError(error) => None, // TODO none here is stupid
-            AstError::ParseError { file_id, source } => file_id.and_then(|id| get_parse_error_span(id, source)),
+            AstError::ValidationError(error) => Some(error.span()),
+            AstError::ParseError { file_id, source } => get_parse_error_span(*file_id, source, |err| err.span()),
             AstError::ErrorNote(_, err) => err.get_span(),
         }
     }
@@ -89,23 +89,21 @@ impl AstError {
         file_id: usize,
         err: lalrpop_util::ParseError<usize, lexer::Token, parse_error::ParseError>,
     ) -> AstError {
-        AstError::ParseError { file_id: Some(file_id), source: err }
+        AstError::ParseError { file_id, source: err }
     }
 }
 
-fn get_parse_error_span(
+pub fn get_parse_error_span<T, E>(
     file_id: usize,
-    err: &lalrpop_util::ParseError<usize, lexer::Token, parse_error::ParseError>,
+    err: &lalrpop_util::ParseError<usize, T, E>,
+    handle_user: impl FnOnce(&E) -> Option<Span>,
 ) -> Option<Span> {
     match err {
         lalrpop_util::ParseError::InvalidToken { location } => Some(Span(*location, *location, file_id)),
         lalrpop_util::ParseError::UnrecognizedEOF { location, expected } => Some(Span(*location, *location, file_id)),
         lalrpop_util::ParseError::UnrecognizedToken { token, expected } => Some(Span(token.0, token.2, file_id)),
         lalrpop_util::ParseError::ExtraToken { token } => Some(Span(token.0, token.2, file_id)),
-        lalrpop_util::ParseError::User { error } => match error {
-            parse_error::ParseError::SimplExpr(span, error) => *span,
-            parse_error::ParseError::LexicalError(span) => Some(*span),
-        },
+        lalrpop_util::ParseError::User { error } => handle_user(error),
     }
 }
 
