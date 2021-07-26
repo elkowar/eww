@@ -1,0 +1,32 @@
+---
+source: crates/simplexpr/src/parser/lexer.rs
+expression: "Lexer::new(0, 0, r#\"\"   \" + music\"#).collect_vec()"
+
+---
+[
+    Ok(
+        (
+            0,
+            StrLit(
+                "\"\u{f001}   \"",
+            ),
+            8,
+        ),
+    ),
+    Ok(
+        (
+            9,
+            Plus,
+            10,
+        ),
+    ),
+    Ok(
+        (
+            11,
+            Ident(
+                "music",
+            ),
+            16,
+        ),
+    ),
+]

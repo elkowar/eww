@@ -97,4 +97,5 @@ impl<'input> Iterator for Lexer<'input> {
 fn test_simplexpr_lexer() {
     use itertools::Itertools;
     insta::assert_debug_snapshot!(Lexer::new(0, 0, r#"(foo + - "()" "a\"b" true false [] 12.2)"#).collect_vec());
+    insta::assert_debug_snapshot!(Lexer::new(0, 0, r#""   " + music"#).collect_vec());
 }

@@ -101,12 +101,14 @@ impl Iterator for Lexer {
             let string = &self.source[self.pos..];
 
             if string.starts_with('{') {
-                // self.pos += 1;
                 let expr_start = self.pos;
                 let mut in_string = false;
                 loop {
                     if self.pos >= self.source.len() {
                         return None;
+                    }
+                    while !self.source.is_char_boundary(self.pos) {
+                        self.pos += 1;
                     }
                     let string = &self.source[self.pos..];
 
@@ -137,7 +139,6 @@ impl Iterator for Lexer {
                     Some(x) => x,
                     None => {
                         self.failed = true;
-                        dbg!(&string);
                         return Some(Err(parse_error::ParseError::LexicalError(Span(self.pos, self.pos, self.file_id))));
                     }
                 };
@@ -163,4 +164,5 @@ fn test_yuck_lexer() {
     insta::assert_debug_snapshot!(Lexer::new(0, r#"(foo + - "text" )"#.to_string()).collect_vec());
     insta::assert_debug_snapshot!(Lexer::new(0, r#"{ bla "} \" }" " \" "}"#.to_string()).collect_vec());
     insta::assert_debug_snapshot!(Lexer::new(0, r#""< \" >""#.to_string()).collect_vec());
+    insta::assert_debug_snapshot!(Lexer::new(0, r#"{ "   " + music}"#.to_string()).collect_vec());
 }

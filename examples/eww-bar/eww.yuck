@@ -24,8 +24,7 @@
 
 (defwidget music []
  (box :class "music" :orientation "h" :space-evenly false :halign "center"
-  ;{ "  " + music}))
-  {music}))
+  { "  " + music}))
 
 (defwidget slider-vol []
  (box :class "slider-vol" :orientation "h" :space-evenly "false"
