@@ -70,6 +70,8 @@ regex_rules! {
     r"true" => |_| Token::True,
     r"false" => |_| Token::False,
     r#""(?:[^"\\]|\\.)*""# => |x| Token::StrLit(ESCAPE_REPLACE_REGEX.replace_all(&x, "$1").to_string()),
+    r#"`(?:[^`\\]|\\.)*`"# => |x| Token::StrLit(ESCAPE_REPLACE_REGEX.replace_all(&x, "$1").to_string()),
+    r#"'(?:[^'\\]|\\.)*'"# => |x| Token::StrLit(ESCAPE_REPLACE_REGEX.replace_all(&x, "$1").to_string()),
     r#"[+-]?(?:[0-9]+[.])?[0-9]+"# => |x| Token::NumLit(x),
     r#":[^\s\)\]}]+"# => |x| Token::Keyword(x),
     r#"[a-zA-Z_!\?<>/\.\*-\+\-][^\s{}\(\)\[\](){}]*"# => |x| Token::Symbol(x),
@@ -102,7 +104,7 @@ impl Iterator for Lexer {
 
             if string.starts_with('{') {
                 let expr_start = self.pos;
-                let mut in_string = false;
+                let mut in_string = None;
                 loop {
                     if self.pos >= self.source.len() {
                         return None;
@@ -112,13 +114,19 @@ impl Iterator for Lexer {
                     }
                     let string = &self.source[self.pos..];
 
-                    if string.starts_with('}') && !in_string {
+                    if string.starts_with('}') && in_string.is_none() {
                         self.pos += 1;
                         let tok_str = &self.source[expr_start..self.pos];
                         return Some(Ok((expr_start, Token::SimplExpr(tok_str.to_string()), self.pos - 1)));
-                    } else if string.starts_with('"') {
+                    } else if string.starts_with('"') || string.starts_with('\'') || string.starts_with('`') {
+                        if let Some(quote) = in_string {
+                            if string.starts_with(quote) {
+                                in_string = None;
+                            }
+                        } else {
+                            in_string = Some(string.chars().next().unwrap());
+                        }
                         self.pos += 1;
-                        in_string = !in_string;
                     } else if string.starts_with("\\\"") {
                         self.pos += 2;
                     } else {
@@ -165,4 +173,5 @@ fn test_yuck_lexer() {
     insta::assert_debug_snapshot!(Lexer::new(0, r#"{ bla "} \" }" " \" "}"#.to_string()).collect_vec());
     insta::assert_debug_snapshot!(Lexer::new(0, r#""< \" >""#.to_string()).collect_vec());
     insta::assert_debug_snapshot!(Lexer::new(0, r#"{ "   " + music}"#.to_string()).collect_vec());
+    insta::assert_debug_snapshot!(Lexer::new(0, r#"{ " } ' }" }"#.to_string()).collect_vec());
 }

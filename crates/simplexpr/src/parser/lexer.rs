@@ -40,7 +40,10 @@ pub enum Token {
     Ident(String),
     #[regex(r"[+-]?(?:[0-9]+[.])?[0-9]+", |x| x.slice().to_string())]
     NumLit(String),
+
     #[regex(r#""(?:[^"\\]|\\.)*""#, |x| ESCAPE_REPLACE_REGEX.replace_all(x.slice(), "$1").to_string())]
+    #[regex(r#"`(?:[^`\\]|\\.)*`"#, |x| ESCAPE_REPLACE_REGEX.replace_all(x.slice(), "$1").to_string())]
+    #[regex(r#"'(?:[^'\\]|\\.)*'"#, |x| ESCAPE_REPLACE_REGEX.replace_all(x.slice(), "$1").to_string())]
     StrLit(String),
 
 
