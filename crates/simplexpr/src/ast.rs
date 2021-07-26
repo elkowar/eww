@@ -1,5 +1,5 @@
 use crate::dynval::DynVal;
-use eww_shared_util::Span;
+use eww_shared_util::{Span, Spanned};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
@@ -69,8 +69,9 @@ impl SimplExpr {
     pub fn synth_literal<T: Into<DynVal>>(s: T) -> Self {
         Self::Literal(Span::DUMMY, s.into())
     }
-
-    pub fn span(&self) -> Span {
+}
+impl Spanned for SimplExpr {
+    fn span(&self) -> Span {
         match self {
             SimplExpr::Literal(span, _) => *span,
             SimplExpr::VarRef(span, _) => *span,

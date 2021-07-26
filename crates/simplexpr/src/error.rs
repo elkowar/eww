@@ -2,15 +2,15 @@ use crate::{
     dynval,
     parser::lexer::{self, LexicalError},
 };
-use eww_shared_util::Span;
+use eww_shared_util::{Span, Spanned};
 
 pub type Result<T> = std::result::Result<T, Error>;
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[error("Parse error: {source}")]
+    #[error("Error parsing expression: {source}")]
     ParseError { file_id: usize, source: lalrpop_util::ParseError<usize, lexer::Token, lexer::LexicalError> },
 
-    #[error("Type error: {0}")]
+    #[error(transparent)]
     ConversionError(#[from] dynval::ConversionError),
 
     #[error("{1}")]
@@ -31,8 +31,10 @@ impl Error {
     pub fn at(self, span: Span) -> Self {
         Self::Spanned(span, Box::new(self))
     }
+}
 
-    pub fn span(&self) -> Span {
+impl Spanned for Error {
+    fn span(&self) -> Span {
         match self {
             Self::ParseError { file_id, source } => get_parse_error_span(*file_id, source),
             Self::Spanned(span, _) => *span,

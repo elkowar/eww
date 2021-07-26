@@ -1,6 +1,6 @@
 pub use platform::*;
 
-#[cfg(feature = "no-x11-wayland")]
+#[cfg(not(any(feature = "x11", feature = "wayland")))]
 mod platform {
     use crate::config::EwwWindowDefinition;
 

@@ -121,7 +121,7 @@ mod backend {
     }
 }
 
-#[cfg(feature = "no-x11-wayland")]
+#[cfg(not(any(feature = "x11", feature = "wayland")))]
 mod backend {
     use super::*;
     #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]

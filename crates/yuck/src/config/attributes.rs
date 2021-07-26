@@ -13,7 +13,7 @@ use crate::{
     error::AstError,
     parser::{ast::Ast, from_ast::FromAst},
 };
-use eww_shared_util::{AttrName, Span, VarName};
+use eww_shared_util::{AttrName, Span, Spanned, VarName};
 
 #[derive(Debug, thiserror::Error)]
 pub enum AttrError {
@@ -27,8 +27,8 @@ pub enum AttrError {
     Other(Span, Box<dyn std::error::Error + Sync + Send + 'static>),
 }
 
-impl AttrError {
-    pub fn span(&self) -> Span {
+impl Spanned for AttrError {
+    fn span(&self) -> Span {
         match self {
             AttrError::MissingRequiredAttr(span, _) => *span,
             AttrError::EvaluationError(span, _) => *span,
@@ -90,7 +90,7 @@ impl Attributes {
         let ast: SimplExpr = self.ast_required(&key)?;
         Ok(ast
             .eval_no_vars()
-            .map_err(|err| AttrError::EvaluationError(ast.span().into(), err))?
+            .map_err(|err| AttrError::EvaluationError(ast.span(), err))?
             .read_as()
             .map_err(|e| AttrError::Other(ast.span().into(), Box::new(e)))?)
     }
@@ -106,7 +106,7 @@ impl Attributes {
         };
         Ok(Some(
             ast.eval_no_vars()
-                .map_err(|err| AttrError::EvaluationError(ast.span().into(), err))?
+                .map_err(|err| AttrError::EvaluationError(ast.span(), err))?
                 .read_as()
                 .map_err(|e| AttrError::Other(ast.span().into(), Box::new(e)))?,
         ))
@@ -115,9 +115,6 @@ impl Attributes {
     /// Consumes the attributes to return a list of unused attributes which may be used to emit a warning.
     /// TODO actually use this and implement warnings,... lol
     pub fn get_unused(self, definition_span: Span) -> UnusedAttrs {
-        UnusedAttrs {
-            definition_span,
-            attrs: self.attrs.into_iter().map(|(k, v)| (v.key_span.to(v.value.span().into()), k)).collect(),
-        }
+        UnusedAttrs { definition_span, attrs: self.attrs.into_iter().map(|(k, v)| (v.key_span.to(v.value.span()), k)).collect() }
     }
 }

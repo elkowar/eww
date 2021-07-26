@@ -1,7 +1,6 @@
 pub mod attributes;
 pub mod backend_window_options;
 pub mod config;
-pub mod config_parse_error;
 pub mod file_provider;
 pub mod script_var_definition;
 #[cfg(test)]

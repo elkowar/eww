@@ -8,7 +8,7 @@ use crate::{
 };
 
 use super::{widget_definition::WidgetDefinition, widget_use::WidgetUse};
-use eww_shared_util::{AttrName, Span, VarName};
+use eww_shared_util::{AttrName, Span, Spanned, VarName};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ValidationError {
@@ -19,8 +19,8 @@ pub enum ValidationError {
     MissingAttr { widget_name: String, arg_name: AttrName, arg_list_span: Option<Span>, use_span: Span },
 }
 
-impl ValidationError {
-    pub fn span(&self) -> Span {
+impl Spanned for ValidationError {
+    fn span(&self) -> Span {
         match self {
             ValidationError::UnknownWidget(span, _) => *span,
             ValidationError::MissingAttr { use_span, .. } => *use_span,

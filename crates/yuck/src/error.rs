@@ -7,7 +7,7 @@ use crate::{
     },
 };
 use codespan_reporting::{diagnostic, files};
-use eww_shared_util::{AttrName, Span, VarName};
+use eww_shared_util::{AttrName, Span, Spanned, VarName};
 use simplexpr::dynval;
 use thiserror::Error;
 
@@ -66,7 +66,16 @@ impl AstError {
         AstError::ErrorContext { label_span, context: context.to_string(), main_err: Box::new(self) }
     }
 
-    pub fn span(&self) -> Span {
+    pub fn from_parse_error(
+        file_id: usize,
+        err: lalrpop_util::ParseError<usize, lexer::Token, parse_error::ParseError>,
+    ) -> AstError {
+        AstError::ParseError { file_id, source: err }
+    }
+}
+
+impl Spanned for AstError {
+    fn span(&self) -> Span {
         match self {
             AstError::UnknownToplevel(span, _) => *span,
             AstError::MissingNode(span) => *span,
@@ -80,30 +89,20 @@ impl AstError {
             AstError::TooManyNodes(span, ..) => *span,
             AstError::ErrorContext { label_span, .. } => *label_span,
             AstError::ValidationError(error) => error.span(),
-            AstError::ParseError { file_id, source } => get_parse_error_span(*file_id, source, |err| err.span()),
+            AstError::ParseError { file_id, source } => get_parse_error_span(*file_id, source),
             AstError::ErrorNote(_, err) => err.span(),
         }
     }
-
-    pub fn from_parse_error(
-        file_id: usize,
-        err: lalrpop_util::ParseError<usize, lexer::Token, parse_error::ParseError>,
-    ) -> AstError {
-        AstError::ParseError { file_id, source: err }
-    }
 }
 
-pub fn get_parse_error_span<T, E>(
-    file_id: usize,
-    err: &lalrpop_util::ParseError<usize, T, E>,
-    handle_user: impl FnOnce(&E) -> Span,
-) -> Span {
+pub fn get_parse_error_span<T, E: Spanned>(file_id: usize, err: &lalrpop_util::ParseError<usize, T, E>) -> Span {
+    use lalrpop_util::ParseError::*;
     match err {
-        lalrpop_util::ParseError::InvalidToken { location } => Span(*location, *location, file_id),
-        lalrpop_util::ParseError::UnrecognizedEOF { location, expected } => Span(*location, *location, file_id),
-        lalrpop_util::ParseError::UnrecognizedToken { token, expected } => Span(token.0, token.2, file_id),
-        lalrpop_util::ParseError::ExtraToken { token } => Span(token.0, token.2, file_id),
-        lalrpop_util::ParseError::User { error } => handle_user(error),
+        InvalidToken { location } => Span(*location, *location, file_id),
+        UnrecognizedEOF { location, expected } => Span(*location, *location, file_id),
+        UnrecognizedToken { token, expected } => Span(token.0, token.2, file_id),
+        ExtraToken { token } => Span(token.0, token.2, file_id),
+        User { error } => error.span(),
     }
 }
 

@@ -1,3 +1,4 @@
+use eww_shared_util::{Span, Spanned};
 use logos::Logos;
 use regex::Regex;
 
@@ -48,9 +49,14 @@ pub enum Token {
     Error,
 }
 
-// TODO can i include the fileid here already?
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub struct LexicalError(pub usize, pub usize, pub usize);
+
+impl Spanned for LexicalError {
+    fn span(&self) -> Span {
+        Span(self.0, self.1, self.2)
+    }
+}
 
 impl std::fmt::Display for LexicalError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

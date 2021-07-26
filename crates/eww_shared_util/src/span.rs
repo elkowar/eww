@@ -54,3 +54,7 @@ impl std::fmt::Debug for Span {
         write!(f, "{}..{}", self.0, self.1)
     }
 }
+
+pub trait Spanned {
+    fn span(&self) -> Span;
+}

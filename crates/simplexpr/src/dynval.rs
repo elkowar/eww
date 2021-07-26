@@ -1,4 +1,4 @@
-use eww_shared_util::Span;
+use eww_shared_util::{Span, Spanned};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::{fmt, iter::FromIterator, str::FromStr};
@@ -17,8 +17,9 @@ impl ConversionError {
     fn new(value: DynVal, target_type: &'static str, source: impl std::error::Error + 'static + Sync + Send) -> Self {
         ConversionError { value, target_type, source: Some(Box::new(source)) }
     }
-
-    pub fn span(&self) -> Span {
+}
+impl Spanned for ConversionError {
+    fn span(&self) -> Span {
         self.value.1
     }
 }
@@ -111,13 +112,15 @@ impl From<&serde_json::Value> for DynVal {
     }
 }
 
+impl Spanned for DynVal {
+    fn span(&self) -> Span {
+        self.1
+    }
+}
+
 impl DynVal {
     pub fn at(self, span: Span) -> Self {
         DynVal(self.0, span)
-    }
-
-    pub fn span(&self) -> Span {
-        self.1
     }
 
     pub fn from_string(s: String) -> Self {

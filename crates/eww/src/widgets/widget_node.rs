@@ -1,7 +1,7 @@
 use crate::eww_state::EwwState;
 use anyhow::*;
 use dyn_clone;
-use eww_shared_util::{AttrName, Span, VarName};
+use eww_shared_util::{AttrName, Span, Spanned, VarName};
 use simplexpr::SimplExpr;
 use std::collections::HashMap;
 use yuck::{
@@ -11,7 +11,6 @@ use yuck::{
 
 pub trait WidgetNode: std::fmt::Debug + dyn_clone::DynClone + Send + Sync {
     fn get_name(&self) -> &str;
-    fn span(&self) -> Option<Span>;
 
     /// Generate a [gtk::Widget] from a [element::WidgetUse].
     ///
@@ -32,17 +31,13 @@ dyn_clone::clone_trait_object!(WidgetNode);
 #[derive(Debug, Clone)]
 pub struct UserDefined {
     name: String,
-    span: Option<Span>,
+    span: Span,
     content: Box<dyn WidgetNode>,
 }
 
 impl WidgetNode for UserDefined {
     fn get_name(&self) -> &str {
         &self.name
-    }
-
-    fn span(&self) -> Option<Span> {
-        self.span
     }
 
     fn render(
@@ -52,6 +47,12 @@ impl WidgetNode for UserDefined {
         widget_definitions: &HashMap<String, WidgetDefinition>,
     ) -> Result<gtk::Widget> {
         self.content.render(eww_state, window_name, widget_definitions)
+    }
+}
+
+impl Spanned for UserDefined {
+    fn span(&self) -> Span {
+        self.span
     }
 }
 
@@ -88,10 +89,6 @@ impl WidgetNode for Generic {
         &self.name
     }
 
-    fn span(&self) -> Option<Span> {
-        Some(self.span)
-    }
-
     fn render(
         &self,
         eww_state: &mut EwwState,
@@ -101,6 +98,11 @@ impl WidgetNode for Generic {
         Ok(crate::widgets::build_builtin_gtk_widget(eww_state, window_name, widget_definitions, self)?.ok_or_else(|| {
             AstError::ValidationError(ValidationError::UnknownWidget(self.name_span, self.get_name().to_string()))
         })?)
+    }
+}
+impl Spanned for Generic {
+    fn span(&self) -> Span {
+        self.span
     }
 }
 
@@ -122,7 +124,7 @@ pub fn generate_generic_widget_node(
             .collect::<AstResult<HashMap<VarName, _>>>()?;
 
         let content = generate_generic_widget_node(defs, &new_local_env, def.widget.clone())?;
-        Ok(Box::new(UserDefined { name: w.name, span: Some(w.span), content }))
+        Ok(Box::new(UserDefined { name: w.name, span: w.span, content }))
     } else {
         Ok(Box::new(Generic {
             name: w.name,

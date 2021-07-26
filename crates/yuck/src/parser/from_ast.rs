@@ -2,7 +2,7 @@ use super::{
     ast::{Ast, AstType},
     ast_iterator::AstIterator,
 };
-use crate::{error::*, parser, util};
+use crate::{error::*, parser};
 use eww_shared_util::{AttrName, Span, VarName};
 use itertools::Itertools;
 use simplexpr::{ast::SimplExpr, dynval::DynVal};

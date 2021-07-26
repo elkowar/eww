@@ -4,7 +4,7 @@ use crate::{
     ast::{BinOp, SimplExpr, UnaryOp},
     dynval::{ConversionError, DynVal},
 };
-use eww_shared_util::{Span, VarName};
+use eww_shared_util::{Span, Spanned, VarName};
 use std::collections::HashMap;
 
 #[derive(Debug, thiserror::Error)]
@@ -18,7 +18,7 @@ pub enum EvalError {
     #[error("got unresolved variable `{0}`")]
     UnresolvedVariable(VarName),
 
-    #[error("Type error: {0}")]
+    #[error(transparent)]
     ConversionError(#[from] ConversionError),
 
     #[error("Incorrect number of arguments given to function: {0}")]
@@ -38,16 +38,18 @@ pub enum EvalError {
 }
 
 impl EvalError {
-    pub fn span(&self) -> Span {
+    pub fn at(self, span: Span) -> Self {
+        Self::Spanned(span, Box::new(self))
+    }
+}
+
+impl Spanned for EvalError {
+    fn span(&self) -> Span {
         match self {
             EvalError::Spanned(span, _) => *span,
             EvalError::ConversionError(err) => err.span(),
             _ => Span::DUMMY,
         }
-    }
-
-    pub fn at(self, span: Span) -> Self {
-        Self::Spanned(span, Box::new(self))
     }
 }
 
@@ -98,7 +100,6 @@ impl SimplExpr {
     pub fn resolve_refs(self, variables: &HashMap<VarName, DynVal>) -> Result<Self, EvalError> {
         use SimplExpr::*;
         match self {
-            // Literal(x) => Ok(Literal(AttrValue::from_primitive(x.resolve_fully(&variables)?))),
             Literal(span, x) => Ok(Literal(span, x)),
             BinOp(span, box a, op, box b) => Ok(BinOp(span, box a.resolve_refs(variables)?, op, box b.resolve_refs(variables)?)),
             UnaryOp(span, op, box x) => Ok(UnaryOp(span, op, box x.resolve_refs(variables)?)),

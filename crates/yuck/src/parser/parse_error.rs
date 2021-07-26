@@ -1,4 +1,4 @@
-use eww_shared_util::{AttrName, Span, VarName};
+use eww_shared_util::{AttrName, Span, Spanned, VarName};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ParseError {
@@ -8,8 +8,8 @@ pub enum ParseError {
     LexicalError(Span),
 }
 
-impl ParseError {
-    pub fn span(&self) -> Span {
+impl Spanned for ParseError {
+    fn span(&self) -> Span {
         match self {
             ParseError::SimplExpr(err) => err.span(),
             ParseError::LexicalError(span) => *span,
