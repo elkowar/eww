@@ -173,24 +173,30 @@ impl DynVal {
         }
     }
 
-    // pub fn as_vec(&self) -> Result<Vec<String>> {
-    // match self.0.strip_prefix('[').and_then(|x| x.strip_suffix(']')) {
-    // Some(content) => {
-    // let mut items: Vec<String> = content.split(',').map(|x: &str| x.to_string()).collect();
-    // let mut removed = 0;
-    // for times_ran in 0..items.len() {
-    //// escapes `,` if there's a `\` before em
-    // if items[times_ran - removed].ends_with('\\') {
-    // items[times_ran - removed].pop();
-    // let it = items.remove((times_ran + 1) - removed);
-    // items[times_ran - removed] += ",";
-    // items[times_ran - removed] += &it;
-    // removed += 1;
-    //}
-    // Ok(items)
-    //}
-    // None => Err(ConversionError { value: self.clone(), target_type: "vec", source: None }),
-    //}
+    pub fn as_vec(&self) -> Result<Vec<String>> {
+        if self.0.is_empty() {
+            Ok(Vec::new())
+        } else {
+            match self.0.strip_prefix('[').and_then(|x| x.strip_suffix(']')) {
+                Some(content) => {
+                    let mut items: Vec<String> = content.split(',').map(|x: &str| x.to_string()).collect();
+                    let mut removed = 0;
+                    for times_ran in 0..items.len() {
+                        // escapes `,` if there's a `\` before em
+                        if items[times_ran - removed].ends_with('\\') {
+                            items[times_ran - removed].pop();
+                            let it = items.remove((times_ran + 1) - removed);
+                            items[times_ran - removed] += ",";
+                            items[times_ran - removed] += &it;
+                            removed += 1;
+                        }
+                    }
+                    Ok(items)
+                }
+                None => Err(ConversionError { value: self.clone(), target_type: "vec", source: None }),
+            }
+        }
+    }
 
     pub fn as_json_value(&self) -> Result<serde_json::Value> {
         serde_json::from_str::<serde_json::Value>(&self.0)
@@ -200,25 +206,16 @@ impl DynVal {
 
 #[cfg(test)]
 mod test {
-    // use super::*;
-    // use pretty_assertions::assert_eq;
-    //#[test]
-    // fn test_parse_vec() {
-    // assert_eq!(vec![""], parse_vec("[]".to_string()).unwrap(), "should be able to parse empty lists");
-    // assert_eq!(vec!["hi"], parse_vec("[hi]".to_string()).unwrap(), "should be able to parse single element list");
-    // assert_eq!(
-    // vec!["hi", "ho", "hu"],
-    // parse_vec("[hi,ho,hu]".to_string()).unwrap(),
-    //"should be able to parse three element list"
-    //);
-    // assert_eq!(vec!["hi,ho"], parse_vec("[hi\\,ho]".to_string()).unwrap(), "should be able to parse list with escaped comma");
-    // assert_eq!(
-    // vec!["hi,ho", "hu"],
-    // parse_vec("[hi\\,ho,hu]".to_string()).unwrap(),
-    //"should be able to parse two element list with escaped comma"
-    //);
-    // assert!(parse_vec("".to_string()).is_err(), "Should fail when parsing empty string");
-    // assert!(parse_vec("[a,b".to_string()).is_err(), "Should fail when parsing unclosed list");
-    // assert!(parse_vec("a]".to_string()).is_err(), "Should fail when parsing unopened list");
-    //}
+    use super::*;
+    #[test]
+    fn test_parse_vec() {
+        insta::assert_debug_snapshot!(DynVal::from_string("[]".to_string()).as_vec());
+        insta::assert_debug_snapshot!(DynVal::from_string("[hi]".to_string()).as_vec());
+        insta::assert_debug_snapshot!(DynVal::from_string("[hi,ho,hu]".to_string()).as_vec());
+        insta::assert_debug_snapshot!(DynVal::from_string("[hi\\,ho]".to_string()).as_vec());
+        insta::assert_debug_snapshot!(DynVal::from_string("[hi\\,ho,hu]".to_string()).as_vec());
+        insta::assert_debug_snapshot!(DynVal::from_string("".to_string()).as_vec());
+        insta::assert_debug_snapshot!(DynVal::from_string("[a,b".to_string()).as_vec());
+        insta::assert_debug_snapshot!(DynVal::from_string("a]".to_string()).as_vec());
+    }
 }

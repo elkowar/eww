@@ -247,13 +247,12 @@ fn build_gtk_combo_box_text(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText
     let on_change_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
     resolve_block!(bargs, gtk_widget, {
         // @prop items - Items that should be displayed in the combo box
-        // TODO reimplement, obviously
-        //prop(items: as_vec) {
-            //gtk_widget.remove_all();
-            //for i in items {
-                //gtk_widget.append_text(&i);
-            //}
-        //},
+        prop(items: as_vec) {
+            gtk_widget.remove_all();
+            for i in items {
+                gtk_widget.append_text(&i);
+            }
+        },
         // @prop onchange - runs the code when a item was selected, replacing {} with the item as a string
         prop(onchange: as_string) {
             let old_id = on_change_handler_id.replace(Some(

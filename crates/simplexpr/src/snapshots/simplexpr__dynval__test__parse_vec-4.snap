@@ -1,0 +1,10 @@
+---
+source: crates/simplexpr/src/dynval.rs
+expression: "DynVal::from_string(\"[hi\\\\,ho]\".to_string()).as_vec()"
+
+---
+Ok(
+    [
+        "hi,ho",
+    ],
+)
