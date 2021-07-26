@@ -18,7 +18,7 @@ Config(
           attrs: {
             AttrName("arg"): AttrEntry(
               key_span: Span(52, 56, 0),
-              value: Literal(Span(57, 61, 0), DynVal("hi", None)),
+              value: Literal(Span(57, 61, 0), DynVal("hi", Span(18446744073709551615, 18446744073709551615, 18446744073709551615))),
             ),
           },
         ),
@@ -56,7 +56,7 @@ Config(
           attrs: {
             AttrName("arg"): AttrEntry(
               key_span: Span(468, 472, 0),
-              value: Literal(Span(473, 478, 0), DynVal("bla", None)),
+              value: Literal(Span(473, 478, 0), DynVal("bla", Span(18446744073709551615, 18446744073709551615, 18446744073709551615))),
             ),
           },
         ),
@@ -79,7 +79,7 @@ Config(
   var_definitions: {
     VarName("some_var"): VarDefinition(
       name: VarName("some_var"),
-      initial_value: DynVal("bla", None),
+      initial_value: DynVal("bla", Span(18446744073709551615, 18446744073709551615, 18446744073709551615)),
       span: Span(72, 95, 0),
     ),
   },
