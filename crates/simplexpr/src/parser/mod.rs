@@ -7,7 +7,7 @@ use crate::{
 };
 
 pub fn parse_string(byte_offset: usize, file_id: usize, s: &str) -> Result<SimplExpr> {
-    let lexer = lexer::Lexer::new(byte_offset, s);
+    let lexer = lexer::Lexer::new(file_id, byte_offset, s);
     let parser = crate::simplexpr_parser::ExprParser::new();
     parser.parse(file_id, lexer).map_err(|e| Error::from_parse_error(file_id, e))
 }
@@ -20,7 +20,7 @@ mod tests {
             use crate::parser::lexer::Lexer;
             ::insta::with_settings!({sort_maps => true}, {
                 $(
-                    ::insta::assert_debug_snapshot!(p.parse(0, Lexer::new(0, $text)));
+                    ::insta::assert_debug_snapshot!(p.parse(0, Lexer::new(0, 0, $text)));
                 )*
             });
         }}

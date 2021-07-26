@@ -50,7 +50,7 @@ pub enum Token {
 
 // TODO can i include the fileid here already?
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
-pub struct LexicalError(pub usize, pub usize);
+pub struct LexicalError(pub usize, pub usize, pub usize);
 
 impl std::fmt::Display for LexicalError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -63,11 +63,12 @@ pub type SpannedResult<Tok, Loc, Error> = Result<(Loc, Tok, Loc), Error>;
 pub struct Lexer<'input> {
     lexer: logos::SpannedIter<'input, Token>,
     byte_offset: usize,
+    file_id: usize,
 }
 
 impl<'input> Lexer<'input> {
-    pub fn new(byte_offset: usize, text: &'input str) -> Self {
-        Lexer { lexer: logos::Lexer::new(text).spanned(), byte_offset }
+    pub fn new(file_id: usize, byte_offset: usize, text: &'input str) -> Self {
+        Lexer { lexer: logos::Lexer::new(text).spanned(), byte_offset, file_id }
     }
 }
 
@@ -78,7 +79,7 @@ impl<'input> Iterator for Lexer<'input> {
         let (token, range) = self.lexer.next()?;
         let range = (range.start + self.byte_offset, range.end + self.byte_offset);
         if token == Token::Error {
-            Some(Err(LexicalError(range.0, range.1)))
+            Some(Err(LexicalError(range.0, range.1, self.file_id)))
         } else {
             Some(Ok((range.0, token, range.1)))
         }
@@ -89,5 +90,5 @@ impl<'input> Iterator for Lexer<'input> {
 #[test]
 fn test_simplexpr_lexer() {
     use itertools::Itertools;
-    insta::assert_debug_snapshot!(Lexer::new(0, r#"(foo + - "()" "a\"b" true false [] 12.2)"#).collect_vec());
+    insta::assert_debug_snapshot!(Lexer::new(0, 0, r#"(foo + - "()" "a\"b" true false [] 12.2)"#).collect_vec());
 }

@@ -63,7 +63,7 @@ pub Expr: SimplExpr = {
 
   #[precedence(level="0")]
   <l:@L> "lexer_error" <r:@R> =>? {
-    Err(ParseError::User { error: LexicalError(l, r) })
+    Err(ParseError::User { error: LexicalError(l, r, fid) })
   },
 
   <Literal>,

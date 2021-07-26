@@ -52,7 +52,7 @@ fn get_parse_error_span(
         lalrpop_util::ParseError::UnrecognizedEOF { location, expected: _ } => Some(Span(*location, *location, file_id)),
         lalrpop_util::ParseError::UnrecognizedToken { token, expected: _ } => Some(Span(token.0, token.2, file_id)),
         lalrpop_util::ParseError::ExtraToken { token } => Some(Span(token.0, token.2, file_id)),
-        lalrpop_util::ParseError::User { error: LexicalError(l, r) } => Some(Span(*l, *r, file_id)),
+        lalrpop_util::ParseError::User { error: LexicalError(l, r, file_id) } => Some(Span(*l, *r, *file_id)),
     }
 }
 
