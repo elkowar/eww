@@ -41,7 +41,7 @@ pub enum AstError {
     ConversionError(#[from] dynval::ConversionError),
 
     #[error("{1}")]
-    Other(Option<Span>, Box<dyn std::error::Error + Sync + Send + 'static>),
+    Other(Span, Box<dyn std::error::Error + Sync + Send + 'static>),
 
     #[error(transparent)]
     AttrError(#[from] AttrError),
@@ -66,22 +66,22 @@ impl AstError {
         AstError::ErrorContext { label_span, context: context.to_string(), main_err: Box::new(self) }
     }
 
-    pub fn get_span(&self) -> Option<Span> {
+    pub fn span(&self) -> Span {
         match self {
-            AstError::UnknownToplevel(span, _) => Some(*span),
-            AstError::MissingNode(span) => Some(*span),
-            AstError::WrongExprType(span, ..) => Some(*span),
-            AstError::NotAValue(span, ..) => Some(*span),
-            AstError::MismatchedElementName(span, ..) => Some(*span),
-            AstError::AttrError(err) => Some(err.span()),
+            AstError::UnknownToplevel(span, _) => *span,
+            AstError::MissingNode(span) => *span,
+            AstError::WrongExprType(span, ..) => *span,
+            AstError::NotAValue(span, ..) => *span,
+            AstError::MismatchedElementName(span, ..) => *span,
+            AstError::AttrError(err) => err.span(),
             AstError::Other(span, ..) => *span,
-            AstError::ConversionError(err) => err.value.span().map(|x| x.into()),
-            AstError::IncludedFileNotFound(include) => Some(include.path_span),
-            AstError::TooManyNodes(span, ..) => Some(*span),
-            AstError::ErrorContext { label_span, .. } => Some(*label_span),
-            AstError::ValidationError(error) => Some(error.span()),
+            AstError::ConversionError(err) => err.value.span(),
+            AstError::IncludedFileNotFound(include) => include.path_span,
+            AstError::TooManyNodes(span, ..) => *span,
+            AstError::ErrorContext { label_span, .. } => *label_span,
+            AstError::ValidationError(error) => error.span(),
             AstError::ParseError { file_id, source } => get_parse_error_span(*file_id, source, |err| err.span()),
-            AstError::ErrorNote(_, err) => err.get_span(),
+            AstError::ErrorNote(_, err) => err.span(),
         }
     }
 
@@ -96,13 +96,13 @@ impl AstError {
 pub fn get_parse_error_span<T, E>(
     file_id: usize,
     err: &lalrpop_util::ParseError<usize, T, E>,
-    handle_user: impl FnOnce(&E) -> Option<Span>,
-) -> Option<Span> {
+    handle_user: impl FnOnce(&E) -> Span,
+) -> Span {
     match err {
-        lalrpop_util::ParseError::InvalidToken { location } => Some(Span(*location, *location, file_id)),
-        lalrpop_util::ParseError::UnrecognizedEOF { location, expected } => Some(Span(*location, *location, file_id)),
-        lalrpop_util::ParseError::UnrecognizedToken { token, expected } => Some(Span(token.0, token.2, file_id)),
-        lalrpop_util::ParseError::ExtraToken { token } => Some(Span(token.0, token.2, file_id)),
+        lalrpop_util::ParseError::InvalidToken { location } => Span(*location, *location, file_id),
+        lalrpop_util::ParseError::UnrecognizedEOF { location, expected } => Span(*location, *location, file_id),
+        lalrpop_util::ParseError::UnrecognizedToken { token, expected } => Span(token.0, token.2, file_id),
+        lalrpop_util::ParseError::ExtraToken { token } => Span(token.0, token.2, file_id),
         lalrpop_util::ParseError::User { error } => handle_user(error),
     }
 }

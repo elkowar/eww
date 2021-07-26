@@ -18,17 +18,17 @@ impl ConversionError {
         ConversionError { value, target_type, source: Some(Box::new(source)) }
     }
 
-    pub fn span(&self) -> Option<Span> {
+    pub fn span(&self) -> Span {
         self.value.1
     }
 }
 
-#[derive(Clone, Deserialize, Serialize, Default, Eq)]
-pub struct DynVal(pub String, pub Option<Span>);
+#[derive(Clone, Deserialize, Serialize, Eq)]
+pub struct DynVal(pub String, pub Span);
 
 impl From<String> for DynVal {
     fn from(s: String) -> Self {
-        DynVal(s, None)
+        DynVal(s, Span::DUMMY)
     }
 }
 
@@ -56,7 +56,7 @@ impl std::cmp::PartialEq<Self> for DynVal {
 
 impl FromIterator<DynVal> for DynVal {
     fn from_iter<T: IntoIterator<Item = DynVal>>(iter: T) -> Self {
-        DynVal(iter.into_iter().join(""), None)
+        DynVal(iter.into_iter().join(""), Span::DUMMY)
     }
 }
 
@@ -86,7 +86,7 @@ impl<E, T: FromStr<Err = E>> FromDynVal for T {
 macro_rules! impl_dynval_from {
     ($($t:ty),*) => {
         $(impl From<$t> for DynVal {
-            fn from(x: $t) -> Self { DynVal(x.to_string(), None) }
+            fn from(x: $t) -> Self { DynVal(x.to_string(), Span::DUMMY) }
         })*
     };
 }
@@ -95,7 +95,7 @@ impl_dynval_from!(bool, i32, u32, f32, u8, f64, &str);
 
 impl From<std::time::Duration> for DynVal {
     fn from(d: std::time::Duration) -> Self {
-        DynVal(format!("{}ms", d.as_millis()), None)
+        DynVal(format!("{}ms", d.as_millis()), Span::DUMMY)
     }
 }
 
@@ -106,22 +106,22 @@ impl From<&serde_json::Value> for DynVal {
                 .map(|x| x.to_string())
                 .or_else(|| serde_json::to_string(v).ok())
                 .unwrap_or_else(|| "<invalid json value>".to_string()),
-            None,
+            Span::DUMMY,
         )
     }
 }
 
 impl DynVal {
     pub fn at(self, span: Span) -> Self {
-        DynVal(self.0, Some(span))
+        DynVal(self.0, span)
     }
 
-    pub fn span(&self) -> Option<Span> {
+    pub fn span(&self) -> Span {
         self.1
     }
 
     pub fn from_string(s: String) -> Self {
-        DynVal(s, None)
+        DynVal(s, Span::DUMMY)
     }
 
     pub fn read_as<E, T: FromDynVal<Err = E>>(&self) -> std::result::Result<T, E> {

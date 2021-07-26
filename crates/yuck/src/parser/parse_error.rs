@@ -9,10 +9,10 @@ pub enum ParseError {
 }
 
 impl ParseError {
-    pub fn span(&self) -> Option<Span> {
+    pub fn span(&self) -> Span {
         match self {
-            ParseError::SimplExpr(err) => err.get_span(),
-            ParseError::LexicalError(span) => Some(*span),
+            ParseError::SimplExpr(err) => err.span(),
+            ParseError::LexicalError(span) => *span,
         }
     }
 }

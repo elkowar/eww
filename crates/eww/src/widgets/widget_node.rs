@@ -11,7 +11,7 @@ use yuck::{
 
 pub trait WidgetNode: std::fmt::Debug + dyn_clone::DynClone + Send + Sync {
     fn get_name(&self) -> &str;
-    fn get_span(&self) -> Option<Span>;
+    fn span(&self) -> Option<Span>;
 
     /// Generate a [gtk::Widget] from a [element::WidgetUse].
     ///
@@ -41,7 +41,7 @@ impl WidgetNode for UserDefined {
         &self.name
     }
 
-    fn get_span(&self) -> Option<Span> {
+    fn span(&self) -> Option<Span> {
         self.span
     }
 
@@ -88,7 +88,7 @@ impl WidgetNode for Generic {
         &self.name
     }
 
-    fn get_span(&self) -> Option<Span> {
+    fn span(&self) -> Option<Span> {
         Some(self.span)
     }
 

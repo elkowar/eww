@@ -1,5 +1,5 @@
 use crate::dynval::DynVal;
-use eww_shared_util::{Span, DUMMY_SPAN};
+use eww_shared_util::Span;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
@@ -57,17 +57,17 @@ impl std::fmt::Display for SimplExpr {
 }
 impl SimplExpr {
     pub fn literal(span: Span, s: String) -> Self {
-        Self::Literal(span, DynVal(s, Some(span)))
+        Self::Literal(span, DynVal(s, span))
     }
 
     /// Construct a synthetic simplexpr from a literal string, without adding any relevant span information (uses [DUMMY_SPAN])
     pub fn synth_string(s: String) -> Self {
-        Self::Literal(DUMMY_SPAN, DynVal(s, Some(DUMMY_SPAN)))
+        Self::Literal(Span::DUMMY, DynVal(s, Span::DUMMY))
     }
 
     /// Construct a synthetic simplexpr from a literal dynval, without adding any relevant span information (uses [DUMMY_SPAN])
     pub fn synth_literal<T: Into<DynVal>>(s: T) -> Self {
-        Self::Literal(DUMMY_SPAN, s.into())
+        Self::Literal(Span::DUMMY, s.into())
     }
 
     pub fn span(&self) -> Span {

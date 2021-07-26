@@ -32,27 +32,24 @@ impl Error {
         Self::Spanned(span, Box::new(self))
     }
 
-    pub fn get_span(&self) -> Option<Span> {
+    pub fn span(&self) -> Span {
         match self {
             Self::ParseError { file_id, source } => get_parse_error_span(*file_id, source),
-            Self::Spanned(span, _) => Some(*span),
+            Self::Spanned(span, _) => *span,
             Self::Eval(err) => err.span(),
             Self::ConversionError(err) => err.span(),
-            _ => None,
+            _ => Span::DUMMY,
         }
     }
 }
 
-fn get_parse_error_span(
-    file_id: usize,
-    err: &lalrpop_util::ParseError<usize, lexer::Token, lexer::LexicalError>,
-) -> Option<Span> {
+fn get_parse_error_span(file_id: usize, err: &lalrpop_util::ParseError<usize, lexer::Token, lexer::LexicalError>) -> Span {
     match err {
-        lalrpop_util::ParseError::InvalidToken { location } => Some(Span(*location, *location, file_id)),
-        lalrpop_util::ParseError::UnrecognizedEOF { location, expected: _ } => Some(Span(*location, *location, file_id)),
-        lalrpop_util::ParseError::UnrecognizedToken { token, expected: _ } => Some(Span(token.0, token.2, file_id)),
-        lalrpop_util::ParseError::ExtraToken { token } => Some(Span(token.0, token.2, file_id)),
-        lalrpop_util::ParseError::User { error: LexicalError(l, r, file_id) } => Some(Span(*l, *r, *file_id)),
+        lalrpop_util::ParseError::InvalidToken { location } => Span(*location, *location, file_id),
+        lalrpop_util::ParseError::UnrecognizedEOF { location, expected: _ } => Span(*location, *location, file_id),
+        lalrpop_util::ParseError::UnrecognizedToken { token, expected: _ } => Span(token.0, token.2, file_id),
+        lalrpop_util::ParseError::ExtraToken { token } => Span(token.0, token.2, file_id),
+        lalrpop_util::ParseError::User { error: LexicalError(l, r, file_id) } => Span(*l, *r, *file_id),
     }
 }
 

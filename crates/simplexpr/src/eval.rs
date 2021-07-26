@@ -38,11 +38,11 @@ pub enum EvalError {
 }
 
 impl EvalError {
-    pub fn span(&self) -> Option<Span> {
+    pub fn span(&self) -> Span {
         match self {
-            EvalError::Spanned(span, _) => Some(*span),
+            EvalError::Spanned(span, _) => *span,
             EvalError::ConversionError(err) => err.span(),
-            _ => None,
+            _ => Span::DUMMY,
         }
     }
 

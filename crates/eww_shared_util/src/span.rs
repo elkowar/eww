@@ -1,8 +1,9 @@
 #[derive(Eq, PartialEq, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct Span(pub usize, pub usize, pub usize);
-pub static DUMMY_SPAN: Span = Span(usize::MAX, usize::MAX, usize::MAX);
 
 impl Span {
+    pub const DUMMY: Span = Span(usize::MAX, usize::MAX, usize::MAX);
+
     pub fn point(loc: usize, file_id: usize) -> Self {
         Span(loc, loc, file_id)
     }
@@ -38,7 +39,7 @@ impl Span {
     }
 
     pub fn is_dummy(&self) -> bool {
-        *self == DUMMY_SPAN
+        *self == Self::DUMMY
     }
 }
 

@@ -122,7 +122,7 @@ impl Config {
 
     pub fn generate_from_main_file(files: &mut YuckFiles, path: impl AsRef<Path>) -> AstResult<Self> {
         let (span, top_levels) = files.load_file(path.as_ref().to_path_buf()).map_err(|err| match err {
-            FilesError::IoError(err) => AstError::Other(None, Box::new(err)),
+            FilesError::IoError(err) => AstError::Other(Span::DUMMY, Box::new(err)),
             FilesError::AstError(x) => x,
         })?;
         Self::generate(files, top_levels)
