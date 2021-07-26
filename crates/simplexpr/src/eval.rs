@@ -165,9 +165,9 @@ impl SimplExpr {
                     BinOp::NotEquals => DynVal::from(a != b),
                     BinOp::And => DynVal::from(a.as_bool()? && b.as_bool()?),
                     BinOp::Or => DynVal::from(a.as_bool()? || b.as_bool()?),
-                    BinOp::Plus => match a.as_f64() {
-                        Ok(num) => DynVal::from(num + b.as_f64()?),
-                        Err(_) => DynVal::from(format!("{}{}", a.as_string()?, b.as_string()?)),
+                    BinOp::Plus => match (a.as_f64(), b.as_f64()) {
+                        (Ok(a), Ok(b)) => DynVal::from(a + b),
+                        _ => DynVal::from(format!("{}{}", a.as_string()?, b.as_string()?)),
                     },
                     BinOp::Minus => DynVal::from(a.as_f64()? - b.as_f64()?),
                     BinOp::Times => DynVal::from(a.as_f64()? * b.as_f64()?),

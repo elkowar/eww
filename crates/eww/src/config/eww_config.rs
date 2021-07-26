@@ -21,7 +21,8 @@ pub struct EwwConfig {
 impl EwwConfig {
     pub fn read_from_file(files: &mut YuckFiles, path: impl AsRef<Path>) -> Result<Self> {
         let config = Config::generate_from_main_file(files, path)?;
-        let Config { widget_definitions, window_definitions, var_definitions, script_vars } = config;
+        let Config { widget_definitions, window_definitions, var_definitions, mut script_vars } = config;
+        script_vars.extend(crate::config::inbuilt::get_inbuilt_vars());
         Ok(EwwConfig {
             windows: window_definitions
                 .into_iter()
