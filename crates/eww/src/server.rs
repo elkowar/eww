@@ -10,6 +10,27 @@ use std::{
 use tokio::sync::mpsc::*;
 
 pub fn initialize_server(paths: EwwPaths) -> Result<()> {
+    let (ui_send, mut ui_recv) = tokio::sync::mpsc::unbounded_channel();
+
+    std::env::set_current_dir(&paths.get_config_dir())
+        .with_context(|| format!("Failed to change working directory to {}", paths.get_config_dir().display()))?;
+
+    log::info!("Loading paths: {}", &paths);
+
+    // disgusting global state, I hate this, but https://github.com/buffet told me that this is what I should do for peak maintainability
+    error_handling_ctx::clear_files();
+
+    let read_config =
+        config::EwwConfig::read_from_file(&mut error_handling_ctx::ERROR_HANDLING_CTX.lock().unwrap(), &paths.get_yuck_path());
+
+    let eww_config = match read_config {
+        Ok(config) => config,
+        Err(err) => {
+            error_handling_ctx::print_error(err);
+            config::EwwConfig::default()
+        }
+    };
+
     do_detach(&paths.get_log_file())?;
 
     println!(
@@ -27,17 +48,6 @@ pub fn initialize_server(paths: EwwPaths) -> Result<()> {
             std::process::exit(1);
         }
     });
-    let (ui_send, mut ui_recv) = tokio::sync::mpsc::unbounded_channel();
-
-    std::env::set_current_dir(&paths.get_config_dir())
-        .with_context(|| format!("Failed to change working directory to {}", paths.get_config_dir().display()))?;
-
-    log::info!("Loading paths: {}", &paths);
-
-    // disgusting global state, I hate this, but https://github.com/buffet told me that this is what I should do for peak maintainability
-    error_handling_ctx::clear_files();
-    let eww_config =
-        config::EwwConfig::read_from_file(&mut error_handling_ctx::ERROR_HANDLING_CTX.lock().unwrap(), &paths.get_yuck_path())?;
 
     gtk::init()?;
 

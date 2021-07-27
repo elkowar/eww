@@ -18,8 +18,17 @@ pub struct EwwConfig {
     script_vars: HashMap<VarName, ScriptVarDefinition>,
 }
 
+impl Default for EwwConfig {
+    fn default() -> Self {
+        Self { widgets: HashMap::new(), windows: HashMap::new(), initial_variables: HashMap::new(), script_vars: HashMap::new() }
+    }
+}
+
 impl EwwConfig {
     pub fn read_from_file(files: &mut YuckFiles, path: impl AsRef<Path>) -> Result<Self> {
+        if !path.as_ref().exists() {
+            bail!("The configuration file `{}` does not exist", path.as_ref().display());
+        }
         let config = Config::generate_from_main_file(files, path)?;
         let Config { widget_definitions, window_definitions, var_definitions, mut script_vars } = config;
         script_vars.extend(crate::config::inbuilt::get_inbuilt_vars());
