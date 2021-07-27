@@ -10,7 +10,7 @@ use std::collections::HashMap;
 #[derive(Debug, thiserror::Error)]
 pub enum EvalError {
     #[error("Tried to reference variable `{0}`, but we cannot access variables here")]
-    NoVariablesAllowed(String),
+    NoVariablesAllowed(VarName),
 
     #[error("Invalid regex: {0}")]
     InvalidRegex(#[from] regex::Error),
@@ -28,7 +28,7 @@ pub enum EvalError {
     UnknownFunction(String),
 
     #[error("Unknown variable {0}")]
-    UnknownVariable(String),
+    UnknownVariable(VarName),
 
     #[error("Unable to index into value {0}")]
     CannotIndex(String),
@@ -116,7 +116,7 @@ impl SimplExpr {
             )),
             VarRef(span, ref name) => match variables.get(name) {
                 Some(value) => Ok(Literal(span, value.clone())),
-                None => Err(EvalError::UnknownVariable(name.to_string()).at(span)),
+                None => Err(EvalError::UnknownVariable(name.clone()).at(span)),
             },
         }
     }

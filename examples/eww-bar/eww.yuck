@@ -45,11 +45,11 @@
 (defpoll music :interval "5s" "playerctl metadata --format '{{ artist }} - {{ title }}' || true")
 (defpoll volume :interval "16s" "scripts/getvol")
 
-(defpoll number_day :interval "5h" "date '+%d'")
-(defpoll month :interval "10h" "date '+%b'")
-(defpoll min :interval "10s" "date '+%M'")
-(defpoll hour :interval "1m" "date '+%H'")
-(defpoll year_full :interval "15h" "date '+%Y'")
+(defpoll number_day :interval "5h"  "date '+%d'")
+(defpoll month      :interval "10h" "date '+%b'")
+(defpoll min        :interval "10s" "date '+%M'")
+(defpoll hour       :interval "1m"  "date '+%H'")
+(defpoll year_full  :interval "15h" "date '+%Y'")
 
 (deflisten battery-remaining "/sys/class/power_supply/BAT0/capacity")
 

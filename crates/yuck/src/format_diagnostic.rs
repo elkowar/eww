@@ -11,6 +11,9 @@ use crate::{
 use super::parser::parse_error;
 use eww_shared_util::{AttrName, Span, Spanned, VarName};
 
+fn span_to_primary_label(span: Span) -> Label<usize> {
+    Label::primary(span.2, span.0..span.1)
+}
 fn span_to_secondary_label(span: Span) -> Label<usize> {
     Label::secondary(span.2, span.0..span.1)
 }
@@ -189,7 +192,15 @@ impl ToDiagnostic for simplexpr::parser::lexer::LexicalError {
 
 impl ToDiagnostic for simplexpr::eval::EvalError {
     fn to_diagnostic(&self) -> Diagnostic<usize> {
-        gen_diagnostic!(self, self.span())
+        use simplexpr::eval::EvalError::*;
+        match self {
+            UnresolvedVariable(name) | UnknownVariable(name) | NoVariablesAllowed(name) => gen_diagnostic! {
+                msg = self,
+                note = format!("If you meant to use the literal value \"{}\", surround the value in quotes", name)
+            },
+            Spanned(span, error) => error.as_ref().to_diagnostic().with_label(span_to_primary_label(*span)),
+            _ => gen_diagnostic!(self, self.span()),
+        }
     }
 }
 

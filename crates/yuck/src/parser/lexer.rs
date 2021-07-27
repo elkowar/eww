@@ -92,6 +92,8 @@ impl Lexer {
     }
 }
 
+// TODO string literal interpolation stuff by looking for indexes of {{ and }}?
+
 impl Iterator for Lexer {
     type Item = Result<(usize, Token, usize), parse_error::ParseError>;
 
