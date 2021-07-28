@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use crate::{app, config::create_script_var_failed_error};
+use crate::{
+    app,
+    config::{create_script_var_failed_warn, script_var},
+};
 use anyhow::*;
 use app::DaemonCommand;
 
@@ -169,7 +172,7 @@ impl PollVarHandler {
 fn run_poll_once(var: &PollScriptVar) -> Result<DynVal> {
     match &var.command {
         VarSource::Shell(span, x) => {
-            crate::config::script_var::run_command(x).map_err(|_| anyhow!(create_script_var_failed_error(*span, &var.name)))
+            script_var::run_command(x).map_err(|e| anyhow!(create_script_var_failed_warn(*span, &var.name, &e.to_string())))
         }
         VarSource::Function(x) => x().map_err(|e| anyhow!(e)),
     }

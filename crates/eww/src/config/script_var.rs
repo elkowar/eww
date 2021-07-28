@@ -1,6 +1,7 @@
 use std::process::Command;
 
 use anyhow::*;
+use codespan_reporting::diagnostic::Severity;
 use eww_shared_util::{Span, VarName};
 use simplexpr::dynval::DynVal;
 use yuck::{
@@ -10,10 +11,12 @@ use yuck::{
 
 use crate::error::DiagError;
 
-pub fn create_script_var_failed_error(span: Span, var_name: &VarName) -> DiagError {
+pub fn create_script_var_failed_warn(span: Span, var_name: &VarName, error_output: &str) -> DiagError {
     DiagError::new(gen_diagnostic! {
-        msg = format!("Failed to compute value for `{}`", var_name),
+        kind = Severity::Warning,
+        msg = format!("The script for the `{}`-variable exited unsuccessfully", var_name),
         label = span => "Defined here",
+        note = error_output,
     })
 }
 
@@ -23,7 +26,9 @@ pub fn initial_value(var: &ScriptVarDefinition) -> Result<DynVal> {
             VarSource::Function(f) => {
                 f().map_err(|err| anyhow!(err)).with_context(|| format!("Failed to compute initial value for {}", &var.name()))
             }
-            VarSource::Shell(span, f) => run_command(f).map_err(|_| anyhow!(create_script_var_failed_error(*span, var.name()))),
+            VarSource::Shell(span, f) => {
+                run_command(f).map_err(|e| anyhow!(create_script_var_failed_warn(*span, var.name(), &e.to_string())))
+            }
         },
         ScriptVarDefinition::Listen(_) => Ok(DynVal::from_string(String::new())),
     }
@@ -34,7 +39,7 @@ pub fn run_command(cmd: &str) -> Result<DynVal> {
     log::debug!("Running command: {}", cmd);
     let command = Command::new("/bin/sh").arg("-c").arg(cmd).output()?;
     if !command.status.success() {
-        bail!("Execution of `{}` failed", cmd);
+        bail!("Failed with output:\n{}", String::from_utf8(command.stderr)?);
     }
     let output = String::from_utf8(command.stdout)?;
     let output = output.trim_matches('\n');
