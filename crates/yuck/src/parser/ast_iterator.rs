@@ -24,15 +24,11 @@ macro_rules! return_or_put_back {
         pub fn $name(&mut self) -> AstResult<$t> {
             let expr_type = $expr_type;
             match self.expect_any()? {
-                $p => {
-                    let (span, value) = $ret;
-                    self.remaining_span.1 = span.1;
-                    Ok((span, value))
-                }
+                $p => Ok($ret),
                 other => {
                     let span = other.span();
                     let actual_type = other.expr_type();
-                    self.iter.put_back(other);
+                    self.put_back(other);
                     Err(AstError::WrongExprType(span, expr_type, actual_type))
                 }
             }
@@ -53,12 +49,26 @@ impl<I: Iterator<Item = Ast>> AstIterator<I> {
         AstIterator { remaining_span: span, iter: itertools::put_back(iter) }
     }
 
-    pub fn expect_any<T: FromAst>(&mut self) -> AstResult<T> {
-        self.iter.next().or_missing(self.remaining_span.point_span()).and_then(T::from_ast)
+    pub fn expect_any(&mut self) -> AstResult<Ast> {
+        self.next().or_missing(self.remaining_span.point_span())
+    }
+
+    pub fn expect_done(&mut self) -> AstResult<()> {
+        if let Some(next) = self.next() {
+            self.put_back(next);
+            Err(AstError::NoMoreElementsExpected(self.remaining_span))
+        } else {
+            Ok(())
+        }
     }
 
     pub fn expect_key_values(&mut self) -> AstResult<Attributes> {
         parse_key_values(self)
+    }
+
+    pub fn put_back(&mut self, ast: Ast) {
+        self.remaining_span.0 = ast.span().0;
+        self.iter.put_back(ast)
     }
 }
 
@@ -66,7 +76,10 @@ impl<I: Iterator<Item = Ast>> Iterator for AstIterator<I> {
     type Item = Ast;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next()
+        self.iter.next().map(|x| {
+            self.remaining_span.0 = x.span().1;
+            x
+        })
     }
 }
 

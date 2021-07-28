@@ -27,6 +27,7 @@ impl FromAstElementContent for VarDefinition {
     fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> AstResult<Self> {
         let (_, name) = iter.expect_symbol()?;
         let (_, initial_value) = iter.expect_literal()?;
+        iter.expect_done()?;
         Ok(Self { name: VarName(name), initial_value, span })
     }
 }

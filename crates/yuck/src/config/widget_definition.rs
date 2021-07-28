@@ -32,8 +32,7 @@ impl FromAstElementContent for WidgetDefinition {
         let (args_span, expected_args) = iter.expect_array()?;
         let expected_args = expected_args.into_iter().map(|x| x.as_symbol().map(AttrName)).collect::<AstResult<_>>()?;
         let widget = iter.expect_any().and_then(WidgetUse::from_ast)?;
-        // TODO verify that this was the last element in the list
-        // iter.expect_done()?;
+        iter.expect_done()?;
         Ok(Self { name, expected_args, widget, span, args_span })
     }
 }

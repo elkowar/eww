@@ -21,6 +21,8 @@ pub enum AstError {
     MissingNode(Span),
     #[error("Too many elements, must be exactly {1}")]
     TooManyNodes(Span, i32),
+    #[error("Did not expect any further elements here. Make sure your format is correct")]
+    NoMoreElementsExpected(Span),
 
     #[error("Wrong type of expression: Expected {1} but got {2}")]
     WrongExprType(Span, AstType, AstType),
@@ -91,6 +93,7 @@ impl Spanned for AstError {
             AstError::ValidationError(error) => error.span(),
             AstError::ParseError { file_id, source } => get_parse_error_span(*file_id, source),
             AstError::ErrorNote(_, err) => err.span(),
+            AstError::NoMoreElementsExpected(span) => *span,
         }
     }
 }

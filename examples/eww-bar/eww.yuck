@@ -1,45 +1,44 @@
 (defwidget bar []
- (box :orientation "h" :hexpand true
-  (workspaces)
-  (music)
-  (sidestuff)))
-
+  (box :orientation "h" :hexpand true
+    (workspaces)
+    (music)
+    (sidestuff)))
 (defwidget sidestuff []
- (box :class "sidestuff" :orientation "h" :space-evenly false :halign "end"
-  (slider-vol)
-  (slider-ram)
-  (time)))
+  (box :class "sidestuff" :orientation "h" :space-evenly false :halign "end"
+    (slider-vol)
+    (slider-ram)
+    (time)))
 
 (defwidget workspaces []
- (box :class "workspaces" :orientation "h" :space-evenly true :halign "start"
-  (button :onclick "wmctrl -s 0" 1)
-  (button :onclick "wmctrl -s 1" 2)
-  (button :onclick "wmctrl -s 2" 3)
-  (button :onclick "wmctrl -s 3" 4)
-  (button :onclick "wmctrl -s 4" 5)
-  (button :onclick "wmctrl -s 5" 6)
-  (button :onclick "wmctrl -s 6" 7)
-  (button :onclick "wmctrl -s 7" 8)
-  (button :onclick "wmctrl -s 8" 9)))
+  (box :class "workspaces" :orientation "h" :space-evenly true :halign "start"
+    (button :onclick "wmctrl -s 0" 1)
+    (button :onclick "wmctrl -s 1" 2)
+    (button :onclick "wmctrl -s 2" 3)
+    (button :onclick "wmctrl -s 3" 4)
+    (button :onclick "wmctrl -s 4" 5)
+    (button :onclick "wmctrl -s 5" 6)
+    (button :onclick "wmctrl -s 6" 7)
+    (button :onclick "wmctrl -s 7" 8)
+    (button :onclick "wmctrl -s 8" 9)))
 
 (defwidget music []
- (box :class "music" :orientation "h" :space-evenly false :halign "center"
-  { ' ' + music}))
+  (box :class "music" :orientation "h" :space-evenly false :halign "center"
+    { ' ' + music}))
 
 (defwidget slider-vol []
- (box :class "slider-vol" :orientation "h" :space-evenly "false"
-  (box :class "label-vol" ""
-   (scale :min 0 :max 101 :value volume :onchange "amixer -D pulse sset Master {}%"))))
+  (box :class "slider-vol" :orientation "h" :space-evenly "false"
+    (box :class "label-vol" ""
+      (scale :min 0 :max 101 :value volume :onchange "amixer -D pulse sset Master {}%"))))
 
 (defwidget slider-ram []
- (box :orientation "h" :class "slider-ram" :space-evenly false
-  (box :class "label-ram" ""
-   (scale :min 0 :max 101 :active false :value EWW_RAM))))
+  (box :orientation "h" :class "slider-ram" :space-evenly false
+    (box :class "label-ram" ""
+      (scale :min 0 :max 101 :active false :value EWW_RAM))))
 
 
 (defwidget time []
- (box :class "time"
-  {hour + ":" + min + " " + month + " " + number_day + ", " + year_full}))
+  (box :class "time"
+    {hour + ":" + min + " " + month + " " + number_day + ", " + year_full}))
 
 
 (defpoll music :interval "5s" "playerctl metadata --format '{{ artist }} - {{ title }}' || true")
@@ -51,12 +50,14 @@
 (defpoll hour       :interval "1m"  "date '+%H'")
 (defpoll year_full  :interval "15h" "date '+%Y'")
 
-(deflisten battery-remaining "/sys/class/power_supply/BAT0/capacity")
+(deflisten battery-remaining "tail -f /sys/class/power_supply/BAT0/capacity")
 
 (defwindow bar
-           :screen 0
-           :focusable true
-           :windowtype "dock"
-           :geometry (geometry :x "0%" :y "0%" :width "100%" :height "4%")
-           :reserve (struts :side "top" :distance "4%")
- (bar))
+  :screen 0
+  :focusable true
+  :windowtype "dock"
+  :geometry (geometry :x "0%" :y "0%" :width "100%" :height "4%")
+  :reserve (struts :side "top" :distance "4%")
+  (bar))
+
+; asdf

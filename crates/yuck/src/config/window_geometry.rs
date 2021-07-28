@@ -123,6 +123,7 @@ impl FromAstElementContent for WindowGeometry {
 
     fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> AstResult<Self> {
         let mut attrs = iter.expect_key_values()?;
+        iter.expect_done().map_err(|e| e.note("Check if you are missing a colon in front of a key"))?;
         Ok(WindowGeometry {
             anchor_point: attrs.primitive_optional("anchor")?.unwrap_or_default(),
             size: Coords {

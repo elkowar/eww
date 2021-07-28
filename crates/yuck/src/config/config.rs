@@ -38,6 +38,7 @@ impl FromAstElementContent for Include {
 
     fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> AstResult<Self> {
         let (path_span, path) = iter.expect_literal()?;
+        iter.expect_done()?;
         Ok(Include { path: path.to_string(), path_span })
     }
 }

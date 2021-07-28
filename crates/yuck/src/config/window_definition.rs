@@ -39,7 +39,8 @@ impl FromAstElementContent for WindowDefinition {
         let stacking = attrs.primitive_optional("stacking")?.unwrap_or(WindowStacking::Foreground);
         let geometry = attrs.ast_optional("geometry")?;
         let backend_options = BackendWindowOptions::from_attrs(&mut attrs)?;
-        let widget = iter.expect_any()?;
+        let widget = iter.expect_any().and_then(WidgetUse::from_ast)?;
+        iter.expect_done()?;
         Ok(Self { name, monitor_number, resizable, widget, stacking, geometry, backend_options })
     }
 }

@@ -117,6 +117,7 @@ impl ToDiagnostic for AstError {
             },
             AstError::ErrorNote(note, source) => source.to_diagnostic().with_notes(vec![note.to_string()]),
             AstError::ValidationError(source) => source.to_diagnostic(),
+            AstError::NoMoreElementsExpected(span) => gen_diagnostic!(self, span),
         }
     }
 }
