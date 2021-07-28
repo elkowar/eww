@@ -53,8 +53,7 @@
 (deflisten battery-remaining "tail -f /sys/class/power_supply/BAT0/capacity")
 
 (defwindow bar
-  :screen 0
-  :focusable true
+  :monitor 0
   :windowtype "dock"
   :geometry (geometry :x "0%" :y "0%" :width "100%" :height "4%")
   :reserve (struts :side "top" :distance "4%")
