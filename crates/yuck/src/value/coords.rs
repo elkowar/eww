@@ -1,4 +1,5 @@
 use derive_more::*;
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use smart_default::SmartDefault;
 use std::{fmt, str::FromStr};
@@ -37,9 +38,7 @@ impl FromStr for NumWithUnit {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        lazy_static::lazy_static! {
-            static ref PATTERN: regex::Regex = regex::Regex::new("^(-?\\d+)(.*)$").unwrap();
-        };
+        static PATTERN: Lazy<regex::Regex> = Lazy::new(|| regex::Regex::new("^(-?\\d+)(.*)$").unwrap());
 
         let captures = PATTERN.captures(s).ok_or_else(|| Error::NumParseFailed(s.to_string()))?;
         let value = captures.get(1).unwrap().as_str().parse::<i32>().map_err(|_| Error::NumParseFailed(s.to_string()))?;

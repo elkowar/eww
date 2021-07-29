@@ -5,14 +5,13 @@ use codespan_reporting::{
     term::{self, Chars},
 };
 use eww_shared_util::Span;
+use once_cell::sync::Lazy;
 use simplexpr::eval::EvalError;
 use yuck::{config::file_provider::YuckFiles, error::AstError, format_diagnostic::ToDiagnostic, gen_diagnostic};
 
 use crate::error::DiagError;
 
-lazy_static::lazy_static! {
-    pub static ref ERROR_HANDLING_CTX: Arc<Mutex<YuckFiles>> = Arc::new(Mutex::new(YuckFiles::new()));
-}
+pub static ERROR_HANDLING_CTX: Lazy<Arc<Mutex<YuckFiles>>> = Lazy::new(|| Arc::new(Mutex::new(YuckFiles::new())));
 
 pub fn clear_files() {
     *ERROR_HANDLING_CTX.lock().unwrap() = YuckFiles::new();

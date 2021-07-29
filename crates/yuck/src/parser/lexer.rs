@@ -1,3 +1,4 @@
+use once_cell::sync::Lazy;
 use regex::{Regex, RegexSet};
 
 use super::parse_error;
@@ -41,26 +42,20 @@ impl std::fmt::Display for Token {
 }
 
 macro_rules! regex_rules {
-    ($(
-        $regex:literal => $token:expr),*
-    ) => {
-        lazy_static::lazy_static! {
-            static ref LEXER_REGEX_SET: RegexSet = RegexSet::new(&[
-                $(format!("^{}", $regex)),*
-            ]).unwrap();
-            static ref LEXER_REGEXES: Vec<Regex> = vec![
-                $(Regex::new(&format!("^{}", $regex)).unwrap()),*
-            ];
-            static ref LEXER_FNS: Vec<Box<dyn Fn(String) -> Token + Sync>> = vec![
-                $(Box::new($token)),*
-            ];
-        }
+    ($( $regex:literal => $token:expr),*) => {
+        static LEXER_REGEX_SET: Lazy<RegexSet> = Lazy::new(|| { RegexSet::new(&[
+            $(format!("^{}", $regex)),*
+        ]).unwrap()});
+        static LEXER_REGEXES: Lazy<Vec<Regex>> = Lazy::new(|| { vec![
+            $(Regex::new(&format!("^{}", $regex)).unwrap()),*
+        ]});
+        static LEXER_FNS: Lazy<Vec<Box<dyn Fn(String) -> Token + Sync + Send>>> = Lazy::new(|| { vec![
+            $(Box::new($token)),*
+        ]});
     }
 }
 
-lazy_static::lazy_static! {
-    static ref ESCAPE_REPLACE_REGEX: Regex = Regex::new(r"\\(.)").unwrap();
-}
+static ESCAPE_REPLACE_REGEX: Lazy<regex::Regex> = Lazy::new(|| Regex::new(r"\\(.)").unwrap());
 
 regex_rules! {
     r"\(" => |_| Token::LPren,

@@ -33,6 +33,14 @@ macro_rules! loop_select {
     }
 }
 
+#[macro_export]
+macro_rules! regex {
+    ($re:literal $(,)?) => {{
+        static RE: once_cell::sync::OnceCell<regex::Regex> = once_cell::sync::OnceCell::new();
+        RE.get_or_init(|| regex::Regex::new($re).unwrap())
+    }};
+}
+
 /// Parse a string with a concrete set of options into some data-structure,
 /// and return a nicely formatted error message on invalid values. I.e.:
 /// ```rs
@@ -142,10 +150,7 @@ impl<I: Iterator<Item = f32>> IterAverage for I {
 /// by the actual env-variables. If the env-var isn't found, will replace the
 /// reference with an empty string.
 pub fn replace_env_var_references(input: String) -> String {
-    lazy_static::lazy_static! {
-        static ref ENV_VAR_PATTERN: regex::Regex = regex::Regex::new(r"\$\{([^\s]*)\}").unwrap();
-    }
-    ENV_VAR_PATTERN
+    regex!(r"\$\{([^\s]*)\}")
         .replace_all(&input, |var_name: &regex::Captures| std::env::var(var_name.get(1).unwrap().as_str()).unwrap_or_default())
         .into_owned()
 }

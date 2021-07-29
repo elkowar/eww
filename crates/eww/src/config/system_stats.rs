@@ -1,13 +1,11 @@
 use crate::util::IterAverage;
 use anyhow::*;
 use itertools::Itertools;
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use std::{fs::read_to_string, sync::Mutex};
 use sysinfo::{ComponentExt, DiskExt, NetworkExt, NetworksExt, ProcessorExt, System, SystemExt};
 
-lazy_static! {
-    static ref SYSTEM: Mutex<System> = Mutex::new(System::new());
-}
+static SYSTEM: Lazy<Mutex<System>> = Lazy::new(|| Mutex::new(System::new()));
 
 pub fn disk() -> String {
     let mut c = SYSTEM.lock().unwrap();
@@ -63,7 +61,6 @@ pub fn get_avg_cpu_usage() -> String {
 
 #[cfg(target_os = "macos")]
 pub fn get_battery_capacity() -> Result<String> {
-    use regex::Regex;
     let capacity = String::from_utf8(
         std::process::Command::new("pmset")
             .args(&["-g", "batt"])
@@ -75,7 +72,7 @@ pub fn get_battery_capacity() -> Result<String> {
     // Example output of that command:
     // Now drawing from 'Battery Power'
     //-InternalBattery-0 (id=11403363)	100%; discharging; (no estimate) present: true
-    let regex = Regex::new(r"[0-9]*%")?;
+    let regex = regex!(r"[0-9]*%");
     let mut number = regex.captures(&capacity).unwrap().get(0).unwrap().as_str().to_string();
 
     // Removes the % at the end

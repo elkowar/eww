@@ -3,11 +3,10 @@
 //! `recv_exit()` function which can be awaited to receive an event in case of application termination.
 
 use anyhow::*;
+use once_cell::sync::Lazy;
 use tokio::sync::broadcast;
 
-lazy_static::lazy_static! {
-    static ref APPLICATION_EXIT_SENDER: broadcast::Sender<()> = broadcast::channel(2).0;
-}
+pub static APPLICATION_EXIT_SENDER: Lazy<broadcast::Sender<()>> = Lazy::new(|| broadcast::channel(2).0);
 
 /// Notify all listening tasks of the termination of the eww application process.
 pub fn send_exit() -> Result<()> {

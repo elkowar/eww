@@ -1,10 +1,9 @@
 use eww_shared_util::{Span, Spanned};
 use logos::Logos;
+use once_cell::sync::Lazy;
 use regex::Regex;
 
-lazy_static::lazy_static! {
-    static ref ESCAPE_REPLACE_REGEX: Regex = Regex::new(r"\\(.)").unwrap();
-}
+static ESCAPE_REPLACE_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\\(.)").unwrap());
 
 #[rustfmt::skip]
 #[derive(Logos, Debug, PartialEq, Eq, Clone, strum::Display, strum::EnumString)]

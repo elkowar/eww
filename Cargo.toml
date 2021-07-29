@@ -5,3 +5,6 @@ members = [
     "crates/yuck",
     "crates/eww_shared_util"
 ]
+[profile.dev]
+split-debuginfo = "unpacked"
+
