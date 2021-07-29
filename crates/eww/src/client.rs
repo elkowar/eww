@@ -24,7 +24,7 @@ pub fn handle_client_only_action(paths: &EwwPaths, action: ActionClientOnly) -> 
     Ok(())
 }
 
-pub fn do_server_call(mut stream: UnixStream, action: opts::ActionWithServer) -> Result<Option<app::DaemonResponse>> {
+pub fn do_server_call(stream: &mut UnixStream, action: &opts::ActionWithServer) -> Result<Option<app::DaemonResponse>> {
     log::info!("Forwarding options to server");
     stream.set_nonblocking(false).context("Failed to set stream to non-blocking")?;
 

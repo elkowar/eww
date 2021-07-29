@@ -11,6 +11,7 @@ use crate::app;
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Opt {
     pub log_debug: bool,
+    pub show_logs: bool,
     pub config_path: Option<std::path::PathBuf>,
     pub action: Action,
 }
@@ -24,6 +25,10 @@ struct RawOpt {
     /// override path to configuration directory (directory that contains eww.yuck and eww.scss)
     #[structopt(short, long, global = true)]
     config: Option<std::path::PathBuf>,
+
+    /// Watch the log output after executing the command
+    #[structopt(long = "logs", global = true)]
+    show_logs: bool,
 
     #[structopt(subcommand)]
     action: Action,
@@ -136,8 +141,8 @@ impl Opt {
 
 impl From<RawOpt> for Opt {
     fn from(other: RawOpt) -> Self {
-        let RawOpt { action, log_debug, config } = other;
-        Opt { action, log_debug, config_path: config }
+        let RawOpt { action, log_debug, show_logs, config } = other;
+        Opt { action, log_debug, show_logs, config_path: config }
     }
 }
 

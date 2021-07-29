@@ -13,17 +13,21 @@ extern crate gtk;
 extern crate gtk_layer_shell as gtk_layer_shell;
 
 use anyhow::*;
+use opts::ActionWithServer;
 use std::{
     os::unix::net,
     path::{Path, PathBuf},
+    time::Duration,
 };
 
+use crate::server::ForkResult;
 
 pub mod app;
 pub mod application_lifecycle;
 pub mod client;
 pub mod config;
 pub mod display_backend;
+pub mod error;
 mod error_handling_ctx;
 pub mod eww_state;
 pub mod geometry;
@@ -33,9 +37,9 @@ pub mod script_var_handler;
 pub mod server;
 pub mod util;
 pub mod widgets;
-pub mod error;
 
 fn main() {
+    let eww_binary_name = std::env::args().next().unwrap();
     let opts: opts::Opt = opts::Opt::from_env();
 
     let log_level_filter = if opts.log_debug { log::LevelFilter::Debug } else { log::LevelFilter::Info };
@@ -52,45 +56,55 @@ fn main() {
             .unwrap_or_else(EwwPaths::default)
             .context("Failed to initialize eww paths")?;
 
-        match opts.action {
+        let would_show_logs = match opts.action {
             opts::Action::ClientOnly(action) => {
                 client::handle_client_only_action(&paths, action)?;
+                false
+            }
+            opts::Action::WithServer(ActionWithServer::KillServer) => {
+                handle_server_command(&paths, &ActionWithServer::KillServer, 1)?;
+                false
             }
             opts::Action::WithServer(action) => {
-                log::info!("Trying to find server process at socket {}", paths.get_ipc_socket_file().display());
-                match net::UnixStream::connect(&paths.get_ipc_socket_file()) {
-                    Ok(stream) => {
-                        log::info!("Connected to Eww server ({}).", &paths.get_ipc_socket_file().display());
-                        let response =
-                            client::do_server_call(stream, action).context("Error while forwarding command to server")?;
-                        if let Some(response) = response {
-                            println!("{}", response);
-                            if response.is_failure() {
-                                std::process::exit(1);
-                            }
-                        }
-                    }
-                    Err(_) => {
-                        eprintln!("Failed to connect to the eww daemon.");
-                        eprintln!("Make sure to start the eww daemon process by running `eww daemon` first.");
-                        std::process::exit(1);
-                    }
-                }
-            }
-
-            opts::Action::Daemon => {
-                // make sure that there isn't already a Eww daemon running.
-                if check_server_running(paths.get_ipc_socket_file()) {
-                    eprintln!("Eww server already running.");
-                    std::process::exit(1);
-                } else {
-                    log::info!("Initializing Eww server. ({})", paths.get_ipc_socket_file().display());
+                if let Err(err) = handle_server_command(&paths, &action, 5) {
+                    // connecting to the daemon failed. Thus, start the daemon here!
+                    log::warn!("Failed to connect to daemon: {}", err);
+                    log::info!("Initializing eww server. ({})", paths.get_ipc_socket_file().display());
                     let _ = std::fs::remove_file(paths.get_ipc_socket_file());
+                    if !opts.show_logs {
+                        println!("Run `{} logs` to see any errors while editing your configuration.", eww_binary_name);
+                    }
 
-                    println!("Run `eww logs` to see any errors, warnings or information while editing your configuration.");
-                    server::initialize_server(paths)?;
+                    let (command, response_recv) = action.into_daemon_command();
+                    let fork_result = server::initialize_server(paths.clone(), Some(command))?;
+                    let is_parent = fork_result == ForkResult::Parent;
+                    if let (Some(recv), true) = (response_recv, is_parent) {
+                        listen_for_daemon_response(recv);
+                    }
+                    is_parent
+                } else {
+                    true
                 }
             }
+
+            // make sure that there isn't already a Eww daemon running.
+            opts::Action::Daemon if check_server_running(paths.get_ipc_socket_file()) => {
+                eprintln!("Eww server already running.");
+                true
+            }
+            opts::Action::Daemon => {
+                log::info!("Initializing Eww server. ({})", paths.get_ipc_socket_file().display());
+                let _ = std::fs::remove_file(paths.get_ipc_socket_file());
+
+                if !opts.show_logs {
+                    println!("Run `{} logs` to see any errors while editing your configuration.", eww_binary_name);
+                }
+                let fork_result = server::initialize_server(paths.clone(), None)?;
+                fork_result == ForkResult::Parent
+            }
+        };
+        if would_show_logs && opts.show_logs {
+            client::handle_client_only_action(&paths, opts::ActionClientOnly::Logs)?;
         }
     };
 
@@ -100,11 +114,43 @@ fn main() {
     }
 }
 
+fn listen_for_daemon_response(mut recv: app::DaemonResponseReceiver) {
+    let rt = tokio::runtime::Builder::new_current_thread().enable_time().build().expect("Failed to initialize tokio runtime");
+    rt.block_on(async {
+        if let Ok(Some(response)) = tokio::time::timeout(Duration::from_millis(100), recv.recv()).await {
+            println!("{}", response);
+        }
+    })
+}
+
+fn handle_server_command(paths: &EwwPaths, action: &ActionWithServer, connect_attempts: usize) -> Result<()> {
+    log::info!("Trying to find server process at socket {}", paths.get_ipc_socket_file().display());
+    let mut stream = attempt_connect(&paths.get_ipc_socket_file(), connect_attempts).context("Failed to connect to daemon")?;
+    log::info!("Connected to Eww server ({}).", &paths.get_ipc_socket_file().display());
+    let response = client::do_server_call(&mut stream, action).context("Error while forwarding command to server")?;
+    if let Some(response) = response {
+        println!("{}", response);
+    }
+    Ok(())
+}
+
+fn attempt_connect(socket_path: impl AsRef<Path>, attempts: usize) -> Option<net::UnixStream> {
+    for _ in 0..attempts {
+        if let Ok(mut con) = net::UnixStream::connect(&socket_path) {
+            if client::do_server_call(&mut con, &opts::ActionWithServer::Ping).is_ok() {
+                return net::UnixStream::connect(&socket_path).ok();
+            }
+        }
+        std::thread::sleep(Duration::from_millis(200));
+    }
+    None
+}
+
 /// Check if a eww server is currently running by trying to send a ping message to it.
 fn check_server_running(socket_path: impl AsRef<Path>) -> bool {
     let response = net::UnixStream::connect(socket_path)
         .ok()
-        .and_then(|stream| client::do_server_call(stream, opts::ActionWithServer::Ping).ok());
+        .and_then(|mut stream| client::do_server_call(&mut stream, &opts::ActionWithServer::Ping).ok());
     response.is_some()
 }
 

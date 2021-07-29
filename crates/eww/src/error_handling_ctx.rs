@@ -1,6 +1,9 @@
 use std::sync::{Arc, Mutex};
 
-use codespan_reporting::{diagnostic::Diagnostic, term, term::Chars};
+use codespan_reporting::{
+    diagnostic::Diagnostic,
+    term::{self, Chars},
+};
 use eww_shared_util::Span;
 use simplexpr::eval::EvalError;
 use yuck::{config::file_provider::YuckFiles, error::AstError, format_diagnostic::ToDiagnostic, gen_diagnostic};

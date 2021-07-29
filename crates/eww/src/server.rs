@@ -1,4 +1,9 @@
-use crate::{app, config, error_handling_ctx, eww_state::*, ipc_server, script_var_handler, util, EwwPaths};
+use crate::{
+    app::{self, DaemonCommand},
+    config, error_handling_ctx,
+    eww_state::*,
+    ipc_server, script_var_handler, util, EwwPaths,
+};
 use anyhow::*;
 
 use std::{
@@ -9,7 +14,7 @@ use std::{
 };
 use tokio::sync::mpsc::*;
 
-pub fn initialize_server(paths: EwwPaths) -> Result<()> {
+pub fn initialize_server(paths: EwwPaths, action: Option<DaemonCommand>) -> Result<ForkResult> {
     let (ui_send, mut ui_recv) = tokio::sync::mpsc::unbounded_channel();
 
     std::env::set_current_dir(&paths.get_config_dir())
@@ -31,7 +36,11 @@ pub fn initialize_server(paths: EwwPaths) -> Result<()> {
         }
     };
 
-    do_detach(&paths.get_log_file())?;
+    let fork_result = do_detach(&paths.get_log_file())?;
+
+    if fork_result == ForkResult::Parent {
+        return Ok(ForkResult::Parent);
+    }
 
     println!(
         r#"
@@ -76,6 +85,9 @@ pub fn initialize_server(paths: EwwPaths) -> Result<()> {
     init_async_part(app.paths.clone(), ui_send);
 
     glib::MainContext::default().spawn_local(async move {
+        if let Some(action) = action {
+            app.handle_command(action);
+        }
         while let Some(event) = ui_recv.recv().await {
             app.handle_command(event);
         }
@@ -84,7 +96,7 @@ pub fn initialize_server(paths: EwwPaths) -> Result<()> {
     gtk::main();
     log::info!("main application thread finished");
 
-    Ok(())
+    Ok(ForkResult::Child)
 }
 
 fn init_async_part(paths: EwwPaths, ui_send: UnboundedSender<app::DaemonCommand>) {
@@ -160,7 +172,7 @@ async fn run_filewatch<P: AsRef<Path>>(config_dir: P, evt_send: UnboundedSender<
                 tokio::spawn(async move {
                     match daemon_resp_response.recv().await {
                         Some(app::DaemonResponse::Success(_)) => log::info!("Reloaded config successfully"),
-                        Some(app::DaemonResponse::Failure(e)) => log::error!("Failed to reload config: {}", e),
+                        Some(app::DaemonResponse::Failure(e)) => eprintln!("{}", e),
                         None => log::error!("No response to reload configuration-reload request"),
                     }
                 });
@@ -171,14 +183,20 @@ async fn run_filewatch<P: AsRef<Path>>(config_dir: P, evt_send: UnboundedSender<
     return Ok(());
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ForkResult {
+    Parent,
+    Child,
+}
+
 /// detach the process from the terminal, also redirecting stdout and stderr to LOG_FILE
-fn do_detach(log_file_path: impl AsRef<Path>) -> Result<()> {
+fn do_detach(log_file_path: impl AsRef<Path>) -> Result<ForkResult> {
     // detach from terminal
     match unsafe { nix::unistd::fork()? } {
-        nix::unistd::ForkResult::Parent { .. } => {
-            std::process::exit(0);
-        }
         nix::unistd::ForkResult::Child => {}
+        nix::unistd::ForkResult::Parent { .. } => {
+            return Ok(ForkResult::Parent);
+        }
     }
 
     let file = std::fs::OpenOptions::new()
@@ -195,5 +213,5 @@ fn do_detach(log_file_path: impl AsRef<Path>) -> Result<()> {
         nix::unistd::dup2(fd, std::io::stderr().as_raw_fd())?;
     }
 
-    Ok(())
+    Ok(ForkResult::Child)
 }
