@@ -9,11 +9,9 @@ your own, custom widgets in any window manager.
 
 Documentation **and instructions on how to install** can be found [here](https://elkowar.github.io/eww).
 
-## New configuration language needs a name - USER OPINIONS NEEDED
+## New configuration language is being made!
 
-The rework of the configuration language has been decided on. Now, we just need a name!
-Please give your opinions in the [discussion post](https://github.com/elkowar/eww/discussions/206).
-
+A new configuration language for Eww is being made! `yuck` is the new name! (as discussed in the [discussion post](https://github.com/elkowar/eww/discussions/206).)
 
 ## Examples
 
