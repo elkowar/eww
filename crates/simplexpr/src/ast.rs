@@ -31,6 +31,10 @@ pub enum UnaryOp {
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SimplExpr {
+    // TODO figure out if that span value here is even necessary,..
+    // DynVal has span information. However, keeping the span here and the span of the dynval separate
+    // would allow to separate the span of where a dynval was defined and the
+    // span of the use-site when a literal is used to replace a varref in the evaluation process.
     Literal(Span, DynVal),
     VarRef(Span, VarName),
     BinOp(Span, Box<SimplExpr>, BinOp, Box<SimplExpr>),

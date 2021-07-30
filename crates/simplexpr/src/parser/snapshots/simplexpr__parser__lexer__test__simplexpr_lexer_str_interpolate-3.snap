@@ -1,0 +1,24 @@
+---
+source: crates/simplexpr/src/parser/lexer.rs
+expression: "Lexer::new(0, 0, r#\" \"a\\\"b\\{}\" \"#).collect_vec()"
+
+---
+[
+    Ok(
+        (
+            1,
+            StringLit(
+                [
+                    (
+                        1,
+                        Literal(
+                            "a\"b{}",
+                        ),
+                        10,
+                    ),
+                ],
+            ),
+            10,
+        ),
+    ),
+]

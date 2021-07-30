@@ -1,6 +1,6 @@
 ---
 source: crates/simplexpr/src/parser/mod.rs
-expression: "p.parse(0, Lexer::new(0, \"hi[\\\"ho\\\"]\"))"
+expression: "p.parse(0, Lexer::new(0, 0, \"hi[\\\"ho\\\"]\"))"
 
 ---
 Ok(

@@ -14,7 +14,7 @@ Config(
       widget: WidgetUse(
         name: "foo",
         attrs: Attributes(
-          span: Span(47, 47, 51),
+          span: Span(51, 61, 62),
           attrs: {
             AttrName("arg"): AttrEntry(
               key_span: Span(52, 56, 0),
@@ -52,7 +52,7 @@ Config(
       widget: WidgetUse(
         name: "bar",
         attrs: Attributes(
-          span: Span(463, 463, 467),
+          span: Span(467, 478, 479),
           attrs: {
             AttrName("arg"): AttrEntry(
               key_span: Span(468, 472, 0),

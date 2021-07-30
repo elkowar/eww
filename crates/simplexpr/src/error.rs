@@ -51,7 +51,7 @@ fn get_parse_error_span(file_id: usize, err: &lalrpop_util::ParseError<usize, le
         lalrpop_util::ParseError::UnrecognizedEOF { location, expected: _ } => Span(*location, *location, file_id),
         lalrpop_util::ParseError::UnrecognizedToken { token, expected: _ } => Span(token.0, token.2, file_id),
         lalrpop_util::ParseError::ExtraToken { token } => Span(token.0, token.2, file_id),
-        lalrpop_util::ParseError::User { error: LexicalError(l, r, file_id) } => Span(*l, *r, *file_id),
+        lalrpop_util::ParseError::User { error: LexicalError(span) } => *span,
     }
 }
 

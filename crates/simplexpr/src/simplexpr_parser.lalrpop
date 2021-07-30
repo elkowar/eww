@@ -1,8 +1,7 @@
 use crate::ast::{SimplExpr::{self, *}, BinOp::*, UnaryOp::*};
 use eww_shared_util::{Span, VarName};
-use crate::parser::lexer::{Token, LexicalError};
+use crate::parser::lexer::{Token, LexicalError, StrLitSegment, Sp};
 use crate::parser::lalrpop_helpers::*;
-use lalrpop_util::ParseError;
 
 
 grammar(fid: usize);
@@ -42,9 +41,7 @@ extern {
 
     "identifier" => Token::Ident(<String>),
     "number"     => Token::NumLit(<String>),
-    "string"     => Token::StrLit(<String>),
-
-    "lexer_error" => Token::Error,
+    "string"     => Token::StringLit(<Vec<Sp<StrLitSegment>>>),
 
   }
 }
@@ -62,11 +59,15 @@ Comma<T>: Vec<T> = {
 pub Expr: SimplExpr = {
 
   #[precedence(level="0")]
-  <l:@L> "lexer_error" <r:@R> =>? {
-    Err(ParseError::User { error: LexicalError(l, r, fid) })
-  },
+  //<l:@L> "lexer_error" <r:@R> =>? {
+  //  Err(ParseError::User { error: LexicalError(l, r, fid) })
+  //},
 
-  <Literal>,
+  <l:@L> <x:"string"> <r:@R> =>? parse_stringlit(Span(l, r, fid), x),
+  <l:@L> <x:"number"> <r:@R> => SimplExpr::literal(Span(l, r, fid), x),
+  <l:@L> "true"       <r:@R> => SimplExpr::literal(Span(l, r, fid), "true".into()),
+  <l:@L> "false"      <r:@R> => SimplExpr::literal(Span(l, r, fid), "false".into()),
+
   <l:@L> <ident:"identifier"> <r:@R> => VarRef(Span(l, r, fid), VarName(ident.to_string())),
   "(" <ExprReset> ")",
 
@@ -109,14 +110,3 @@ pub Expr: SimplExpr = {
 };
 
 ExprReset = <Expr>;
-
-Literal: SimplExpr = {
-  <l:@L> <x:StrLit>   <r:@R> => SimplExpr::literal(Span(l, r, fid), x),
-  <l:@L> <x:"number"> <r:@R> => SimplExpr::literal(Span(l, r, fid), x),
-  <l:@L> "true"       <r:@R> => SimplExpr::literal(Span(l, r, fid), "true".into()),
-  <l:@L> "false"      <r:@R> => SimplExpr::literal(Span(l, r, fid), "false".into()),
-}
-
-StrLit: String = {
-    <x:"string"> => x[1..x.len() - 1].to_owned(),
-};
