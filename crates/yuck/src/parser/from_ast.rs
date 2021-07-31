@@ -24,7 +24,7 @@ impl FromAst for Ast {
 
 impl FromAst for String {
     fn from_ast(e: Ast) -> AstResult<Self> {
-        Ok(e.as_literal()?.as_string().unwrap())
+        Ok(e.as_simplexpr()?.eval_no_vars().map_err(simplexpr::error::Error::Eval)?.to_string())
     }
 }
 
@@ -51,7 +51,6 @@ impl FromAst for SimplExpr {
     fn from_ast(e: Ast) -> AstResult<Self> {
         match e {
             Ast::Symbol(span, x) => Ok(SimplExpr::VarRef(span.into(), VarName(x))),
-            Ast::Literal(span, x) => Ok(SimplExpr::Literal(span.into(), x)),
             Ast::SimplExpr(span, x) => Ok(x),
             _ => Err(AstError::NotAValue(e.span(), e.expr_type())),
         }

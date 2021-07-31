@@ -17,6 +17,7 @@ pub enum AstType {
     Array,
     Keyword,
     Symbol,
+    // TODO this does no longer correspond to an actual literal ast type as that's replaced with SimplExpr
     Literal,
     SimplExpr,
     Comment,
@@ -36,7 +37,6 @@ pub enum Ast {
     Array(Span, Vec<Ast>),
     Keyword(Span, String),
     Symbol(Span, String),
-    Literal(Span, DynVal),
     SimplExpr(Span, SimplExpr),
     Comment(Span),
 }
@@ -60,8 +60,6 @@ macro_rules! as_func {
 }
 
 impl Ast {
-    as_func!(AstType::Literal, as_literal as_literal_ref<DynVal> = Ast::Literal(_, x) => x);
-
     as_func!(AstType::Symbol, as_symbol as_symbol_ref<String> = Ast::Symbol(_, x) => x);
 
     as_func!(AstType::Keyword, as_keyword as_keyword_ref<String> = Ast::Keyword(_, x) => x);
@@ -74,7 +72,6 @@ impl Ast {
             Ast::Array(..) => AstType::Array,
             Ast::Keyword(..) => AstType::Keyword,
             Ast::Symbol(..) => AstType::Symbol,
-            Ast::Literal(..) => AstType::Literal,
             Ast::SimplExpr(..) => AstType::SimplExpr,
             Ast::Comment(_) => AstType::Comment,
         }
@@ -86,7 +83,6 @@ impl Ast {
             Ast::Array(span, _) => *span,
             Ast::Keyword(span, _) => *span,
             Ast::Symbol(span, _) => *span,
-            Ast::Literal(span, _) => *span,
             Ast::SimplExpr(span, _) => *span,
             Ast::Comment(span) => *span,
         }
@@ -97,7 +93,6 @@ impl Ast {
             // TODO do I do this?
             // Ast::Array(span, elements) => todo!()
             Ast::Symbol(span, x) => Ok(SimplExpr::VarRef(span, VarName(x))),
-            Ast::Literal(span, x) => Ok(SimplExpr::Literal(span, x)),
             Ast::SimplExpr(span, x) => Ok(x),
             _ => Err(AstError::WrongExprType(self.span(), AstType::IntoPrimitive, self.expr_type())),
         }
@@ -118,7 +113,7 @@ impl std::fmt::Display for Ast {
             Array(_, x) => write!(f, "({})", x.iter().map(|e| format!("{}", e)).join(" ")),
             Keyword(_, x) => write!(f, ":{}", x),
             Symbol(_, x) => write!(f, "{}", x),
-            Literal(_, x) => write!(f, "\"{}\"", x),
+            SimplExpr(_, simplexpr::SimplExpr::Literal(_, value)) => write!(f, "\"{}\"", value),
             SimplExpr(_, x) => write!(f, "{{{}}}", x),
             Comment(_) => write!(f, ""),
         }

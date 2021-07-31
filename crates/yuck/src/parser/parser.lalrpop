@@ -36,7 +36,7 @@ pub Ast: Ast = {
     <l:@L> <expr:SimplExpr> <r:@R> => Ast::SimplExpr(Span(l, r, file_id), expr),
     <x:Keyword> => x,
     <x:Symbol> => x,
-    <l:@L> <x:Literal> <r:@R> => Ast::Literal(Span(l, r, file_id), x.into()),
+    <l:@L> <x:Literal> <r:@R> => Ast::SimplExpr(Span(l, r, file_id), SimplExpr::literal(Span(l, r, file_id), x.into())),
     <l:@L> "comment" <r:@R> => Ast::Comment(Span(l, r, file_id)),
 };
 
