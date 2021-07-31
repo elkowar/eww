@@ -1,4 +1,5 @@
 #![feature(box_patterns)]
+#![feature(format_args_capture)]
 #![feature(pattern)]
 #![feature(box_syntax)]
 #![feature(try_blocks)]

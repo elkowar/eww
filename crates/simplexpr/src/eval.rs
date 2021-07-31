@@ -15,10 +15,6 @@ pub enum EvalError {
     #[error("Invalid regex: {0}")]
     InvalidRegex(#[from] regex::Error),
 
-    // TODO unresolved and unknown are the same for the user,....
-    #[error("got unresolved variable `{0}`")]
-    UnresolvedVariable(VarName),
-
     #[error("Unknown variable {0}")]
     UnknownVariable(VarName),
 
@@ -62,18 +58,6 @@ impl Spanned for EvalError {
 }
 
 impl SimplExpr {
-    pub fn map_terminals_into(self, f: impl Fn(Self) -> Self) -> Self {
-        use SimplExpr::*;
-        match self {
-            BinOp(span, box a, op, box b) => BinOp(span, box f(a), op, box f(b)),
-            UnaryOp(span, op, box a) => UnaryOp(span, op, box f(a)),
-            IfElse(span, box a, box b, box c) => IfElse(span, box f(a), box f(b), box f(c)),
-            JsonAccess(span, box a, box b) => JsonAccess(span, box f(a), box f(b)),
-            FunctionCall(span, name, args) => FunctionCall(span, name, args.into_iter().map(f).collect()),
-            other => f(other),
-        }
-    }
-
     /// map over all of the variable references, replacing them with whatever expression the provided function returns.
     /// Returns [Err] when the provided function fails with an [Err]
     pub fn try_map_var_refs<E, F: Fn(Span, VarName) -> Result<SimplExpr, E> + Copy>(self, f: F) -> Result<Self, E> {
@@ -154,7 +138,7 @@ impl SimplExpr {
         match self.eval(&HashMap::new()) {
             Ok(x) => Ok(x),
             Err(x) => Err(x.map_in_span(|err| match err {
-                EvalError::UnknownVariable(name) | EvalError::UnresolvedVariable(name) => EvalError::NoVariablesAllowed(name),
+                EvalError::UnknownVariable(name) => EvalError::NoVariablesAllowed(name),
                 other => other,
             })),
         }
@@ -165,7 +149,7 @@ impl SimplExpr {
         let value = match self {
             SimplExpr::Literal(_, x) => Ok(x.clone()),
             SimplExpr::VarRef(span, ref name) => {
-                Ok(values.get(name).cloned().ok_or_else(|| EvalError::UnresolvedVariable(name.clone()).at(*span))?.at(*span))
+                Ok(values.get(name).cloned().ok_or_else(|| EvalError::UnknownVariable(name.clone()).at(*span))?.at(*span))
             }
             SimplExpr::BinOp(_, a, op, b) => {
                 let a = a.eval(values)?;

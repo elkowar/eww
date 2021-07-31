@@ -186,7 +186,6 @@ fn lalrpop_error_to_diagnostic<T: std::fmt::Display, E: Spanned + ToDiagnostic>(
 impl ToDiagnostic for simplexpr::error::Error {
     fn to_diagnostic(&self) -> Diagnostic<usize> {
         use simplexpr::error::Error::*;
-        dbg!(&self);
         match self {
             ParseError { source, file_id } => lalrpop_error_to_diagnostic(source, *file_id),
             ConversionError(error) => error.to_diagnostic(),
@@ -210,7 +209,7 @@ impl ToDiagnostic for simplexpr::eval::EvalError {
             NoVariablesAllowed(name) => gen_diagnostic!(self),
             // TODO the note here is confusing when it's an unknown variable being used _within_ a string literal / simplexpr
             // it only really makes sense on top-level symbols
-            UnresolvedVariable(name) | UnknownVariable(name) => gen_diagnostic! {
+            UnknownVariable(name) => gen_diagnostic! {
                 msg = self,
                 note = format!("If you meant to use the literal value \"{}\", surround the value in quotes", name)
             },
@@ -226,7 +225,7 @@ impl ToDiagnostic for dynval::ConversionError {
             msg = self,
             label = self.value.span() => format!("`{}` is not of type `{}`", self.value, self.target_type),
         };
-        diag.with_notes(self.source.as_ref().map(|x| vec![format!("{}", x)]).unwrap_or_default())
+        diag.with_notes(self.source.as_ref().map(|x| vec![x.to_string()]).unwrap_or_default())
     }
 }
 
