@@ -12,6 +12,7 @@ Documentation **and instructions on how to install** can be found [here](https:/
 ## New configuration language is being made!
 
 A new configuration language for Eww is being made! `yuck` is the new name! (as discussed in the [discussion post](https://github.com/elkowar/eww/discussions/206).)
+You can check out its development in [this PR](https://github.com/elkowar/eww/pull/221) and maybe contribewwte!
 
 ## Examples
 
