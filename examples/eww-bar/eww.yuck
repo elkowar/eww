@@ -11,7 +11,10 @@
     (time)))
 
 (defwidget workspaces []
-  (box :class "workspaces" :orientation "h" :space-evenly true :halign "start"
+  (box :class "workspaces"
+       :orientation "h"
+       :space-evenly true
+       :halign "start"
     (button :onclick "wmctrl -s 0" 1)
     (button :onclick "wmctrl -s 1" 2)
     (button :onclick "wmctrl -s 2" 3)
@@ -37,9 +40,11 @@
       (scale :min 0 :max 101 :active false :value EWW_RAM))))
 
 
+
 (defwidget time []
   (box :class "time"
     "${hour}:${min} ${month} ${number_day}, ${year_full}"))
+
 
 (defpoll music :interval "5s" "playerctl metadata --format '{{ artist }} - {{ title }}' || true")
 (defpoll volume :interval "1s" "scripts/getvol")

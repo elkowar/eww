@@ -89,6 +89,10 @@ pub enum ActionWithServer {
         /// Sidepoint of the window, formatted like "top right"
         #[structopt(short, long)]
         anchor: Option<AnchorPoint>,
+
+        /// If the window is already open, close it instead
+        #[structopt(long = "toggle")]
+        should_toggle: bool,
     },
 
     /// Open multiple windows at once.
@@ -168,13 +172,14 @@ impl ActionWithServer {
             ActionWithServer::OpenMany { windows } => {
                 return with_response_channel(|sender| app::DaemonCommand::OpenMany { windows, sender });
             }
-            ActionWithServer::OpenWindow { window_name, pos, size, monitor, anchor } => {
+            ActionWithServer::OpenWindow { window_name, pos, size, monitor, anchor, should_toggle } => {
                 return with_response_channel(|sender| app::DaemonCommand::OpenWindow {
                     window_name,
                     pos,
                     size,
                     anchor,
                     monitor,
+                    should_toggle,
                     sender,
                 })
             }

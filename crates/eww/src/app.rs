@@ -51,6 +51,7 @@ pub enum DaemonCommand {
         size: Option<Coords>,
         anchor: Option<AnchorPoint>,
         monitor: Option<i32>,
+        should_toggle: bool,
         sender: DaemonResponseSender,
     },
     CloseWindow {
@@ -154,8 +155,12 @@ impl App {
                     let result = windows.iter().try_for_each(|w| self.open_window(w, None, None, None, None));
                     respond_with_error(sender, result)?;
                 }
-                DaemonCommand::OpenWindow { window_name, pos, size, anchor, monitor, sender } => {
-                    let result = self.open_window(&window_name, pos, size, monitor, anchor);
+                DaemonCommand::OpenWindow { window_name, pos, size, anchor, monitor, should_toggle, sender } => {
+                    let result = if should_toggle && self.open_windows.contains_key(&window_name) {
+                        self.close_window(&window_name)
+                    } else {
+                        self.open_window(&window_name, pos, size, monitor, anchor)
+                    };
                     respond_with_error(sender, result)?;
                 }
                 DaemonCommand::CloseWindow { window_name, sender } => {
