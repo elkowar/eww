@@ -1,0 +1,6 @@
+---
+source: crates/simplexpr/src/parser/lexer.rs
+expression: "v!(r#\" \"a\\\"b\\{}\" \"#)"
+
+---
+(1, StringLit([(1, Literal("a\"b{}"), 10)]), 10)

@@ -15,8 +15,12 @@ pub enum EvalError {
     #[error("Invalid regex: {0}")]
     InvalidRegex(#[from] regex::Error),
 
+    // TODO unresolved and unknown are the same for the user,....
     #[error("got unresolved variable `{0}`")]
     UnresolvedVariable(VarName),
+
+    #[error("Unknown variable {0}")]
+    UnknownVariable(VarName),
 
     #[error(transparent)]
     ConversionError(#[from] ConversionError),
@@ -26,9 +30,6 @@ pub enum EvalError {
 
     #[error("Unknown function {0}")]
     UnknownFunction(String),
-
-    #[error("Unknown variable {0}")]
-    UnknownVariable(VarName),
 
     #[error("Unable to index into value {0}")]
     CannotIndex(String),
@@ -40,6 +41,13 @@ pub enum EvalError {
 impl EvalError {
     pub fn at(self, span: Span) -> Self {
         Self::Spanned(span, Box::new(self))
+    }
+
+    pub fn map_in_span(self, f: impl FnOnce(Self) -> Self) -> Self {
+        match self {
+            EvalError::Spanned(span, err) => EvalError::Spanned(span, Box::new(err.map_in_span(f))),
+            other => f(other),
+        }
     }
 }
 
@@ -145,8 +153,10 @@ impl SimplExpr {
     pub fn eval_no_vars(&self) -> Result<DynVal, EvalError> {
         match self.eval(&HashMap::new()) {
             Ok(x) => Ok(x),
-            Err(EvalError::UnknownVariable(name)) => Err(EvalError::NoVariablesAllowed(name)),
-            Err(x) => Err(x),
+            Err(x) => Err(x.map_in_span(|err| match err {
+                EvalError::UnknownVariable(name) | EvalError::UnresolvedVariable(name) => EvalError::NoVariablesAllowed(name),
+                other => other,
+            })),
         }
     }
 

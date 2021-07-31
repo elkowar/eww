@@ -4,5 +4,5 @@ expression: "p.parse(0, Lexer::new(0, r#\"(test \" hi \")\"#.to_string()))"
 
 ---
 Ok(
-    (test " hi "),
+    (test {" hi "}),
 )

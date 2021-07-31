@@ -1,8 +1,9 @@
 use once_cell::sync::Lazy;
-use regex::{Regex, RegexSet};
+use regex::{escape, Regex, RegexSet};
+use simplexpr::parser::lexer::{STR_INTERPOLATION_END, STR_INTERPOLATION_START};
 
 use super::parse_error;
-use eww_shared_util::{AttrName, Span, VarName};
+use eww_shared_util::{AttrName, Span, Spanned, VarName};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Token {
@@ -12,11 +13,10 @@ pub enum Token {
     RBrack,
     True,
     False,
-    StrLit(String),
     NumLit(String),
     Symbol(String),
     Keyword(String),
-    SimplExpr(String),
+    SimplExpr(Vec<(usize, simplexpr::parser::lexer::Token, usize)>),
     Comment,
     Skip,
 }
@@ -30,11 +30,10 @@ impl std::fmt::Display for Token {
             Token::RBrack => write!(f, "']'"),
             Token::True => write!(f, "true"),
             Token::False => write!(f, "false"),
-            Token::StrLit(x) => write!(f, "\"{}\"", x),
             Token::NumLit(x) => write!(f, "{}", x),
             Token::Symbol(x) => write!(f, "{}", x),
             Token::Keyword(x) => write!(f, "{}", x),
-            Token::SimplExpr(x) => write!(f, "{{{}}}", x),
+            Token::SimplExpr(x) => write!(f, "{{{:?}}}", x.iter().map(|x| &x.1)),
             Token::Comment => write!(f, ""),
             Token::Skip => write!(f, ""),
         }
@@ -42,7 +41,7 @@ impl std::fmt::Display for Token {
 }
 
 macro_rules! regex_rules {
-    ($( $regex:literal => $token:expr),*) => {
+    ($( $regex:expr => $token:expr),*) => {
         static LEXER_REGEX_SET: Lazy<RegexSet> = Lazy::new(|| { RegexSet::new(&[
             $(format!("^{}", $regex)),*
         ]).unwrap()});
@@ -58,15 +57,12 @@ macro_rules! regex_rules {
 static ESCAPE_REPLACE_REGEX: Lazy<regex::Regex> = Lazy::new(|| Regex::new(r"\\(.)").unwrap());
 
 regex_rules! {
-    r"\(" => |_| Token::LPren,
-    r"\)" => |_| Token::RPren,
-    r"\[" => |_| Token::LBrack,
-    r"\]" => |_| Token::RBrack,
-    r"true" => |_| Token::True,
-    r"false" => |_| Token::False,
-    r#""(?:[^"\\]|\\.)*""# => |x| Token::StrLit(ESCAPE_REPLACE_REGEX.replace_all(&x, "$1").to_string()),
-    r#"`(?:[^`\\]|\\.)*`"# => |x| Token::StrLit(ESCAPE_REPLACE_REGEX.replace_all(&x, "$1").to_string()),
-    r#"'(?:[^'\\]|\\.)*'"# => |x| Token::StrLit(ESCAPE_REPLACE_REGEX.replace_all(&x, "$1").to_string()),
+    escape("(") => |_| Token::LPren,
+    escape(")") => |_| Token::RPren,
+    escape("[") => |_| Token::LBrack,
+    escape("]") => |_| Token::RBrack,
+    escape("true")  => |_| Token::True,
+    escape("false") => |_| Token::False,
     r#"[+-]?(?:[0-9]+[.])?[0-9]+"# => |x| Token::NumLit(x),
     r#":[^\s\)\]}]+"# => |x| Token::Keyword(x),
     r#"[a-zA-Z_!\?<>/\.\*-\+\-][^\s{}\(\)\[\](){}]*"# => |x| Token::Symbol(x),
@@ -85,9 +81,53 @@ impl Lexer {
     pub fn new(file_id: usize, source: String) -> Self {
         Lexer { source, file_id, failed: false, pos: 0 }
     }
-}
 
-// TODO string literal interpolation stuff by looking for indexes of {{ and }}?
+    fn string_lit(&mut self) -> Option<Result<(usize, Token, usize), parse_error::ParseError>> {
+        let mut simplexpr_lexer = simplexpr::parser::lexer::Lexer::new(self.file_id, self.pos, &self.source[self.pos..]);
+        match simplexpr_lexer.string_lit() {
+            Some(Ok((lo, segments, hi))) => {
+                self.pos = hi;
+                self.advance_until_char_boundary();
+                Some(Ok((lo, Token::SimplExpr(vec![(lo, simplexpr::parser::lexer::Token::StringLit(segments), hi)]), hi)))
+            }
+            Some(Err(e)) => Some(Err(parse_error::ParseError::LexicalError(e.0))),
+            None => None,
+        }
+    }
+
+    fn simplexpr(&mut self) -> Option<Result<(usize, Token, usize), parse_error::ParseError>> {
+        self.pos += 1;
+        let mut simplexpr_lexer = simplexpr::parser::lexer::Lexer::new(self.file_id, self.pos, &self.source[self.pos..]);
+        let mut toks = Vec::new();
+        let mut end = self.pos;
+        loop {
+            match simplexpr_lexer.next_token() {
+                Some(Ok((lo, tok, hi))) => {
+                    end = hi;
+                    toks.push((lo, tok, hi));
+                }
+                Some(Err(err)) => {
+                    dbg!(&simplexpr_lexer);
+                    if simplexpr_lexer.continues_with('}') {
+                        let start = toks.first().map(|x| x.0).unwrap_or(end);
+                        self.pos = end + 1;
+                        self.advance_until_char_boundary();
+                        return Some(Ok((start, Token::SimplExpr(toks), end)));
+                    } else {
+                        return Some(Err(parse_error::ParseError::LexicalError(err.span())));
+                    }
+                }
+                None => return None,
+            }
+        }
+    }
+
+    fn advance_until_char_boundary(&mut self) {
+        while self.pos < self.source.len() && !self.source.is_char_boundary(self.pos) {
+            self.pos += 1;
+        }
+    }
+}
 
 impl Iterator for Lexer {
     type Item = Result<(usize, Token, usize), parse_error::ParseError>;
@@ -97,45 +137,17 @@ impl Iterator for Lexer {
             if self.failed || self.pos >= self.source.len() {
                 return None;
             }
-            let string = &self.source[self.pos..];
-
-            if string.starts_with('{') {
-                let expr_start = self.pos;
-                let mut in_string = None;
-                loop {
-                    if self.pos >= self.source.len() {
-                        return None;
-                    }
-                    while !self.source.is_char_boundary(self.pos) {
-                        self.pos += 1;
-                    }
-                    let string = &self.source[self.pos..];
-
-                    if string.starts_with('}') && in_string.is_none() {
-                        self.pos += 1;
-                        let tok_str = &self.source[expr_start..self.pos];
-                        return Some(Ok((expr_start, Token::SimplExpr(tok_str.to_string()), self.pos - 1)));
-                    } else if string.starts_with('"') || string.starts_with('\'') || string.starts_with('`') {
-                        if let Some(quote) = in_string {
-                            if string.starts_with(quote) {
-                                in_string = None;
-                            }
-                        } else {
-                            in_string = Some(string.chars().next().unwrap());
-                        }
-                        self.pos += 1;
-                    } else if string.starts_with("\\\"") {
-                        self.pos += 2;
-                    } else {
-                        self.pos += 1;
-                    }
-                }
+            let remaining = &self.source[self.pos..];
+            if remaining.starts_with(&['"', '\'', '`'][..]) {
+                return self.string_lit();
+            } else if remaining.starts_with('{') {
+                return self.simplexpr();
             } else {
-                let match_set = LEXER_REGEX_SET.matches(string);
+                let match_set = LEXER_REGEX_SET.matches(remaining);
                 let matched_token = match_set
                     .into_iter()
                     .map(|i: usize| {
-                        let m = LEXER_REGEXES[i].find(string).unwrap();
+                        let m = LEXER_REGEXES[i].find(remaining).unwrap();
                         (m.end(), i)
                     })
                     .min_by_key(|(_, x)| *x);
@@ -163,12 +175,28 @@ impl Iterator for Lexer {
 }
 
 #[cfg(test)]
-#[test]
-fn test_yuck_lexer() {
+mod test {
+
+    use super::*;
+    use eww_shared_util::snapshot_string;
     use itertools::Itertools;
-    insta::assert_debug_snapshot!(Lexer::new(0, r#"(foo + - "text" )"#.to_string()).collect_vec());
-    insta::assert_debug_snapshot!(Lexer::new(0, r#"{ bla "} \" }" " \" "}"#.to_string()).collect_vec());
-    insta::assert_debug_snapshot!(Lexer::new(0, r#""< \" >""#.to_string()).collect_vec());
-    insta::assert_debug_snapshot!(Lexer::new(0, r#"{ "   " + music}"#.to_string()).collect_vec());
-    insta::assert_debug_snapshot!(Lexer::new(0, r#"{ " } ' }" }"#.to_string()).collect_vec());
+
+    macro_rules! v {
+        ($x:literal) => {
+            Lexer::new(0, 0, $x)
+                .map(|x| match x {
+                    Ok((l, x, r)) => format!("({}, {:?}, {})", l, x, r),
+                    Err(err) => format!("{}", err),
+                })
+                .join("\n")
+        };
+    }
+
+    snapshot_string! {
+        basic => r#"(foo + - "text" )"#,
+        escaped_strings => r#"{ bla "} \" }" " \" "}"#,
+        escaped_quote => r#""< \" >""#,
+        char_boundary => r#"{ "   " + music}"#,
+        quotes_in_quotes => r#"{ " } ' }" }"#,
+    }
 }

@@ -1,0 +1,6 @@
+---
+source: crates/yuck/src/parser/lexer.rs
+expression: "r#\"{ bla \"} \\\" }\" \" \\\" \"}\"#"
+
+---
+{ bla "} \" }" " \" "}

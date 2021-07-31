@@ -18,11 +18,10 @@ extern {
         "]" => Token::RBrack,
         "true" => Token::True,
         "false" => Token::False,
-        "string" => Token::StrLit(<String>),
         "number" => Token::NumLit(<String>),
         "symbol" => Token::Symbol(<String>),
         "keyword" => Token::Keyword(<String>),
-        "simplexpr" => Token::SimplExpr(<String>),
+        "simplexpr" => Token::SimplExpr(<Vec<(usize, simplexpr::parser::lexer::Token, usize)>>),
         "comment" => Token::Comment,
     }
 }
@@ -45,22 +44,17 @@ Keyword: Ast = <l:@L> <x:"keyword"> <r:@R> => Ast::Keyword(Span(l, r, file_id), 
 Symbol: Ast = <l:@L> <x:"symbol"> <r:@R> => Ast::Symbol(Span(l, r, file_id), x.to_string());
 
 Literal: String = {
-    <StrLit> => <>,
     <Num> => <>,
     <Bool> => <>,
 };
 
-StrLit: String = {
-    <x:"string"> => {
-      x[1..x.len() - 1].to_owned()
-    },
-};
-
 SimplExpr: SimplExpr = {
    <l:@L> <x:"simplexpr"> =>? {
-       let expr = x[1..x.len() - 1].to_string();
-       simplexpr::parse_string(l + 1, file_id, &expr).map_err(|e| {
-           ParseError::User { error: parse_error::ParseError::SimplExpr(e) }})
+        let parser = simplexpr::simplexpr_parser::ExprParser::new();
+        parser.parse(file_id, x.into_iter().map(Ok))
+            .map_err(|e| ParseError::User {
+                error: parse_error::ParseError::SimplExpr(simplexpr::error::Error::from_parse_error(file_id, e))
+            })
    }
 }
 

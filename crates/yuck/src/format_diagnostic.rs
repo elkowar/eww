@@ -118,6 +118,7 @@ impl ToDiagnostic for AstError {
             AstError::ErrorNote(note, source) => source.to_diagnostic().with_notes(vec![note.to_string()]),
             AstError::ValidationError(source) => source.to_diagnostic(),
             AstError::NoMoreElementsExpected(span) => gen_diagnostic!(self, span),
+            AstError::SimplExpr(source) => source.to_diagnostic(),
         }
     }
 }
@@ -185,12 +186,13 @@ fn lalrpop_error_to_diagnostic<T: std::fmt::Display, E: Spanned + ToDiagnostic>(
 impl ToDiagnostic for simplexpr::error::Error {
     fn to_diagnostic(&self) -> Diagnostic<usize> {
         use simplexpr::error::Error::*;
+        dbg!(&self);
         match self {
             ParseError { source, file_id } => lalrpop_error_to_diagnostic(source, *file_id),
             ConversionError(error) => error.to_diagnostic(),
             Eval(error) => error.to_diagnostic(),
             Other(error) => gen_diagnostic!(error),
-            Spanned(span, error) => gen_diagnostic!(error, span),
+            Spanned(span, error) => error.to_diagnostic().with_label(span_to_primary_label(*span)),
         }
     }
 }
@@ -205,7 +207,10 @@ impl ToDiagnostic for simplexpr::eval::EvalError {
     fn to_diagnostic(&self) -> Diagnostic<usize> {
         use simplexpr::eval::EvalError::*;
         match self {
-            UnresolvedVariable(name) | UnknownVariable(name) | NoVariablesAllowed(name) => gen_diagnostic! {
+            NoVariablesAllowed(name) => gen_diagnostic!(self),
+            // TODO the note here is confusing when it's an unknown variable being used _within_ a string literal / simplexpr
+            // it only really makes sense on top-level symbols
+            UnresolvedVariable(name) | UnknownVariable(name) => gen_diagnostic! {
                 msg = self,
                 note = format!("If you meant to use the literal value \"{}\", surround the value in quotes", name)
             },

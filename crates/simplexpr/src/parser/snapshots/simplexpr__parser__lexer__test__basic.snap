@@ -1,0 +1,7 @@
+---
+source: crates/simplexpr/src/parser/lexer.rs
+expression: "v!(r#\"bar \"foo\"\"#)"
+
+---
+(0, Ident("bar"), 3)
+(4, StringLit([(4, Literal("foo"), 9)]), 9)

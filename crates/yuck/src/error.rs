@@ -40,6 +40,9 @@ pub enum AstError {
     ErrorNote(String, #[source] Box<AstError>),
 
     #[error(transparent)]
+    SimplExpr(#[from] simplexpr::error::Error),
+
+    #[error(transparent)]
     ConversionError(#[from] dynval::ConversionError),
 
     #[error("{1}")]
@@ -94,6 +97,7 @@ impl Spanned for AstError {
             AstError::ParseError { file_id, source } => get_parse_error_span(*file_id, source),
             AstError::ErrorNote(_, err) => err.span(),
             AstError::NoMoreElementsExpected(span) => *span,
+            AstError::SimplExpr(err) => err.span(),
         }
     }
 }

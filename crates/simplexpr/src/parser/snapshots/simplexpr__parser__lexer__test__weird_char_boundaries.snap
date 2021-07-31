@@ -1,0 +1,8 @@
+---
+source: crates/simplexpr/src/parser/lexer.rs
+expression: "v!(r#\"\"   \" + music\"#)"
+
+---
+(0, StringLit([(0, Literal("\u{f001}   "), 8)]), 8)
+(9, Plus, 10)
+(11, Ident("music"), 16)

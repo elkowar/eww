@@ -39,11 +39,28 @@ macro_rules! return_or_put_back {
 impl<I: Iterator<Item = Ast>> AstIterator<I> {
     return_or_put_back!(expect_symbol, AstType::Symbol, (Span, String) = Ast::Symbol(span, x) => (span, x));
 
-    return_or_put_back!(expect_literal, AstType::Literal, (Span, DynVal) = Ast::Literal(span, x) => (span, x));
+    // return_or_put_back!(expect_literal, AstType::Literal, (Span, DynVal) = Ast::Literal(span, x) => (span, x));
 
     return_or_put_back!(expect_list, AstType::List, (Span, Vec<Ast>) = Ast::List(span, x) => (span, x));
 
     return_or_put_back!(expect_array, AstType::Array, (Span, Vec<Ast>) = Ast::Array(span, x) => (span, x));
+
+    pub fn expect_literal(&mut self) -> AstResult<(Span, DynVal)> {
+        match self.expect_any()? {
+            // Ast::List(_, _) => todo!(),
+            // Ast::Array(_, _) => todo!(),
+            // Ast::Keyword(_, _) => todo!(),
+            // Ast::Symbol(_, _) => todo!(),
+            // Ast::Literal(_, _) => todo!(),
+            Ast::SimplExpr(span, expr) => Ok((span, dbg!(expr.eval_no_vars()).map_err(|e| AstError::SimplExpr(e.into()))?)),
+            other => {
+                let span = other.span();
+                let actual_type = other.expr_type();
+                self.put_back(other);
+                Err(AstError::WrongExprType(span, AstType::Literal, actual_type))
+            }
+        }
+    }
 
     pub fn new(span: Span, iter: I) -> Self {
         AstIterator { remaining_span: span, iter: itertools::put_back(iter) }

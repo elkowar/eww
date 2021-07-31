@@ -1,3 +1,5 @@
+use std::str::pattern::Pattern;
+
 use eww_shared_util::{Span, Spanned};
 use once_cell::sync::Lazy;
 use regex::{escape, Regex, RegexSet};
@@ -63,9 +65,10 @@ macro_rules! regex_rules {
 }
 
 static ESCAPE_REPLACE_REGEX: Lazy<regex::Regex> = Lazy::new(|| Regex::new(r"\\(.)").unwrap());
+pub static STR_INTERPOLATION_START: &str = "${";
+pub static STR_INTERPOLATION_END: &str = "}";
 
 regex_rules! {
-
     escape(r"+")     => |_| Token::Plus,
     escape(r"-")     => |_| Token::Minus,
     escape(r"*")     => |_| Token::Times,
@@ -100,6 +103,7 @@ regex_rules! {
     r"[+-]?(?:[0-9]+[.])?[0-9]+" => |x| Token::NumLit(x.to_string())
 }
 
+#[derive(Debug)]
 pub struct Lexer<'s> {
     file_id: usize,
     source: &'s str,
@@ -117,6 +121,10 @@ impl<'s> Lexer<'s> {
         &self.source[self.pos..]
     }
 
+    pub fn continues_with(&self, pat: impl Pattern<'s>) -> bool {
+        self.remaining().starts_with(pat)
+    }
+
     pub fn next_token(&mut self) -> Option<Result<Sp<Token>, LexicalError>> {
         loop {
             if self.failed || self.pos >= self.source.len() {
@@ -125,9 +133,7 @@ impl<'s> Lexer<'s> {
             let remaining = self.remaining();
 
             if remaining.starts_with(&['"', '\'', '`'][..]) {
-                return self
-                    .string_lit()
-                    .map(|x| x.map(|(lo, segs, hi)| (lo + self.offset, Token::StringLit(segs), hi + self.offset)));
+                return self.string_lit().map(|x| x.map(|(lo, segs, hi)| (lo, Token::StringLit(segs), hi)));
             } else {
                 let match_set = LEXER_REGEX_SET.matches(remaining);
                 let matched_token = match_set
@@ -148,7 +154,7 @@ impl<'s> Lexer<'s> {
 
                 let tok_str = &self.source[self.pos..self.pos + len];
                 let old_pos = self.pos;
-                self.pos += len;
+                self.advance_by(len);
                 match LEXER_FNS[i](tok_str.to_string()) {
                     Token::Skip | Token::Comment => {}
                     token => {
@@ -159,54 +165,56 @@ impl<'s> Lexer<'s> {
         }
     }
 
-    fn advance_until_char_boundary(&mut self) {
+    fn advance_by(&mut self, n: usize) {
+        self.pos += n;
         while self.pos < self.source.len() && !self.source.is_char_boundary(self.pos) {
             self.pos += 1;
         }
     }
 
-    fn advance_until_one_of(&mut self, pat: &[char]) -> Option<char> {
-        for (idx, cur) in self.remaining().char_indices() {
-            if let Some(matched) = pat.iter().find(|p| **p == cur) {
-                self.pos += idx + 1;
-                return Some(*matched);
+    fn advance_until_one_of<'a>(&mut self, pat: &[&'a str]) -> Option<&'a str> {
+        loop {
+            let remaining = self.remaining();
+            if remaining.is_empty() {
+                return None;
+            } else if let Some(matched) = pat.iter().find(|&&p| remaining.starts_with(p)) {
+                self.advance_by(matched.len());
+                return Some(matched);
+            } else {
+                self.advance_by(1);
             }
         }
-        self.pos = self.source.len();
-        return None;
     }
 
-    fn advance_until_unescaped_one_of(&mut self, pat: &[char]) -> Option<char> {
+    fn advance_until_unescaped_one_of<'a>(&mut self, pat: &[&'a str]) -> Option<&'a str> {
         let mut pattern = pat.to_vec();
-        pattern.push('\\');
+        pattern.push("\\");
         match self.advance_until_one_of(pattern.as_slice()) {
-            Some('\\') => {
-                self.pos += 1;
-                self.advance_until_char_boundary();
+            Some("\\") => {
+                self.advance_by(1);
                 self.advance_until_unescaped_one_of(pat)
             }
             result => result,
         }
     }
 
-    fn string_lit(&mut self) -> Option<Result<Sp<Vec<Sp<StrLitSegment>>>, LexicalError>> {
-        let quote = self.remaining().chars().next().unwrap();
+    pub fn string_lit(&mut self) -> Option<Result<Sp<Vec<Sp<StrLitSegment>>>, LexicalError>> {
+        let quote = self.remaining().chars().next()?.to_string();
         let str_lit_start = self.pos;
-        self.pos += 1;
-        self.advance_until_char_boundary();
+        self.advance_by(quote.len());
 
         let mut elements = Vec::new();
         let mut in_string_lit = true;
         loop {
             if in_string_lit {
-                let segment_start = self.pos - 1;
+                let segment_start = self.pos - quote.len();
 
-                let segment_ender = self.advance_until_unescaped_one_of(&['{', quote][..])?;
-                let lit_content = &self.source[segment_start + 1..self.pos - 1];
+                let segment_ender = self.advance_until_unescaped_one_of(&[STR_INTERPOLATION_START, &quote])?;
+                let lit_content = &self.source[segment_start + quote.len()..self.pos - segment_ender.len()];
                 let lit_content = ESCAPE_REPLACE_REGEX.replace_all(lit_content, "$1").to_string();
                 elements.push((segment_start + self.offset, StrLitSegment::Literal(lit_content), self.pos + self.offset));
 
-                if segment_ender == '{' {
+                if segment_ender == STR_INTERPOLATION_START {
                     in_string_lit = false;
                 } else if segment_ender == quote {
                     return Some(Ok((str_lit_start + self.offset, elements, self.pos + self.offset)));
@@ -214,14 +222,14 @@ impl<'s> Lexer<'s> {
             } else {
                 let segment_start = self.pos;
                 let mut toks = Vec::new();
-                while self.pos < self.source.len() && !self.remaining().starts_with('}') {
+                while self.pos < self.source.len() && !self.remaining().starts_with(STR_INTERPOLATION_END) {
                     match self.next_token()? {
                         Ok(tok) => toks.push(tok),
                         Err(err) => return Some(Err(err)),
                     }
                 }
                 elements.push((segment_start + self.offset, StrLitSegment::Interp(toks), self.pos + self.offset));
-                self.pos += 1;
+                self.advance_by(STR_INTERPOLATION_END.len());
                 in_string_lit = true;
             }
         }
@@ -254,20 +262,27 @@ impl std::fmt::Display for LexicalError {
 #[cfg(test)]
 mod test {
     use super::*;
+    use eww_shared_util::snapshot_string;
     use itertools::Itertools;
 
-    #[test]
-    fn test_simplexpr_lexer_basic() {
-        insta::assert_debug_snapshot!(Lexer::new(0, 0, r#"bar "foo""#).collect_vec());
+    macro_rules! v {
+        ($x:literal) => {
+            Lexer::new(0, 0, $x)
+                .map(|x| match x {
+                    Ok((l, x, r)) => format!("({}, {:?}, {})", l, x, r),
+                    Err(err) => format!("{}", err),
+                })
+                .join("\n")
+        };
     }
 
-    #[test]
-    fn test_simplexpr_lexer_str_interpolate() {
-        insta::assert_debug_snapshot!(Lexer::new(0, 0, r#" "foo {2 * 2} bar" "#).collect_vec());
-        insta::assert_debug_snapshot!(Lexer::new(0, 0, r#" "foo {(2 * 2) + "{5 + 5}"} bar" "#).collect_vec());
-        insta::assert_debug_snapshot!(Lexer::new(0, 0, r#" "a\"b\{}" "#).collect_vec());
+    snapshot_string! {
+        basic                 => v!(r#"bar "foo""#),
+        interpolation_1       => v!(r#" "foo ${2 * 2} bar" "#),
+        interpolation_nested  => v!(r#" "foo ${(2 * 2) + "${5 + 5}"} bar" "#),
+        escaping              => v!(r#" "a\"b\{}" "#),
+        comments              => v!("foo ; bar"),
+        weird_char_boundaries => v!(r#""   " + music"#),
+        symbol_spam           => v!(r#"(foo + - "()" "a\"b" true false [] 12.2)"#),
     }
-    // insta::assert_debug_snapshot!(Lexer::new(0, 0, r#"(foo + - "()" "a\"b" true false [] 12.2)"#).collect_vec());
-    // insta::assert_debug_snapshot!(Lexer::new(0, 0, r#""   " + music"#).collect_vec());
-    // insta::assert_debug_snapshot!(Lexer::new(0, 0, r#"foo ; bar"#).collect_vec());
 }

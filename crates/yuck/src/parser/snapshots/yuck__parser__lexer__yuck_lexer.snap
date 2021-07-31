@@ -41,8 +41,24 @@ expression: "Lexer::new(0, r#\"(foo + - \"text\" )\"#.to_string()).collect_vec()
     Ok(
         (
             9,
-            StrLit(
-                "\"text\"",
+            SimplExpr(
+                [
+                    (
+                        9,
+                        StringLit(
+                            [
+                                (
+                                    9,
+                                    Literal(
+                                        "text",
+                                    ),
+                                    15,
+                                ),
+                            ],
+                        ),
+                        15,
+                    ),
+                ],
             ),
             15,
         ),
