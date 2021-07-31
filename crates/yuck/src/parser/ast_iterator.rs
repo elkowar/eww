@@ -46,11 +46,8 @@ impl<I: Iterator<Item = Ast>> AstIterator<I> {
     pub fn expect_literal(&mut self) -> AstResult<(Span, DynVal)> {
         // TODO add some others
         match self.expect_any()? {
-            // Ast::List(_, _) => todo!(),
             // Ast::Array(_, _) => todo!(),
-            // Ast::Keyword(_, _) => todo!(),
-            // Ast::Symbol(_, _) => todo!(),
-            Ast::SimplExpr(span, expr) => Ok((span, dbg!(expr.eval_no_vars()).map_err(|e| AstError::SimplExpr(e.into()))?)),
+            Ast::SimplExpr(span, expr) => Ok((span, expr.eval_no_vars().map_err(|e| AstError::SimplExpr(e.into()))?)),
             other => {
                 let span = other.span();
                 let actual_type = other.expr_type();

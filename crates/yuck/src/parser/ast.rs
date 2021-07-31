@@ -113,7 +113,7 @@ impl std::fmt::Display for Ast {
             Array(_, x) => write!(f, "({})", x.iter().map(|e| format!("{}", e)).join(" ")),
             Keyword(_, x) => write!(f, ":{}", x),
             Symbol(_, x) => write!(f, "{}", x),
-            SimplExpr(_, simplexpr::SimplExpr::Literal(_, value)) => write!(f, "\"{}\"", value),
+            SimplExpr(_, simplexpr::SimplExpr::Literal(value)) => write!(f, "\"{}\"", value),
             SimplExpr(_, x) => write!(f, "{{{}}}", x),
             Comment(_) => write!(f, ""),
         }

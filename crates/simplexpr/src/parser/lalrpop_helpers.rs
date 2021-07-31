@@ -21,7 +21,7 @@ pub fn parse_stringlit(
             let span = Span(lo, hi, file_id);
             match segment {
                 StrLitSegment::Literal(lit) if lit.is_empty() => None,
-                StrLitSegment::Literal(lit) => Some(Ok(SimplExpr::Literal(span, DynVal(lit, span)))),
+                StrLitSegment::Literal(lit) => Some(Ok(SimplExpr::Literal(DynVal(lit, span)))),
                 StrLitSegment::Interp(toks) => {
                     let token_stream = toks.into_iter().map(|x| Ok(x));
                     Some(parser.parse(file_id, token_stream))
@@ -32,5 +32,5 @@ pub fn parse_stringlit(
             Some(ast) => Some(SimplExpr::BinOp(span, Box::new(ast), BinOp::Plus, Box::new(cur))),
             None => Some(cur),
         })
-        .map(|ast| ast.unwrap_or_else(|| SimplExpr::Literal(span, DynVal(String::new(), span))))
+        .map(|ast| ast.unwrap_or_else(|| SimplExpr::Literal(DynVal(String::new(), span))))
 }

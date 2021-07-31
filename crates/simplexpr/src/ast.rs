@@ -31,11 +31,7 @@ pub enum UnaryOp {
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SimplExpr {
-    // TODO figure out if that span value here is even necessary,..
-    // DynVal has span information. However, keeping the span here and the span of the dynval separate
-    // would allow to separate the span of where a dynval was defined and the
-    // span of the use-site when a literal is used to replace a varref in the evaluation process.
-    Literal(Span, DynVal),
+    Literal(DynVal),
     VarRef(Span, VarName),
     BinOp(Span, Box<SimplExpr>, BinOp, Box<SimplExpr>),
     UnaryOp(Span, UnaryOp, Box<SimplExpr>),
@@ -47,8 +43,8 @@ pub enum SimplExpr {
 impl std::fmt::Display for SimplExpr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            SimplExpr::Literal(x) => write!(f, "\"{}\"", x),
             SimplExpr::VarRef(_, x) => write!(f, "{}", x),
-            SimplExpr::Literal(_, x) => write!(f, "\"{}\"", x),
             SimplExpr::BinOp(_, l, op, r) => write!(f, "({} {} {})", l, op, r),
             SimplExpr::UnaryOp(_, op, x) => write!(f, "{}{}", op, x),
             SimplExpr::IfElse(_, a, b, c) => write!(f, "({} ? {} : {})", a, b, c),
@@ -61,23 +57,23 @@ impl std::fmt::Display for SimplExpr {
 }
 impl SimplExpr {
     pub fn literal(span: Span, s: String) -> Self {
-        Self::Literal(span, DynVal(s, span))
+        Self::Literal(DynVal(s, span))
     }
 
     /// Construct a synthetic simplexpr from a literal string, without adding any relevant span information (uses [DUMMY_SPAN])
     pub fn synth_string(s: String) -> Self {
-        Self::Literal(Span::DUMMY, DynVal(s, Span::DUMMY))
+        Self::Literal(DynVal(s, Span::DUMMY))
     }
 
     /// Construct a synthetic simplexpr from a literal dynval, without adding any relevant span information (uses [DUMMY_SPAN])
     pub fn synth_literal<T: Into<DynVal>>(s: T) -> Self {
-        Self::Literal(Span::DUMMY, s.into())
+        Self::Literal(s.into())
     }
 }
 impl Spanned for SimplExpr {
     fn span(&self) -> Span {
         match self {
-            SimplExpr::Literal(span, _) => *span,
+            SimplExpr::Literal(x) => x.span(),
             SimplExpr::VarRef(span, _) => *span,
             SimplExpr::BinOp(span, ..) => *span,
             SimplExpr::UnaryOp(span, ..) => *span,

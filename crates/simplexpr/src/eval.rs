@@ -92,7 +92,7 @@ impl SimplExpr {
     pub fn resolve_refs(self, variables: &HashMap<VarName, DynVal>) -> Result<Self, EvalError> {
         use SimplExpr::*;
         match self {
-            Literal(span, x) => Ok(Literal(span, x)),
+            Literal(x) => Ok(Literal(x)),
             BinOp(span, box a, op, box b) => Ok(BinOp(span, box a.resolve_refs(variables)?, op, box b.resolve_refs(variables)?)),
             UnaryOp(span, op, box x) => Ok(UnaryOp(span, op, box x.resolve_refs(variables)?)),
             IfElse(span, box a, box b, box c) => {
@@ -107,7 +107,7 @@ impl SimplExpr {
                 args.into_iter().map(|a| a.resolve_refs(variables)).collect::<Result<_, EvalError>>()?,
             )),
             VarRef(span, ref name) => match variables.get(name) {
-                Some(value) => Ok(Literal(span, value.clone())),
+                Some(value) => Ok(Literal(value.clone())),
                 None => Err(EvalError::UnknownVariable(name.clone()).at(span)),
             },
         }
@@ -147,7 +147,7 @@ impl SimplExpr {
     pub fn eval(&self, values: &HashMap<VarName, DynVal>) -> Result<DynVal, EvalError> {
         let span = self.span();
         let value = match self {
-            SimplExpr::Literal(_, x) => Ok(x.clone()),
+            SimplExpr::Literal(x) => Ok(x.clone()),
             SimplExpr::VarRef(span, ref name) => {
                 Ok(values.get(name).cloned().ok_or_else(|| EvalError::UnknownVariable(name.clone()).at(*span))?.at(*span))
             }

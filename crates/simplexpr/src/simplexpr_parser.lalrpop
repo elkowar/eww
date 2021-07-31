@@ -76,7 +76,7 @@ pub Expr: SimplExpr = {
   <l:@L> <value:Expr>         "[" <index: ExprReset>       "]" <r:@R> => JsonAccess(Span(l, r, fid), b(value), b(index)),
 
   <l:@L> <value:Expr> "." <lit_l:@L> <index:"identifier"> <r:@R> => {
-    JsonAccess(Span(l, r, fid), b(value), b(Literal(Span(lit_l, r, fid), index.into())))
+    JsonAccess(Span(l, r, fid), b(value), b(Literal(index.into())))
   },
 
   #[precedence(level="2")] #[assoc(side="right")]
