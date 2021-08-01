@@ -17,7 +17,7 @@ use eww_shared_util::{AttrName, Span, Spanned, VarName};
 
 #[derive(Debug, thiserror::Error)]
 pub enum AttrError {
-    #[error("Missing required attribute {0}")]
+    #[error("Missing required attribute {1}")]
     MissingRequiredAttr(Span, AttrName),
 
     #[error("{1}")]

@@ -10,7 +10,7 @@ use crate::{
         from_ast::{FromAst, FromAstElementContent},
     },
 };
-use eww_shared_util::{AttrName, Span, VarName};
+use eww_shared_util::{AttrName, Span, Spanned, VarName};
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub enum ScriptVarDefinition {
@@ -19,6 +19,13 @@ pub enum ScriptVarDefinition {
 }
 
 impl ScriptVarDefinition {
+    pub fn name_span(&self) -> Span {
+        match self {
+            ScriptVarDefinition::Poll(x) => x.name_span,
+            ScriptVarDefinition::Listen(x) => x.name_span,
+        }
+    }
+
     pub fn name(&self) -> &VarName {
         match self {
             ScriptVarDefinition::Poll(x) => &x.name,
@@ -50,6 +57,7 @@ pub struct PollScriptVar {
     pub name: VarName,
     pub command: VarSource,
     pub interval: std::time::Duration,
+    pub name_span: Span,
 }
 
 impl FromAstElementContent for PollScriptVar {
@@ -58,12 +66,12 @@ impl FromAstElementContent for PollScriptVar {
     }
 
     fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> AstResult<Self> {
-        let (_, name) = iter.expect_symbol()?;
+        let (name_span, name) = iter.expect_symbol()?;
         let mut attrs = iter.expect_key_values()?;
         let interval = attrs.primitive_required::<DynVal, _>("interval")?.as_duration()?;
         let (script_span, script) = iter.expect_literal()?;
         iter.expect_done()?;
-        Ok(Self { name: VarName(name), command: VarSource::Shell(script_span, script.to_string()), interval })
+        Ok(Self { name_span, name: VarName(name), command: VarSource::Shell(script_span, script.to_string()), interval })
     }
 }
 
@@ -72,6 +80,7 @@ pub struct ListenScriptVar {
     pub name: VarName,
     pub command: String,
     pub command_span: Span,
+    pub name_span: Span,
 }
 impl FromAstElementContent for ListenScriptVar {
     fn get_element_name() -> &'static str {
@@ -79,9 +88,9 @@ impl FromAstElementContent for ListenScriptVar {
     }
 
     fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> AstResult<Self> {
-        let (_, name) = iter.expect_symbol()?;
+        let (name_span, name) = iter.expect_symbol()?;
         let (command_span, script) = iter.expect_literal()?;
         iter.expect_done()?;
-        Ok(Self { name: VarName(name), command: script.to_string(), command_span })
+        Ok(Self { name_span, name: VarName(name), command: script.to_string(), command_span })
     }
 }

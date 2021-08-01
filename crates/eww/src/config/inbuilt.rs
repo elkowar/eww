@@ -14,6 +14,7 @@ macro_rules! builtin_vars {
                 name: VarName::from($name),
                 command: VarSource::Function($fun),
                 interval: $interval,
+                name_span: eww_shared_util::span::Span::DUMMY,
             })
             ),*
         }
