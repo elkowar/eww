@@ -525,7 +525,7 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
             if !content.is_empty() {
                 let widget_node_result: AstResult<_> = try {
                     let ast = {
-                        let mut yuck_files = error_handling_ctx::ERROR_HANDLING_CTX.lock().unwrap();
+                        let mut yuck_files = error_handling_ctx::YUCK_FILES.write().unwrap();
                         let (span, asts) = yuck_files.load_str("<literal-content>".to_string(), content)?;
                         if let Some(file_id) = literal_file_id.replace(Some(span.2)) {
                             yuck_files.unload(file_id);

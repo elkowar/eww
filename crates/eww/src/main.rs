@@ -13,6 +13,7 @@ extern crate gtk;
 extern crate gtk_layer_shell as gtk_layer_shell;
 
 use anyhow::*;
+use daemon_response::DaemonResponseReceiver;
 use opts::ActionWithServer;
 use std::{
     os::unix::net,
@@ -37,6 +38,7 @@ pub mod script_var_handler;
 pub mod server;
 pub mod util;
 pub mod widgets;
+mod daemon_response;
 
 fn main() {
     let eww_binary_name = std::env::args().next().unwrap();
@@ -114,7 +116,7 @@ fn main() {
     }
 }
 
-fn listen_for_daemon_response(mut recv: app::DaemonResponseReceiver) {
+fn listen_for_daemon_response(mut recv: DaemonResponseReceiver) {
     let rt = tokio::runtime::Builder::new_current_thread().enable_time().build().expect("Failed to initialize tokio runtime");
     rt.block_on(async {
         if let Ok(Some(response)) = tokio::time::timeout(Duration::from_millis(100), recv.recv()).await {

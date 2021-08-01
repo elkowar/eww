@@ -1,4 +1,4 @@
-use crate::{config, display_backend, error_handling_ctx, eww_state, script_var_handler::*, EwwPaths};
+use crate::{EwwPaths, config, daemon_response::DaemonResponseSender, display_backend, error_handling_ctx, eww_state, script_var_handler::*};
 use anyhow::*;
 use debug_stub_derive::*;
 use eww_shared_util::VarName;
@@ -12,27 +12,6 @@ use yuck::{
     config::window_geometry::{AnchorPoint, WindowGeometry},
     value::Coords,
 };
-
-/// Response that the app may send as a response to a event.
-/// This is used in `DaemonCommand`s that contain a response sender.
-#[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, derive_more::Display)]
-pub enum DaemonResponse {
-    Success(String),
-    Failure(String),
-}
-
-impl DaemonResponse {
-    pub fn is_success(&self) -> bool {
-        matches!(self, DaemonResponse::Success(_))
-    }
-
-    pub fn is_failure(&self) -> bool {
-        !self.is_success()
-    }
-}
-
-pub type DaemonResponseSender = tokio::sync::mpsc::UnboundedSender<DaemonResponse>;
-pub type DaemonResponseReceiver = tokio::sync::mpsc::UnboundedReceiver<DaemonResponse>;
 
 #[derive(Debug)]
 pub enum DaemonCommand {
@@ -111,11 +90,7 @@ impl App {
                 DaemonCommand::ReloadConfigAndCss(sender) => {
                     let mut errors = Vec::new();
 
-                    error_handling_ctx::clear_files();
-                    let config_result = config::EwwConfig::read_from_file(
-                        &mut error_handling_ctx::ERROR_HANDLING_CTX.lock().unwrap(),
-                        &self.paths.get_yuck_path(),
-                    );
+                    let config_result = config::read_from_file(&self.paths.get_yuck_path());
                     match config_result.and_then(|new_config| self.load_config(new_config)) {
                         Ok(()) => {}
                         Err(e) => errors.push(e),
@@ -129,9 +104,9 @@ impl App {
 
                     let errors = errors.into_iter().map(|e| error_handling_ctx::format_error(&e)).join("\n");
                     if errors.is_empty() {
-                        sender.send(DaemonResponse::Success(String::new()))?;
+                        sender.send_success(String::new())?;
                     } else {
-                        sender.send(DaemonResponse::Failure(errors))?;
+                        sender.send_failure(errors)?;
                     }
                 }
                 DaemonCommand::UpdateConfig(config) => {
@@ -176,7 +151,7 @@ impl App {
                             .map(|(key, value)| format!("{}: {}", key, value))
                             .join("\n")
                     };
-                    sender.send(DaemonResponse::Success(output)).context("sending response from main thread")?
+                    sender.send_success(output)?
                 }
                 DaemonCommand::PrintWindows(sender) => {
                     let output = self
@@ -188,11 +163,11 @@ impl App {
                             format!("{}{}", if is_open { "*" } else { "" }, window_name)
                         })
                         .join("\n");
-                    sender.send(DaemonResponse::Success(output)).context("sending response from main thread")?
+                    sender.send_success(output)?
                 }
                 DaemonCommand::PrintDebug(sender) => {
                     let output = format!("state: {:#?}\n\nconfig: {:#?}", &self.eww_state, &self.eww_config);
-                    sender.send(DaemonResponse::Success(output)).context("sending response from main thread")?
+                    sender.send_success(output)?
                 }
             }
         };
@@ -387,8 +362,8 @@ fn get_monitor_geometry(n: i32) -> gdk::Rectangle {
 /// In case of an Err, send the error message to a sender.
 fn respond_with_error<T>(sender: DaemonResponseSender, result: Result<T>) -> Result<()> {
     match result {
-        Ok(_) => sender.send(DaemonResponse::Success(String::new())),
-        Err(e) => sender.send(DaemonResponse::Failure(error_handling_ctx::format_error(&e))),
+        Ok(_) => sender.send_success(String::new()),
+        Err(e) => sender.send_failure(error_handling_ctx::format_error(&e)),
     }
     .context("sending response from main thread")
 }

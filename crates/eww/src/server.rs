@@ -1,9 +1,4 @@
-use crate::{
-    app::{self, DaemonCommand},
-    config, error_handling_ctx,
-    eww_state::*,
-    ipc_server, script_var_handler, util, EwwPaths,
-};
+use crate::{EwwPaths, app::{self, DaemonCommand}, config, daemon_response, error_handling_ctx, eww_state::*, ipc_server, script_var_handler, util};
 use anyhow::*;
 
 use std::{
@@ -22,11 +17,7 @@ pub fn initialize_server(paths: EwwPaths, action: Option<DaemonCommand>) -> Resu
 
     log::info!("Loading paths: {}", &paths);
 
-    // disgusting global state, I hate this, but https://github.com/buffet told me that this is what I should do for peak maintainability
-    error_handling_ctx::clear_files();
-
-    let read_config =
-        config::EwwConfig::read_from_file(&mut error_handling_ctx::ERROR_HANDLING_CTX.lock().unwrap(), &paths.get_yuck_path());
+    let read_config = config::read_from_file(&paths.get_yuck_path());
 
     let eww_config = match read_config {
         Ok(config) => config,
@@ -167,12 +158,12 @@ async fn run_filewatch<P: AsRef<Path>>(config_dir: P, evt_send: UnboundedSender<
                     debounce_done.store(true, Ordering::SeqCst);
                 });
 
-                let (daemon_resp_sender, mut daemon_resp_response) = tokio::sync::mpsc::unbounded_channel();
+                let (daemon_resp_sender, mut daemon_resp_response) = daemon_response::create_pair();
                 evt_send.send(app::DaemonCommand::ReloadConfigAndCss(daemon_resp_sender))?;
                 tokio::spawn(async move {
                     match daemon_resp_response.recv().await {
-                        Some(app::DaemonResponse::Success(_)) => log::info!("Reloaded config successfully"),
-                        Some(app::DaemonResponse::Failure(e)) => eprintln!("{}", e),
+                        Some(daemon_response::DaemonResponse::Success(_)) => log::info!("Reloaded config successfully"),
+                        Some(daemon_response::DaemonResponse::Failure(e)) => eprintln!("{}", e),
                         None => log::error!("No response to reload configuration-reload request"),
                     }
                 });

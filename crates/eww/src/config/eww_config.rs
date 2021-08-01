@@ -7,7 +7,15 @@ use yuck::config::{
 
 use simplexpr::dynval::DynVal;
 
+use crate::error_handling_ctx;
+
 use super::{script_var, EwwWindowDefinition};
+
+/// Load an [EwwConfig] from a given file, resetting and applying the global YuckFiles object in [error_handling_ctx].
+pub fn read_from_file(path: impl AsRef<Path>) -> Result<EwwConfig> {
+    error_handling_ctx::clear_files();
+    EwwConfig::read_from_file(&mut error_handling_ctx::YUCK_FILES.write().unwrap(), path)
+}
 
 /// Eww configuration structure.
 #[derive(Debug, Clone)]

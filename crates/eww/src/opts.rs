@@ -5,7 +5,10 @@ use simplexpr::dynval::DynVal;
 use structopt::StructOpt;
 use yuck::{config::window_geometry::AnchorPoint, value::Coords};
 
-use crate::app;
+use crate::{
+    app,
+    daemon_response::{self, DaemonResponse, DaemonResponseSender},
+};
 
 /// Struct that gets generated from `RawOpt`.
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -158,7 +161,7 @@ fn parse_var_update_arg(s: &str) -> Result<(VarName, DynVal)> {
 }
 
 impl ActionWithServer {
-    pub fn into_daemon_command(self) -> (app::DaemonCommand, Option<app::DaemonResponseReceiver>) {
+    pub fn into_daemon_command(self) -> (app::DaemonCommand, Option<daemon_response::DaemonResponseReceiver>) {
         let command = match self {
             ActionWithServer::Update { mappings } => app::DaemonCommand::UpdateVars(mappings),
 
@@ -166,7 +169,7 @@ impl ActionWithServer {
             ActionWithServer::CloseAll => app::DaemonCommand::CloseAll,
             ActionWithServer::Ping => {
                 let (send, recv) = tokio::sync::mpsc::unbounded_channel();
-                let _ = send.send(app::DaemonResponse::Success("pong".to_owned()));
+                let _ = send.send(DaemonResponse::Success("pong".to_owned()));
                 return (app::DaemonCommand::NoOp, Some(recv));
             }
             ActionWithServer::OpenMany { windows } => {
@@ -197,10 +200,10 @@ impl ActionWithServer {
     }
 }
 
-fn with_response_channel<T, O, F>(f: F) -> (O, Option<tokio::sync::mpsc::UnboundedReceiver<T>>)
+fn with_response_channel<O, F>(f: F) -> (O, Option<tokio::sync::mpsc::UnboundedReceiver<DaemonResponse>>)
 where
-    F: FnOnce(tokio::sync::mpsc::UnboundedSender<T>) -> O,
+    F: FnOnce(DaemonResponseSender) -> O,
 {
-    let (sender, recv) = tokio::sync::mpsc::unbounded_channel();
+    let (sender, recv) = daemon_response::create_pair();
     (f(sender), Some(recv))
 }
