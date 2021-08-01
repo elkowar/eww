@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use simplexpr::{dynval::DynVal, SimplExpr};
 
 use crate::{
-    error::{AstError, AstResult},
+    error::{AstError, AstResult, AstResultExt},
     parser::{
         ast::Ast,
         ast_iterator::AstIterator,
@@ -66,12 +66,15 @@ impl FromAstElementContent for PollScriptVar {
     }
 
     fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> AstResult<Self> {
-        let (name_span, name) = iter.expect_symbol()?;
-        let mut attrs = iter.expect_key_values()?;
-        let interval = attrs.primitive_required::<DynVal, _>("interval")?.as_duration()?;
-        let (script_span, script) = iter.expect_literal()?;
-        iter.expect_done()?;
-        Ok(Self { name_span, name: VarName(name), command: VarSource::Shell(script_span, script.to_string()), interval })
+        let result: AstResult<_> = try {
+            let (name_span, name) = iter.expect_symbol()?;
+            let mut attrs = iter.expect_key_values()?;
+            let interval = attrs.primitive_required::<DynVal, _>("interval")?.as_duration()?;
+            let (script_span, script) = iter.expect_literal()?;
+            iter.expect_done()?;
+            Self { name_span, name: VarName(name), command: VarSource::Shell(script_span, script.to_string()), interval }
+        };
+        result.note(r#"Expected format: `(defpoll name :interval "10s" "echo 'a shell script'")`"#)
     }
 }
 
@@ -88,9 +91,12 @@ impl FromAstElementContent for ListenScriptVar {
     }
 
     fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> AstResult<Self> {
+        let result: AstResult<_> = try {
         let (name_span, name) = iter.expect_symbol()?;
         let (command_span, script) = iter.expect_literal()?;
         iter.expect_done()?;
-        Ok(Self { name_span, name: VarName(name), command: script.to_string(), command_span })
+        Self { name_span, name: VarName(name), command: script.to_string(), command_span }
+        };
+        result.note(r#"Expected format: `(deflisten name "tail -f /tmp/example")`"#)
     }
 }

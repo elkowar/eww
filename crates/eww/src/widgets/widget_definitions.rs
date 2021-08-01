@@ -8,7 +8,7 @@ use gtk::{self, prelude::*, ImageExt};
 use std::{cell::RefCell, collections::HashMap, rc::Rc, time::Duration};
 use yuck::{
     config::validate::ValidationError,
-    error::{AstError, AstResult, ResultExt},
+    error::{AstError, AstResult, AstResultExt},
     parser::from_ast::FromAst,
 };
 

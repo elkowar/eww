@@ -14,7 +14,7 @@ Config(
       widget: WidgetUse(
         name: "foo",
         attrs: Attributes(
-          span: Span(51, 61, 62),
+          span: Span(51, 61, 0),
           attrs: {
             AttrName("arg"): AttrEntry(
               key_span: Span(52, 56, 0),
@@ -52,7 +52,7 @@ Config(
       widget: WidgetUse(
         name: "bar",
         attrs: Attributes(
-          span: Span(467, 478, 479),
+          span: Span(467, 478, 0),
           attrs: {
             AttrName("arg"): AttrEntry(
               key_span: Span(468, 472, 0),
@@ -88,6 +88,7 @@ Config(
       name: VarName("stuff"),
       command: "tail -f stuff",
       command_span: Span(168, 183, 0),
+      name_span: Span(162, 167, 0),
     )),
   },
 )

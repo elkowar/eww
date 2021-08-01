@@ -122,12 +122,17 @@ impl<T> OptionAstErrorExt<T> for Option<T> {
     }
 }
 
-pub trait ResultExt<T> {
+pub trait AstResultExt<T> {
     fn context_label(self, label_span: Span, context: &str) -> AstResult<T>;
+    fn note(self, note: &str) -> AstResult<T>;
 }
 
-impl<T> ResultExt<T> for AstResult<T> {
+impl<T> AstResultExt<T> for AstResult<T> {
     fn context_label(self, label_span: Span, context: &str) -> AstResult<T> {
         self.map_err(|e| AstError::ErrorContext { label_span, context: context.to_string(), main_err: Box::new(e) })
+    }
+
+    fn note(self, note: &str) -> AstResult<T> {
+        self.map_err(|e| e.note(note))
     }
 }

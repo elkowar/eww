@@ -98,7 +98,7 @@ impl<I: Iterator<Item = Ast>> Iterator for AstIterator<I> {
 /// Parse consecutive `:keyword value` pairs from an expression iterator into an [Attributes].
 fn parse_key_values(iter: &mut AstIterator<impl Iterator<Item = Ast>>) -> AstResult<Attributes> {
     let mut data = HashMap::new();
-    let mut attrs_span = Span(iter.remaining_span.0, iter.remaining_span.0, iter.remaining_span.1);
+    let mut attrs_span = iter.remaining_span.point_span();
     loop {
         match iter.next() {
             Some(Ast::Keyword(key_span, kw)) => match iter.next() {
