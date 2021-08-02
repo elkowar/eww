@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use simplexpr::SimplExpr;
 
 use crate::{
-    error::AstResult,
+    error::{AstError::WrongExprType, AstResult, AstResultExt, FormFormatError},
     parser::{
         ast::Ast,
         ast_iterator::AstIterator,
@@ -26,11 +26,16 @@ impl FromAstElementContent for WidgetDefinition {
     const ELEMENT_NAME: &'static str = "defwidget";
 
     fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> AstResult<Self> {
-        let (_, name) = iter.expect_symbol()?;
-        let (args_span, expected_args) = iter.expect_array()?;
+        let (name_span, name) = iter.expect_symbol().note(EXPECTED_WIDGET_DEF_FORMAT)?;
+        let (args_span, expected_args) = iter
+            .expect_array()
+            .wrong_expr_type_to(|_| FormFormatError::WidgetDefArglistMissing(name_span.point_span_at_end()))
+            .note(EXPECTED_WIDGET_DEF_FORMAT)?;
         let expected_args = expected_args.into_iter().map(|x| x.as_symbol().map(AttrName)).collect::<AstResult<_>>()?;
-        let widget = iter.expect_any().and_then(WidgetUse::from_ast)?;
+        let widget = iter.expect_any().note(EXPECTED_WIDGET_DEF_FORMAT).and_then(WidgetUse::from_ast)?;
         iter.expect_done()?;
         Ok(Self { name, expected_args, widget, span, args_span })
     }
 }
+
+static EXPECTED_WIDGET_DEF_FORMAT: &str = r#"Expected format: `(defwidget name [] (contained-widgets))`"#;

@@ -20,28 +20,30 @@ pub struct AstIterator<I: Iterator<Item = Ast>> {
 }
 
 macro_rules! return_or_put_back {
-    ($name:ident, $expr_type:expr, $t:ty = $p:pat => $ret:expr) => {
-        pub fn $name(&mut self) -> AstResult<$t> {
-            let expr_type = $expr_type;
-            match self.expect_any()? {
-                $p => Ok($ret),
-                other => {
-                    let span = other.span();
-                    let actual_type = other.expr_type();
-                    self.put_back(other);
-                    Err(AstError::WrongExprType(span, expr_type, actual_type))
+    ($(fn $name:ident -> $expr_type:expr, $t:ty = $p:pat => $ret:expr)*) => {
+        $(
+            pub fn $name(&mut self) -> AstResult<$t> {
+                let expr_type = $expr_type;
+                match self.expect_any()? {
+                    $p => Ok($ret),
+                    other => {
+                        let span = other.span();
+                        let actual_type = other.expr_type();
+                        self.put_back(other);
+                        Err(AstError::WrongExprType(span, expr_type, actual_type))
+                    }
                 }
             }
-        }
+        )*
     };
 }
 
 impl<I: Iterator<Item = Ast>> AstIterator<I> {
-    return_or_put_back!(expect_symbol, AstType::Symbol, (Span, String) = Ast::Symbol(span, x) => (span, x));
-
-    return_or_put_back!(expect_list, AstType::List, (Span, Vec<Ast>) = Ast::List(span, x) => (span, x));
-
-    return_or_put_back!(expect_array, AstType::Array, (Span, Vec<Ast>) = Ast::Array(span, x) => (span, x));
+    return_or_put_back! {
+        fn expect_symbol -> AstType::Symbol, (Span, String)   = Ast::Symbol(span, x) => (span, x)
+        fn expect_list   -> AstType::List,   (Span, Vec<Ast>) = Ast::List(span, x)   => (span, x)
+        fn expect_array  -> AstType::Array,  (Span, Vec<Ast>) = Ast::Array(span, x)  => (span, x)
+    }
 
     pub fn expect_literal(&mut self) -> AstResult<(Span, DynVal)> {
         // TODO add some others

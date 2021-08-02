@@ -24,6 +24,9 @@ pub enum AstError {
     #[error("Did not expect any further elements here. Make sure your format is correct")]
     NoMoreElementsExpected(Span),
 
+    #[error(transparent)]
+    FormFormatError(#[from] FormFormatError),
+
     #[error("Wrong type of expression: Expected {1} but got {2}")]
     WrongExprType(Span, AstType, AstType),
     #[error("Expected to get a value, but got {1}")]
@@ -77,6 +80,14 @@ impl AstError {
     ) -> AstError {
         AstError::ParseError { file_id, source: err }
     }
+
+    pub fn wrong_expr_type_to(self, f: impl FnOnce(Span) -> FormFormatError) -> AstError {
+        match self {
+            AstError::WrongExprType(span, ..) => AstError::FormFormatError(f(span.point_span())),
+            AstError::ErrorNote(s, err) => AstError::ErrorNote(s, Box::new(err.wrong_expr_type_to(f))),
+            other => other,
+        }
+    }
 }
 
 impl Spanned for AstError {
@@ -98,6 +109,7 @@ impl Spanned for AstError {
             AstError::ErrorNote(_, err) => err.span(),
             AstError::NoMoreElementsExpected(span) => *span,
             AstError::SimplExpr(err) => err.span(),
+            AstError::FormFormatError(err) => err.span(),
         }
     }
 }
@@ -125,6 +137,9 @@ impl<T> OptionAstErrorExt<T> for Option<T> {
 pub trait AstResultExt<T> {
     fn context_label(self, label_span: Span, context: &str) -> AstResult<T>;
     fn note(self, note: &str) -> AstResult<T>;
+
+    /// Map any [AstError::WrongExprType]s error to a [FormFormatError]
+    fn wrong_expr_type_to(self, f: impl FnOnce(Span) -> FormFormatError) -> AstResult<T>;
 }
 
 impl<T> AstResultExt<T> for AstResult<T> {
@@ -134,5 +149,23 @@ impl<T> AstResultExt<T> for AstResult<T> {
 
     fn note(self, note: &str) -> AstResult<T> {
         self.map_err(|e| e.note(note))
+    }
+
+    fn wrong_expr_type_to(self, f: impl FnOnce(Span) -> FormFormatError) -> AstResult<T> {
+        self.map_err(|err| err.wrong_expr_type_to(f))
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum FormFormatError {
+    #[error("Widget definition missing argument list")]
+    WidgetDefArglistMissing(Span),
+}
+
+impl Spanned for FormFormatError {
+    fn span(&self) -> Span {
+        match self {
+            FormFormatError::WidgetDefArglistMissing(span) => *span,
+        }
     }
 }

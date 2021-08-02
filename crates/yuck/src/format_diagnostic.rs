@@ -7,7 +7,7 @@ use diagnostic::*;
 
 use crate::{
     config::{attributes::AttrError, config, validate::ValidationError},
-    error::{get_parse_error_span, AstError},
+    error::{get_parse_error_span, AstError, FormFormatError},
 };
 
 use super::parser::parse_error;
@@ -124,6 +124,7 @@ impl ToDiagnostic for AstError {
             AstError::ValidationError(source) => source.to_diagnostic(),
             AstError::NoMoreElementsExpected(span) => gen_diagnostic!(self, span),
             AstError::SimplExpr(source) => source.to_diagnostic(),
+            AstError::FormFormatError(error) => error.to_diagnostic(),
         }
     }
 }
@@ -244,5 +245,17 @@ fn generate_lexical_error_diagnostic(span: Span) -> Diagnostic<usize> {
     gen_diagnostic! {
         msg = "Invalid token",
         label = span => "Invalid token"
+    }
+}
+
+impl ToDiagnostic for FormFormatError {
+    fn to_diagnostic(&self) -> diagnostic::Diagnostic<usize> {
+        match self {
+            FormFormatError::WidgetDefArglistMissing(span) => gen_diagnostic! {
+                msg = self,
+                label = span => "Insert the argument list (e.g.: `[]`) here",
+                note = "This list will in the future need to declare all the non-global variables / attributes used in this widget.\nThis is not yet neccessary, but is still considered good style.",
+            },
+        }
     }
 }

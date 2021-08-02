@@ -62,6 +62,7 @@ pub fn stringify_diagnostic(mut diagnostic: codespan_reporting::diagnostic::Diag
     let mut chars = Chars::box_drawing();
     chars.single_primary_caret = '─';
     config.chars = chars;
+    config.chars.note_bullet = '→';
     let mut buf = Vec::new();
     let mut writer = term::termcolor::Ansi::new(&mut buf);
     let files = YUCK_FILES.read().unwrap();
