@@ -16,7 +16,7 @@ const CMD_STRING_PLACEHODLER: &str = "{}";
 
 /// Run a command that was provided as an attribute. This command may use a
 /// placeholder ('{}') which will be replaced by the value provided as [`arg`]
-pub(self) fn run_command<T: 'static + std::fmt::Display + Send + Sync>(cmd: &str, arg: T) {
+pub(self) fn run_command<T: 'static + std::fmt::Display + Send + Sync>(timeout: std::time::Duration, cmd: &str, arg: T) {
     use wait_timeout::ChildExt;
     let cmd = cmd.to_string();
     std::thread::spawn(move || {
@@ -24,7 +24,7 @@ pub(self) fn run_command<T: 'static + std::fmt::Display + Send + Sync>(cmd: &str
         log::debug!("Running command from widget: {}", cmd);
         let child = Command::new("/bin/sh").arg("-c").arg(&cmd).spawn();
         match child {
-            Ok(mut child) => match child.wait_timeout(std::time::Duration::from_millis(200)) {
+            Ok(mut child) => match child.wait_timeout(timeout) {
                 // child timed out
                 Ok(None) => {
                     log::error!("WARNING: command {} timed out", &cmd);

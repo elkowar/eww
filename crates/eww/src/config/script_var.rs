@@ -26,8 +26,8 @@ pub fn initial_value(var: &ScriptVarDefinition) -> Result<DynVal> {
             VarSource::Function(f) => {
                 f().map_err(|err| anyhow!(err)).with_context(|| format!("Failed to compute initial value for {}", &var.name()))
             }
-            VarSource::Shell(span, f) => {
-                run_command(f).map_err(|e| anyhow!(create_script_var_failed_warn(*span, var.name(), &e.to_string())))
+            VarSource::Shell(span, command) => {
+                run_command(command).map_err(|e| anyhow!(create_script_var_failed_warn(*span, var.name(), &e.to_string())))
             }
         },
         ScriptVarDefinition::Listen(_) => Ok(DynVal::from_string(String::new())),

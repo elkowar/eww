@@ -171,8 +171,8 @@ impl PollVarHandler {
 
 fn run_poll_once(var: &PollScriptVar) -> Result<DynVal> {
     match &var.command {
-        VarSource::Shell(span, x) => {
-            script_var::run_command(x).map_err(|e| anyhow!(create_script_var_failed_warn(*span, &var.name, &e.to_string())))
+        VarSource::Shell(span, command) => {
+            script_var::run_command(command).map_err(|e| anyhow!(create_script_var_failed_warn(*span, &var.name, &e.to_string())))
         }
         VarSource::Function(x) => x().map_err(|e| anyhow!(e)),
     }
