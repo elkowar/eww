@@ -25,6 +25,15 @@ use crate::{
 };
 use eww_shared_util::{AttrName, Span, VarName};
 
+pub static TOP_LEVEL_DEFINITION_NAMES: &[&str] = &[
+    WidgetDefinition::ELEMENT_NAME,
+    WindowDefinition::ELEMENT_NAME,
+    VarDefinition::ELEMENT_NAME,
+    ListenScriptVar::ELEMENT_NAME,
+    PollScriptVar::ELEMENT_NAME,
+    Include::ELEMENT_NAME,
+];
+
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
 pub struct Include {
     pub path: String,
@@ -32,9 +41,7 @@ pub struct Include {
 }
 
 impl FromAstElementContent for Include {
-    fn get_element_name() -> &'static str {
-        "include"
-    }
+    const ELEMENT_NAME: &'static str = "include";
 
     fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> AstResult<Self> {
         let (path_span, path) = iter.expect_literal()?;
@@ -57,16 +64,16 @@ impl FromAst for TopLevel {
         let mut iter = e.try_ast_iter()?;
         let (sym_span, element_name) = iter.expect_symbol()?;
         Ok(match element_name.as_str() {
-            x if x == Include::get_element_name() => Self::Include(Include::from_tail(span, iter)?),
-            x if x == WidgetDefinition::get_element_name() => Self::WidgetDefinition(WidgetDefinition::from_tail(span, iter)?),
-            x if x == VarDefinition::get_element_name() => Self::VarDefinition(VarDefinition::from_tail(span, iter)?),
-            x if x == PollScriptVar::get_element_name() => {
+            x if x == Include::ELEMENT_NAME => Self::Include(Include::from_tail(span, iter)?),
+            x if x == WidgetDefinition::ELEMENT_NAME => Self::WidgetDefinition(WidgetDefinition::from_tail(span, iter)?),
+            x if x == VarDefinition::ELEMENT_NAME => Self::VarDefinition(VarDefinition::from_tail(span, iter)?),
+            x if x == PollScriptVar::ELEMENT_NAME => {
                 Self::ScriptVarDefinition(ScriptVarDefinition::Poll(PollScriptVar::from_tail(span, iter)?))
             }
-            x if x == ListenScriptVar::get_element_name() => {
+            x if x == ListenScriptVar::ELEMENT_NAME => {
                 Self::ScriptVarDefinition(ScriptVarDefinition::Listen(ListenScriptVar::from_tail(span, iter)?))
             }
-            x if x == WindowDefinition::get_element_name() => Self::WindowDefinition(WindowDefinition::from_tail(span, iter)?),
+            x if x == WindowDefinition::ELEMENT_NAME => Self::WindowDefinition(WindowDefinition::from_tail(span, iter)?),
             x => return Err(AstError::UnknownToplevel(sym_span, x.to_string())),
         })
     }

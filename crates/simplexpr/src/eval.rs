@@ -16,7 +16,7 @@ pub enum EvalError {
     InvalidRegex(#[from] regex::Error),
 
     #[error("Unknown variable {0}")]
-    UnknownVariable(VarName),
+    UnknownVariable(VarName, Vec<VarName>),
 
     #[error(transparent)]
     ConversionError(#[from] ConversionError),
@@ -108,7 +108,11 @@ impl SimplExpr {
             )),
             VarRef(span, ref name) => match variables.get(name) {
                 Some(value) => Ok(Literal(value.clone())),
-                None => Err(EvalError::UnknownVariable(name.clone()).at(span)),
+                None => {
+                    let similar_ish =
+                        variables.keys().filter(|key| levenshtein::levenshtein(&key.0, &name.0) < 3).cloned().collect_vec();
+                    Err(EvalError::UnknownVariable(name.clone(), similar_ish).at(span))
+                }
             },
         }
     }
@@ -138,7 +142,7 @@ impl SimplExpr {
         match self.eval(&HashMap::new()) {
             Ok(x) => Ok(x),
             Err(x) => Err(x.map_in_span(|err| match err {
-                EvalError::UnknownVariable(name) => EvalError::NoVariablesAllowed(name),
+                EvalError::UnknownVariable(name, _) => EvalError::NoVariablesAllowed(name),
                 other => other,
             })),
         }
@@ -149,7 +153,13 @@ impl SimplExpr {
         let value = match self {
             SimplExpr::Literal(x) => Ok(x.clone()),
             SimplExpr::VarRef(span, ref name) => {
-                Ok(values.get(name).cloned().ok_or_else(|| EvalError::UnknownVariable(name.clone()).at(*span))?.at(*span))
+                let similar_ish =
+                    values.keys().filter(|keys| levenshtein::levenshtein(&keys.0, &name.0) < 3).cloned().collect_vec();
+                Ok(values
+                    .get(name)
+                    .cloned()
+                    .ok_or_else(|| EvalError::UnknownVariable(name.clone(), similar_ish).at(*span))?
+                    .at(*span))
             }
             SimplExpr::BinOp(_, a, op, b) => {
                 let a = a.eval(values)?;

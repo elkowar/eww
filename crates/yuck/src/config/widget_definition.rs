@@ -23,9 +23,7 @@ pub struct WidgetDefinition {
 }
 
 impl FromAstElementContent for WidgetDefinition {
-    fn get_element_name() -> &'static str {
-        "defwidget"
-    }
+    const ELEMENT_NAME: &'static str = "defwidget";
 
     fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> AstResult<Self> {
         let (_, name) = iter.expect_symbol()?;

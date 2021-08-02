@@ -61,9 +61,7 @@ pub struct PollScriptVar {
 }
 
 impl FromAstElementContent for PollScriptVar {
-    fn get_element_name() -> &'static str {
-        "defpoll"
-    }
+    const ELEMENT_NAME: &'static str = "defpoll";
 
     fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> AstResult<Self> {
         let result: AstResult<_> = try {
@@ -91,9 +89,7 @@ pub struct ListenScriptVar {
     pub name_span: Span,
 }
 impl FromAstElementContent for ListenScriptVar {
-    fn get_element_name() -> &'static str {
-        "deflisten"
-    }
+    const ELEMENT_NAME: &'static str = "deflisten";
 
     fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> AstResult<Self> {
         let result: AstResult<_> = try {

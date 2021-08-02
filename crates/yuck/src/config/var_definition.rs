@@ -2,11 +2,14 @@ use std::collections::HashMap;
 
 use simplexpr::{dynval::DynVal, SimplExpr};
 
-use crate::{error::{AstResult, AstResultExt}, parser::{
+use crate::{
+    error::{AstResult, AstResultExt},
+    parser::{
         ast::Ast,
         ast_iterator::AstIterator,
         from_ast::{FromAst, FromAstElementContent},
-    }};
+    },
+};
 use eww_shared_util::{AttrName, Span, VarName};
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
@@ -17,9 +20,7 @@ pub struct VarDefinition {
 }
 
 impl FromAstElementContent for VarDefinition {
-    fn get_element_name() -> &'static str {
-        "defvar"
-    }
+    const ELEMENT_NAME: &'static str = "defvar";
 
     fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> AstResult<Self> {
         let result: AstResult<_> = try {

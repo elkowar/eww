@@ -117,9 +117,7 @@ pub struct WindowGeometry {
 }
 
 impl FromAstElementContent for WindowGeometry {
-    fn get_element_name() -> &'static str {
-        "geometry"
-    }
+    const ELEMENT_NAME: &'static str = "geometry";
 
     fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> AstResult<Self> {
         let mut attrs = iter.expect_key_values()?;

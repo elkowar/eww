@@ -1,10 +1,12 @@
 use codespan_reporting::{diagnostic, files};
+use config::TOP_LEVEL_DEFINITION_NAMES;
+use itertools::Itertools;
 use simplexpr::dynval;
 
 use diagnostic::*;
 
 use crate::{
-    config::{attributes::AttrError, validate::ValidationError},
+    config::{attributes::AttrError, config, validate::ValidationError},
     error::{get_parse_error_span, AstError},
 };
 
@@ -75,12 +77,15 @@ impl ToDiagnostic for Diagnostic<usize> {
 impl ToDiagnostic for AstError {
     fn to_diagnostic(&self) -> Diagnostic<usize> {
         match self {
-            AstError::UnknownToplevel(span, name) => gen_diagnostic!(self, span),
+            AstError::UnknownToplevel(span, name) => gen_diagnostic! {
+                msg = self,
+                label = span,
+                note = format!("Must be one of: {}", TOP_LEVEL_DEFINITION_NAMES.iter().join(", "))
+            },
             AstError::MissingNode(span) => gen_diagnostic! {
                 msg = "Expected another element",
                 label = span => "Expected another element here",
             },
-
             AstError::WrongExprType(span, expected, actual) => gen_diagnostic! {
                 msg = "Wrong type of expression",
                 label = span => format!("Expected a `{}` here", expected),
@@ -207,12 +212,18 @@ impl ToDiagnostic for simplexpr::eval::EvalError {
         use simplexpr::eval::EvalError::*;
         match self {
             NoVariablesAllowed(name) => gen_diagnostic!(self),
-            // TODO the note here is confusing when it's an unknown variable being used _within_ a string literal / simplexpr
-            // it only really makes sense on top-level symbols
-            UnknownVariable(name) => gen_diagnostic! {
-                msg = self,
-                note = format!("If you meant to use the literal value \"{}\", surround the value in quotes", name)
-            },
+            UnknownVariable(name, similar) => {
+                let mut notes = Vec::new();
+                if similar.len() == 1 {
+                    notes.push(format!("Did you mean `{}`?", similar.first().unwrap()))
+                } else if similar.len() > 1 {
+                    notes.push(format!("Did you mean one of: {}?", similar.iter().map(|x| format!("`{}`", x)).join(", ")))
+                }
+                // TODO the note here is confusing when it's an unknown variable being used _within_ a string literal / simplexpr
+                // it only really makes sense on top-level symbols
+                notes.push(format!("If you meant to use the literal value \"{}\", surround the value in quotes", name));
+                gen_diagnostic!(self).with_notes(notes)
+            }
             Spanned(span, error) => error.as_ref().to_diagnostic().with_label(span_to_primary_label(*span)),
             _ => gen_diagnostic!(self, self.span()),
         }

@@ -92,9 +92,7 @@ mod backend {
     }
 
     impl FromAstElementContent for StrutDefinition {
-        fn get_element_name() -> &'static str {
-            "struts"
-        }
+        const ELEMENT_NAME: &'static str = "struts";
 
         fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> AstResult<Self> {
             let mut attrs = iter.expect_key_values()?;
