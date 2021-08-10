@@ -69,7 +69,7 @@ impl YuckFiles {
 }
 
 impl YuckFiles {
-    fn get_file(&self, id: usize) -> Result<&YuckFile, codespan_reporting::files::Error> {
+    pub fn get_file(&self, id: usize) -> Result<&YuckFile, codespan_reporting::files::Error> {
         self.files.get(&id).ok_or(codespan_reporting::files::Error::FileMissing)
     }
 

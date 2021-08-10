@@ -99,7 +99,7 @@ regex_rules! {
     r"[ \n\n\f]+" => |_| Token::Skip,
     r";.*"=> |_| Token::Comment,
 
-    r"[a-zA-Z_-]+" => |x| Token::Ident(x.to_string()),
+    r"[a-zA-Z_][a-zA-Z0-9_-]*" => |x| Token::Ident(x.to_string()),
     r"[+-]?(?:[0-9]+[.])?[0-9]+" => |x| Token::NumLit(x.to_string())
 }
 
@@ -278,6 +278,8 @@ mod test {
 
     snapshot_string! {
         basic                 => v!(r#"bar "foo""#),
+        digit                 => v!(r#"12"#),
+        number_in_ident       => v!(r#"foo_1_bar"#),
         interpolation_1       => v!(r#" "foo ${2 * 2} bar" "#),
         interpolation_nested  => v!(r#" "foo ${(2 * 2) + "${5 + 5}"} bar" "#),
         escaping              => v!(r#" "a\"b\{}" "#),

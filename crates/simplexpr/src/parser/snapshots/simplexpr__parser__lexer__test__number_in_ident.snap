@@ -1,0 +1,6 @@
+---
+source: crates/simplexpr/src/parser/lexer.rs
+expression: "v!(r#\"foo_1_bar\"#)"
+
+---
+(0, Ident("foo_1_bar"), 9)

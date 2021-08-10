@@ -4,6 +4,7 @@
 //};
 
 fn main() {
+    println!("hi");
     // let mut files = codespan_reporting::files::SimpleFiles::new();
 
     // let input = r#"
