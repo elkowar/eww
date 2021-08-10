@@ -196,13 +196,13 @@ impl ListenVarHandler {
     }
 
     async fn start(&mut self, var: ListenScriptVar) {
-        log::debug!("starting poll var {}", &var.name);
+        log::debug!("starting listen-var {}", &var.name);
         let cancellation_token = CancellationToken::new();
         self.listen_process_handles.insert(var.name.clone(), cancellation_token.clone());
 
         let evt_send = self.evt_send.clone();
         tokio::spawn(async move {
-            crate::try_logging_errors!(format!("Executing tail var command {}", &var.command) =>  {
+            crate::try_logging_errors!(format!("Executing listen var-command {}", &var.command) =>  {
                 let mut handle = tokio::process::Command::new("sh")
                     .args(&["-c", &var.command])
                     .stdout(std::process::Stdio::piped())

@@ -30,7 +30,7 @@ pub fn initial_value(var: &ScriptVarDefinition) -> Result<DynVal> {
                 run_command(command).map_err(|e| anyhow!(create_script_var_failed_warn(*span, var.name(), &e.to_string())))
             }
         },
-        ScriptVarDefinition::Listen(_) => Ok(DynVal::from_string(String::new())),
+        ScriptVarDefinition::Listen(var) => Ok(var.initial_value.clone()),
     }
 }
 

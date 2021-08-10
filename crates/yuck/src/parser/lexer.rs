@@ -107,7 +107,6 @@ impl Lexer {
                     toks.push((lo, tok, hi));
                 }
                 Some(Err(err)) => {
-                    dbg!(&simplexpr_lexer);
                     if simplexpr_lexer.continues_with('}') {
                         let start = toks.first().map(|x| x.0).unwrap_or(end);
                         self.pos = end + 1;

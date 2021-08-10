@@ -83,6 +83,10 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
         prop(valign: as_string) { gtk_widget.set_valign(parse_align(&valign)?) },
         // @prop halign - how to align this horizontally. possible values: $alignment
         prop(halign: as_string) { gtk_widget.set_halign(parse_align(&halign)?) },
+        // @prop vexpand - should this container expand vertically. Default: false.
+        prop(vexpand: as_bool = false) { gtk_widget.set_vexpand(vexpand) },
+        // @prop hexpand - should this widget expand horizontally. Default: false.
+        prop(hexpand: as_bool = false) { gtk_widget.set_hexpand(hexpand) },
         // @prop width - width of this element. note that this can not restrict the size if the contents stretch it
         prop(width: as_f64) { gtk_widget.set_size_request(width as i32, gtk_widget.get_allocated_height()) },
         // @prop height - height of this element. note that this can not restrict the size if the contents stretch it
@@ -158,13 +162,8 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
 }
 
 /// @widget !container
-pub(super) fn resolve_container_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Container) {
-    resolve_block!(bargs, gtk_widget, {
-        // @prop vexpand - should this container expand vertically
-        prop(vexpand: as_bool = false) { gtk_widget.set_vexpand(vexpand) },
-        // @prop hexpand - should this container expand horizontally
-        prop(hexpand: as_bool = false) { gtk_widget.set_hexpand(hexpand) },
-    });
+pub(super) fn resolve_container_attrs(_bargs: &mut BuilderArgs, _gtk_widget: &gtk::Container) {
+    // resolve_block!(bargs, gtk_widget, {});
 }
 
 /// @widget !range
