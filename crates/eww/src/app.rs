@@ -192,7 +192,7 @@ impl App {
 
     fn close_window(&mut self, window_name: &String) -> Result<()> {
         for unused_var in self.variables_only_used_in(window_name) {
-            log::info!("stopping for {}", &unused_var);
+            log::debug!("stopping for {}", &unused_var);
             self.script_var_handler.stop_for_variable(unused_var.clone());
         }
 
@@ -213,8 +213,6 @@ impl App {
         monitor: Option<i32>,
         anchor: Option<AnchorPoint>,
     ) -> Result<()> {
-        // remove and close existing window with the same name
-        let _ = self.close_window(window_name);
         log::info!("Opening window {}", window_name);
 
         let mut window_def = self.eww_config.get_window(window_name)?.clone();
@@ -222,6 +220,11 @@ impl App {
 
         let root_widget =
             window_def.widget.render(&mut self.eww_state, window_name, &self.eww_config.get_widget_definitions())?;
+
+        // once generating the root widget has succeeded
+        // remove and close existing window with the same name
+        let _ = self.close_window(window_name);
+
         root_widget.get_style_context().add_class(&window_name.to_string());
 
         let monitor_geometry =
@@ -240,7 +243,7 @@ impl App {
         Ok(())
     }
 
-    /// Load the given configuration, reloading all script-vars and reopening all windows that where opened.
+    /// Load the given configuration, reloading all script-vars and attempting to reopen all windows that where opened.
     pub fn load_config(&mut self, config: config::EwwConfig) -> Result<()> {
         log::info!("Reloading windows");
         // refresh script-var poll stuff
@@ -250,8 +253,7 @@ impl App {
         self.eww_state.clear_all_window_states();
 
         let windows = self.open_windows.clone();
-        for (window_name, window) in windows {
-            window.close();
+        for (window_name, _) in windows {
             self.open_window(&window_name, None, None, None, None)?;
         }
         Ok(())

@@ -76,6 +76,7 @@ pub fn initialize_server(paths: EwwPaths, action: Option<DaemonCommand>) -> Resu
     init_async_part(app.paths.clone(), ui_send);
 
     glib::MainContext::default().spawn_local(async move {
+        // if an action was given to the daemon initially, execute it first.
         if let Some(action) = action {
             app.handle_command(action);
         }
