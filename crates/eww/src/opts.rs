@@ -78,8 +78,8 @@ pub enum ActionWithServer {
         window_name: String,
 
         /// Monitor-index the window should open on
-        #[structopt(short, long)]
-        monitor: Option<i32>,
+        #[structopt(long)]
+        screen: Option<i32>,
 
         /// The position of the window, where it should open.
         #[structopt(short, long)]
@@ -175,13 +175,13 @@ impl ActionWithServer {
             ActionWithServer::OpenMany { windows } => {
                 return with_response_channel(|sender| app::DaemonCommand::OpenMany { windows, sender });
             }
-            ActionWithServer::OpenWindow { window_name, pos, size, monitor, anchor, should_toggle } => {
+            ActionWithServer::OpenWindow { window_name, pos, size, screen, anchor, should_toggle } => {
                 return with_response_channel(|sender| app::DaemonCommand::OpenWindow {
                     window_name,
                     pos,
                     size,
                     anchor,
-                    monitor,
+                    screen,
                     should_toggle,
                     sender,
                 })

@@ -1,7 +1,4 @@
-use crate::{
-    config, daemon_response::DaemonResponseSender, display_backend, error_handling_ctx, eww_state, script_var_handler::*,
-    EwwPaths,
-};
+use crate::{EwwPaths, config, daemon_response::DaemonResponseSender, display_backend, error_handling_ctx, eww_state::{self, EwwState}, script_var_handler::*};
 use anyhow::*;
 use debug_stub_derive::*;
 use eww_shared_util::VarName;
@@ -32,7 +29,7 @@ pub enum DaemonCommand {
         pos: Option<Coords>,
         size: Option<Coords>,
         anchor: Option<AnchorPoint>,
-        monitor: Option<i32>,
+        screen: Option<i32>,
         should_toggle: bool,
         sender: DaemonResponseSender,
     },
@@ -133,7 +130,7 @@ impl App {
                     let result = windows.iter().try_for_each(|w| self.open_window(w, None, None, None, None));
                     respond_with_error(sender, result)?;
                 }
-                DaemonCommand::OpenWindow { window_name, pos, size, anchor, monitor, should_toggle, sender } => {
+                DaemonCommand::OpenWindow { window_name, pos, size, anchor, screen: monitor, should_toggle, sender } => {
                     let result = if should_toggle && self.open_windows.contains_key(&window_name) {
                         self.close_window(&window_name)
                     } else {
@@ -196,8 +193,10 @@ impl App {
             self.script_var_handler.stop_for_variable(unused_var.clone());
         }
 
-        let window =
-            self.open_windows.remove(window_name).context(format!("No window with name '{}' is running.", window_name))?;
+        let window = self
+            .open_windows
+            .remove(window_name)
+            .with_context(|| format!("Tried to close window named '{}', but no such window was open", window_name))?;
 
         window.close();
         self.eww_state.clear_window_state(window_name);
@@ -250,7 +249,14 @@ impl App {
         self.script_var_handler.stop_all();
 
         self.eww_config = config;
-        self.eww_state.clear_all_window_states();
+
+        let new_state = EwwState::from_default_vars(self.eww_config.generate_initial_state()?);
+        let old_state = std::mem::replace(&mut self.eww_state, new_state);
+        for (key, value) in old_state.get_variables() {
+            if self.eww_state.get_variables().contains_key(key) {
+                self.eww_state.update_variable(key.clone(), value.clone())
+            }
+        }
 
         let windows = self.open_windows.clone();
         for (window_name, _) in windows {
