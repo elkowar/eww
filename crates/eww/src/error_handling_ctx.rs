@@ -35,10 +35,8 @@ pub fn format_error(err: &anyhow::Error) -> String {
     for err in err.chain() {
         format!("chain: {}", err);
     }
-    match err.downcast_ref::<AstError>() {
-        Some(err) => stringify_diagnostic(err.to_diagnostic()).unwrap_or_else(|_| format!("{:?}", err)),
-        None => format!("{:?}", err),
-    }
+    let diag = anyhow_err_to_diagnostic(err);
+    stringify_diagnostic(diag).unwrap_or_else(|_| format!("{}", err))
 }
 
 pub fn anyhow_err_to_diagnostic(err: &anyhow::Error) -> Diagnostic<usize> {

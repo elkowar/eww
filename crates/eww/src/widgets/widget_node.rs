@@ -9,7 +9,7 @@ use yuck::{
     error::{AstError, AstResult},
 };
 
-pub trait WidgetNode: std::fmt::Debug + dyn_clone::DynClone + Send + Sync {
+pub trait WidgetNode: Spanned + std::fmt::Debug + dyn_clone::DynClone + Send + Sync {
     fn get_name(&self) -> &str;
 
     /// Generate a [gtk::Widget] from a [element::WidgetUse].

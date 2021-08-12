@@ -1,4 +1,7 @@
-use crate::{EwwPaths, config, daemon_response::DaemonResponseSender, display_backend, error_handling_ctx, eww_state, script_var_handler::*};
+use crate::{
+    config, daemon_response::DaemonResponseSender, display_backend, error_handling_ctx, eww_state, script_var_handler::*,
+    EwwPaths,
+};
 use anyhow::*;
 use debug_stub_derive::*;
 use eww_shared_util::VarName;

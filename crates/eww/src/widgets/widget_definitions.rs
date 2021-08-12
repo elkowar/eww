@@ -1,14 +1,18 @@
 #![allow(clippy::option_map_unit_fn)]
 use super::{run_command, BuilderArgs};
-use crate::{enum_parse, error_handling_ctx, eww_state, resolve_block, util::list_difference, widgets::widget_node};
+use crate::{
+    enum_parse, error::DiagError, error_handling_ctx, eww_state, resolve_block, util::list_difference, widgets::widget_node,
+};
 use anyhow::*;
 use gdk::WindowExt;
 use glib;
 use gtk::{self, prelude::*, ImageExt};
+use itertools::Itertools;
 use std::{cell::RefCell, collections::HashMap, rc::Rc, time::Duration};
 use yuck::{
     config::validate::ValidationError,
     error::{AstError, AstResult, AstResultExt},
+    gen_diagnostic,
     parser::from_ast::FromAst,
 };
 
@@ -20,6 +24,7 @@ use yuck::{
 pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::Widget> {
     let gtk_widget = match bargs.widget.name.as_str() {
         "box" => build_gtk_box(bargs)?.upcast(),
+        "centerbox" => build_center_box(bargs)?.upcast(),
         "scale" => build_gtk_scale(bargs)?.upcast(),
         "progress" => build_gtk_progress(bargs)?.upcast(),
         "image" => build_gtk_image(bargs)?.upcast(),
@@ -491,6 +496,39 @@ fn build_gtk_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
         // @prop space-evenly - space the widgets evenly.
         prop(space_evenly: as_bool = true) { gtk_widget.set_homogeneous(space_evenly) },
     });
+    Ok(gtk_widget)
+}
+
+/// @widget centerbox extends container
+/// @desc a box that must contain exactly three children, which will be layed out at the start, center and end of the container.
+fn build_center_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
+    let gtk_widget = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    resolve_block!(bargs, gtk_widget, {
+        // @prop orientation - orientation of the centerbox. possible values: $orientation
+        prop(orientation: as_string) { gtk_widget.set_orientation(parse_orientation(&orientation)?) },
+    });
+
+    if bargs.widget.children.len() < 3 {
+        Err(DiagError::new(gen_diagnostic!("centerbox must contain exactly 3 elements", bargs.widget.span)))?
+    } else if bargs.widget.children.len() > 3 {
+        let (_, additional_children) = bargs.widget.children.split_at(3);
+        // we know that there is more than three children, so unwrapping on first and left here is fine.
+        let first_span = additional_children.first().unwrap().span();
+        let last_span = additional_children.last().unwrap().span();
+        Err(DiagError::new(gen_diagnostic!("centerbox must contain exactly 3 elements, but got more", first_span.to(last_span))))?
+    }
+
+    let mut children =
+        bargs.widget.children.iter().map(|child| child.render(bargs.eww_state, bargs.window_name, bargs.widget_definitions));
+    // we know that we have exactly three children here, so we can unwrap here.
+    let (first, center, end) = children.next_tuple().unwrap();
+    let (first, center, end) = (first?, center?, end?);
+    gtk_widget.pack_start(&first, true, true, 0);
+    gtk_widget.set_center_widget(Some(&center));
+    gtk_widget.pack_end(&end, true, true, 0);
+    first.show();
+    center.show();
+    end.show();
     Ok(gtk_widget)
 }
 
