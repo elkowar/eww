@@ -1,12 +1,7 @@
 use crate::{EwwPaths, app::{self, DaemonCommand}, config, daemon_response, error_handling_ctx, eww_state::*, ipc_server, script_var_handler, util};
 use anyhow::*;
 
-use std::{
-    collections::HashMap,
-    os::unix::io::AsRawFd,
-    path::Path,
-    sync::{atomic::Ordering, Arc},
-};
+use std::{collections::{HashMap, HashSet}, os::unix::io::AsRawFd, path::Path, sync::{atomic::Ordering, Arc}};
 use tokio::sync::mpsc::*;
 
 pub fn initialize_server(paths: EwwPaths, action: Option<DaemonCommand>) -> Result<ForkResult> {
@@ -58,6 +53,7 @@ pub fn initialize_server(paths: EwwPaths, action: Option<DaemonCommand>) -> Resu
         eww_state: EwwState::from_default_vars(eww_config.generate_initial_state()?),
         eww_config,
         open_windows: HashMap::new(),
+        failed_windows: HashSet::new(),
         css_provider: gtk::CssProvider::new(),
         script_var_handler,
         app_evt_send: ui_send.clone(),

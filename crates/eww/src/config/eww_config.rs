@@ -67,7 +67,7 @@ impl EwwConfig {
     }
 
     pub fn get_window(&self, name: &String) -> Result<&EwwWindowDefinition> {
-        self.windows.get(name).with_context(|| format!("No window named '{}' exists", name))
+        self.windows.get(name).with_context(|| format!("No window named '{}' exists in config", name))
     }
 
     pub fn get_script_var(&self, name: &VarName) -> Result<&ScriptVarDefinition> {

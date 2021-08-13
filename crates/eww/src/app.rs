@@ -1,4 +1,11 @@
-use crate::{EwwPaths, config, daemon_response::DaemonResponseSender, display_backend, error_handling_ctx, eww_state::{self, EwwState}, script_var_handler::*};
+use crate::{
+    config,
+    daemon_response::DaemonResponseSender,
+    display_backend, error_handling_ctx,
+    eww_state::{self},
+    script_var_handler::*,
+    EwwPaths,
+};
 use anyhow::*;
 use debug_stub_derive::*;
 use eww_shared_util::VarName;
@@ -6,7 +13,7 @@ use gdk::WindowExt;
 use gtk::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt};
 use itertools::Itertools;
 use simplexpr::dynval::DynVal;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use tokio::sync::mpsc::UnboundedSender;
 use yuck::{
     config::window_geometry::{AnchorPoint, WindowGeometry},
@@ -65,6 +72,9 @@ pub struct App {
     pub eww_state: eww_state::EwwState,
     pub eww_config: config::EwwConfig,
     pub open_windows: HashMap<String, EwwWindow>,
+    /// Window names that are supposed to be open, but failed.
+    /// When reloading the config, these should be opened again.
+    pub failed_windows: HashSet<String>,
     pub css_provider: gtk::CssProvider,
 
     #[debug_stub = "ScriptVarHandler(...)"]
@@ -179,7 +189,9 @@ impl App {
 
     fn stop_application(&mut self) {
         self.script_var_handler.stop_all();
-        self.open_windows.drain().for_each(|(_, w)| w.close());
+        for (_, window) in self.open_windows.drain() {
+            window.close();
+        }
         gtk::main_quit();
     }
 
@@ -193,12 +205,10 @@ impl App {
             self.script_var_handler.stop_for_variable(unused_var.clone());
         }
 
-        let window = self
-            .open_windows
+        self.open_windows
             .remove(window_name)
             .with_context(|| format!("Tried to close window named '{}', but no such window was open", window_name))?;
 
-        window.close();
         self.eww_state.clear_window_state(window_name);
 
         Ok(())
@@ -212,54 +222,58 @@ impl App {
         monitor: Option<i32>,
         anchor: Option<AnchorPoint>,
     ) -> Result<()> {
+        self.failed_windows.remove(window_name);
         log::info!("Opening window {}", window_name);
 
-        let mut window_def = self.eww_config.get_window(window_name)?.clone();
-        window_def.geometry = window_def.geometry.map(|x| x.override_if_given(anchor, pos, size));
-
-        let root_widget =
-            window_def.widget.render(&mut self.eww_state, window_name, &self.eww_config.get_widget_definitions())?;
-
-        // once generating the root widget has succeeded
-        // remove and close existing window with the same name
+        // if an instance of this is already running, close it
         let _ = self.close_window(window_name);
 
-        root_widget.get_style_context().add_class(&window_name.to_string());
+        let open_result: Result<_> = try {
+            let mut window_def = self.eww_config.get_window(window_name)?.clone();
+            window_def.geometry = window_def.geometry.map(|x| x.override_if_given(anchor, pos, size));
 
-        let monitor_geometry =
-            get_monitor_geometry(monitor.or(window_def.monitor_number).unwrap_or_else(get_default_monitor_index));
-        let eww_window = initialize_window(monitor_geometry, root_widget, window_def)?;
+            let root_widget =
+                window_def.widget.render(&mut self.eww_state, window_name, &self.eww_config.get_widget_definitions())?;
 
-        self.open_windows.insert(window_name.clone(), eww_window);
+            root_widget.get_style_context().add_class(&window_name.to_string());
 
-        // initialize script var handlers for variables that where not used before opening this window.
-        // TODO somehow make this less shit
-        for newly_used_var in self.variables_only_used_in(window_name).filter_map(|var| self.eww_config.get_script_var(var).ok())
-        {
-            self.script_var_handler.add(newly_used_var.clone());
+            let monitor_geometry =
+                get_monitor_geometry(monitor.or(window_def.monitor_number).unwrap_or_else(get_default_monitor_index));
+            let eww_window = initialize_window(monitor_geometry, root_widget, window_def)?;
+
+            self.open_windows.insert(window_name.clone(), eww_window);
+
+            // initialize script var handlers for variables that where not used before opening this window.
+            // TODO somehow make this less shit
+            for newly_used_var in
+                self.variables_only_used_in(window_name).filter_map(|var| self.eww_config.get_script_var(var).ok())
+            {
+                self.script_var_handler.add(newly_used_var.clone());
+            }
+        };
+
+        if let Err(err) = open_result {
+            self.failed_windows.insert(window_name.to_string());
+            Err(err)
+        } else {
+            Ok(())
         }
-
-        Ok(())
     }
 
     /// Load the given configuration, reloading all script-vars and attempting to reopen all windows that where opened.
     pub fn load_config(&mut self, config: config::EwwConfig) -> Result<()> {
+        // TODO the reload procedure is kinda bad.
+        // It should probably instead prepare a new eww_state and everything, and then swap the instances once everything has worked.
+
         log::info!("Reloading windows");
         // refresh script-var poll stuff
         self.script_var_handler.stop_all();
 
         self.eww_config = config;
+        self.eww_state.clear_all_window_states();
 
-        let new_state = EwwState::from_default_vars(self.eww_config.generate_initial_state()?);
-        let old_state = std::mem::replace(&mut self.eww_state, new_state);
-        for (key, value) in old_state.get_variables() {
-            if self.eww_state.get_variables().contains_key(key) {
-                self.eww_state.update_variable(key.clone(), value.clone())
-            }
-        }
-
-        let windows = self.open_windows.clone();
-        for (window_name, _) in windows {
+        let window_names: Vec<String> = self.open_windows.keys().chain(self.failed_windows.iter()).cloned().collect();
+        for window_name in &window_names {
             self.open_window(&window_name, None, None, None, None)?;
         }
         Ok(())
