@@ -1,9 +1,5 @@
 use crate::{
-    config,
-    daemon_response::DaemonResponseSender,
-    display_backend, error_handling_ctx,
-    eww_state::{self},
-    script_var_handler::*,
+    config, daemon_response::DaemonResponseSender, display_backend, error_handling_ctx, eww_state, script_var_handler::*,
     EwwPaths,
 };
 use anyhow::*;
@@ -237,8 +233,8 @@ impl App {
 
             root_widget.get_style_context().add_class(&window_name.to_string());
 
-            let monitor_geometry =
-                get_monitor_geometry(monitor.or(window_def.monitor_number).unwrap_or_else(get_default_monitor_index));
+            let monitor_geometry = get_monitor_geometry(monitor.or(window_def.monitor_number))?;
+
             let eww_window = initialize_window(monitor_geometry, root_widget, window_def)?;
 
             self.open_windows.insert(window_name.clone(), eww_window);
@@ -254,7 +250,7 @@ impl App {
 
         if let Err(err) = open_result {
             self.failed_windows.insert(window_name.to_string());
-            Err(err)
+            Err(err).with_context(|| format!("failed to open window `{}`", window_name))
         } else {
             Ok(())
         }
@@ -373,22 +369,26 @@ fn on_screen_changed(window: &gtk::Window, _old_screen: Option<&gdk::Screen>) {
     window.set_visual(visual.as_ref());
 }
 
-fn get_default_monitor_index() -> i32 {
+/// Get the monitor geometry of a given monitor number, or the default if none is given
+fn get_monitor_geometry(n: Option<i32>) -> Result<gdk::Rectangle> {
     #[allow(deprecated)]
-    gdk::Display::get_default().expect("could not get default display").get_default_screen().get_primary_monitor()
-}
-
-/// Get the monitor geometry of a given monitor number
-fn get_monitor_geometry(n: i32) -> gdk::Rectangle {
-    #[allow(deprecated)]
-    gdk::Display::get_default().expect("could not get default display").get_default_screen().get_monitor_geometry(n)
+    let display = gdk::Display::get_default().expect("could not get default display");
+    let monitor = match n {
+        Some(n) => display.get_monitor(n).with_context(|| format!("Failed to get monitor with index {}", n))?,
+        None => display.get_primary_monitor().context("Failed to get primary monitor from GTK")?,
+    };
+    Ok(monitor.get_geometry())
 }
 
 /// In case of an Err, send the error message to a sender.
 fn respond_with_error<T>(sender: DaemonResponseSender, result: Result<T>) -> Result<()> {
     match result {
         Ok(_) => sender.send_success(String::new()),
-        Err(e) => sender.send_failure(error_handling_ctx::format_error(&e)),
+        Err(e) => {
+            let formatted = error_handling_ctx::format_error(&e);
+            println!("{}", formatted);
+            sender.send_failure(formatted)
+        },
     }
     .context("sending response from main thread")
 }

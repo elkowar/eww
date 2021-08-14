@@ -49,9 +49,18 @@ pub fn anyhow_err_to_diagnostic(err: &anyhow::Error) -> Diagnostic<usize> {
     } else if let Some(err) = err.downcast_ref::<EvalError>() {
         err.to_diagnostic()
     } else {
-        gen_diagnostic!(err)
+        gen_diagnostic!(format!("{:?}", err))
     }
 }
+
+// pub fn print_diagnostic(diagnostic: codespan_reporting::diagnostic::Diagnostic<usize>) {
+// match stringify_diagnostic(diagnostic.clone()) {
+// Ok(diag) => {
+// eprintln!("{}", diag);
+//}
+// Err(_) => {
+// log::error!("{:?}", diagnostic);
+//}
 
 pub fn stringify_diagnostic(mut diagnostic: codespan_reporting::diagnostic::Diagnostic<usize>) -> anyhow::Result<String> {
     diagnostic.labels.drain_filter(|label| Span(label.range.start, label.range.end, label.file_id).is_dummy());
