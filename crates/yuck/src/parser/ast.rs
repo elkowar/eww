@@ -91,12 +91,12 @@ impl Ast {
         }
     }
 
-    pub fn as_simplexpr(self) -> AstResult<SimplExpr> {
+    pub fn as_simplexpr(&self) -> AstResult<SimplExpr> {
         match self {
             // TODO do I do this?
             // Ast::Array(span, elements) => todo!()
-            Ast::Symbol(span, x) => Ok(SimplExpr::VarRef(span, VarName(x))),
-            Ast::SimplExpr(span, x) => Ok(x),
+            Ast::Symbol(span, x) => Ok(SimplExpr::VarRef(*span, VarName(x.clone()))),
+            Ast::SimplExpr(span, x) => Ok(x.clone()),
             _ => Err(AstError::WrongExprType(self.span(), AstType::IntoPrimitive, self.expr_type())),
         }
     }

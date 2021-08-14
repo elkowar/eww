@@ -10,7 +10,12 @@ use codespan_reporting::{
 use eww_shared_util::Span;
 use once_cell::sync::Lazy;
 use simplexpr::{dynval::ConversionError, eval::EvalError};
-use yuck::{config::file_provider::YuckFiles, error::AstError, format_diagnostic::ToDiagnostic, gen_diagnostic};
+use yuck::{
+    config::{file_provider::YuckFiles, validate::ValidationError},
+    error::AstError,
+    format_diagnostic::ToDiagnostic,
+    gen_diagnostic,
+};
 
 use crate::error::DiagError;
 
@@ -45,6 +50,8 @@ pub fn anyhow_err_to_diagnostic(err: &anyhow::Error) -> Diagnostic<usize> {
     } else if let Some(err) = err.downcast_ref::<AstError>() {
         err.to_diagnostic()
     } else if let Some(err) = err.downcast_ref::<ConversionError>() {
+        err.to_diagnostic()
+    } else if let Some(err) = err.downcast_ref::<ValidationError>() {
         err.to_diagnostic()
     } else if let Some(err) = err.downcast_ref::<EvalError>() {
         err.to_diagnostic()

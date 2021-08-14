@@ -38,6 +38,10 @@ impl EwwConfig {
             bail!("The configuration file `{}` does not exist", path.as_ref().display());
         }
         let config = Config::generate_from_main_file(files, path)?;
+
+        // run some validations on the configuration
+        yuck::config::validate::validate(&config, super::inbuilt::get_inbuilt_vars().keys().cloned().collect())?;
+
         let Config { widget_definitions, window_definitions, var_definitions, mut script_vars } = config;
         script_vars.extend(crate::config::inbuilt::get_inbuilt_vars());
         Ok(EwwConfig {

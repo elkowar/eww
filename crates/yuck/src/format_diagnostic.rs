@@ -162,12 +162,32 @@ impl ToDiagnostic for ValidationError {
                 label = span => "Used here",
             },
             ValidationError::MissingAttr { widget_name, arg_name, arg_list_span, use_span } => {
-                let mut diag =
-                    gen_diagnostic!(self).with_label(span_to_secondary_label(*use_span).with_message("Argument missing here"));
+                let mut diag = Diagnostic::error()
+                    .with_message(self.to_string())
+                    .with_label(span_to_secondary_label(*use_span).with_message("Argument missing here"))
+                    .with_notes(vec![format!(
+                        "Hint: pass the attribute like so: `({} :{} your-value ...`",
+                        widget_name, arg_name
+                    )]);
                 if let Some(arg_list_span) = arg_list_span {
                     diag = diag.with_label(span_to_secondary_label(*arg_list_span).with_message("But is required here"));
                 }
                 diag
+            }
+            ValidationError::UnknownVariable { span, name, in_definition } => {
+                let diag = gen_diagnostic! {
+                    msg = self,
+                    label = span => "Used here",
+                    note = if *in_definition {
+                        "Hint: Either define it as a global variable, or add it to the argument-list of your `defwidget` and pass it as an argument"
+                    } else {
+                        "Hint: Define it as a global variable"
+                    }
+                };
+                diag.with_notes(vec![format!(
+                    "Hint: If you meant to use the literal value \"{}\", surround the value in quotes",
+                    name
+                )])
             }
         }
     }
@@ -226,7 +246,7 @@ impl ToDiagnostic for simplexpr::eval::EvalError {
                 }
                 // TODO the note here is confusing when it's an unknown variable being used _within_ a string literal / simplexpr
                 // it only really makes sense on top-level symbols
-                notes.push(format!("If you meant to use the literal value \"{}\", surround the value in quotes", name));
+                notes.push(format!("Hint: If you meant to use the literal value \"{}\", surround the value in quotes", name));
                 gen_diagnostic!(self).with_notes(notes)
             }
             Spanned(span, error) => error.as_ref().to_diagnostic().with_label(span_to_primary_label(*span)),
