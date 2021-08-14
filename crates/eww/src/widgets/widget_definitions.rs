@@ -543,6 +543,7 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
         prop(text: as_string, limit_width: as_i32 = i32::MAX) {
             let text = text.chars().take(limit_width as usize).collect::<String>();
             let text = unescape::unescape(&text).context(format!("Failed to unescape label text {}", &text))?;
+            let text = unindent::unindent(&text);
             gtk_widget.set_text(&text);
         },
         // @prop markup - Pango markup to display

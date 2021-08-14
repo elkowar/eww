@@ -50,6 +50,7 @@ nix = "0.20"
 smart-default = "0.6"
 simple-signal = "1.1"
 unescape = "0.1"
+unindent = "0.1"
 
 tokio = { version = "1.0", features = ["full"] }
 tokio-stream = "0.1"
