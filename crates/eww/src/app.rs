@@ -134,7 +134,7 @@ impl App {
                 }
                 DaemonCommand::OpenMany { windows, sender } => {
                     let result = windows.iter().try_for_each(|w| self.open_window(w, None, None, None, None));
-                    respond_with_error(sender, result)?;
+                    respond_with_result(sender, result)?;
                 }
                 DaemonCommand::OpenWindow { window_name, pos, size, anchor, screen: monitor, should_toggle, sender } => {
                     let result = if should_toggle && self.open_windows.contains_key(&window_name) {
@@ -142,11 +142,11 @@ impl App {
                     } else {
                         self.open_window(&window_name, pos, size, monitor, anchor)
                     };
-                    respond_with_error(sender, result)?;
+                    respond_with_result(sender, result)?;
                 }
                 DaemonCommand::CloseWindow { window_name, sender } => {
                     let result = self.close_window(&window_name);
-                    respond_with_error(sender, result)?;
+                    respond_with_result(sender, result)?;
                 }
                 DaemonCommand::PrintState { all, sender } => {
                     let vars = self.eww_state.get_variables().iter();
@@ -381,7 +381,7 @@ fn get_monitor_geometry(n: Option<i32>) -> Result<gdk::Rectangle> {
 }
 
 /// In case of an Err, send the error message to a sender.
-fn respond_with_error<T>(sender: DaemonResponseSender, result: Result<T>) -> Result<()> {
+fn respond_with_result<T>(sender: DaemonResponseSender, result: Result<T>) -> Result<()> {
     match result {
         Ok(_) => sender.send_success(String::new()),
         Err(e) => {
