@@ -15,6 +15,7 @@ use crate::{
 pub struct Opt {
     pub log_debug: bool,
     pub show_logs: bool,
+    pub restart: bool,
     pub config_path: Option<std::path::PathBuf>,
     pub action: Action,
 }
@@ -32,6 +33,10 @@ struct RawOpt {
     /// Watch the log output after executing the command
     #[structopt(long = "logs", global = true)]
     show_logs: bool,
+
+    /// Restart the daemon completely before running the command
+    #[structopt(long = "restart", global = true)]
+    restart: bool,
 
     #[structopt(subcommand)]
     action: Action,
@@ -148,8 +153,8 @@ impl Opt {
 
 impl From<RawOpt> for Opt {
     fn from(other: RawOpt) -> Self {
-        let RawOpt { action, log_debug, show_logs, config } = other;
-        Opt { action, log_debug, show_logs, config_path: config }
+        let RawOpt { action, log_debug, show_logs, config, restart } = other;
+        Opt { action, log_debug, show_logs, config_path: config, restart }
     }
 }
 

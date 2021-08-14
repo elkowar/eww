@@ -66,6 +66,11 @@ fn main() {
 
             // a running daemon is necessary for this command
             opts::Action::WithServer(action) if action.can_start_daemon() => {
+                if opts.restart {
+                    let _ = handle_server_command(&paths, &ActionWithServer::KillServer, 1);
+                    std::thread::sleep(std::time::Duration::from_millis(200));
+                }
+
                 // attempt to just send the command to a running daemon
                 if let Err(err) = handle_server_command(&paths, &action, 5) {
                     // connecting to the daemon failed. Thus, start the daemon here!
@@ -78,7 +83,6 @@ fn main() {
 
                     let (command, response_recv) = action.into_daemon_command();
                     // start the daemon and give it the command
-
                     let fork_result = server::initialize_server(paths.clone(), Some(command))?;
                     let is_parent = fork_result == ForkResult::Parent;
                     if let (Some(recv), true) = (response_recv, is_parent) {

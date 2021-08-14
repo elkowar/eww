@@ -38,7 +38,7 @@ async fn handle_connection(mut stream: tokio::net::UnixStream, evt_send: Unbound
     evt_send.send(command)?;
 
     if let Some(mut response_recv) = maybe_response_recv {
-        log::info!("Waiting for response for IPC client");
+        log::debug!("Waiting for response for IPC client");
         if let Ok(Some(response)) = tokio::time::timeout(Duration::from_millis(100), response_recv.recv()).await {
             let response = bincode::serialize(&response)?;
             let result = &stream_write.write_all(&response).await;
