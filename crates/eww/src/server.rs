@@ -181,7 +181,13 @@ pub enum ForkResult {
 fn do_detach(log_file_path: impl AsRef<Path>) -> Result<ForkResult> {
     // detach from terminal
     match unsafe { nix::unistd::fork()? } {
-        nix::unistd::ForkResult::Child => {}
+        nix::unistd::ForkResult::Child => {
+            nix::unistd::setsid()?;
+            match unsafe {nix::unistd::fork()?
+            }{
+                nix::unistd::ForkResult::Parent { .. } => std::process::exit(0),
+                nix::unistd::ForkResult::Child => {}
+            }}
         nix::unistd::ForkResult::Parent { .. } => {
             return Ok(ForkResult::Parent);
         }
