@@ -254,7 +254,15 @@ impl ToDiagnostic for FormFormatError {
             FormFormatError::WidgetDefArglistMissing(span) => gen_diagnostic! {
                 msg = self,
                 label = span => "Insert the argument list (e.g.: `[]`) here",
-                note = "This list will in the future need to declare all the non-global variables / attributes used in this widget.\nThis is not yet neccessary, but is still considered good style.",
+                note = "This list will in the future need to declare all the non-global variables / attributes used in this widget.\n\
+                        This is not yet neccessary, but is still considered good style.",
+            },
+            FormFormatError::WidgetDefMultipleChildren(span) => gen_diagnostic! {
+                msg = self,
+                label = span => "Found more than one child element here.",
+                note = "A widget-definition may only contain one child element.\n\
+                        To include multiple elements, wrap these elements in a single container widget such as `box`.\n\
+                        This is necessary as eww can't know how you want these elements to be layed out otherwise."
             },
         }
     }

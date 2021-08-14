@@ -10,7 +10,7 @@ use crate::{
         from_ast::{FromAst, FromAstElementContent},
     },
 };
-use eww_shared_util::{AttrName, Span, VarName};
+use eww_shared_util::{AttrName, Span, Spanned, VarName};
 
 use super::widget_use::WidgetUse;
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
@@ -33,7 +33,7 @@ impl FromAstElementContent for WidgetDefinition {
             .note(EXPECTED_WIDGET_DEF_FORMAT)?;
         let expected_args = expected_args.into_iter().map(|x| x.as_symbol().map(AttrName)).collect::<AstResult<_>>()?;
         let widget = iter.expect_any().note(EXPECTED_WIDGET_DEF_FORMAT).and_then(WidgetUse::from_ast)?;
-        iter.expect_done()?;
+        iter.expect_done().map_err(|e| FormFormatError::WidgetDefMultipleChildren(e.span()))?;
         Ok(Self { name, expected_args, widget, span, args_span })
     }
 }

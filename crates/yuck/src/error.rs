@@ -160,12 +160,16 @@ impl<T> AstResultExt<T> for AstResult<T> {
 pub enum FormFormatError {
     #[error("Widget definition missing argument list")]
     WidgetDefArglistMissing(Span),
+
+    #[error("Widget definition has more than one child widget")]
+    WidgetDefMultipleChildren(Span),
 }
 
 impl Spanned for FormFormatError {
     fn span(&self) -> Span {
         match self {
             FormFormatError::WidgetDefArglistMissing(span) => *span,
+            FormFormatError::WidgetDefMultipleChildren(span) => *span,
         }
     }
 }
