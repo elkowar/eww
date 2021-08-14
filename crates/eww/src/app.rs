@@ -268,7 +268,7 @@ impl App {
         self.eww_config = config;
         self.eww_state.clear_all_window_states();
 
-        let window_names: Vec<String> = self.open_windows.keys().chain(self.failed_windows.iter()).cloned().collect();
+        let window_names: Vec<String> = self.open_windows.keys().cloned().chain(self.failed_windows.iter().cloned()).dedup().collect();
         for window_name in &window_names {
             self.open_window(&window_name, None, None, None, None)?;
         }
@@ -386,7 +386,7 @@ fn respond_with_result<T>(sender: DaemonResponseSender, result: Result<T>) -> Re
         Ok(_) => sender.send_success(String::new()),
         Err(e) => {
             let formatted = error_handling_ctx::format_error(&e);
-            println!("{}", formatted);
+            println!("Action failed with error: {}", formatted);
             sender.send_failure(formatted)
         },
     }

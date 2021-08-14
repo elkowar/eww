@@ -1,7 +1,17 @@
-use crate::{EwwPaths, app::{self, DaemonCommand}, config, daemon_response, error_handling_ctx, eww_state::*, ipc_server, script_var_handler, util};
+use crate::{
+    app::{self, DaemonCommand},
+    config, daemon_response, error_handling_ctx,
+    eww_state::*,
+    ipc_server, script_var_handler, util, EwwPaths,
+};
 use anyhow::*;
 
-use std::{collections::{HashMap, HashSet}, os::unix::io::AsRawFd, path::Path, sync::{atomic::Ordering, Arc}};
+use std::{
+    collections::{HashMap, HashSet},
+    os::unix::io::AsRawFd,
+    path::Path,
+    sync::{atomic::Ordering, Arc},
+};
 use tokio::sync::mpsc::*;
 
 pub fn initialize_server(paths: EwwPaths, action: Option<DaemonCommand>) -> Result<ForkResult> {
@@ -183,11 +193,11 @@ fn do_detach(log_file_path: impl AsRef<Path>) -> Result<ForkResult> {
     match unsafe { nix::unistd::fork()? } {
         nix::unistd::ForkResult::Child => {
             nix::unistd::setsid()?;
-            match unsafe {nix::unistd::fork()?
-            }{
+            match unsafe { nix::unistd::fork()? } {
                 nix::unistd::ForkResult::Parent { .. } => std::process::exit(0),
                 nix::unistd::ForkResult::Child => {}
-            }}
+            }
+        }
         nix::unistd::ForkResult::Parent { .. } => {
             return Ok(ForkResult::Parent);
         }

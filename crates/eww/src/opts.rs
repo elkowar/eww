@@ -161,6 +161,13 @@ fn parse_var_update_arg(s: &str) -> Result<(VarName, DynVal)> {
 }
 
 impl ActionWithServer {
+    pub fn can_start_daemon(&self) -> bool {
+        match self {
+            ActionWithServer::OpenWindow { .. } | ActionWithServer::OpenMany { .. } => true,
+            _ => false,
+        }
+    }
+
     pub fn into_daemon_command(self) -> (app::DaemonCommand, Option<daemon_response::DaemonResponseReceiver>) {
         let command = match self {
             ActionWithServer::Update { mappings } => app::DaemonCommand::UpdateVars(mappings),

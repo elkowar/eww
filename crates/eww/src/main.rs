@@ -27,6 +27,7 @@ pub mod app;
 pub mod application_lifecycle;
 pub mod client;
 pub mod config;
+mod daemon_response;
 pub mod display_backend;
 pub mod error;
 mod error_handling_ctx;
@@ -38,7 +39,6 @@ pub mod script_var_handler;
 pub mod server;
 pub mod util;
 pub mod widgets;
-mod daemon_response;
 
 fn main() {
     let eww_binary_name = std::env::args().next().unwrap();
@@ -63,12 +63,9 @@ fn main() {
                 client::handle_client_only_action(&paths, action)?;
                 false
             }
-            opts::Action::WithServer(ActionWithServer::KillServer) => {
-                handle_server_command(&paths, &ActionWithServer::KillServer, 1)?;
-                false
-            }
+
             // a running daemon is necessary for this command
-            opts::Action::WithServer(action) => {
+            opts::Action::WithServer(action) if action.can_start_daemon() => {
                 // attempt to just send the command to a running daemon
                 if let Err(err) = handle_server_command(&paths, &action, 5) {
                     // connecting to the daemon failed. Thus, start the daemon here!
@@ -81,6 +78,7 @@ fn main() {
 
                     let (command, response_recv) = action.into_daemon_command();
                     // start the daemon and give it the command
+
                     let fork_result = server::initialize_server(paths.clone(), Some(command))?;
                     let is_parent = fork_result == ForkResult::Parent;
                     if let (Some(recv), true) = (response_recv, is_parent) {
@@ -90,6 +88,15 @@ fn main() {
                 } else {
                     true
                 }
+            }
+            opts::Action::WithServer(ActionWithServer::KillServer) => {
+                handle_server_command(&paths, &ActionWithServer::KillServer, 1)?;
+                false
+            }
+
+            opts::Action::WithServer(action) => {
+                handle_server_command(&paths, &action, 5)?;
+                true
             }
 
             // make sure that there isn't already a Eww daemon running.
