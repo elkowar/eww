@@ -14,7 +14,6 @@ use yuck::{
     config::{file_provider::YuckFiles, validate::ValidationError},
     error::AstError,
     format_diagnostic::ToDiagnostic,
-    gen_diagnostic,
 };
 
 use crate::error::DiagError;
@@ -26,11 +25,16 @@ pub fn clear_files() {
 }
 
 pub fn print_error(err: anyhow::Error) {
-    match stringify_diagnostic(anyhow_err_to_diagnostic(&err)) {
-        Ok(diag) => {
-            eprintln!("{:?}\n{}", err, diag);
-        }
-        Err(_) => {
+    match anyhow_err_to_diagnostic(&err) {
+        Some(diag) => match stringify_diagnostic(diag) {
+            Ok(diag) => {
+                eprintln!("{}", diag);
+            }
+            Err(_) => {
+                log::error!("{:?}", err);
+            }
+        },
+        None => {
             log::error!("{:?}", err);
         }
     }
@@ -40,23 +44,22 @@ pub fn format_error(err: &anyhow::Error) -> String {
     for err in err.chain() {
         format!("chain: {}", err);
     }
-    let diag = anyhow_err_to_diagnostic(err);
-    stringify_diagnostic(diag).unwrap_or_else(|_| format!("{}", err))
+    anyhow_err_to_diagnostic(err).and_then(|diag| stringify_diagnostic(diag).ok()).unwrap_or_else(|| format!("{:?}", err))
 }
 
-pub fn anyhow_err_to_diagnostic(err: &anyhow::Error) -> Diagnostic<usize> {
+pub fn anyhow_err_to_diagnostic(err: &anyhow::Error) -> Option<Diagnostic<usize>> {
     if let Some(err) = err.downcast_ref::<DiagError>() {
-        err.diag.clone()
+        Some(err.diag.clone())
     } else if let Some(err) = err.downcast_ref::<AstError>() {
-        err.to_diagnostic()
+        Some(err.to_diagnostic())
     } else if let Some(err) = err.downcast_ref::<ConversionError>() {
-        err.to_diagnostic()
+        Some(err.to_diagnostic())
     } else if let Some(err) = err.downcast_ref::<ValidationError>() {
-        err.to_diagnostic()
+        Some(err.to_diagnostic())
     } else if let Some(err) = err.downcast_ref::<EvalError>() {
-        err.to_diagnostic()
+        Some(err.to_diagnostic())
     } else {
-        gen_diagnostic!(format!("{:?}", err))
+        None
     }
 }
 

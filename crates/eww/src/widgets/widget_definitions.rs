@@ -593,7 +593,7 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
                     .map_err(|e| AstError::ErrorContext {
                         label_span: literal_use_span,
                         context: "Error in the literal used here".to_string(),
-                        main_err: Box::new(error_handling_ctx::anyhow_err_to_diagnostic(&e))
+                        main_err: Box::new(error_handling_ctx::anyhow_err_to_diagnostic(&e).unwrap_or_else(|| gen_diagnostic!(e)))
                     })?;
                 gtk_widget.add(&child_widget);
                 child_widget.show();

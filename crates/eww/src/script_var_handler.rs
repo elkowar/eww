@@ -206,16 +206,20 @@ impl ListenVarHandler {
                 let mut handle = tokio::process::Command::new("sh")
                     .args(&["-c", &var.command])
                     .stdout(std::process::Stdio::piped())
-                    .stderr(std::process::Stdio::inherit())
+                    .stderr(std::process::Stdio::piped())
                     .stdin(std::process::Stdio::null())
                     .spawn()?;
                 let mut stdout_lines = BufReader::new(handle.stdout.take().unwrap()).lines();
+                let mut stderr_lines = BufReader::new(handle.stderr.take().unwrap()).lines();
                 crate::loop_select_exiting! {
                     _ = handle.wait() => break,
                     _ = cancellation_token.cancelled() => break,
                     Ok(Some(line)) = stdout_lines.next_line() => {
                         let new_value = DynVal::from_string(line.to_owned());
                         evt_send.send(DaemonCommand::UpdateVars(vec![(var.name.to_owned(), new_value)]))?;
+                    }
+                    Ok(Some(line)) = stderr_lines.next_line() => {
+                        log::warn!("stderr of `{}`: {}", var.name, line);
                     }
                     else => break,
                 }
