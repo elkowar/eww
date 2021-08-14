@@ -46,7 +46,7 @@ pub fn initialize_server(paths: EwwPaths, action: Option<DaemonCommand>) -> Resu
 
     gtk::init()?;
 
-    log::info!("Initializing script var handler");
+    log::debug!("Initializing script var handler");
     let script_var_handler = script_var_handler::init(ui_send.clone());
 
     let mut app = app::App {
@@ -107,7 +107,7 @@ fn init_async_part(paths: EwwPaths, ui_send: UnboundedSender<app::DaemonCommand>
                 tokio::spawn(async move {
                     // Wait for application exit event
                     let _ = crate::application_lifecycle::recv_exit().await;
-                    log::info!("Forward task received exit event");
+                    log::debug!("Forward task received exit event");
                     // Then forward that to the application
                     let _ = ui_send.send(app::DaemonCommand::KillServer);
                 })

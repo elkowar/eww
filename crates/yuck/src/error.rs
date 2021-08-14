@@ -34,6 +34,9 @@ pub enum AstError {
     #[error("Expected element {1}, but read {2}")]
     MismatchedElementName(Span, String, String),
 
+    #[error("Keyword `{1}` is missing a value")]
+    DanglingKeyword(Span, String),
+
     #[error("Included file not found {}", .0.path)]
     IncludedFileNotFound(Include),
 
@@ -81,9 +84,11 @@ impl AstError {
         AstError::ParseError { file_id, source: err }
     }
 
-    pub fn wrong_expr_type_to(self, f: impl FnOnce(Span) -> FormFormatError) -> AstError {
+    pub fn wrong_expr_type_to<T: Into<AstError>>(self, f: impl FnOnce(Span, AstType) -> Option<T>) -> AstError {
         match self {
-            AstError::WrongExprType(span, ..) => AstError::FormFormatError(f(span.point_span())),
+            AstError::WrongExprType(span, expected, got) => {
+                f(span.point_span(), got).map(|x| x.into()).unwrap_or_else(|| AstError::WrongExprType(span, expected, got))
+            }
             AstError::ErrorNote(s, err) => AstError::ErrorNote(s, Box::new(err.wrong_expr_type_to(f))),
             other => other,
         }
@@ -98,6 +103,7 @@ impl Spanned for AstError {
             AstError::WrongExprType(span, ..) => *span,
             AstError::NotAValue(span, ..) => *span,
             AstError::MismatchedElementName(span, ..) => *span,
+            AstError::DanglingKeyword(span, _) => *span,
             AstError::AttrError(err) => err.span(),
             AstError::Other(span, ..) => *span,
             AstError::ConversionError(err) => err.value.span(),
@@ -138,8 +144,9 @@ pub trait AstResultExt<T> {
     fn context_label(self, label_span: Span, context: &str) -> AstResult<T>;
     fn note(self, note: &str) -> AstResult<T>;
 
-    /// Map any [AstError::WrongExprType]s error to a [FormFormatError]
-    fn wrong_expr_type_to(self, f: impl FnOnce(Span) -> FormFormatError) -> AstResult<T>;
+    /// Map any [AstError::WrongExprType]s error to any other Into<AstError> (such as a [FormFormatError])
+    /// If the provided closure returns `None`, the error will be kept unmodified
+    fn wrong_expr_type_to<E: Into<AstError>>(self, f: impl FnOnce(Span, AstType) -> Option<E>) -> AstResult<T>;
 }
 
 impl<T> AstResultExt<T> for AstResult<T> {
@@ -151,7 +158,7 @@ impl<T> AstResultExt<T> for AstResult<T> {
         self.map_err(|e| e.note(note))
     }
 
-    fn wrong_expr_type_to(self, f: impl FnOnce(Span) -> FormFormatError) -> AstResult<T> {
+    fn wrong_expr_type_to<E: Into<AstError>>(self, f: impl FnOnce(Span, AstType) -> Option<E>) -> AstResult<T> {
         self.map_err(|err| err.wrong_expr_type_to(f))
     }
 }

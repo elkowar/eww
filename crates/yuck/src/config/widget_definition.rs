@@ -29,7 +29,7 @@ impl FromAstElementContent for WidgetDefinition {
         let (name_span, name) = iter.expect_symbol().note(EXPECTED_WIDGET_DEF_FORMAT)?;
         let (args_span, expected_args) = iter
             .expect_array()
-            .wrong_expr_type_to(|_| FormFormatError::WidgetDefArglistMissing(name_span.point_span_at_end()))
+            .wrong_expr_type_to(|_, _| Some(FormFormatError::WidgetDefArglistMissing(name_span.point_span_at_end())))
             .note(EXPECTED_WIDGET_DEF_FORMAT)?;
         let expected_args = expected_args.into_iter().map(|x| x.as_symbol().map(AttrName)).collect::<AstResult<_>>()?;
         let widget = iter.expect_any().note(EXPECTED_WIDGET_DEF_FORMAT).and_then(WidgetUse::from_ast)?;

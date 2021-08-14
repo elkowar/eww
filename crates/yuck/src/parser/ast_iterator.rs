@@ -77,7 +77,7 @@ impl<I: Iterator<Item = Ast>> AstIterator<I> {
     }
 
     pub fn expect_key_values(&mut self) -> AstResult<Attributes> {
-        parse_key_values(self)
+        parse_key_values(self, true)
     }
 
     pub fn put_back(&mut self, ast: Ast) {
@@ -98,7 +98,7 @@ impl<I: Iterator<Item = Ast>> Iterator for AstIterator<I> {
 }
 
 /// Parse consecutive `:keyword value` pairs from an expression iterator into an [Attributes].
-fn parse_key_values(iter: &mut AstIterator<impl Iterator<Item = Ast>>) -> AstResult<Attributes> {
+fn parse_key_values(iter: &mut AstIterator<impl Iterator<Item = Ast>>, fail_on_dangling_kw: bool) -> AstResult<Attributes> {
     let mut data = HashMap::new();
     let mut attrs_span = iter.remaining_span.point_span();
     loop {
@@ -110,9 +110,13 @@ fn parse_key_values(iter: &mut AstIterator<impl Iterator<Item = Ast>>) -> AstRes
                     data.insert(AttrName(kw), attr_value);
                 }
                 None => {
-                    iter.iter.put_back(Ast::Keyword(key_span, kw));
-                    attrs_span.1 = iter.remaining_span.0;
-                    return Ok(Attributes::new(attrs_span, data));
+                    if fail_on_dangling_kw {
+                        return Err(AstError::DanglingKeyword(key_span, kw));
+                    } else {
+                        iter.iter.put_back(Ast::Keyword(key_span, kw));
+                        attrs_span.1 = iter.remaining_span.0;
+                        return Ok(Attributes::new(attrs_span, data));
+                    }
                 }
             },
             next => {

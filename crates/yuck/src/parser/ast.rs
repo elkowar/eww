@@ -27,7 +27,10 @@ pub enum AstType {
 
 impl Display for AstType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        match self {
+            AstType::IntoPrimitive => write!(f, "primitive"),
+            _ => write!(f, "{:?}", self),
+        }
     }
 }
 

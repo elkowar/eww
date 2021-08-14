@@ -89,7 +89,7 @@ impl ToDiagnostic for AstError {
             AstError::WrongExprType(span, expected, actual) => gen_diagnostic! {
                 msg = "Wrong type of expression",
                 label = span => format!("Expected a `{}` here", expected),
-                note = format!("Expected: {}\nGot: {}", expected, actual),
+                note = format!("Expected: {}\n     Got: {}", expected, actual),
             },
             AstError::NotAValue(span, actual) => gen_diagnostic! {
                 msg = format!("Expected value, but got `{}`", actual),
@@ -101,7 +101,7 @@ impl ToDiagnostic for AstError {
             AstError::MismatchedElementName(span, expected, got) => gen_diagnostic! {
                 msg = format!("Expected element `{}`, but found `{}`", expected, got),
                 label = span => format!("Expected `{}` here", expected),
-                note = format!("Expected: {}\nGot: {}", expected, got),
+                note = format!("Expected: {}\n     Got: {}", expected, got),
             },
             AstError::ErrorContext { label_span, context, main_err } => {
                 main_err.to_diagnostic().with_label(span_to_secondary_label(*label_span).with_message(context))
@@ -119,6 +119,10 @@ impl ToDiagnostic for AstError {
                 msg = self,
                 label = extra_nodes_span => "these elements must not be here",
                 note = "Consider wrapping the elements in some container element",
+            },
+            AstError::DanglingKeyword(span, keyword) => gen_diagnostic! {
+                msg = self,
+                label = span => "No value provided for this",
             },
             AstError::ErrorNote(note, source) => source.to_diagnostic().with_notes(vec![note.to_string()]),
             AstError::ValidationError(source) => source.to_diagnostic(),

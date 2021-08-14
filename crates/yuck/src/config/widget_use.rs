@@ -4,7 +4,7 @@ use simplexpr::SimplExpr;
 
 use crate::{
     config::attributes::AttrEntry,
-    error::AstResult,
+    error::{AstError, AstResult},
     parser::{ast::Ast, ast_iterator::AstIterator, from_ast::FromAst},
 };
 use eww_shared_util::{AttrName, Span, VarName};
@@ -34,21 +34,7 @@ impl FromAst for WidgetUse {
     fn from_ast(e: Ast) -> AstResult<Self> {
         let span = e.span();
         if let Ok(value) = e.clone().as_simplexpr() {
-            Ok(Self {
-                name: "label".to_string(),
-                name_span: span.point_span(),
-                attrs: Attributes::new(
-                    span,
-                    maplit::hashmap! {
-                        AttrName("text".to_string()) => AttrEntry::new(
-                            span,
-                            Ast::SimplExpr(span.into(), value.clone())
-                        )
-                    },
-                ),
-                children: Vec::new(),
-                span,
-            })
+            Ok(label_from_simplexpr(value, span))
         } else {
             let mut iter = e.try_ast_iter()?;
             let (name_span, name) = iter.expect_symbol()?;
@@ -56,5 +42,23 @@ impl FromAst for WidgetUse {
             let children = iter.map(WidgetUse::from_ast).collect::<AstResult<Vec<_>>>()?;
             Ok(Self { name, attrs, children, span, name_span })
         }
+    }
+}
+
+fn label_from_simplexpr(value: SimplExpr, span: Span) -> WidgetUse {
+    WidgetUse {
+        name: "label".to_string(),
+        name_span: span.point_span(),
+        attrs: Attributes::new(
+            span,
+            maplit::hashmap! {
+                AttrName("text".to_string()) => AttrEntry::new(
+                    span,
+                    Ast::SimplExpr(span.into(), value.clone())
+                )
+            },
+        ),
+        children: Vec::new(),
+        span,
     }
 }
