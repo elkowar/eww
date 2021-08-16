@@ -144,3 +144,20 @@ These are particularly useful if you have a script that can monitor some value o
 
 In addition to definition your own variables, eww provides some values for you to use out of the box. These include values such as your CPU and RAM usage. These mostly contain their data as JSON, which you can then use using the [json access syntax](expression_language.md). All available magic variables are listed [here](magic-vars.md).
 
+## Splitting up your configuration
+
+As time passes, your configuration might grow larger and larger. Luckily, you can easily split up your configuration into multiple files!
+
+There are two options to achieve this:
+
+### Using `include`
+
+```lisp
+(include "./path/to/your/file.yuck")
+```
+
+A single yuck-file may import the contents of any other yuck file. For this, make use of the `include` directive.
+
+### Using a separate eww configuration directory
+
+If you want to separate different widgets even further, you can create a new eww config folder anywhere else. Then, you can tell eww to use that configuration directory by passing _every_ command the `--config /path/to/your/config/dir` flag. Make sure to actually include this in all your `eww` calls, including `eww kill`, `eww logs`, etc. This launches a separate instance of the eww daemon, that has separate logs and state from your main eww configuration.

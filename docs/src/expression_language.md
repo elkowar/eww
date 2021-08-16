@@ -1,31 +1,29 @@
-# The embedded Eww expression-language
+# Simple expression language
 
-Within variable references, you can make use of a small, built-in expression language.
-This can be used whereever you can use variable-references (`{{varname}}`).
+Yuck includes a small expression language that can be used to run several operations on your data. This can be used to show different values depending on certain conditions, do mathematic operations, and even to access values withing JSON-structures.
+
+These expressions can be placed anywhere within your configuration in between `{ ... }`, as well as withing strings, inside string-interpolation blocks (`"foo ${ ... } bar"`).
 
 ## Example
 
-```xml
-<button
-    class="{{if button_active then 'active' else 'inactive'}}"
-    onclick="toggle_thing">
-    {{if button_active then 'disable' else 'enable'}}
-</button>
-
-Some math: {{12 + 2 * 10}}
+```lisp
+(box
+  "Some math: ${12 + foo * 10}"
+  (button :class {button_active ? "active" : "inactive"}
+          :onclick "toggle_thing"
+    {button_active ? "disable" : "enable"}))
 ```
 
-## Syntax
+## Features
 
-The expression language supports:
+Supported currently are the following features:
 - simple mathematical operations (`+`, `-`, `*`, `/`, `%`)
 - comparisons (`==`, `!=`, `>`, `<`)
 - boolean operations (`||`, `&&`, `!`)
 - elvis operator (`?:`)
     - if the left side is `""`, then returns the right side, otherwise evaluates to the left side.
-- conditionals (`if condition then 'value' else 'other value'`)
+- conditionals (`condition ? 'value' : 'other value'`)
 - numbers, strings, booleans and variable references (`12`, `'hi'`, `true`, `some_variable`)
-    - strings can contain other expressions again: `'foo {{some_variable}} bar'`
 - json access (`object.field`, `array[12]`, `object["field"]`)
     - for this, the object/array value needs to refer to a variable that contains a valid json string.
 - some function calls:
