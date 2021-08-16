@@ -87,7 +87,9 @@ There is a lot going on here, so let's step through this.
 
 We are creating a widget named `greeter`. This widget takes two attributes, called `text` and `name`, which must be set when the widget is used.
 
-Now, we declare the body of our widget. We make use of a `box`, which we set a couple attributes of. This box then contains a reference to the provided attribute `text`, as well as a button. In that buttons `onclick` attribute, we make refer to the provided `name` using string-interpolation syntax: `"${name}"`.  This allows us to easily refer to any variables within strings. In fact, there is a lot more you can do withing `${...}` - more on that in the chapter about the [expression language](expression_language.md). 
+Now, we declare the body of our widget. We make use of a `box`, which we set a couple attributes of.
+
+We need this `box`, as a widget definition can only ever contain a single widget - otherwise, eww would not know if it should align them vertically or horizontally, how it should space them, and so on. Thus, we wrap multiple children in a `box.`. This box then contains a reference to the provided attribute `text`, as well as a button. In that buttons `onclick` attribute, we make refer to the provided `name` using string-interpolation syntax: `"${name}"`.  This allows us to easily refer to any variables within strings. In fact, there is a lot more you can do withing `${...}` - more on that in the chapter about the [expression language](expression_language.md). 
 
 To then use our widget, we call it just like we would use any other built-in widget, and provide the required attributes.
 
@@ -144,6 +146,22 @@ These are particularly useful if you have a script that can monitor some value o
 
 In addition to definition your own variables, eww provides some values for you to use out of the box. These include values such as your CPU and RAM usage. These mostly contain their data as JSON, which you can then use using the [json access syntax](expression_language.md). All available magic variables are listed [here](magic-vars.md).
 
+## Dynamically generated widgets with `literal`
+
+In some cases, you want to not only change the text, value or color of a widget dynamically, but instead want to generate an entire widget structure dynamically. This is necessary if you want to display lists of things (for example notifications) where the amount is not necessarily known, or if you want to change the widget structure in some other more complex way.
+
+For this, you can make use of one of ewws most powerful features: the `literal` widget.
+
+```lisp
+(defvar variable_containing_yuck
+  "(box (button 'foo') (button 'bar'))")
+(literal :content variable_containing_yuck)
+```
+
+Here, you specify the content of your literal by providing it a string (most likely stored in a variable) which contains a single yuck widget tree. Eww then reads the provided value and renders the resulting widget. Whenever it changes, the widget will be rerendered.
+
+Note that this is not all that efficient. Make sure to only use `literal` when necessary!
+
 ## Splitting up your configuration
 
 As time passes, your configuration might grow larger and larger. Luckily, you can easily split up your configuration into multiple files!
@@ -161,3 +179,4 @@ A single yuck-file may import the contents of any other yuck file. For this, mak
 ### Using a separate eww configuration directory
 
 If you want to separate different widgets even further, you can create a new eww config folder anywhere else. Then, you can tell eww to use that configuration directory by passing _every_ command the `--config /path/to/your/config/dir` flag. Make sure to actually include this in all your `eww` calls, including `eww kill`, `eww logs`, etc. This launches a separate instance of the eww daemon, that has separate logs and state from your main eww configuration.
+
