@@ -87,7 +87,11 @@ pub fn validate_variables_in_widget_use(
     let values = widget.attrs.attrs.values();
     let unknown_var = values.filter_map(|value| value.value.as_simplexpr().ok()).find_map(|expr: SimplExpr| {
         let span = expr.span();
-        expr.var_refs().iter().map(move |&x| (span, x.clone())).find(|(span, var_ref)| !variables.contains(var_ref))
+        expr.var_refs()
+            .iter()
+            .cloned()
+            .map(|(span, var_ref)| (span, var_ref.clone()))
+            .find(|(_, var_ref)| !variables.contains(var_ref))
     });
     if let Some((span, var)) = unknown_var {
         return Err(ValidationError::UnknownVariable { span, name: var.clone(), in_definition: is_in_definition });

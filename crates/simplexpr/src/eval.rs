@@ -5,7 +5,7 @@ use crate::{
     dynval::{ConversionError, DynVal},
 };
 use eww_shared_util::{Span, Spanned, VarName};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 #[derive(Debug, thiserror::Error)]
 pub enum EvalError {
@@ -102,12 +102,12 @@ impl SimplExpr {
         })
     }
 
-    pub fn var_refs(&self) -> HashSet<&VarName> {
+    pub fn var_refs(&self) -> Vec<(Span, &VarName)> {
         use SimplExpr::*;
         match self {
-            Literal(..) => HashSet::new(),
+            Literal(..) => Vec::new(),
+            VarRef(span, name) => vec![(*span, name)],
             Concat(_, elems) => elems.iter().flat_map(|x| x.var_refs().into_iter()).collect(),
-            VarRef(_, name) => maplit::hashset! { name },
             BinOp(_, box a, _, box b) | JsonAccess(_, box a, box b) => {
                 let mut refs = a.var_refs();
                 refs.extend(b.var_refs().iter());
@@ -141,7 +141,7 @@ impl SimplExpr {
             SimplExpr::Concat(span, elems) => {
                 let mut output = String::new();
                 for elem in elems {
-                    let result = elem.eval(values)?;
+                    let result = dbg!(elem.eval(values))?;
                     output.push_str(&result.0);
                 }
                 Ok(DynVal(output, *span))

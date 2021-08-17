@@ -10,24 +10,36 @@ pub fn b<T>(x: T) -> Box<T> {
 
 pub fn parse_stringlit(
     span: Span,
-    segs: Vec<Sp<StrLitSegment>>,
+    mut segs: Vec<Sp<StrLitSegment>>,
 ) -> Result<SimplExpr, lalrpop_util::ParseError<usize, Token, LexicalError>> {
     let file_id = span.2;
     let parser = crate::simplexpr_parser::ExprParser::new();
 
-    let elems = segs
-        .into_iter()
-        .filter_map(|(lo, segment, hi)| {
-            let span = Span(lo, hi, file_id);
-            match segment {
-                StrLitSegment::Literal(lit) if lit.is_empty() => None,
-                StrLitSegment::Literal(lit) => Some(Ok(SimplExpr::Literal(DynVal(lit, span)))),
-                StrLitSegment::Interp(toks) => {
-                    let token_stream = toks.into_iter().map(|x| Ok(x));
-                    Some(parser.parse(file_id, token_stream))
-                }
+    if segs.len() == 1 {
+        let (lo, seg, hi) = segs.remove(0);
+        let span = Span(lo, hi, file_id);
+        match seg {
+            StrLitSegment::Literal(lit) => Ok(SimplExpr::Literal(DynVal(lit, span))),
+            StrLitSegment::Interp(toks) => {
+                let token_stream = toks.into_iter().map(|x| Ok(x));
+                parser.parse(file_id, token_stream)
             }
-        })
-        .collect::<Result<Vec<SimplExpr>, _>>()?;
-    Ok(SimplExpr::Concat(span, elems))
+        }
+    } else {
+        let elems = segs
+            .into_iter()
+            .filter_map(|(lo, segment, hi)| {
+                let span = Span(lo, hi, file_id);
+                match segment {
+                    StrLitSegment::Literal(lit) if lit.is_empty() => None,
+                    StrLitSegment::Literal(lit) => Some(Ok(SimplExpr::Literal(DynVal(lit, span)))),
+                    StrLitSegment::Interp(toks) => {
+                        let token_stream = toks.into_iter().map(|x| Ok(x));
+                        Some(parser.parse(file_id, token_stream))
+                    }
+                }
+            })
+            .collect::<Result<Vec<SimplExpr>, _>>()?;
+        Ok(SimplExpr::Concat(span, elems))
+    }
 }
