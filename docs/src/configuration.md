@@ -1,6 +1,6 @@
 # Writing your eww configuration
 
-(For a list of all built in widgets (i.e. `box`, `text`, `slider`)  see [Widget Documentation](widgets.md))
+(For a list of all built in widgets (i.e. `box`, `label`, `button`)  see [Widget Documentation](widgets.md))
 
 Eww is configured using its own language called `yuck`.
 using yuck, you declare the structure and content of your widgets, the geometry, position and behavior of any windows,
