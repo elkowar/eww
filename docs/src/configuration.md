@@ -30,8 +30,11 @@ Let's look at an example window definition:
 ```lisp
 (defwindow example
            :monitor 0
-           :geometry (geometry :x 0 :y 0 :width "90%" :height "30px")
-           :anchor "top center"
+           :geometry (geometry :x "0%"
+                               :y "20px"
+                               :width "90%"
+                               :height "30px"
+                               :anchor "top center")
            :stacking "fg"
            :reserve (struts :distance "40px" :side "top")
            :windowtype "dock"
@@ -43,13 +46,22 @@ Here, we are defining a window named `example`, which we then set a set of prope
 
 You can now open your first window by running `eww open example`! Glorious!
 
-### `defwindow`-Properties
+### `defwindow`-properties
 
 |   Property | Description                                                  |
 | ---------: | ------------------------------------------------------------ |
-|  `monitor` | which monitor this window should be displayed on             |
-| `geometry` | Position and size of the window. Values may be provided in `px` or relative to the screen size. |
-|   `anchor` | What side of the screen the window should be anchored to. Either `center` or combinations of `top`, `center`, `bottom` and `left`, `center`, `right` |
+|  `monitor` | which monitor this window should be displayed on.            |
+| `geometry` | Geometry of the window.  |
+
+
+**Geometry-properties**
+
+| Property          | Description |
+| -----------------:| ------------------------------------------------------------ |
+| `x`, `y`          | Position of the window. Values may be provided in `px` or `%`. Will be relative to `anchor` |
+| `width`, `height` | Width and height of the window. Values may be provided in `px` or `%`. |
+| `anchor`          | Anchor-point of the window. Either `center` or combinations of `top`, `center`, `bottom` and `left`, `center`, `right` |
+
 
 Depending on if you are using X11 or wayland, some additional properties exist:
 
