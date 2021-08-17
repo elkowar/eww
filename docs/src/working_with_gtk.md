@@ -17,13 +17,13 @@ SCSS is _very_ close to CSS so if you know CSS you'll have no problem learning S
 The debugger can be used for **a lot** of things. Especially if something doesn't work or isn't styled right. to enable it launch your eww daemon with
 
 ```bash
-GTK_DEBUG=interactive ./eww daemon
+GTK_DEBUG=interactive eww daemon
 ```
 
 or in fish
 
 ```bash
-env GTK_DEBUG=interactive ./eww daemon
+env GTK_DEBUG=interactive eww daemon
 ```
 
 If a style or something similar doesn't work you can click on the icon in the top left icon to select the thing that isn't being styled or isn't being styled correctly.
