@@ -32,6 +32,7 @@ pub enum UnaryOp {
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SimplExpr {
     Literal(DynVal),
+    Concat(Span, Vec<SimplExpr>),
     VarRef(Span, VarName),
     BinOp(Span, Box<SimplExpr>, BinOp, Box<SimplExpr>),
     UnaryOp(Span, UnaryOp, Box<SimplExpr>),
@@ -44,6 +45,16 @@ impl std::fmt::Display for SimplExpr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             SimplExpr::Literal(x) => write!(f, "\"{}\"", x),
+            SimplExpr::Concat(_, elems) => {
+                let text = elems
+                    .iter()
+                    .map(|x| match x {
+                        SimplExpr::Literal(lit) => lit.to_string(),
+                        other => format!("${{{}}}", other),
+                    })
+                    .join("");
+                write!(f, "\"{}\"", text)
+            }
             SimplExpr::VarRef(_, x) => write!(f, "{}", x),
             SimplExpr::BinOp(_, l, op, r) => write!(f, "({} {} {})", l, op, r),
             SimplExpr::UnaryOp(_, op, x) => write!(f, "{}{}", op, x),
@@ -74,6 +85,7 @@ impl Spanned for SimplExpr {
     fn span(&self) -> Span {
         match self {
             SimplExpr::Literal(x) => x.span(),
+            SimplExpr::Concat(span, _) => *span,
             SimplExpr::VarRef(span, _) => *span,
             SimplExpr::BinOp(span, ..) => *span,
             SimplExpr::UnaryOp(span, ..) => *span,

@@ -5,7 +5,7 @@ use crate::{
     dynval::{ConversionError, DynVal},
 };
 use eww_shared_util::{Span, Spanned, VarName};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, thiserror::Error)]
 pub enum EvalError {
@@ -64,6 +64,7 @@ impl SimplExpr {
         use SimplExpr::*;
         Ok(match self {
             BinOp(span, box a, op, box b) => BinOp(span, box a.try_map_var_refs(f)?, op, box b.try_map_var_refs(f)?),
+            Concat(span, elems) => Concat(span, elems.into_iter().map(|x| x.try_map_var_refs(f)).collect::<Result<_, _>>()?),
             UnaryOp(span, op, box a) => UnaryOp(span, op, box a.try_map_var_refs(f)?),
             IfElse(span, box a, box b, box c) => {
                 IfElse(span, box a.try_map_var_refs(f)?, box b.try_map_var_refs(f)?, box c.try_map_var_refs(f)?)
@@ -91,50 +92,35 @@ impl SimplExpr {
     /// resolve variable references in the expression. Fails if a variable cannot be resolved.
     pub fn resolve_refs(self, variables: &HashMap<VarName, DynVal>) -> Result<Self, EvalError> {
         use SimplExpr::*;
-        match self {
-            Literal(x) => Ok(Literal(x)),
-            BinOp(span, box a, op, box b) => Ok(BinOp(span, box a.resolve_refs(variables)?, op, box b.resolve_refs(variables)?)),
-            UnaryOp(span, op, box x) => Ok(UnaryOp(span, op, box x.resolve_refs(variables)?)),
-            IfElse(span, box a, box b, box c) => {
-                Ok(IfElse(span, box a.resolve_refs(variables)?, box b.resolve_refs(variables)?, box c.resolve_refs(variables)?))
+        self.try_map_var_refs(|span, name| match variables.get(&name) {
+            Some(value) => Ok(Literal(value.clone())),
+            None => {
+                let similar_ish =
+                    variables.keys().filter(|key| levenshtein::levenshtein(&key.0, &name.0) < 3).cloned().collect_vec();
+                Err(EvalError::UnknownVariable(name.clone(), similar_ish).at(span))
             }
-            JsonAccess(span, box a, box b) => {
-                Ok(JsonAccess(span, box a.resolve_refs(variables)?, box b.resolve_refs(variables)?))
-            }
-            FunctionCall(span, function_name, args) => Ok(FunctionCall(
-                span,
-                function_name,
-                args.into_iter().map(|a| a.resolve_refs(variables)).collect::<Result<_, EvalError>>()?,
-            )),
-            VarRef(span, ref name) => match variables.get(name) {
-                Some(value) => Ok(Literal(value.clone())),
-                None => {
-                    let similar_ish =
-                        variables.keys().filter(|key| levenshtein::levenshtein(&key.0, &name.0) < 3).cloned().collect_vec();
-                    Err(EvalError::UnknownVariable(name.clone(), similar_ish).at(span))
-                }
-            },
-        }
+        })
     }
 
-    pub fn var_refs(&self) -> Vec<&VarName> {
+    pub fn var_refs(&self) -> HashSet<&VarName> {
         use SimplExpr::*;
         match self {
-            Literal(..) => Vec::new(),
-            VarRef(_, name) => vec![name],
+            Literal(..) => HashSet::new(),
+            Concat(_, elems) => elems.iter().flat_map(|x| x.var_refs().into_iter()).collect(),
+            VarRef(_, name) => maplit::hashset! { name },
             BinOp(_, box a, _, box b) | JsonAccess(_, box a, box b) => {
                 let mut refs = a.var_refs();
-                refs.append(&mut b.var_refs());
+                refs.extend(b.var_refs().iter());
                 refs
             }
             UnaryOp(_, _, box x) => x.var_refs(),
             IfElse(_, box a, box b, box c) => {
                 let mut refs = a.var_refs();
-                refs.append(&mut b.var_refs());
-                refs.append(&mut c.var_refs());
+                refs.extend(b.var_refs().iter());
+                refs.extend(c.var_refs().iter());
                 refs
             }
-            FunctionCall(_, _, args) => args.iter().flat_map(|a| a.var_refs()).collect_vec(),
+            FunctionCall(_, _, args) => args.iter().flat_map(|a| a.var_refs()).collect(),
         }
     }
 
@@ -152,6 +138,14 @@ impl SimplExpr {
         let span = self.span();
         let value = match self {
             SimplExpr::Literal(x) => Ok(x.clone()),
+            SimplExpr::Concat(span, elems) => {
+                let mut output = String::new();
+                for elem in elems {
+                    let result = elem.eval(values)?;
+                    output.push_str(&result.0);
+                }
+                Ok(DynVal(output, *span))
+            }
             SimplExpr::VarRef(span, ref name) => {
                 let similar_ish =
                     values.keys().filter(|keys| levenshtein::levenshtein(&keys.0, &name.0) < 3).cloned().collect_vec();
@@ -161,10 +155,10 @@ impl SimplExpr {
                     .ok_or_else(|| EvalError::UnknownVariable(name.clone(), similar_ish).at(*span))?
                     .at(*span))
             }
-            SimplExpr::BinOp(_, a, op, b) => {
+            SimplExpr::BinOp(span, a, op, b) => {
                 let a = a.eval(values)?;
                 let b = b.eval(values)?;
-                Ok(match op {
+                let dynval = match op {
                     BinOp::Equals => DynVal::from(a == b),
                     BinOp::NotEquals => DynVal::from(a != b),
                     BinOp::And => DynVal::from(a.as_bool()? && b.as_bool()?),
@@ -185,12 +179,13 @@ impl SimplExpr {
                         let regex = regex::Regex::new(&b.as_string()?)?;
                         DynVal::from(regex.is_match(&a.as_string()?))
                     }
-                })
+                };
+                Ok(dynval.at(*span))
             }
-            SimplExpr::UnaryOp(_, op, a) => {
+            SimplExpr::UnaryOp(span, op, a) => {
                 let a = a.eval(values)?;
                 Ok(match op {
-                    UnaryOp::Not => DynVal::from(!a.as_bool()?),
+                    UnaryOp::Not => DynVal::from(!a.as_bool()?).at(*span),
                 })
             }
             SimplExpr::IfElse(_, cond, yes, no) => {
@@ -207,21 +202,21 @@ impl SimplExpr {
                     serde_json::Value::Array(val) => {
                         let index = index.as_i32()?;
                         let indexed_value = val.get(index as usize).unwrap_or(&serde_json::Value::Null);
-                        Ok(DynVal::from(indexed_value))
+                        Ok(DynVal::from(indexed_value).at(*span))
                     }
                     serde_json::Value::Object(val) => {
                         let indexed_value = val
                             .get(&index.as_string()?)
                             .or_else(|| val.get(&index.as_i32().ok()?.to_string()))
                             .unwrap_or(&serde_json::Value::Null);
-                        Ok(DynVal::from(indexed_value))
+                        Ok(DynVal::from(indexed_value).at(*span))
                     }
                     _ => Err(EvalError::CannotIndex(format!("{}", val)).at(*span)),
                 }
             }
             SimplExpr::FunctionCall(span, function_name, args) => {
                 let args = args.into_iter().map(|a| a.eval(values)).collect::<Result<_, EvalError>>()?;
-                call_expr_function(&function_name, args).map_err(|e| e.at(*span))
+                call_expr_function(&function_name, args).map(|x| x.at(*span)).map_err(|e| e.at(*span))
             }
         };
         Ok(value?.at(span))

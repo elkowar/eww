@@ -1,7 +1,6 @@
 use eww_shared_util::Span;
-use itertools::Itertools;
 
-use crate::{ast::BinOp, dynval::DynVal, SimplExpr};
+use crate::{dynval::DynVal, SimplExpr};
 
 use super::lexer::{LexicalError, Sp, StrLitSegment, Token};
 
@@ -16,7 +15,8 @@ pub fn parse_stringlit(
     let file_id = span.2;
     let parser = crate::simplexpr_parser::ExprParser::new();
 
-    segs.into_iter()
+    let elems = segs
+        .into_iter()
         .filter_map(|(lo, segment, hi)| {
             let span = Span(lo, hi, file_id);
             match segment {
@@ -28,9 +28,6 @@ pub fn parse_stringlit(
                 }
             }
         })
-        .fold_ok(None, |acc, cur| match acc {
-            Some(ast) => Some(SimplExpr::BinOp(span, Box::new(ast), BinOp::Plus, Box::new(cur))),
-            None => Some(cur),
-        })
-        .map(|ast| ast.unwrap_or_else(|| SimplExpr::Literal(DynVal(String::new(), span))))
+        .collect::<Result<Vec<SimplExpr>, _>>()?;
+    Ok(SimplExpr::Concat(span, elems))
 }

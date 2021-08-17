@@ -119,8 +119,9 @@ impl Spanned for DynVal {
 }
 
 impl DynVal {
-    pub fn at(self, span: Span) -> Self {
-        DynVal(self.0, span)
+    pub fn at(mut self, span: Span) -> Self {
+        self.1 = span;
+        self
     }
 
     pub fn from_string(s: String) -> Self {
