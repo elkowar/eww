@@ -1,8 +1,11 @@
 # Simple expression language
 
-Yuck includes a small expression language that can be used to run several operations on your data. This can be used to show different values depending on certain conditions, do mathematic operations, and even to access values withing JSON-structures.
+Yuck includes a small expression language that can be used to run several operations on your data.
+This can be used to show different values depending on certain conditions,
+do mathematic operations, and even to access values withing JSON-structures.
 
-These expressions can be placed anywhere within your configuration in between `{ ... }`, as well as withing strings, inside string-interpolation blocks (`"foo ${ ... } bar"`).
+These expressions can be placed anywhere within your configuration in between `{ ... }`,
+as well as withing strings, inside string-interpolation blocks (`"foo ${ ... } bar"`).
 
 ## Example
 
