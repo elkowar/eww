@@ -203,6 +203,8 @@ For this, you can make use of one of ewws most powerful features: the `literal` 
 ```lisp
 (defvar variable_containing_yuck
   "(box (button 'foo') (button 'bar'))")
+
+; then, inside your widget, use:
 (literal :content variable_containing_yuck)
 ```
 
