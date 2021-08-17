@@ -3,13 +3,13 @@
 }
 
 //Global Styles
-window {
+.bar {
   background-color: #3a3a3a;
   color: #b0b4bc;
-  font-family: CascadiaCode;
+  padding: 10px;
 }
 
-// Styles on classes (see eww.xml for more information)
+// Styles on classes (see eww.yuck for more information)
 
 .sidestuff slider {
   all: unset;
@@ -49,11 +49,7 @@ window {
 .label-ram {
   font-size: large;
 }
-.time {
-  padding-right: 10px;
-}
 .workspaces button:hover {
   color: #D35D6E;
 }
 
-  

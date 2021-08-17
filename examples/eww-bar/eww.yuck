@@ -1,5 +1,5 @@
 (defwidget bar []
-  (box :orientation "h" :hexpand true
+  (centerbox :orientation "h"
     (workspaces)
     (music)
     (sidestuff)))
@@ -8,13 +8,14 @@
   (box :class "sidestuff" :orientation "h" :space-evenly false :halign "end"
     (slider-vol)
     (slider-ram)
-    (time)))
+    time))
 
 (defwidget workspaces []
   (box :class "workspaces"
        :orientation "h"
        :space-evenly true
        :halign "start"
+       :spacing 10
     (button :onclick "wmctrl -s 0" 1)
     (button :onclick "wmctrl -s 1" 2)
     (button :onclick "wmctrl -s 2" 3)
@@ -27,12 +28,12 @@
 
 (defwidget music []
   (box :class "music" :orientation "h" :space-evenly false :halign "center"
-    '  ${music}'))
+    '🎵${music}'))
 
 (defwidget slider-vol []
   (box :class "slider-vol" :orientation "h" :space-evenly "false"
-    (box :class "label-vol" ""
-      (scale :min 0 :max 101 :value volume :onchange "amixer -D pulse sset Master \{}%"))))
+    (box :class "label-vol" "🔊"
+      (scale :min 0 :max 101 :value volume :onchange "amixer -D pulse sset Master {}%"))))
 
 (defwidget slider-ram []
   (box :orientation "h" :class "slider-ram" :space-evenly false
@@ -41,21 +42,12 @@
 
 
 
-(defwidget time []
-  (box :class "time"
-    "${hour}:${min} ${month} ${number_day}, ${year_full}"))
 
 
 (defpoll music :interval "5s" "playerctl metadata --format '{{ artist }} - {{ title }}' || true")
 (defpoll volume :interval "1s" "scripts/getvol")
 
-(defpoll number_day :interval "5h"  "date '+%d'")
-(defpoll month      :interval "10h" "date '+%b'")
-(defpoll min        :interval "10s" "date '+%M'")
-(defpoll hour       :interval "1m"  "date '+%H'")
-(defpoll year_full  :interval "15h" "date '+%Y'")
-
-(deflisten battery-remaining "tail -f /sys/class/power_supply/BAT0/capacity")
+(defpoll time :interval "10s" "date '+%H:%M %b %d, %Y'")
 
 (defwindow bar
   :monitor 0
