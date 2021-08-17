@@ -557,7 +557,7 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
 }
 
 /// @widget literal
-/// @desc A widget that allows you to render arbitrary XML.
+/// @desc A widget that allows you to render arbitrary yuck.
 fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
     let gtk_widget = gtk::Box::new(gtk::Orientation::Vertical, 0);
     gtk_widget.set_widget_name("literal");
@@ -571,7 +571,7 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
     let literal_file_id: Rc<RefCell<Option<usize>>> = Rc::new(RefCell::new(None));
 
     resolve_block!(bargs, gtk_widget, {
-        // @prop content - inline Eww XML that will be rendered as a widget.
+        // @prop content - inline yuck that will be rendered as a widget.
         prop(content: as_string) {
             gtk_widget.get_children().iter().for_each(|w| gtk_widget.remove(w));
             if !content.is_empty() {
