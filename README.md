@@ -4,18 +4,26 @@
 
 <img src="./.github/EwwLogo.svg" height="100" align="left"/>
 
-Elkowar&rsquo;s Wacky Widgets is a standalone widget system made in Rust that allows you to implement
+Elkowars Wacky Widgets is a standalone widget system made in Rust that allows you to implement
 your own, custom widgets in any window manager.
 
 Documentation **and instructions on how to install** can be found [here](https://elkowar.github.io/eww).
 
-## New configuration language needs a name - USER OPINIONS NEEDED
+## New configuration language!
 
-The rework of the configuration language has been decided on. Now, we just need a name!
-Please give your opinions in the [discussion post](https://github.com/elkowar/eww/discussions/206).
+YUCK IS ALIVE! After months of waiting, the new configuration language has now been released!
+This also means that XML is no longer supported from this point onwards.
+If you want to keep using the latest releases of eww, you'll need to migrate your config over to yuck.
+
+The steps to migrate can be found in [the migration guide](YUCK_MIGRATION.md)
+
+Additionally, a couple _amazing_ people have started to work on an
+[automatic converter](https://github.com/undefinedDarkness/ewwxml) that can turn your old eww.xml into the new yuck format!
 
 
 ## Examples
+
+(note that some of these still make use of the old configuration syntax)
 
 * A basic bar, see [examples](./examples/eww-bar)
 ![Example 1](./examples/eww-bar/eww-bar.png)
