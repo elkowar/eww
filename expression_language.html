@@ -95,7 +95,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="eww.html">Eww - Widgets for everyone!</a></li><li class="chapter-item expanded "><a href="configuration.html">Configuration</a></li><li class="chapter-item expanded "><a href="working_with_gtk.html">Theming with GTK</a></li><li class="chapter-item expanded "><a href="magic-vars.html">Magic Variables</a></li><li class="chapter-item expanded "><a href="widgets.html">Widgets</a></li><li class="chapter-item expanded "><a href="troubleshooting.html">Troubleshooting</a></li><li class="chapter-item expanded "><a href="expression_language.html" class="active">Eww expressions</a></li><li class="chapter-item expanded "><a href="examples.html">Examples</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="eww.html">Eww - Widgets for everyone!</a></li><li class="chapter-item expanded "><a href="configuration.html">Configuration</a></li><li class="chapter-item expanded "><a href="expression_language.html" class="active">Eww expressions</a></li><li class="chapter-item expanded "><a href="working_with_gtk.html">Theming with GTK</a></li><li class="chapter-item expanded "><a href="magic-vars.html">Magic Variables</a></li><li class="chapter-item expanded "><a href="widgets.html">Widgets</a></li><li class="chapter-item expanded "><a href="troubleshooting.html">Troubleshooting</a></li><li class="chapter-item expanded "><a href="examples.html">Examples</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -169,20 +169,21 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="the-embedded-eww-expression-language"><a class="header" href="#the-embedded-eww-expression-language">The embedded Eww expression-language</a></h1>
-<p>Within variable references, you can make use of a small, built-in expression language.
-This can be used whereever you can use variable-references (<code>{{varname}}</code>).</p>
+                        <h1 id="simple-expression-language"><a class="header" href="#simple-expression-language">Simple expression language</a></h1>
+<p>Yuck includes a small expression language that can be used to run several operations on your data.
+This can be used to show different values depending on certain conditions,
+do mathematic operations, and even to access values withing JSON-structures.</p>
+<p>These expressions can be placed anywhere within your configuration in between <code>{ ... }</code>,
+as well as withing strings, inside string-interpolation blocks (<code>&quot;foo ${ ... } bar&quot;</code>).</p>
 <h2 id="example"><a class="header" href="#example">Example</a></h2>
-<pre><code class="language-xml">&lt;button
-    class=&quot;{{if button_active then 'active' else 'inactive'}}&quot;
-    onclick=&quot;toggle_thing&quot;&gt;
-    {{if button_active then 'disable' else 'enable'}}
-&lt;/button&gt;
-
-Some math: {{12 + 2 * 10}}
+<pre><code class="language-lisp">(box
+  &quot;Some math: ${12 + foo * 10}&quot;
+  (button :class {button_active ? &quot;active&quot; : &quot;inactive&quot;}
+          :onclick &quot;toggle_thing&quot;
+    {button_active ? &quot;disable&quot; : &quot;enable&quot;}))
 </code></pre>
-<h2 id="syntax"><a class="header" href="#syntax">Syntax</a></h2>
-<p>The expression language supports:</p>
+<h2 id="features"><a class="header" href="#features">Features</a></h2>
+<p>Supported currently are the following features:</p>
 <ul>
 <li>simple mathematical operations (<code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>%</code>)</li>
 <li>comparisons (<code>==</code>, <code>!=</code>, <code>&gt;</code>, <code>&lt;</code>)</li>
@@ -192,12 +193,8 @@ Some math: {{12 + 2 * 10}}
 <li>if the left side is <code>&quot;&quot;</code>, then returns the right side, otherwise evaluates to the left side.</li>
 </ul>
 </li>
-<li>conditionals (<code>if condition then 'value' else 'other value'</code>)</li>
-<li>numbers, strings, booleans and variable references (<code>12</code>, <code>'hi'</code>, <code>true</code>, <code>some_variable</code>)
-<ul>
-<li>strings can contain other expressions again: <code>'foo {{some_variable}} bar'</code></li>
-</ul>
-</li>
+<li>conditionals (<code>condition ? 'value' : 'other value'</code>)</li>
+<li>numbers, strings, booleans and variable references (<code>12</code>, <code>'hi'</code>, <code>true</code>, <code>some_variable</code>)</li>
 <li>json access (<code>object.field</code>, <code>array[12]</code>, <code>object[&quot;field&quot;]</code>)
 <ul>
 <li>for this, the object/array value needs to refer to a variable that contains a valid json string.</li>
@@ -216,13 +213,13 @@ Some math: {{12 + 2 * 10}}
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
                         
-                            <a rel="prev" href="troubleshooting.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="configuration.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
                         
 
                         
-                            <a rel="next" href="examples.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="working_with_gtk.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
                         
@@ -234,13 +231,13 @@ Some math: {{12 + 2 * 10}}
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
                 
-                    <a rel="prev" href="troubleshooting.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="configuration.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
                 
 
                 
-                    <a rel="next" href="examples.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next" href="working_with_gtk.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
                 

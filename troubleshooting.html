@@ -95,7 +95,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="eww.html">Eww - Widgets for everyone!</a></li><li class="chapter-item expanded "><a href="configuration.html">Configuration</a></li><li class="chapter-item expanded "><a href="working_with_gtk.html">Theming with GTK</a></li><li class="chapter-item expanded "><a href="magic-vars.html">Magic Variables</a></li><li class="chapter-item expanded "><a href="widgets.html">Widgets</a></li><li class="chapter-item expanded "><a href="troubleshooting.html" class="active">Troubleshooting</a></li><li class="chapter-item expanded "><a href="expression_language.html">Eww expressions</a></li><li class="chapter-item expanded "><a href="examples.html">Examples</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="eww.html">Eww - Widgets for everyone!</a></li><li class="chapter-item expanded "><a href="configuration.html">Configuration</a></li><li class="chapter-item expanded "><a href="expression_language.html">Eww expressions</a></li><li class="chapter-item expanded "><a href="working_with_gtk.html">Theming with GTK</a></li><li class="chapter-item expanded "><a href="magic-vars.html">Magic Variables</a></li><li class="chapter-item expanded "><a href="widgets.html">Widgets</a></li><li class="chapter-item expanded "><a href="troubleshooting.html" class="active">Troubleshooting</a></li><li class="chapter-item expanded "><a href="examples.html">Examples</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -181,36 +181,23 @@
 <li>Make sure you compiled eww with the <code>--no-default-features --features=wayland</code> flags.</li>
 <li>Make sure that you're not trying to use X11-specific features (these are (hopefully) explicitly specified as such in the documentation).</li>
 </ol>
-<h2 id="my-scss-isnt-being-loaded"><a class="header" href="#my-scss-isnt-being-loaded">My scss isn't being loaded!</a></h2>
+<h2 id="my-configuration-is-not-loaded-correctly"><a class="header" href="#my-configuration-is-not-loaded-correctly">My configuration is not loaded correctly</a></h2>
 <ol>
-<li>You have not created a scss file</li>
-<li>The scss file isn't called correctly. (it should be called <code>eww.scss</code> in the <code>$HOME/.config/eww</code> folder)</li>
-<li>The scss file isn't placed in the correct location (check above)</li>
-</ol>
-<p>If none of these fixed your problem <a href="https://github.com/elkowar/eww/issues">open an issue on the GitHub repo</a>, or check the <a href="working_with_gtk.html#gtk-debugger">GTK-Debugger</a>.</p>
-<h2 id="eww-cant-find-my-configuration-file"><a class="header" href="#eww-cant-find-my-configuration-file">Eww can't find my configuration file!</a></h2>
-<ol>
-<li>It's incorrectly named or it's in the wrong place (it should be called <code>eww.xml</code> in the <code>$HOME/.config/eww</code> folder)</li>
-<li>You haven't started eww correctly or you started it wrong.</li>
+<li>Make sure the <code>eww.yuck</code> and <code>eww.scss</code> files are in the correct places</li>
+<li>Sometimes, eww might fail to load your configuration as a result of a configuration error. Make sure your configuration is valid.</li>
 </ol>
 <h2 id="something-isnt-styled-correctly"><a class="header" href="#something-isnt-styled-correctly">Something isn't styled correctly!</a></h2>
-<ol>
-<li>You have mistyped the CSS class.</li>
-<li>Check the <a href="working_with_gtk.html#gtk-debugger">GTK-Debugger</a></li>
-</ol>
+<p>Check the <a href="working_with_gtk.html#gtk-debugger">GTK-Debugger</a> to get more insight into what styles GTK is applying to which elements.</p>
 <h2 id="general-issues"><a class="header" href="#general-issues">General issues</a></h2>
 <p>You should try the following things, before opening a issue or doing more specialized troubleshooting:</p>
 <ul>
-<li>Kill the eww daemon by running <code>eww kill</code> and restart it with <code>eww --debug daemon</code> to get additional log output.</li>
+<li>Kill the eww daemon by running <code>eww kill</code> and re-open your window with the <code>--debug</code>-flag to get additional log output.</li>
 <li>Now you can take a look at the logs by running <code>eww logs</code>.</li>
 <li>use <code>eww state</code>, to see the state of all variables</li>
-<li>use <code>eww debug</code>, to see the xml of your widget and other information</li>
+<li>use <code>eww debug</code>, to see the structure of your widget and other information</li>
 <li>update to the latest eww version</li>
-<li>sometimes hot reloading doesn't work. restart the widget in that case</li>
+<li>sometimes hot reloading doesn't work. In that case, you can make use of <code>eww reload</code> manually.</li>
 </ul>
-<p>If you're experiencing issues printing variables, try to print them in quotes, so e.g.</p>
-<pre><code>onchange=&quot;notify-send '{}'&quot;
-</code></pre>
 <p>Remember, if your issue isn't listed here, <a href="https://github.com/elkowar/eww/issues">open an issue on the GitHub repo</a>.</p>
 
                     </main>
@@ -224,7 +211,7 @@
                         
 
                         
-                            <a rel="next" href="expression_language.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="examples.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
                         
@@ -242,7 +229,7 @@
                 
 
                 
-                    <a rel="next" href="expression_language.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next" href="examples.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
                 
