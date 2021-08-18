@@ -22,13 +22,13 @@ macro_rules! builtin_vars {
 
 pub fn get_inbuilt_vars() -> HashMap<VarName, ScriptVarDefinition> {
     builtin_vars! {Duration::new(2, 0),
-        // @desc EWW_TEMPS - Heat of the components in Celcius\nExample: `{{(CPU_TEMPS.core_1 + CPU_TEMPS.core_2) / 2}}`
+        // @desc EWW_TEMPS - Heat of the components in Celcius\nExample: `{(CPU_TEMPS.core_1 + CPU_TEMPS.core_2) / 2}`
         "EWW_TEMPS" => || Ok(DynVal::from(cores())),
 
         // @desc EWW_RAM - The current RAM + Swap usage
         "EWW_RAM" => || Ok(DynVal::from(format!("{:.2}", ram()))),
 
-        // @desc EWW_DISK - Information on on all mounted partitions (Might report inaccurately on some filesystems, like btrfs)\nExample: `{{EWW_DISK["/"]}}`
+        // @desc EWW_DISK - Information on on all mounted partitions (Might report inaccurately on some filesystems, like btrfs)\nExample: `{EWW_DISK["/"]}`
         "EWW_DISK" => || Ok(DynVal::from(disk())),
 
         // @desc EWW_BATTERY - Battery capacity in procent of the main battery
