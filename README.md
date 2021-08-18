@@ -20,7 +20,6 @@ The steps to migrate can be found in [the migration guide](YUCK_MIGRATION.md).
 Additionally, a couple _amazing_ people have started to work on an
 [automatic converter](https://github.com/undefinedDarkness/ewwxml) that can turn your old eww.xml into the new yuck format!
 
-
 ## Examples
 
 (note that some of these still make use of the old configuration syntax)
