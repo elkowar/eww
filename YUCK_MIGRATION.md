@@ -19,7 +19,7 @@ The fields and structure of the `defwindow` block as been adjusted to better ref
 the options provided by the displayserver that is being used.
 The major changes are:
 - The `screen` field is now called `monitor`
-- `reserve` and `geometry` are now structured slightly differently
+- `reserve` and `geometry` are now structured slightly differently (see [here](./docs/src/configuration.md#creating-your-first-window))
 To see how exactly the configuration now looks, check the [respective documentation](./docs/src/configuration.md#creating-your-first-window)
 
 

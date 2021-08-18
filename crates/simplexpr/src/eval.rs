@@ -141,7 +141,7 @@ impl SimplExpr {
             SimplExpr::Concat(span, elems) => {
                 let mut output = String::new();
                 for elem in elems {
-                    let result = dbg!(elem.eval(values))?;
+                    let result = elem.eval(values)?;
                     output.push_str(&result.0);
                 }
                 Ok(DynVal(output, *span))

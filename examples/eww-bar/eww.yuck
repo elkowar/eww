@@ -6,8 +6,15 @@
 
 (defwidget sidestuff []
   (box :class "sidestuff" :orientation "h" :space-evenly false :halign "end"
-    (slider-vol)
-    (slider-ram)
+    (metric :label "🔊"
+            :value volume
+            :onchange "amixer -D pulse sset Master {}%")
+    (metric :label ""
+            :value EWW_RAM
+            :onchange "")
+    (metric :label "💾"
+            :value {round((1 - (EWW_DISK["/"].free / EWW_DISK["/"].total)) * 100, 0)}
+            :onchange "")
     time))
 
 (defwidget workspaces []
@@ -27,27 +34,34 @@
     (button :onclick "wmctrl -s 8" 9)))
 
 (defwidget music []
-  (box :class "music" :orientation "h" :space-evenly false :halign "center"
+  (box :class "music"
+       :orientation "h"
+       :space-evenly false
+       :halign "center"
     '🎵${music}'))
 
-(defwidget slider-vol []
-  (box :class "slider-vol" :orientation "h" :space-evenly "false"
-    (box :class "label-vol" "🔊"
-      (scale :min 0 :max 101 :value volume :onchange "amixer -D pulse sset Master {}%"))))
 
-(defwidget slider-ram []
-  (box :orientation "h" :class "slider-ram" :space-evenly false
-    (box :class "label-ram" ""
-      (scale :min 0 :max 101 :active false :value EWW_RAM))))
+(defwidget metric [label value onchange]
+  (box :orientation "h"
+       :class "metric"
+       :space-evenly false
+    (box :class "label" label)
+    (scale :min 0
+           :max 101
+           :active {onchange != ""}
+           :value value
+           :onchange onchange)))
 
 
 
+(defpoll music :interval "5s"
+  "playerctl metadata --format '{{ artist }} - {{ title }}' || true")
 
+(defpoll volume :interval "1s"
+  "scripts/getvol")
 
-(defpoll music :interval "5s" "playerctl metadata --format '{{ artist }} - {{ title }}' || true")
-(defpoll volume :interval "1s" "scripts/getvol")
-
-(defpoll time :interval "10s" "date '+%H:%M %b %d, %Y'")
+(defpoll time :interval "10s"
+  "date '+%H:%M %b %d, %Y'")
 
 (defwindow bar
   :monitor 0

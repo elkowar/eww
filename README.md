@@ -15,7 +15,7 @@ YUCK IS ALIVE! After months of waiting, the new configuration language has now b
 This also means that XML is no longer supported from this point onwards.
 If you want to keep using the latest releases of eww, you'll need to migrate your config over to yuck.
 
-The steps to migrate can be found in [the migration guide](YUCK_MIGRATION.md)
+The steps to migrate can be found in [the migration guide](YUCK_MIGRATION.md).
 
 Additionally, a couple _amazing_ people have started to work on an
 [automatic converter](https://github.com/undefinedDarkness/ewwxml) that can turn your old eww.xml into the new yuck format!
