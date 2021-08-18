@@ -203,7 +203,8 @@ impl App {
 
         self.open_windows
             .remove(window_name)
-            .with_context(|| format!("Tried to close window named '{}', but no such window was open", window_name))?;
+            .with_context(|| format!("Tried to close window named '{}', but no such window was open", window_name))?
+            .close();
 
         self.eww_state.clear_window_state(window_name);
 
