@@ -170,6 +170,163 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="widgets"><a class="header" href="#widgets">Widgets</a></h1>
+<h2 id="widget"><a class="header" href="#widget"><code>widget</code></a></h2>
+<p>these properties apply to <em>all</em> widgets, and can be used anywhere!</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>class</code></strong>: <em><code>string</code></em> css class name</li>
+<li><strong><code>valign</code></strong>: <em><code>string</code></em> how to align this vertically. possible values: &quot;fill&quot;, &quot;baseline&quot;, &quot;center&quot;, &quot;start&quot;, &quot;end&quot;</li>
+<li><strong><code>halign</code></strong>: <em><code>string</code></em> how to align this horizontally. possible values: &quot;fill&quot;, &quot;baseline&quot;, &quot;center&quot;, &quot;start&quot;, &quot;end&quot;</li>
+<li><strong><code>vexpand</code></strong>: <em><code>bool</code></em> should this container expand vertically. Default: false.</li>
+<li><strong><code>hexpand</code></strong>: <em><code>bool</code></em> should this widget expand horizontally. Default: false.</li>
+<li><strong><code>width</code></strong>: <em><code>float</code></em> width of this element. note that this can not restrict the size if the contents stretch it</li>
+<li><strong><code>height</code></strong>: <em><code>float</code></em> height of this element. note that this can not restrict the size if the contents stretch it</li>
+<li><strong><code>active</code></strong>: <em><code>bool</code></em> If this widget can be interacted with</li>
+<li><strong><code>tooltip</code></strong>: <em><code>string</code></em> tooltip text (on hover)</li>
+<li><strong><code>visible</code></strong>: <em><code>bool</code></em> visibility of the widget</li>
+<li><strong><code>style</code></strong>: <em><code>string</code></em> inline css style applied to the widget</li>
+<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command</li>
+<li><strong><code>onscroll</code></strong>: <em><code>string</code></em> event to execute when the user scrolls with the mouse over the widget. The placeholder <code>{}</code> used in the command will be replaced with either <code>up</code> or <code>down</code>.</li>
+<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command</li>
+<li><strong><code>onhover</code></strong>: <em><code>string</code></em> event to execute when the user hovers over the widget</li>
+<li><strong><code>cursor</code></strong>: <em><code>string</code></em> Cursor to show while hovering (see <a href="https://developer.gnome.org/gdk3/stable/gdk3-Cursors.html">gtk3-cursors</a> for possible names)</li>
+</ul>
+<h2 id="combo-box-text"><a class="header" href="#combo-box-text"><code>combo-box-text</code></a></h2>
+<p>A combo box allowing the user to choose between several items.</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>items</code></strong>: <em><code>vec</code></em> Items that should be displayed in the combo box</li>
+<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command</li>
+<li><strong><code>onchange</code></strong>: <em><code>string</code></em> runs the code when a item was selected, replacing {} with the item as a string</li>
+</ul>
+<h2 id="expander"><a class="header" href="#expander"><code>expander</code></a></h2>
+<p>A widget that can expand and collapse, showing/hiding it's children.</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>name</code></strong>: <em><code>string</code></em> name of the expander</li>
+<li><strong><code>expanded</code></strong>: <em><code>bool</code></em> sets if the tree is expanded</li>
+</ul>
+<h2 id="revealer"><a class="header" href="#revealer"><code>revealer</code></a></h2>
+<p>A widget that can reveal a child with an animation.</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>transition</code></strong>: <em><code>string</code></em> the name of the transition. Possible values: &quot;slideright&quot;, &quot;slideleft&quot;, &quot;slideup&quot;, &quot;slidedown&quot;, &quot;crossfade&quot;, &quot;none&quot;</li>
+<li><strong><code>reveal</code></strong>: <em><code>bool</code></em> sets if the child is revealed or not</li>
+<li><strong><code>duration</code></strong>: <em><code>duration</code></em> the duration of the reveal transition</li>
+</ul>
+<h2 id="a-checkbox"><a class="header" href="#a-checkbox"><code>a checkbox</code></a></h2>
+<p>A checkbox that can trigger events on checked / unchecked.</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command</li>
+<li><strong><code>onchecked</code></strong>: <em><code>string</code></em> action (command) to be executed when checked by the user</li>
+<li><strong><code>onunchecked</code></strong>: <em><code>string</code></em> similar to onchecked but when the widget is unchecked</li>
+</ul>
+<h2 id="color-button"><a class="header" href="#color-button"><code>color-button</code></a></h2>
+<p>A button opening a color chooser window</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>use-alpha</code></strong>: <em><code>bool</code></em> bool to whether or not use alpha</li>
+<li><strong><code>onchange</code></strong>: <em><code>string</code></em> runs the code when the color was selected</li>
+<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command</li>
+</ul>
+<h2 id="color-chooser"><a class="header" href="#color-chooser"><code>color-chooser</code></a></h2>
+<p>A color chooser widget</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>use-alpha</code></strong>: <em><code>bool</code></em> bool to wether or not use alpha</li>
+<li><strong><code>onchange</code></strong>: <em><code>string</code></em> runs the code when the color was selected</li>
+<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command</li>
+</ul>
+<h2 id="scale"><a class="header" href="#scale"><code>scale</code></a></h2>
+<p>A slider.</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>flipped</code></strong>: <em><code>bool</code></em> flip the direction</li>
+<li><strong><code>draw-value</code></strong>: <em><code>bool</code></em> draw the value of the property</li>
+<li><strong><code>value</code></strong>: <em><code>float</code></em> the value</li>
+<li><strong><code>min</code></strong>: <em><code>float</code></em> the minimum value</li>
+<li><strong><code>max</code></strong>: <em><code>float</code></em> the maximum value</li>
+<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command</li>
+<li><strong><code>onchange</code></strong>: <em><code>string</code></em> command executed once the value is changes. The placeholder <code>{}</code>, used in the command will be replaced by the new value.</li>
+</ul>
+<h2 id="progress"><a class="header" href="#progress"><code>progress</code></a></h2>
+<p>A progress bar</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>flipped</code></strong>: <em><code>bool</code></em> flip the direction</li>
+<li><strong><code>value</code></strong>: <em><code>float</code></em> value of the progress bar (between 0-100)</li>
+<li><strong><code>orientation</code></strong>: <em><code>string</code></em> orientation of the progress bar. possible values: &quot;vertical&quot;, &quot;v&quot;, &quot;horizontal&quot;, &quot;h&quot;</li>
+</ul>
+<h2 id="input"><a class="header" href="#input"><code>input</code></a></h2>
+<p>An input field. For this to be useful, set <code>focusable=&quot;true&quot;</code> on the window.</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>value</code></strong>: <em><code>string</code></em> the content of the text field</li>
+<li><strong><code>onchange</code></strong>: <em><code>string</code></em> Command to run when the text changes. The placeholder <code>{}</code> will be replaced by the value</li>
+<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command</li>
+</ul>
+<h2 id="button"><a class="header" href="#button"><code>button</code></a></h2>
+<p>A button</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>onclick</code></strong>: <em><code>no-type-found</code></em> a command that get's run when the button is clicked</li>
+<li><strong><code>onmiddleclick</code></strong>: <em><code>no-type-found</code></em> a command that get's run when the button is middleclicked</li>
+<li><strong><code>onrightclick</code></strong>: <em><code>no-type-found</code></em> a command that get's run when the button is rightclicked</li>
+<li><strong><code>timeout</code></strong>: <em><code>no-type-found</code></em> timeout of the command</li>
+</ul>
+<h2 id="image"><a class="header" href="#image"><code>image</code></a></h2>
+<p>A widget displaying an image</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>path</code></strong>: <em><code>string</code></em> path to the image file</li>
+<li><strong><code>width</code></strong>: <em><code>int</code></em> width of the image</li>
+<li><strong><code>height</code></strong>: <em><code>int</code></em> height of the image</li>
+</ul>
+<h2 id="box"><a class="header" href="#box"><code>box</code></a></h2>
+<p>the main layout container</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>spacing</code></strong>: <em><code>int</code></em> spacing between elements</li>
+<li><strong><code>orientation</code></strong>: <em><code>string</code></em> orientation of the box. possible values: &quot;vertical&quot;, &quot;v&quot;, &quot;horizontal&quot;, &quot;h&quot;</li>
+<li><strong><code>space-evenly</code></strong>: <em><code>bool</code></em> space the widgets evenly.</li>
+</ul>
+<h2 id="centerbox"><a class="header" href="#centerbox"><code>centerbox</code></a></h2>
+<p>a box that must contain exactly three children, which will be layed out at the start, center and end of the container.</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>orientation</code></strong>: <em><code>string</code></em> orientation of the centerbox. possible values: &quot;vertical&quot;, &quot;v&quot;, &quot;horizontal&quot;, &quot;h&quot;</li>
+</ul>
+<h2 id="label"><a class="header" href="#label"><code>label</code></a></h2>
+<p>A text widget giving you more control over how the text is displayed</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>text</code></strong>: <em><code>string</code></em> the text to display</li>
+<li><strong><code>limit-width</code></strong>: <em><code>int</code></em> maximum count of characters to display</li>
+<li><strong><code>markup</code></strong>: <em><code>string</code></em> Pango markup to display</li>
+<li><strong><code>wrap</code></strong>: <em><code>bool</code></em> Wrap the text. This mainly makes sense if you set the width of this widget.</li>
+<li><strong><code>angle</code></strong>: <em><code>float</code></em> the angle of rotation for the label (between 0 - 360)</li>
+</ul>
+<h2 id="literal"><a class="header" href="#literal"><code>literal</code></a></h2>
+<p>A widget that allows you to render arbitrary yuck.</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>content</code></strong>: <em><code>string</code></em> inline yuck that will be rendered as a widget.</li>
+</ul>
+<h2 id="calendar"><a class="header" href="#calendar"><code>calendar</code></a></h2>
+<p>A widget that displays a calendar</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>day</code></strong>: <em><code>float</code></em> the selected day</li>
+<li><strong><code>month</code></strong>: <em><code>float</code></em> the selected month</li>
+<li><strong><code>year</code></strong>: <em><code>float</code></em> the selected year</li>
+<li><strong><code>show-details</code></strong>: <em><code>bool</code></em> show details</li>
+<li><strong><code>show-heading</code></strong>: <em><code>bool</code></em> show heading line</li>
+<li><strong><code>show-day-names</code></strong>: <em><code>bool</code></em> show names of days</li>
+<li><strong><code>show-week-numbers</code></strong>: <em><code>bool</code></em> show week numbers</li>
+<li><strong><code>onclick</code></strong>: <em><code>string</code></em> command to run when the user selects a date. The <code>{}</code> placeholder will be replaced by the selected date.</li>
+<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command</li>
+</ul>
 
                     </main>
 
