@@ -1,0 +1,33 @@
+---
+source: crates/simplexpr/src/parser/lexer.rs
+expression: "Lexer::new(0, 0, r#\"bar \"foo\"\"#).collect_vec()"
+
+---
+[
+    Ok(
+        (
+            0,
+            Ident(
+                "bar",
+            ),
+            3,
+        ),
+    ),
+    Ok(
+        (
+            4,
+            StringLit(
+                [
+                    (
+                        4,
+                        Literal(
+                            "foo",
+                        ),
+                        9,
+                    ),
+                ],
+            ),
+            9,
+        ),
+    ),
+]

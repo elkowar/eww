@@ -1,0 +1,17 @@
+---
+source: crates/simplexpr/src/parser/lexer.rs
+expression: "v!(r#\"(foo + - \"()\" \"a\\\"b\" true false [] 12.2)\"#)"
+
+---
+(0, LPren, 1)
+(1, Ident("foo"), 4)
+(5, Plus, 6)
+(7, Minus, 8)
+(9, StringLit([(9, Literal("()"), 13)]), 13)
+(14, StringLit([(14, Literal("a\"b"), 20)]), 20)
+(21, True, 25)
+(26, False, 31)
+(32, LBrack, 33)
+(33, RBrack, 34)
+(35, NumLit("12.2"), 39)
+(39, RPren, 40)

@@ -1,0 +1,8 @@
+---
+source: src/lib.rs
+expression: "p.parse(Lexer::new(\"foo.bar[2 + 2] * asdf[foo.bar]\"))"
+
+---
+Ok(
+    (foo["bar"][("2" + "2")] * asdf[foo["bar"]]),
+)

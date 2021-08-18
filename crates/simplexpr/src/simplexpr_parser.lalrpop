@@ -1,0 +1,112 @@
+use crate::ast::{SimplExpr::{self, *}, BinOp::*, UnaryOp::*};
+use eww_shared_util::{Span, VarName};
+use crate::parser::lexer::{Token, LexicalError, StrLitSegment, Sp};
+use crate::parser::lalrpop_helpers::*;
+
+
+grammar(fid: usize);
+
+extern {
+  type Location = usize;
+  type Error = LexicalError;
+
+  enum Token {
+    "+"  => Token::Plus,
+    "-"  => Token::Minus,
+    "*"  => Token::Times,
+    "/"  => Token::Div,
+    "%"  => Token::Mod,
+    "==" => Token::Equals,
+    "!=" => Token::NotEquals,
+    "&&" => Token::And,
+    "||" => Token::Or,
+    ">"  => Token::GT,
+    "<"  => Token::LT,
+    "?:" => Token::Elvis,
+    "=~" => Token::RegexMatch,
+
+    "!"  => Token::Not,
+
+    ","  => Token::Comma,
+    "?"  => Token::Question,
+    ":"  => Token::Colon,
+    "("  => Token::LPren,
+    ")"  => Token::RPren,
+    "["  => Token::LBrack,
+    "]"  => Token::RBrack,
+    "."  => Token::Dot,
+
+    "true"  => Token::True,
+    "false" => Token::False,
+
+    "identifier" => Token::Ident(<String>),
+    "number"     => Token::NumLit(<String>),
+    "string"     => Token::StringLit(<Vec<Sp<StrLitSegment>>>),
+
+  }
+}
+
+Comma<T>: Vec<T> = {
+    <mut v:(<T> ",")*> <e:T?> => match e {
+        None => v,
+        Some(e) => {
+            v.push(e);
+            v
+        }
+    }
+};
+
+pub Expr: SimplExpr = {
+
+  #[precedence(level="0")]
+  //<l:@L> "lexer_error" <r:@R> =>? {
+  //  Err(ParseError::User { error: LexicalError(l, r, fid) })
+  //},
+
+  <l:@L> <x:"string"> <r:@R> =>? parse_stringlit(Span(l, r, fid), x),
+  <l:@L> <x:"number"> <r:@R> => SimplExpr::literal(Span(l, r, fid), x),
+  <l:@L> "true"       <r:@R> => SimplExpr::literal(Span(l, r, fid), "true".into()),
+  <l:@L> "false"      <r:@R> => SimplExpr::literal(Span(l, r, fid), "false".into()),
+
+  <l:@L> <ident:"identifier"> <r:@R> => VarRef(Span(l, r, fid), VarName(ident.to_string())),
+  "(" <ExprReset> ")",
+
+  #[precedence(level="1")] #[assoc(side="right")]
+  <l:@L> <ident:"identifier"> "(" <args: Comma<ExprReset>> ")" <r:@R> => FunctionCall(Span(l, r, fid), ident, args),
+  <l:@L> <value:Expr>         "[" <index: ExprReset>       "]" <r:@R> => JsonAccess(Span(l, r, fid), b(value), b(index)),
+
+  <l:@L> <value:Expr> "." <lit_l:@L> <index:"identifier"> <r:@R> => {
+    JsonAccess(Span(l, r, fid), b(value), b(Literal(index.into())))
+  },
+
+  #[precedence(level="2")] #[assoc(side="right")]
+  <l:@L> "!" <e:Expr> <r:@R> => UnaryOp(Span(l, r, fid), Not, b(e)),
+
+  #[precedence(level="3")] #[assoc(side="left")]
+  <l:@L> <le:Expr> "*"  <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), Times,       b(re)),
+  <l:@L> <le:Expr> "/"  <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), Div,         b(re)),
+  <l:@L> <le:Expr> "%"  <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), Mod,         b(re)),
+
+  #[precedence(level="4")] #[assoc(side="left")]
+  <l:@L> <le:Expr> "+"  <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), Plus,        b(re)),
+  <l:@L> <le:Expr> "-"  <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), Minus,       b(re)),
+
+  #[precedence(level="5")] #[assoc(side="left")]
+  <l:@L> <le:Expr> "==" <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), Equals,     b(re)),
+  <l:@L> <le:Expr> "!=" <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), NotEquals,  b(re)),
+  <l:@L> <le:Expr> "<"  <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), GT,         b(re)),
+  <l:@L> <le:Expr> ">"  <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), LT,         b(re)),
+  <l:@L> <le:Expr> "=~" <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), RegexMatch, b(re)),
+
+  #[precedence(level="6")] #[assoc(side="left")]
+  <l:@L> <le:Expr> "&&" <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), And,        b(re)),
+  <l:@L> <le:Expr> "||" <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), Or,         b(re)),
+  <l:@L> <le:Expr> "?:" <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), Elvis,      b(re)),
+
+  #[precedence(level="7")] #[assoc(side="right")]
+  <l:@L> <cond:Expr> "?" <then:ExprReset> ":" <els:Expr> <r:@R> => {
+    IfElse(Span(l, r, fid), b(cond), b(then), b(els))
+  },
+};
+
+ExprReset = <Expr>;

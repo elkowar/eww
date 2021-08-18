@@ -1,0 +1,20 @@
+---
+source: src/lib.rs
+expression: "p.parse(Lexer::new(\"foo.bar.baz\"))"
+
+---
+Ok(
+    JsonAccess(
+        JsonAccess(
+            VarRef(
+                "foo",
+            ),
+            Literal(
+                "bar",
+            ),
+        ),
+        Literal(
+            "baz",
+        ),
+    ),
+)

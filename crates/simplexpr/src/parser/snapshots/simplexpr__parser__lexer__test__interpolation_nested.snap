@@ -1,0 +1,6 @@
+---
+source: crates/simplexpr/src/parser/lexer.rs
+expression: "v!(r#\" \"foo ${(2 * 2) + \"${5 + 5}\"} bar\" \"#)"
+
+---
+(1, StringLit([(1, Literal("foo "), 8), (8, Interp([(8, LPren, 9), (9, NumLit("2"), 10), (11, Times, 12), (13, NumLit("2"), 14), (14, RPren, 15), (16, Plus, 17), (18, StringLit([(18, Literal(""), 21), (21, Interp([(21, NumLit("5"), 22), (23, Plus, 24), (25, NumLit("5"), 26)]), 26), (26, Literal(""), 28)]), 28)]), 28), (28, Literal(" bar"), 34)]), 34)

@@ -1,0 +1,15 @@
+---
+source: src/lib.rs
+expression: "p.parse(Lexer::new(\"hi[\\\"ho\\\"]\"))"
+
+---
+Ok(
+    JsonAccess(
+        VarRef(
+            "hi",
+        ),
+        Literal(
+            "ho",
+        ),
+    ),
+)

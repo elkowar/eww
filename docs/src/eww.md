@@ -5,7 +5,7 @@ is a widget system made in [rust](https://www.rust-lang.org/),
 which let's you create your own widgets similarly to how you can in AwesomeWM.
 The key difference: It is independent of your window manager!
 
-Configured in XML and themed using CSS, it is easy to customize and provides all the flexibility you need!
+Configured in yuck and themed using CSS, it is easy to customize and provides all the flexibility you need!
 
 
 ## How to install Eww
@@ -21,7 +21,7 @@ as this makes it easy to use the nightly toolchain necessary to build eww.
 
 ### Building
 
-Once you have the Prerequisites ready, you're ready to install and build eww.
+Once you have the prerequisites ready, you're ready to install and build eww.
 
 First clone the repo:
 ```bash
@@ -55,4 +55,3 @@ and then to run it do
 ./eww daemon
 ./eww open <window_name>
 ```
-`<window_name>` is the name of the window, see [The windows block](configuration.md#windows-block).

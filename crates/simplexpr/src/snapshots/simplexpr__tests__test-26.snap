@@ -1,0 +1,42 @@
+---
+source: src/lib.rs
+expression: "p.parse(Lexer::new(\"foo.bar[2 + 2] * asdf[foo.bar]\"))"
+
+---
+Ok(
+    BinOp(
+        JsonAccess(
+            JsonAccess(
+                VarRef(
+                    "foo",
+                ),
+                Literal(
+                    "bar",
+                ),
+            ),
+            BinOp(
+                Literal(
+                    "2",
+                ),
+                Plus,
+                Literal(
+                    "2",
+                ),
+            ),
+        ),
+        Times,
+        JsonAccess(
+            VarRef(
+                "asdf",
+            ),
+            JsonAccess(
+                VarRef(
+                    "foo",
+                ),
+                Literal(
+                    "bar",
+                ),
+            ),
+        ),
+    ),
+)

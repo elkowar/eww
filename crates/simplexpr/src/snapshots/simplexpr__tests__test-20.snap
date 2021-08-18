@@ -1,0 +1,16 @@
+---
+source: src/lib.rs
+expression: "p.parse(Lexer::new(\"\\\"foo\\\" + 12.4\"))"
+
+---
+Ok(
+    BinOp(
+        Literal(
+            "foo",
+        ),
+        Plus,
+        Literal(
+            "12.4",
+        ),
+    ),
+)

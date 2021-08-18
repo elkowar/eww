@@ -1,0 +1,54 @@
+---
+source: crates/yuck/src/parser/lexer.rs
+expression: "Lexer::new(0, r#\"{ bla \"} \\\" }\" \" \\\" \"}\"#.to_string()).collect_vec()"
+
+---
+[
+    Ok(
+        (
+            2,
+            SimplExpr(
+                [
+                    (
+                        2,
+                        Ident(
+                            "bla",
+                        ),
+                        5,
+                    ),
+                    (
+                        6,
+                        StringLit(
+                            [
+                                (
+                                    6,
+                                    Literal(
+                                        "} \" }",
+                                    ),
+                                    14,
+                                ),
+                            ],
+                        ),
+                        14,
+                    ),
+                    (
+                        15,
+                        StringLit(
+                            [
+                                (
+                                    15,
+                                    Literal(
+                                        " \" ",
+                                    ),
+                                    21,
+                                ),
+                            ],
+                        ),
+                        21,
+                    ),
+                ],
+            ),
+            21,
+        ),
+    ),
+]

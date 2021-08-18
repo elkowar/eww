@@ -1,0 +1,69 @@
+use std::str::FromStr;
+use crate::parser::{lexer::Token, ast::Ast, parse_error};
+use eww_shared_util::Span;
+use simplexpr::ast::SimplExpr;
+use simplexpr;
+use lalrpop_util::ParseError;
+
+grammar(file_id: usize);
+
+extern {
+    type Location = usize;
+    type Error = parse_error::ParseError;
+
+    enum Token {
+        "(" => Token::LPren,
+        ")" => Token::RPren,
+        "[" => Token::LBrack,
+        "]" => Token::RBrack,
+        "true" => Token::True,
+        "false" => Token::False,
+        "number" => Token::NumLit(<String>),
+        "symbol" => Token::Symbol(<String>),
+        "keyword" => Token::Keyword(<String>),
+        "simplexpr" => Token::SimplExpr(<Vec<(usize, simplexpr::parser::lexer::Token, usize)>>),
+        "comment" => Token::Comment,
+    }
+}
+
+pub Toplevel: (Span, Vec<Ast>) = {
+    <l:@L> <elems:(<Ast>)*> <r:@R> => (Span(l, r, file_id), elems)
+}
+
+pub Ast: Ast = {
+    <l:@L> "(" <elems:(<Ast>)*> ")" <r:@R> => Ast::List(Span(l, r, file_id), elems),
+    <l:@L> "[" <elems:(<Ast>)*> "]" <r:@R> => Ast::Array(Span(l, r, file_id), elems),
+    <l:@L> <expr:SimplExpr> <r:@R> => Ast::SimplExpr(Span(l, r, file_id), expr),
+    <x:Keyword> => x,
+    <x:Symbol> => x,
+    <l:@L> <x:Literal> <r:@R> => Ast::SimplExpr(Span(l, r, file_id), SimplExpr::literal(Span(l, r, file_id), x.into())),
+    <l:@L> "comment" <r:@R> => Ast::Comment(Span(l, r, file_id)),
+};
+
+Keyword: Ast = <l:@L> <x:"keyword"> <r:@R> => Ast::Keyword(Span(l, r, file_id), x[1..].to_string());
+Symbol: Ast = <l:@L> <x:"symbol"> <r:@R> => Ast::Symbol(Span(l, r, file_id), x.to_string());
+
+Literal: String = {
+    <Num> => <>,
+    <Bool> => <>,
+};
+
+SimplExpr: SimplExpr = {
+   <l:@L> <x:"simplexpr"> =>? {
+        let parser = simplexpr::simplexpr_parser::ExprParser::new();
+        parser.parse(file_id, x.into_iter().map(Ok))
+            .map_err(|e| ParseError::User {
+                error: parse_error::ParseError::SimplExpr(simplexpr::error::Error::from_parse_error(file_id, e))
+            })
+   }
+}
+
+
+Num: String = <"number"> => <>.to_string();
+Bool: String = {
+    "true" => "true".to_string(),
+    "false" => "false".to_string(),
+}
+
+
+// vim:shiftwidth=4

@@ -1,0 +1,41 @@
+[package]
+name = "yuck"
+version = "0.1.0"
+authors = ["elkowar <5300871+elkowar@users.noreply.github.com>"]
+edition = "2018"
+
+build = "build.rs"
+
+[features]
+default = ["x11"]
+x11 = []
+wayland = []
+
+[dependencies]
+lalrpop-util = "0.19.5"
+regex = "1"
+itertools = "0.10"
+thiserror = "1.0"
+maplit = "1.0"
+codespan-reporting = "0.11"
+
+derive_more = "0.99"
+smart-default = "0.6"
+serde = {version = "1.0", features = ["derive"]}
+serde_json = "1.0"
+once_cell = "1.8"
+
+strum = { version = "0.21", features = ["derive"] }
+anyhow = "1"
+static_assertions = "1.1"
+
+simplexpr = { path = "../simplexpr" }
+eww_shared_util = { path = "../eww_shared_util" }
+
+
+[build-dependencies]
+lalrpop = "0.19.5"
+
+[dev-dependencies]
+insta = { version = "1.7", features = ["ron"]}
+pretty_assertions = "0.7"

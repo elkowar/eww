@@ -1,0 +1,32 @@
+---
+source: crates/yuck/src/parser/lexer.rs
+expression: "Lexer::new(0, r#\"\"< \\\" >\"\"#.to_string()).collect_vec()"
+
+---
+[
+    Ok(
+        (
+            0,
+            SimplExpr(
+                [
+                    (
+                        0,
+                        StringLit(
+                            [
+                                (
+                                    0,
+                                    Literal(
+                                        "< \" >",
+                                    ),
+                                    8,
+                                ),
+                            ],
+                        ),
+                        8,
+                    ),
+                ],
+            ),
+            8,
+        ),
+    ),
+]

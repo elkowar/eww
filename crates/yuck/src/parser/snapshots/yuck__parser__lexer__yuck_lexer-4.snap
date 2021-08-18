@@ -1,0 +1,44 @@
+---
+source: crates/yuck/src/parser/lexer.rs
+expression: "Lexer::new(0, r#\"{ \"   \" + music}\"#.to_string()).collect_vec()"
+
+---
+[
+    Ok(
+        (
+            2,
+            SimplExpr(
+                [
+                    (
+                        2,
+                        StringLit(
+                            [
+                                (
+                                    2,
+                                    Literal(
+                                        "\u{f001}   ",
+                                    ),
+                                    10,
+                                ),
+                            ],
+                        ),
+                        10,
+                    ),
+                    (
+                        11,
+                        Plus,
+                        12,
+                    ),
+                    (
+                        13,
+                        Ident(
+                            "music",
+                        ),
+                        18,
+                    ),
+                ],
+            ),
+            18,
+        ),
+    ),
+]

@@ -1,0 +1,8 @@
+---
+source: src/parser/mod.rs
+expression: "p.parse(0, Lexer::new(0, \"(1 2)\".to_string()))"
+
+---
+Ok(
+    ("1" "2"),
+)

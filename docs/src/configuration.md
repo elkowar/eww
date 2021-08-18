@@ -1,256 +1,236 @@
-# Configuration
+# Writing your eww configuration
 
-For specific built in widgets `<box>, <text>, <slider>, etc` see [Widget Documentation](widgets.md)
+(For a list of all built in widgets (i.e. `box`, `label`, `button`)  see [Widget Documentation](widgets.md))
 
-## Placing the configuration file
+Eww is configured using its own language called `yuck`.
+using yuck, you declare the structure and content of your widgets, the geometry, position and behavior of any windows,
+as well as any state and data that will be used in your widgets.
+Yuck is based around S-expressions, which you may know from lisp-like languages.
+If you're using vim, you can make use of [yuck.vim](https://github.com/elkowar/yuck.vim) for editor support.
+It is also recommended to use [parinfer](https://shaunlebron.github.io/parinfer/),
+which makes working with s-expressions delightfully easy!
 
-Note: Example configuration files can be found in the `examples` directory of the repository and are showcased in [Examples](examples.md).
+Additionally, any styles are defined in scss (which is mostly just slightly improved CSS syntax).
+While eww supports a significant portion of the CSS you know from the web,
+not everything is supported, as eww relies on GTKs own CSS engine.
+Notably, some animation features are unsupported,
+as well as most layout-related CSS properties such as flexbox, `float`, absolute position or `width`/`height`.
 
-The configuration file and the scss file should lay in `$XDG_CONFIG_HOME/eww` (or, if unset, `$HOME/.config/eww`). The XML file should be named `eww.xml` and the scss should be named `eww.scss`
-So the directory structure should look like this:
-```
-$HOME
-└──.config
-    ──eww
-        ├──eww.xml
-        └──eww.scss
-```
+To get started, you'll need to create two files: `eww.yuck` and `eww.scss`.
+These files must be placed under `$XDG_CONFIG_HOME/eww` (this is most likely `~/.config/eww`).
 
-## Config structure
+Now that those files are created, you can start writing your first widget!
 
-Your config structure should look like this:
-```xml
-<eww>
-    <includes>
-        <!-- Put your <file>'s in here -->
-    </includes>
+## Creating your first window
 
-    <definitions>
-        <!-- Put your <def>'s in here -->
-    </definitions>
+Firstly, you will need to create a top-level window. Here, you configure things such as the name, position, geometry and content of your window.
 
-    <variables>
-        <!-- Put your <script-var> and <var>'s in here -->
-    </variables>
+Let's look at an example window definition:
 
-    <windows>
-        <!-- Put your window blocks here -->
-    </windows>
-</eww>
-```
-See
-[The `<includes>` block](#the-includes-block),
-[The `<definitons>` block](#the-definitions-block),
-[Variables](#variables) and the
-[The `<windows>` block](#the-windows-block).
-
-## Variables
-
-If you create a `<var>` or a `<script-var>`, you can reference them in your `<box>` by doing `{{var}}`. Where `var` is your variable name.
-
-
-### The `<var>` tag
-Allows you to repeat the same text multiple times through  without retyping it multiple times.
-
-Example: This will define a variable named `banana`, with the default value "I like bananas."
-```xml
-<variables>
-    <var name="banana">I like bananas.</var>
-</variables>
-```
-You can then reference it in your widgets by doing:
-
-```xml
-<box>
-    {{banana}}
-</box>
+```lisp
+(defwindow example
+           :monitor 0
+           :geometry (geometry :x "0%"
+                               :y "20px"
+                               :width "90%"
+                               :height "30px"
+                               :anchor "top center")
+           :stacking "fg"
+           :reserve (struts :distance "40px" :side "top")
+           :windowtype "dock"
+           :wm-ignore false
+  "example content")
 ```
 
-To change the value of the variable, and thus change the UI, you can run `eww update banana "I like apples"`
+Here, we are defining a window named `example`, which we then set a set of properties for. Additionally, we set the content of the window to be the text `"example content"`.
 
-### The `<script-var>` tag
+You can now open your first window by running `eww open example`! Glorious!
 
-Allows you to create a script that eww runs.
-Useful for creating volume sliders or anything similar.
+### `defwindow`-properties
 
-Example:
-```xml
-<variables>
-    <script-var name="date" interval="5s">
-        date +%H:%M
-    </script-var>
-</variables>
+|   Property | Description                                                  |
+| ---------: | ------------------------------------------------------------ |
+|  `monitor` | which monitor this window should be displayed on.            |
+| `geometry` | Geometry of the window.  |
+
+
+**Geometry-properties**
+
+| Property          | Description |
+| -----------------:| ------------------------------------------------------------ |
+| `x`, `y`          | Position of the window. Values may be provided in `px` or `%`. Will be relative to `anchor` |
+| `width`, `height` | Width and height of the window. Values may be provided in `px` or `%`. |
+| `anchor`          | Anchor-point of the window. Either `center` or combinations of `top`, `center`, `bottom` and `left`, `center`, `right` |
+
+
+Depending on if you are using X11 or wayland, some additional properties exist:
+
+#### x11
+
+|     Property | Description                                                  |
+| -----------: | ------------------------------------------------------------ |
+|   `stacking` | Where the window should appear in the stack. Possible values: `fg`, `bg`. |
+|  `wm-ignore` | Whether the windowmanager should ignore this window. This is useful for dashboard-style widgets that don't need to interact with other windows at all. Note that this makes some of the other properties not have any effect. Either `true` or `false` |
+|    `reserve` | Specify how the window-manager should make space for your window. This is useful for bars, which should not overlap any other windows. |
+| `windowtype` | Specify what type of window this is. This will be used by your window manager to determine how it should handle your window. Possible values: `normal`, `dock`, `toolbar`, `dialog`. Default: `dock` if `reserve` is specified, `normal` otherwise. |
+
+#### wayland
+
+|    Property | Description                                                  |
+| ----------: | ------------------------------------------------------------ |
+|  `stacking` | Where the window should appear in the stack. Possible values: `fg`, `bg`, `overlay`, `bottom`. |
+| `exclusive` | Whether the compositor should reserve space for the window automatically. |
+| `focusable` | Whether the window should be able to be focused. This is necessary for any widgets that use the keyboard to work. |
+
+
+
+## Your first widget
+
+While our bar is already looking great, it's a bit boring. Thus, let's add some actual content!
+
+```lisp
+(defwidget greeter [text name]
+  (box :orientation "horizontal"
+       :halign "center"
+    text
+    (button :onclick "notify-send 'Hello' 'Hello, ${name}'"
+      "Greet")))
 ```
 
-and then reference it by doing:
-```xml
-<box>
-    {{date}}
-</box>
+To show this, let's replace the text in our window definition with a call to this new widget:
+
+```lisp
+(defwindow example
+           ; ... values omitted
+  (greeter :text "Say hello!"
+           :name "Tim"))
 ```
 
-The `interval="5s"` part says how long time it should take before Eww runs the command again.
-Here are the available times you can set:
+There is a lot going on here, so let's step through this.
 
-| Shortened | Full name   |
-|-----------|-------------|
-| ms        | Miliseconds |
-| s         | Seconds     |
-| m         | Minutes     |
-| h         | Hours       |
+We are creating a widget named `greeter`. This widget takes two attributes, called `text` and `name`, which must be set when the widget is used.
+
+Now, we declare the body of our widget. We make use of a `box`, which we set a couple attributes of.
+
+We need this `box`, as a widget definition can only ever contain a single widget - otherwise,
+eww would not know if it should align them vertically or horizontally, how it should space them, and so on.
+Thus, we wrap multiple children in a `box.`.
+This box then contains a reference to the provided attribute `text`, as well as a button.
+In that buttons `onclick` attribute, we make refer to the provided `name` using string-interpolation syntax: `"${name}"`.
+This allows us to easily refer to any variables within strings.
+In fact, there is a lot more you can do withing `${...}` - more on that in the chapter about the [expression language](expression_language.md).
+
+To then use our widget, we call it just like we would use any other built-in widget, and provide the required attributes.
+
+As you may have noticed, we are using a couple predefined widgets here. These are all listed and explained in the [widgets chapter](widgets.md).
 
 
-### Tail
-If you don't want a set interval and instead want it to tail (run the script when it detects a change is present) you can simply remove the `interval="5s"` so it becomes:
-```xml
-<variables>
-    <script-var name="date">
-    date +%H:%M
-    </script-var>
-</variables>
-```
-## The `<includes>` block
-Here you can include other config files so that they are merged together at startup. Currently namespaced variables are not supported so be careful when reusing code.
 
-```xml
-<includes>
-  <file path="./other_config_file.xml"/>
-  <file path="./other_config_file2.xml"/>
-</includes>
-```
+## Adding dynamic content
 
-If you define a variable/widget/window, in a config file, when it's defined somewhere else, you can see a warning in the eww logs (`eww logs`)
+Now that you feel sufficiently greeted by your bar, you may realize that showing data like the time and date might be even more useful than having a button that greets you.
 
-## The `<definitions>` block
-In here your whole widget will be made, and you can also create your own widgets. Check [Widget Documentation](widgets.md) for pre-defined widgets.
+To implement dynamic content in your widgets you make use of _variables_.
 
-### Custom widgets
+These user-defined variables are globally available from all of your widgets. Whenever the variable changes, the value in the widget will update!
 
-Let's get a small config and break it down.
+There are four different types of variables: basic, polling, listening, and a set of builtin "magic" variables.
 
-```xml
-<definitions>
-    <def name="clock">
-        <box>
-            The time is: {{my_time}} currently.
-        </box>
-    </def>
-    <def name="main">
-        <box>
-            <clock my_time="{{date}}"/>
-        </box>
-    </def>
-</definitions>
+**Basic variables (`defvar`)**
 
-<variables>
-    <script-var name="date">
-        date
-    </script-var>
-</variables>
-```
-That's a long config just for a custom widget. But let's break it down and try to understand it.
-
-This part:
-```xml
-<def name="clock">
-    <box>
-        The time is: {{my_time}} currently.
-    </box>
-</def>
-```
-Is the custom widget. As we can see by the
-```xml
-<def name="clock">
-```
-the widget is called `clock.`Or referenced `<clock>`
-The `{{my_time}}` is the value we assign to be well, our time. You can actually set to be anything, it doesn't have to be a time. You can compare it to `value=""`
-
-So if we look at:
-```xml
-<def name="main">
-    <box>
-        <clock my_time="{{date}}"/>
-    </box>
-</def>
-```
-we can see that we assign `{{my_time}}` to be `{{date}}` and if we look at
-```xml
-<script-var name="date">
-    date
-</script-var>
-```
-we can see that `{{date}}` is simply running the `date` command.
-
-It doesn't have to be `{{my_time}}` either, it can be anything.
-```xml
-<def name="clock">
-    <box>
-        The time is: {{very_long_list_of_animals}} currently.
-    </box>
-</def>
-```
-is valid.
-
-To use that it would look like this:
-```xml
-<def name="main">
-    <box>
-        <clock very_long_list_of_animals="{{date}}"/>
-    </box>
-</def>
-```
-## The `<windows>` block
-
-All different windows you might want to use are defined in the `<windows>` block.
-The `<windows>` config should look something like this:
-
-```xml
-<windows>
-    <window name="main_window" stacking="fg" focusable="false" screen="1">
-        <geometry anchor="top left" x="300px" y="50%" width="25%" height="20px"/>
-        <reserve side="left" distance="50px"/>
-        <widget>
-            <main/>
-        </widget>
-    </window>
-</windows>
+```lisp
+(defvar foo "initial value")
 ```
 
-For Wayland users the `<reserve/>` block is replaced by the exclusive field in `<window>`.
-The previous `<window>` block would look like this.
+This is the simplest type of variable.
+Basic variables don't ever change automatically.
+Instead, you explicitly update them by calling eww like so: `eww update foo="new value"`.
 
-```xml
-    <window name="main_window" stacking="fg" focusable="false" screen="1" exclusive="true" windowtype="normal">
-        <geometry anchor="top left" x="300px" y="50%" width="25%" height="20px"/>
-        <widget>
-            <main/>
-        </widget>
-    </window>
+This is useful if you have values that change very rarely, or may change as a result of some external script you wrote.
+They may also be useful to have buttons within eww change what is shown within your widget, by setting attributes like `onclick` to run `eww update`.
+
+**Polling variables (`defpoll`)**
+
+```lisp
+(defpoll time :interval "1s"
+              :timeout "0.1s" ; setting timeout is optional
+  `date +%H:%M:%S`)
 ```
 
-The window block contains multiple elements to configure the window.
-- `<geometry>` is used to specify the position and size of the window.
-- `<reserve>` is used to have eww reserve space at a given side of the screen the widget is on.
-- `<widget>` will contain the widget that is shown in the window.
+A polling variable is a variable which runs a provided shell-script repeatedly, in a given interval.
 
-There are a couple things you can optionally configure on the window itself:
-- `stacking`: stacking describes on what "layer" of the screen the window is shown.
-  Possible values on the X11 backend: `foreground "fg"`, `background "bg"`. Default: `"fg"`
-  Possible values on the Wayland backend: `foreground "fg"`, `bottom "bt"`, `background "bg"`, `overlay "ov"`. Default: `"fg"`
-- `focusable`: whether the window should be focusable by the windowmanager.
-  This is necessary for things like text-input-fields to work properly.
-  Possible values: `"true"`, `"false"`. Default: `"false"`
-- `screen`: Specifies on which display to show the window in a multi-monitor setup.
-  This can be any number, representing the index of your monitor.
-- `exclusive`: Specifies whether or not a surface can be occupied by another.
-  A surface can be a window, an Eww widget or any layershell surface.
-  The details on how it is actually implemented are left to the compositor.
-  This option is only valid on Wayland.
-  Possible values: `"true"`, `"false"`. Default: `"false"`
-- `windowtype`: (X11 only) Can be used in determining the decoration, stacking position and other behavior of the window.
-  Possible values: 
-    - `"normal"`: indicates that this is a normal, top-level window
-    - `"dock"`: indicates a dock or panel feature
-    - `"toolbar"`: toolbars "torn off" from the main application
-    - `"dialog"`: indicates that this is a dialog window
-    - Default: `"dock"` if reserve is set, else `"normal"` 
+This may be the most commonly used type of variable.
+They are useful to access any quickly retrieved value repeatedly,
+and thus are the perfect choice for showing your time, date, as well as other bits of information such as your volume.
+
+Optionally, you can specify a timeout, after which the provided script will be aborted.
+This helps to avoid accidentally launching thousands of never-ending processes on your system.
+
+**Listening variables (`deflisten`)**
+
+```lisp
+(deflisten foo :initial "whatever"
+  `tail -F /tmp/some_file`)
+```
+
+Listening variables might be the most confusing of the bunch.
+A listening variable runs a script once, and reads its output continously.
+Whenever the script outputs a new line, the value will be updated to that new line.
+In the example given above, the value of `foo` will start out as `"whatever"`, and will change whenever a new line is appended to `/tmp/some_file`.
+
+These are particularly useful if you have a script that can monitor some value on its own.
+For example, the command `xprop -spy -root _NET_CURRENT_DESKTOP` writes the currently focused desktop whenever it changes.
+This can be used to implement a workspace widget for a bar, for example.
+Another example usecase is monitoring the currently playing song with playerctl: `playerctl --follow metadata --format {{title}}`.
+
+**Built-in "magic" variables**
+
+In addition to definition your own variables, eww provides some values for you to use out of the box.
+These include values such as your CPU and RAM usage.
+These mostly contain their data as JSON, which you can then use using the [json access syntax](expression_language.md).
+All available magic variables are listed [here](magic-vars.md).
+
+## Dynamically generated widgets with `literal`
+
+In some cases, you want to not only change the text,
+value or color of a widget dynamically, but instead want to generate an entire widget structure dynamically.
+This is necessary if you want to display lists of things (for example notifications)
+where the amount is not necessarily known,
+or if you want to change the widget structure in some other more complex way.
+
+For this, you can make use of one of ewws most powerful features: the `literal` widget.
+
+```lisp
+(defvar variable_containing_yuck
+  "(box (button 'foo') (button 'bar'))")
+
+; then, inside your widget, use:
+(literal :content variable_containing_yuck)
+```
+
+Here, you specify the content of your literal by providing it a string (most likely stored in a variable) which contains a single yuck widget tree.
+Eww then reads the provided value and renders the resulting widget. Whenever it changes, the widget will be rerendered.
+
+Note that this is not all that efficient. Make sure to only use `literal` when necessary!
+
+## Splitting up your configuration
+
+As time passes, your configuration might grow larger and larger. Luckily, you can easily split up your configuration into multiple files!
+
+There are two options to achieve this:
+
+### Using `include`
+
+```lisp
+(include "./path/to/your/file.yuck")
+```
+
+A single yuck-file may import the contents of any other yuck file. For this, make use of the `include` directive.
+
+### Using a separate eww configuration directory
+
+If you want to separate different widgets even further, you can create a new eww config folder anywhere else.
+Then, you can tell eww to use that configuration directory by passing _every_ command the `--config /path/to/your/config/dir` flag.
+Make sure to actually include this in all your `eww` calls, including `eww kill`, `eww logs`, etc.
+This launches a separate instance of the eww daemon, that has separate logs and state from your main eww configuration.
+

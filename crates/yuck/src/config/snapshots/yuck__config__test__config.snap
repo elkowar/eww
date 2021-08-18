@@ -1,0 +1,94 @@
+---
+source: crates/yuck/src/config/test.rs
+expression: config.unwrap()
+
+---
+Config(
+  widget_definitions: {
+    "bar": WidgetDefinition(
+      name: "bar",
+      expected_args: [
+        AttrName("arg"),
+        AttrName("arg2"),
+      ],
+      widget: WidgetUse(
+        name: "foo",
+        attrs: Attributes(
+          span: Span(51, 61, 0),
+          attrs: {
+            AttrName("arg"): AttrEntry(
+              key_span: Span(52, 56, 0),
+              value: SimplExpr(Span(57, 61, 0), Literal(DynVal("hi", Span(57, 61, 0)))),
+            ),
+          },
+        ),
+        children: [],
+        span: Span(47, 62, 0),
+        name_span: Span(48, 51, 0),
+      ),
+      span: Span(9, 63, 0),
+      args_span: Span(24, 34, 0),
+    ),
+  },
+  window_definitions: {
+    "some-window": WindowDefinition(
+      name: "some-window",
+      geometry: Some(WindowGeometry(
+        anchor_point: AnchorPoint(
+          x: START,
+          y: START,
+        ),
+        offset: Coords(
+          x: Pixels(0),
+          y: Pixels(0),
+        ),
+        size: Coords(
+          x: Percent(12),
+          y: Pixels(20),
+        ),
+      )),
+      stacking: Foreground,
+      monitor_number: Some(12),
+      widget: WidgetUse(
+        name: "bar",
+        attrs: Attributes(
+          span: Span(467, 478, 0),
+          attrs: {
+            AttrName("arg"): AttrEntry(
+              key_span: Span(468, 472, 0),
+              value: SimplExpr(Span(473, 478, 0), Literal(DynVal("bla", Span(473, 478, 0)))),
+            ),
+          },
+        ),
+        children: [],
+        span: Span(463, 479, 0),
+        name_span: Span(464, 467, 0),
+      ),
+      resizable: true,
+      backend_options: BackendWindowOptions(
+        wm_ignore: false,
+        sticky: true,
+        window_type: Dock,
+        struts: StrutDefinition(
+          side: Left,
+          dist: Pixels(30),
+        ),
+      ),
+    ),
+  },
+  var_definitions: {
+    VarName("some_var"): VarDefinition(
+      name: VarName("some_var"),
+      initial_value: DynVal("bla", Span(89, 94, 0)),
+      span: Span(72, 95, 0),
+    ),
+  },
+  script_vars: {
+    VarName("stuff"): Listen(ListenScriptVar(
+      name: VarName("stuff"),
+      command: "tail -f stuff",
+      command_span: Span(168, 183, 0),
+      name_span: Span(162, 167, 0),
+    )),
+  },
+)

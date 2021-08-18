@@ -1,0 +1,8 @@
+---
+source: crates/simplexpr/src/parser/mod.rs
+expression: "p.parse(0, Lexer::new(0, 0, \"2 + 5\"))"
+
+---
+Ok(
+    ("2" + "5"),
+)

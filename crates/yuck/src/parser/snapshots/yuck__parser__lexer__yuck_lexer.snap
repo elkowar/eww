@@ -1,0 +1,73 @@
+---
+source: crates/yuck/src/parser/lexer.rs
+expression: "Lexer::new(0, r#\"(foo + - \"text\" )\"#.to_string()).collect_vec()"
+
+---
+[
+    Ok(
+        (
+            0,
+            LPren,
+            1,
+        ),
+    ),
+    Ok(
+        (
+            1,
+            Symbol(
+                "foo",
+            ),
+            4,
+        ),
+    ),
+    Ok(
+        (
+            5,
+            Symbol(
+                "+",
+            ),
+            6,
+        ),
+    ),
+    Ok(
+        (
+            7,
+            Symbol(
+                "-",
+            ),
+            8,
+        ),
+    ),
+    Ok(
+        (
+            9,
+            SimplExpr(
+                [
+                    (
+                        9,
+                        StringLit(
+                            [
+                                (
+                                    9,
+                                    Literal(
+                                        "text",
+                                    ),
+                                    15,
+                                ),
+                            ],
+                        ),
+                        15,
+                    ),
+                ],
+            ),
+            15,
+        ),
+    ),
+    Ok(
+        (
+            16,
+            RPren,
+            17,
+        ),
+    ),
+]

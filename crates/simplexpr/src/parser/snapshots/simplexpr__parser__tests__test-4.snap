@@ -1,0 +1,8 @@
+---
+source: crates/simplexpr/src/parser/mod.rs
+expression: "p.parse(0, Lexer::new(0, 0, \"(1 + 2) * 2\"))"
+
+---
+Ok(
+    (("1" + "2") * "2"),
+)

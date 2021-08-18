@@ -1,0 +1,8 @@
+---
+source: crates/yuck/src/parser/mod.rs
+expression: "p.parse(0, Lexer::new(0, \"(lol😄 1)\".to_string()))"
+
+---
+Ok(
+    (lol😄 "1"),
+)

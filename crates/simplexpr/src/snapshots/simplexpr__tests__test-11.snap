@@ -1,0 +1,8 @@
+---
+source: src/lib.rs
+expression: "p.parse(Lexer::new(\"hi[\\\"ho\\\"]\"))"
+
+---
+Ok(
+    hi["ho"],
+)

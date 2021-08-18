@@ -1,0 +1,8 @@
+---
+source: src/lib.rs
+expression: "p.parse(Lexer::new(\"1\"))"
+
+---
+Ok(
+    "1",
+)

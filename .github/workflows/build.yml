@@ -27,6 +27,6 @@ jobs:
            run: cargo check --no-default-features --features=x11
          - name: Build wayland
            run: cargo check --no-default-features --features=wayland
-         - name: Build no-x11-wayland
-           run: cargo check --no-default-features --features=no-x11-wayland
+         - name: Build no-backend
+           run: cargo check --no-default-features
 
