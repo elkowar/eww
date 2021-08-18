@@ -137,7 +137,7 @@ async fn run_filewatch<P: AsRef<Path>>(config_dir: P, evt_send: UnboundedSender<
     use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-    let mut watcher: RecommendedWatcher = Watcher::new_immediate(move |res: notify::Result<notify::Event>| match res {
+    let mut watcher: RecommendedWatcher = Watcher::new(move |res: notify::Result<notify::Event>| match res {
         Ok(event) => {
             let relevant_files_changed = event.paths.iter().any(|path| {
                 let ext = path.extension().unwrap_or_default();
@@ -151,7 +151,7 @@ async fn run_filewatch<P: AsRef<Path>>(config_dir: P, evt_send: UnboundedSender<
         }
         Err(e) => log::error!("Encountered Error While Watching Files: {}", e),
     })?;
-    watcher.watch(&config_dir, RecursiveMode::Recursive)?;
+    watcher.watch(&config_dir.as_ref(), RecursiveMode::Recursive)?;
 
     // make sure to not trigger reloads too much by only accepting one reload every 500ms.
     let debounce_done = Arc::new(std::sync::atomic::AtomicBool::new(true));

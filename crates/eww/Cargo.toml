@@ -1,6 +1,6 @@
 [package]
 name = "eww"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["elkowar <5300871+elkowar@users.noreply.github.com>"]
 edition = "2018"
 description = "Widget system for everyone!"
@@ -39,7 +39,6 @@ serde = {version = "1.0", features = ["derive"]}
 serde_json = "1.0"
 extend = "1"
 grass = "0.10"
-num = "0.4"
 itertools = "0.10"
 debug_stub_derive = "0.3"
 log = "0.4"
@@ -53,8 +52,6 @@ unescape = "0.1"
 unindent = "0.1"
 
 tokio = { version = "1.0", features = ["full"] }
-tokio-stream = "0.1"
-async-stream = "0.3"
 futures-core = "0.3"
 futures-util = "0.3"
 tokio-util = "0.6"
@@ -72,6 +69,3 @@ codespan-reporting = "0.11"
 simplexpr = { path = "../simplexpr" }
 eww_shared_util = { path = "../eww_shared_util" }
 yuck = { path = "../yuck", default-features = false}
-
-[dev-dependencies]
-pretty_assertions = "0.7.1"
