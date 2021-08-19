@@ -414,6 +414,7 @@ dependencies = [
  "anyhow",
  "base64",
  "bincode",
+ "cairo-rs",
  "cairo-sys-rs",
  "codespan-reporting",
  "debug_stub_derive",
