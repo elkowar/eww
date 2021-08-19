@@ -106,11 +106,17 @@ pub enum ActionWithServer {
     /// Open multiple windows at once.
     /// NOTE: This will in the future be part of eww open, and will then be removed.
     #[structopt(name = "open-many")]
-    OpenMany { windows: Vec<String> },
+    OpenMany {
+        windows: Vec<String>,
 
-    /// Close the window with the given name
+        /// If a window is already open, close it instead
+        #[structopt(long = "toggle")]
+        should_toggle: bool,
+    },
+
+    /// Close the given windows
     #[structopt(name = "close", alias = "c")]
-    CloseWindow { window_name: String },
+    CloseWindows { windows: Vec<String> },
 
     /// Reload the configuration
     #[structopt(name = "reload", alias = "r")]
@@ -184,8 +190,8 @@ impl ActionWithServer {
                 let _ = send.send(DaemonResponse::Success("pong".to_owned()));
                 return (app::DaemonCommand::NoOp, Some(recv));
             }
-            ActionWithServer::OpenMany { windows } => {
-                return with_response_channel(|sender| app::DaemonCommand::OpenMany { windows, sender });
+            ActionWithServer::OpenMany { windows, should_toggle } => {
+                return with_response_channel(|sender| app::DaemonCommand::OpenMany { windows, should_toggle, sender });
             }
             ActionWithServer::OpenWindow { window_name, pos, size, screen, anchor, should_toggle } => {
                 return with_response_channel(|sender| app::DaemonCommand::OpenWindow {
@@ -198,8 +204,8 @@ impl ActionWithServer {
                     sender,
                 })
             }
-            ActionWithServer::CloseWindow { window_name } => {
-                return with_response_channel(|sender| app::DaemonCommand::CloseWindow { window_name, sender });
+            ActionWithServer::CloseWindows { windows } => {
+                return with_response_channel(|sender| app::DaemonCommand::CloseWindows { windows, sender });
             }
             ActionWithServer::Reload => return with_response_channel(app::DaemonCommand::ReloadConfigAndCss),
             ActionWithServer::ShowWindows => return with_response_channel(app::DaemonCommand::PrintWindows),

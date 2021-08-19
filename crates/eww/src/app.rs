@@ -25,6 +25,7 @@ pub enum DaemonCommand {
     UpdateCss(String),
     OpenMany {
         windows: Vec<String>,
+        should_toggle: bool,
         sender: DaemonResponseSender,
     },
     OpenWindow {
@@ -36,8 +37,8 @@ pub enum DaemonCommand {
         should_toggle: bool,
         sender: DaemonResponseSender,
     },
-    CloseWindow {
-        window_name: String,
+    CloseWindows {
+        windows: Vec<String>,
         sender: DaemonResponseSender,
     },
     KillServer,
@@ -97,23 +98,15 @@ impl App {
                     let mut errors = Vec::new();
 
                     let config_result = config::read_from_file(&self.paths.get_yuck_path());
-                    match config_result.and_then(|new_config| self.load_config(new_config)) {
-                        Ok(()) => {}
-                        Err(e) => errors.push(e),
+                    if let Err(e) = config_result.and_then(|new_config| self.load_config(new_config)) {
+                        errors.push(e)
                     }
-
                     let css_result = crate::util::parse_scss_from_file(&self.paths.get_eww_scss_path());
-                    match css_result.and_then(|css| self.load_css(&css)) {
-                        Ok(()) => {}
-                        Err(e) => errors.push(e),
+                    if let Err(e) = css_result.and_then(|css| self.load_css(&css)) {
+                        errors.push(e)
                     }
 
-                    let errors = errors.into_iter().map(|e| error_handling_ctx::format_error(&e)).join("\n");
-                    if errors.is_empty() {
-                        sender.send_success(String::new())?;
-                    } else {
-                        sender.send_failure(errors)?;
-                    }
+                    sender.respond_with_error_list(errors)?;
                 }
                 DaemonCommand::UpdateConfig(config) => {
                     self.load_config(config)?;
@@ -132,9 +125,18 @@ impl App {
                         self.close_window(&window_name)?;
                     }
                 }
-                DaemonCommand::OpenMany { windows, sender } => {
-                    let result = windows.iter().try_for_each(|w| self.open_window(w, None, None, None, None));
-                    respond_with_result(sender, result)?;
+                DaemonCommand::OpenMany { windows, should_toggle, sender } => {
+                    let errors = windows
+                        .iter()
+                        .map(|w| {
+                            if should_toggle && self.open_windows.contains_key(w) {
+                                self.close_window(w)
+                            } else {
+                                self.open_window(w, None, None, None, None)
+                            }
+                        })
+                        .filter_map(Result::err);
+                    sender.respond_with_error_list(errors)?;
                 }
                 DaemonCommand::OpenWindow { window_name, pos, size, anchor, screen: monitor, should_toggle, sender } => {
                     let result = if should_toggle && self.open_windows.contains_key(&window_name) {
@@ -142,11 +144,11 @@ impl App {
                     } else {
                         self.open_window(&window_name, pos, size, monitor, anchor)
                     };
-                    respond_with_result(sender, result)?;
+                    sender.respond_with_result(result)?;
                 }
-                DaemonCommand::CloseWindow { window_name, sender } => {
-                    let result = self.close_window(&window_name);
-                    respond_with_result(sender, result)?;
+                DaemonCommand::CloseWindows { windows, sender } => {
+                    let errors = windows.iter().map(|window| self.close_window(&window)).filter_map(Result::err);
+                    sender.respond_with_error_list(errors)?;
                 }
                 DaemonCommand::PrintState { all, sender } => {
                     let vars = self.eww_state.get_variables().iter();
@@ -269,7 +271,8 @@ impl App {
         self.eww_config = config;
         self.eww_state.clear_all_window_states();
 
-        let window_names: Vec<String> = self.open_windows.keys().cloned().chain(self.failed_windows.iter().cloned()).dedup().collect();
+        let window_names: Vec<String> =
+            self.open_windows.keys().cloned().chain(self.failed_windows.iter().cloned()).dedup().collect();
         for window_name in &window_names {
             self.open_window(&window_name, None, None, None, None)?;
         }
@@ -379,19 +382,6 @@ fn get_monitor_geometry(n: Option<i32>) -> Result<gdk::Rectangle> {
         None => display.get_primary_monitor().context("Failed to get primary monitor from GTK")?,
     };
     Ok(monitor.get_geometry())
-}
-
-/// In case of an Err, send the error message to a sender.
-fn respond_with_result<T>(sender: DaemonResponseSender, result: Result<T>) -> Result<()> {
-    match result {
-        Ok(_) => sender.send_success(String::new()),
-        Err(e) => {
-            let formatted = error_handling_ctx::format_error(&e);
-            println!("Action failed with error: {}", formatted);
-            sender.send_failure(formatted)
-        },
-    }
-    .context("sending response from main thread")
 }
 
 pub fn get_window_rectangle(geometry: WindowGeometry, screen_rect: gdk::Rectangle) -> gdk::Rectangle {
