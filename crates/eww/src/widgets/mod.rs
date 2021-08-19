@@ -9,6 +9,7 @@ use yuck::config::widget_definition::WidgetDefinition;
 use std::process::Command;
 use widget_definitions::*;
 
+pub mod circular_progressbar;
 pub mod widget_definitions;
 pub mod widget_node;
 

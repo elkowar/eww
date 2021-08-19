@@ -1,5 +1,5 @@
 #![allow(clippy::option_map_unit_fn)]
-use super::{run_command, BuilderArgs};
+use super::{circular_progressbar::*, run_command, BuilderArgs};
 use crate::{
     enum_parse, error::DiagError, error_handling_ctx, eww_state, resolve_block, util::list_difference, widgets::widget_node,
 };
@@ -25,6 +25,7 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::Widge
     let gtk_widget = match bargs.widget.name.as_str() {
         "box" => build_gtk_box(bargs)?.upcast(),
         "centerbox" => build_center_box(bargs)?.upcast(),
+        "circle-progress" => build_circular_progress_bar(bargs)?.upcast(),
         "scale" => build_gtk_scale(bargs)?.upcast(),
         "progress" => build_gtk_progress(bargs)?.upcast(),
         "image" => build_gtk_image(bargs)?.upcast(),
@@ -642,6 +643,17 @@ fn build_gtk_calendar(bargs: &mut BuilderArgs) -> Result<gtk::Calendar> {
     });
 
     Ok(gtk_widget)
+}
+
+fn build_circular_progress_bar(bargs: &mut BuilderArgs) -> Result<CircProg> {
+    let w = CircProg::new();
+    resolve_block!(bargs, w, {
+        // @prop value - the value, between 0 - 100
+        prop(value: as_f64) { w.set_property("value", &(value as f32))?; },
+        // @prop start-angle - the angle that the circle should start at
+        prop(start_angle: as_f64) { w.set_property("start-angle", &(start_angle as f32))?; },
+    });
+    Ok(w)
 }
 
 /// @var orientation - "vertical", "v", "horizontal", "h"
