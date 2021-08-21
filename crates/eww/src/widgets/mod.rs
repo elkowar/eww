@@ -1,10 +1,11 @@
-use crate::eww_state::*;
+use crate::{error_handling_ctx, eww_state::*};
 use anyhow::*;
+use codespan_reporting::diagnostic::Severity;
 use eww_shared_util::AttrName;
 use gtk::prelude::*;
 use itertools::Itertools;
 use std::collections::HashMap;
-use yuck::config::widget_definition::WidgetDefinition;
+use yuck::{config::widget_definition::WidgetDefinition, gen_diagnostic};
 
 use std::process::Command;
 use widget_definitions::*;
@@ -95,12 +96,12 @@ fn build_builtin_gtk_widget(
     resolve_widget_attrs(&mut bargs, &gtk_widget);
 
     if !bargs.unhandled_attrs.is_empty() {
-        log::error!(
-            "{}: Unknown attribute used in {}: {}",
-            format!("{} | ", widget.span),
-            widget.name,
-            bargs.unhandled_attrs.iter().map(|x| x.to_string()).join(", ")
-        )
+        let diag = error_handling_ctx::stringify_diagnostic(gen_diagnostic! {
+            kind =  Severity::Warning,
+            msg = format!("Unknown attributes {}", bargs.unhandled_attrs.iter().map(|x| x.to_string()).join(", ")),
+            label = widget.span => "Found in here"
+        })?;
+        eprintln!("{}", diag);
     }
 
     Ok(Some(gtk_widget))
