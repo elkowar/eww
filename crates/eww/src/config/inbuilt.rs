@@ -26,7 +26,7 @@ pub fn get_inbuilt_vars() -> HashMap<VarName, ScriptVarDefinition> {
         "EWW_TEMPS" => || Ok(DynVal::from(get_core_temperatures())),
 
         // @desc EWW_RAM - The current RAM + Swap usage
-        "EWW_RAM" => || Ok(DynVal::from(format!("{:.2}", get_ram()))),
+        "EWW_RAM" => || Ok(DynVal::from(get_ram())),
 
         // @desc EWW_DISK - Information on on all mounted partitions (Might report inaccurately on some filesystems, like btrfs)\nExample: `{EWW_DISK["/"]}`
         "EWW_DISK" => || Ok(DynVal::from(get_disks())),

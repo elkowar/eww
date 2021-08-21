@@ -26,10 +26,18 @@ pub fn get_disks() -> String {
     )
 }
 
-pub fn get_ram() -> f32 {
+pub fn get_ram() -> String {
     let mut c = SYSTEM.lock().unwrap();
     c.refresh_memory();
-    (c.get_used_memory() as f32 + c.get_used_swap() as f32) / 1_000_000f32
+    format!(
+        r#"{{"total_mem": {}, "free_mem": {}, "total_swap": {}, "free_swap": {}, "available_mem": {}, "used_mem": {}}}"#,
+        c.get_total_memory(),
+        c.get_free_memory(),
+        c.get_total_swap(),
+        c.get_free_swap(),
+        c.get_available_memory(),
+        c.get_used_memory(),
+    )
 }
 
 pub fn get_core_temperatures() -> String {
