@@ -2,7 +2,7 @@ use crate::eww_state::EwwState;
 use anyhow::*;
 use dyn_clone;
 use eww_shared_util::{AttrName, Span, Spanned, VarName};
-use simplexpr::{dynval::DynVal, SimplExpr};
+use simplexpr::SimplExpr;
 use std::collections::HashMap;
 use yuck::{
     config::{validate::ValidationError, widget_definition::WidgetDefinition, widget_use::WidgetUse},
@@ -123,10 +123,11 @@ pub fn generate_generic_widget_node(
             .map(|(name, value)| Ok((VarName(name.0), value.value.as_simplexpr()?.resolve_one_level(local_env))))
             .collect::<AstResult<HashMap<VarName, _>>>()?;
 
+        // handle default value for optional arguments
         for expected in def.expected_args.iter().filter(|x| x.optional) {
             let var_name = VarName(expected.name.clone().0);
             if !new_local_env.contains_key(&var_name) {
-                new_local_env.insert(var_name, SimplExpr::Literal(DynVal::from(String::new())));
+                new_local_env.insert(var_name, SimplExpr::literal(expected.span, String::new()));
             }
         }
 
