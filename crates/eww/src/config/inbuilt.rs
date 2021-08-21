@@ -22,10 +22,10 @@ macro_rules! builtin_vars {
 
 pub fn get_inbuilt_vars() -> HashMap<VarName, ScriptVarDefinition> {
     builtin_vars! {Duration::new(2, 0),
-        // @desc EWW_TEMPS - Heat of the components in Celcius\nExample: `{(CPU_TEMPS.core_1 + CPU_TEMPS.core_2) / 2}`
-        "EWW_TEMPS" => || Ok(DynVal::from(get_core_temperatures())),
+        // @desc EWW_TEMPS - Heat of the components in Celcius
+        "EWW_TEMPS" => || Ok(DynVal::from(get_temperatures())),
 
-        // @desc EWW_RAM - The current RAM + Swap usage
+        // @desc EWW_RAM - Information on ram and swap usage in kB.
         "EWW_RAM" => || Ok(DynVal::from(get_ram())),
 
         // @desc EWW_DISK - Information on on all mounted partitions (Might report inaccurately on some filesystems, like btrfs)\nExample: `{EWW_DISK["/"]}`
@@ -42,8 +42,16 @@ pub fn get_inbuilt_vars() -> HashMap<VarName, ScriptVarDefinition> {
             }
         )),
 
-        // @desc EWW_CPU_USAGE - Average CPU usage (all cores) since the last update (No MacOS support)
-        "EWW_CPU_USAGE" => || Ok(DynVal::from(get_cpus())),
+        // @desc EWW_CPU - Information on the CPU cores: frequency and usage (No MacOS support)
+        "EWW_CPU" => || Ok(DynVal::from(get_cpus())),
+
+        // TODO: Change this eventually, maybe implement an error system
+        // @desc EWW_CPU_USAGE - Outdated, use `EWW_CPU` instead
+        "EWW_CPU_USAGE" => {
+            log::warn!("EWW_CPU_BATTERY is deprecated, use EWW_CPU instead");
+            || Ok(DynVal::from(get_cpus()))
+        },
+
 
         // @desc EWW_NET - Bytes up/down on all interfaces
         "EWW_NET" => || Ok(DynVal::from(net())),

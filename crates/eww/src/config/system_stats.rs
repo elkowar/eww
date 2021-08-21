@@ -40,7 +40,7 @@ pub fn get_ram() -> String {
     )
 }
 
-pub fn get_core_temperatures() -> String {
+pub fn get_temperatures() -> String {
     let mut c = SYSTEM.lock().unwrap();
     c.refresh_components_list();
     c.refresh_components();
