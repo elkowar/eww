@@ -89,7 +89,7 @@ Depending on if you are using X11 or wayland, some additional properties exist:
 While our bar is already looking great, it's a bit boring. Thus, let's add some actual content!
 
 ```lisp
-(defwidget greeter [text name]
+(defwidget greeter [?text name]
   (box :orientation "horizontal"
        :halign "center"
     text
@@ -108,7 +108,10 @@ To show this, let's replace the text in our window definition with a call to thi
 
 There is a lot going on here, so let's step through this.
 
-We are creating a widget named `greeter`. This widget takes two attributes, called `text` and `name`, which must be set when the widget is used.
+We are creating a widget named `greeter`. This widget takes two attributes, called `text` and `name`.
+The declaration `?text` specifies that the `text`-attribute is optional, and can thus be left out. In that case,
+it's value will be the empty string `""`.
+The `name` attribute _must_ be provided.
 
 Now, we declare the body of our widget. We make use of a `box`, which we set a couple attributes of.
 

@@ -2,7 +2,7 @@ use crate::eww_state::EwwState;
 use anyhow::*;
 use dyn_clone;
 use eww_shared_util::{AttrName, Span, Spanned, VarName};
-use simplexpr::SimplExpr;
+use simplexpr::{dynval::DynVal, SimplExpr};
 use std::collections::HashMap;
 use yuck::{
     config::{validate::ValidationError, widget_definition::WidgetDefinition, widget_use::WidgetUse},
@@ -116,12 +116,19 @@ pub fn generate_generic_widget_node(
             Err(AstError::TooManyNodes(w.children_span(), 0).note("User-defined widgets cannot be given children."))?
         }
 
-        let new_local_env = w
+        let mut new_local_env = w
             .attrs
             .attrs
             .into_iter()
             .map(|(name, value)| Ok((VarName(name.0), value.value.as_simplexpr()?.resolve_one_level(local_env))))
             .collect::<AstResult<HashMap<VarName, _>>>()?;
+
+        for expected in def.expected_args.iter().filter(|x| x.optional) {
+            let var_name = VarName(expected.name.clone().0);
+            if !new_local_env.contains_key(&var_name) {
+                new_local_env.insert(var_name, SimplExpr::Literal(DynVal::from(String::new())));
+            }
+        }
 
         let content = generate_generic_widget_node(defs, &new_local_env, def.widget.clone())?;
         Ok(Box::new(UserDefined { name: w.name, span: w.span, content }))

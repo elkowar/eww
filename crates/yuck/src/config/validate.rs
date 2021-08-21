@@ -59,7 +59,7 @@ pub fn validate_widget_definition(
 ) -> Result<(), ValidationError> {
     let mut variables_in_scope = globals.clone();
     for arg in def.expected_args.iter() {
-        variables_in_scope.insert(VarName(arg.0.to_string()));
+        variables_in_scope.insert(VarName(arg.name.to_string()));
     }
 
     validate_variables_in_widget_use(other_defs, &variables_in_scope, &def.widget, true)
@@ -73,11 +73,14 @@ pub fn validate_variables_in_widget_use(
 ) -> Result<(), ValidationError> {
     let matching_definition = defs.get(&widget.name);
     if let Some(matching_def) = matching_definition {
-        let missing_arg = matching_def.expected_args.iter().find(|expected| !widget.attrs.attrs.contains_key(*expected));
+        let missing_arg = matching_def
+            .expected_args
+            .iter()
+            .find(|expected| !expected.optional && !widget.attrs.attrs.contains_key(&expected.name));
         if let Some(missing_arg) = missing_arg {
             return Err(ValidationError::MissingAttr {
                 widget_name: widget.name.clone(),
-                arg_name: missing_arg.clone(),
+                arg_name: missing_arg.name.clone(),
                 arg_list_span: Some(matching_def.args_span),
                 use_span: widget.attrs.span,
             });
