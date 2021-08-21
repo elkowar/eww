@@ -231,7 +231,7 @@ These files must be placed under <code>$XDG_CONFIG_HOME/eww</code> (this is most
 </tbody></table>
 <h2 id="your-first-widget"><a class="header" href="#your-first-widget">Your first widget</a></h2>
 <p>While our bar is already looking great, it's a bit boring. Thus, let's add some actual content!</p>
-<pre><code class="language-lisp">(defwidget greeter [text name]
+<pre><code class="language-lisp">(defwidget greeter [?text name]
   (box :orientation &quot;horizontal&quot;
        :halign &quot;center&quot;
     text
@@ -245,7 +245,10 @@ These files must be placed under <code>$XDG_CONFIG_HOME/eww</code> (this is most
            :name &quot;Tim&quot;))
 </code></pre>
 <p>There is a lot going on here, so let's step through this.</p>
-<p>We are creating a widget named <code>greeter</code>. This widget takes two attributes, called <code>text</code> and <code>name</code>, which must be set when the widget is used.</p>
+<p>We are creating a widget named <code>greeter</code>. This widget takes two attributes, called <code>text</code> and <code>name</code>.
+The declaration <code>?text</code> specifies that the <code>text</code>-attribute is optional, and can thus be left out. In that case,
+it's value will be the empty string <code>&quot;&quot;</code>.
+The <code>name</code> attribute <em>must</em> be provided.</p>
 <p>Now, we declare the body of our widget. We make use of a <code>box</code>, which we set a couple attributes of.</p>
 <p>We need this <code>box</code>, as a widget definition can only ever contain a single widget - otherwise,
 eww would not know if it should align them vertically or horizontally, how it should space them, and so on.
