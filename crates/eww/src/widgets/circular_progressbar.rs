@@ -9,7 +9,7 @@ glib_wrapper! {
         Object<subclass::simple::InstanceStruct<CircProgPriv>,
         subclass::simple::ClassStruct<CircProgPriv>,
         CircProgClass>)
-        @extends gtk::Bin, gtk::Container, gtk::Widget;
+        @extends gtk::Box, gtk::Container, gtk::Widget;
 
     match fn {
         get_type => || CircProgPriv::get_type().to_glib(),
@@ -64,7 +64,7 @@ impl ObjectImpl for CircProgPriv {
 impl ObjectSubclass for CircProgPriv {
     type Class = subclass::simple::ClassStruct<Self>;
     type Instance = subclass::simple::InstanceStruct<Self>;
-    type ParentType = gtk::Bin;
+    type ParentType = gtk::Box;
 
     const ABSTRACT: bool = false;
     const NAME: &'static str = "CircProg";
@@ -89,20 +89,36 @@ impl CircProg {
     }
 }
 
-impl BinImpl for CircProgPriv {}
+impl BoxImpl for CircProgPriv {}
+//impl BinImpl for CircProgPriv {}
 impl ContainerImpl for CircProgPriv {}
 impl WidgetImpl for CircProgPriv {
+    // https://sourcegraph.com/github.com/GNOME/fractal/-/blob/fractal-gtk/src/widgets/clip_container.rs?L119 ???
     fn draw(&self, widget: &gtk::Widget, cr: &cairo::Context) -> Inhibit {
+        let styles = widget.get_style_context();
         let value = *self.value.borrow();
         cr.save();
         let width = widget.get_allocated_width() as f64;
         let height = widget.get_allocated_height() as f64;
-        cr.set_source_rgb(0.1f64, 1f64, 0.5f64);
+
+        #[allow(deprecated)]
+        let bg_color = styles.get_background_color(gtk::StateFlags::NORMAL);
+        cr.set_source_rgba(bg_color.red, bg_color.green, bg_color.blue, bg_color.alpha);
+
         cr.move_to(width / 2.0, height / 2.0);
         cr.arc(width / 2.0, height / 2.0, height / 4.0, 0.0, perc_to_rad(value as f64));
         cr.fill();
         gtk::Inhibit(false)
     }
+
+    fn get_request_mode(&self, widget: &gtk::Widget) -> gtk::SizeRequestMode {
+        self.parent_get_request_mode(widget)
+    }
+
+    //fn size_allocate(&self, widget: &gtk::Widget, allocation: &gdk::Rectangle) {
+        ////self.parent_size_allocate(widget, allocation);
+        ////widget.downcast_ref::<gtk::Box>().unwrap().size_allocate(allocation)
+    //}
 }
 
 fn perc_to_rad(n: f64) -> f64 {
