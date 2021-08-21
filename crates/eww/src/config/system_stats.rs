@@ -7,7 +7,7 @@ use sysinfo::{ComponentExt, DiskExt, NetworkExt, NetworksExt, ProcessorExt, Syst
 
 static SYSTEM: Lazy<Mutex<System>> = Lazy::new(|| Mutex::new(System::new()));
 
-pub fn disk() -> String {
+pub fn get_disks() -> String {
     let mut c = SYSTEM.lock().unwrap();
     c.refresh_disks_list();
 
@@ -26,13 +26,13 @@ pub fn disk() -> String {
     )
 }
 
-pub fn ram() -> f32 {
+pub fn get_ram() -> f32 {
     let mut c = SYSTEM.lock().unwrap();
     c.refresh_memory();
     (c.get_used_memory() as f32 + c.get_used_swap() as f32) / 1_000_000f32
 }
 
-pub fn cores() -> String {
+pub fn get_core_temperatures() -> String {
     let mut c = SYSTEM.lock().unwrap();
     c.refresh_components_list();
     c.refresh_components();
@@ -45,7 +45,7 @@ pub fn cores() -> String {
     )
 }
 
-pub fn get_avg_cpu_usage() -> String {
+pub fn get_cpus() -> String {
     let mut c = SYSTEM.lock().unwrap();
     c.refresh_cpu();
     let processors = c.get_processors();
@@ -133,7 +133,7 @@ pub fn get_battery_capacity() -> Result<String> {
 #[cfg(not(target_os = "macos"))]
 #[cfg(not(target_os = "linux"))]
 pub fn get_battery_capacity() -> Result<u8> {
-    anyhow!("eww doesn't support your OS for getting the battery capacity")
+    anyhow!("Eww doesn't support your OS for getting the battery capacity")
 }
 
 pub fn net() -> String {

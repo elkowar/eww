@@ -23,13 +23,13 @@ macro_rules! builtin_vars {
 pub fn get_inbuilt_vars() -> HashMap<VarName, ScriptVarDefinition> {
     builtin_vars! {Duration::new(2, 0),
         // @desc EWW_TEMPS - Heat of the components in Celcius\nExample: `{(CPU_TEMPS.core_1 + CPU_TEMPS.core_2) / 2}`
-        "EWW_TEMPS" => || Ok(DynVal::from(cores())),
+        "EWW_TEMPS" => || Ok(DynVal::from(get_core_temperatures())),
 
         // @desc EWW_RAM - The current RAM + Swap usage
-        "EWW_RAM" => || Ok(DynVal::from(format!("{:.2}", ram()))),
+        "EWW_RAM" => || Ok(DynVal::from(format!("{:.2}", get_ram()))),
 
         // @desc EWW_DISK - Information on on all mounted partitions (Might report inaccurately on some filesystems, like btrfs)\nExample: `{EWW_DISK["/"]}`
-        "EWW_DISK" => || Ok(DynVal::from(disk())),
+        "EWW_DISK" => || Ok(DynVal::from(get_disks())),
 
         // @desc EWW_BATTERY - Battery capacity in procent of the main battery
         "EWW_BATTERY" => || Ok(DynVal::from(
@@ -43,7 +43,7 @@ pub fn get_inbuilt_vars() -> HashMap<VarName, ScriptVarDefinition> {
         )),
 
         // @desc EWW_CPU_USAGE - Average CPU usage (all cores) since the last update (No MacOS support)
-        "EWW_CPU_USAGE" => || Ok(DynVal::from(get_avg_cpu_usage())),
+        "EWW_CPU_USAGE" => || Ok(DynVal::from(get_cpus())),
 
         // @desc EWW_NET - Bytes up/down on all interfaces
         "EWW_NET" => || Ok(DynVal::from(net())),
