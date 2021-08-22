@@ -15,13 +15,18 @@ pub fn get_disks() -> String {
         "{{ {} }}",
         c.get_disks()
             .iter()
-            .map(|c| format!(
-                r#""{}": {{"name": {:?}, "total": {}, "free": {}}}"#,
-                c.get_mount_point().display(),
-                c.get_name(),
-                c.get_total_space(),
-                c.get_available_space(),
-            ))
+            .map(|c| {
+                let total_space = c.get_total_space();
+                let available_space = c.get_available_space();
+                format!(
+                    r#""{}": {{"name": {:?}, "total": {}, "free": {}, "used": {}}}"#,
+                    c.get_mount_point().display(),
+                    c.get_name(),
+                    total_space,
+                    available_space,
+                    total_space - available_space,
+                )
+            })
             .join(",")
     )
 }
