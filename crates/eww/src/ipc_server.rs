@@ -31,7 +31,7 @@ async fn handle_connection(mut stream: tokio::net::UnixStream, evt_send: Unbound
 
     let action: opts::ActionWithServer = read_action_from_stream(&mut stream_read).await?;
 
-    log::info!("received command from IPC: {:?}", &action);
+    log::debug!("received command from IPC: {:?}", &action);
 
     let (command, maybe_response_recv) = action.into_daemon_command();
 
