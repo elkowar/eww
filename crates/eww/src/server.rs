@@ -167,6 +167,11 @@ async fn run_filewatch<P: AsRef<Path>>(config_dir: P, evt_send: UnboundedSender<
                 });
 
                 let (daemon_resp_sender, mut daemon_resp_response) = daemon_response::create_pair();
+                // without this sleep, reading the config file sometimes gives an empty file.
+                // This is probably a result of editors not locking the file correctly,
+                // and eww being too fast, thus reading the file while it's empty.
+                // There should be some cleaner solution for this, but this will do for now.
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
                 evt_send.send(app::DaemonCommand::ReloadConfigAndCss(daemon_resp_sender))?;
                 tokio::spawn(async move {
                     match daemon_resp_response.recv().await {
