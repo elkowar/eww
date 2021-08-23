@@ -174,7 +174,7 @@ impl App {
                     sender.send_success(output)?
                 }
                 DaemonCommand::PrintDebug(sender) => {
-                    let output = format!("state: {:#?}\n\nconfig: {:#?}", &self.eww_state, &self.eww_config);
+                    let output = format!("{:#?}", &self);
                     sender.send_success(output)?
                 }
             }
@@ -267,6 +267,9 @@ impl App {
         log::info!("Reloading windows");
         // refresh script-var poll stuff
         self.script_var_handler.stop_all();
+
+
+        log::trace!("loading config: {:#?}", config);
 
         self.eww_config = config;
         self.eww_state.clear_all_window_states();

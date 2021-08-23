@@ -138,17 +138,18 @@ async fn run_filewatch<P: AsRef<Path>>(config_dir: P, evt_send: UnboundedSender<
 
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
     let mut watcher: RecommendedWatcher = Watcher::new(move |res: notify::Result<notify::Event>| match res {
-        Ok(event) => {
-            let relevant_files_changed = event.paths.iter().any(|path| {
+        Ok(notify::Event { kind: notify::EventKind::Modify(_), paths, .. }) => {
+            let relevant_files_changed = paths.iter().any(|path| {
                 let ext = path.extension().unwrap_or_default();
                 ext == "yuck" || ext == "scss"
             });
-            if !relevant_files_changed {
+            if relevant_files_changed {
                 if let Err(err) = tx.send(()) {
                     log::warn!("Error forwarding file update event: {:?}", err);
                 }
             }
         }
+        Ok(_) => {}
         Err(e) => log::error!("Encountered Error While Watching Files: {}", e),
     })?;
     watcher.watch(&config_dir.as_ref(), RecursiveMode::Recursive)?;
