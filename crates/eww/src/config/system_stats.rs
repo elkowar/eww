@@ -34,14 +34,18 @@ pub fn get_disks() -> String {
 pub fn get_ram() -> String {
     let mut c = SYSTEM.lock().unwrap();
     c.refresh_memory();
+
+    let total_memory = c.get_total_memory();
+    let used_memory = c.get_used_memory();
     format!(
-        r#"{{"total_mem": {}, "free_mem": {}, "total_swap": {}, "free_swap": {}, "available_mem": {}, "used_mem": {}}}"#,
-        c.get_total_memory(),
+        r#"{{"total_mem": {}, "free_mem": {}, "total_swap": {}, "free_swap": {}, "available_mem": {}, "used_mem": {}, "used_mem_perc": {}}}"#,
+        total_memory,
         c.get_free_memory(),
         c.get_total_swap(),
         c.get_free_swap(),
         c.get_available_memory(),
-        c.get_used_memory(),
+        used_memory,
+        used_memory / total_memory,
     )
 }
 
@@ -66,7 +70,12 @@ pub fn get_cpus() -> String {
         r#"{{ "cores": [{}], "avg": {} }}"#,
         processors
             .iter()
-            .map(|a| format!(r#"{{"core": "{}", "freq": {}, "usage": {}}}"#, a.get_name(), a.get_frequency(), a.get_cpu_usage()))
+            .map(|a| format!(
+                r#"{{"core": "{}", "freq": {}, "usage": {:.0}}}"#,
+                a.get_name(),
+                a.get_frequency(),
+                a.get_cpu_usage()
+            ))
             .join(","),
         processors.iter().map(|a| a.get_cpu_usage()).avg()
     )
