@@ -160,6 +160,7 @@ pub fn get_battery_capacity() -> Result<u8> {
 
 pub fn net() -> String {
     let mut c = SYSTEM.lock().unwrap();
+    c.refresh_networks_list();
     let interfaces = format!(
         "{{ {} }}",
         &c.get_networks()
@@ -167,6 +168,5 @@ pub fn net() -> String {
             .map(|a| format!(r#""{}": {{ "NET_UP": {}, "NET_DOWN": {} }}"#, a.0, a.1.get_transmitted(), a.1.get_received()))
             .join(","),
     );
-    c.refresh_networks_list();
     interfaces
 }
