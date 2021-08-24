@@ -8,6 +8,10 @@ use anyhow::*;
 use app::DaemonCommand;
 
 use eww_shared_util::VarName;
+use nix::{
+    sys::signal,
+    unistd::{setpgid, Pid},
+};
 use simplexpr::dynval::DynVal;
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
@@ -203,12 +207,17 @@ impl ListenVarHandler {
         let evt_send = self.evt_send.clone();
         tokio::spawn(async move {
             crate::try_logging_errors!(format!("Executing listen var-command {}", &var.command) =>  {
-                let mut handle = tokio::process::Command::new("sh")
+                let mut handle = unsafe {
+                    tokio::process::Command::new("sh")
                     .args(&["-c", &var.command])
                     .stdout(std::process::Stdio::piped())
                     .stderr(std::process::Stdio::piped())
                     .stdin(std::process::Stdio::null())
-                    .spawn()?;
+                    .pre_exec(|| {
+                        let _ = setpgid(Pid::from_raw(0), Pid::from_raw(0));
+                        Ok(())
+                    }).spawn()?
+                };
                 let mut stdout_lines = BufReader::new(handle.stdout.take().unwrap()).lines();
                 let mut stderr_lines = BufReader::new(handle.stderr.take().unwrap()).lines();
                 crate::loop_select_exiting! {
@@ -223,7 +232,7 @@ impl ListenVarHandler {
                     }
                     else => break,
                 }
-                let _ = handle.kill().await;
+                terminate_handle(handle).await;
             });
         });
     }
@@ -243,5 +252,19 @@ impl ListenVarHandler {
 impl Drop for ListenVarHandler {
     fn drop(&mut self) {
         self.stop_all();
+    }
+}
+
+async fn terminate_handle(mut child: tokio::process::Child) {
+    if let Some(id) = child.id() {
+        let _ = signal::killpg(Pid::from_raw(id as i32), signal::SIGTERM);
+        tokio::select! {
+            _ = child.wait() => {},
+            _ = tokio::time::sleep(std::time::Duration::from_secs(10)) => {
+                let _ = child.kill().await;
+            }
+        };
+    } else {
+        let _ = child.kill().await;
     }
 }
