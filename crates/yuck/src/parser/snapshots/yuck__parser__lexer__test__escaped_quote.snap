@@ -1,6 +1,6 @@
 ---
 source: crates/yuck/src/parser/lexer.rs
-expression: "r#\"\"< \\\" >\"\"#"
+expression: "v!(r#\"\"< \\\" >\"\"#)"
 
 ---
-"< \" >"
+(0, SimplExpr([(0, StringLit([(0, Literal("< \" >"), 8)]), 8)]), 8)

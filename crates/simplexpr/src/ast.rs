@@ -32,6 +32,8 @@ pub enum UnaryOp {
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SimplExpr {
     Literal(DynVal),
+    JsonArray(Span, Vec<SimplExpr>),
+    JsonObject(Span, Vec<(SimplExpr, SimplExpr)>),
     Concat(Span, Vec<SimplExpr>),
     VarRef(Span, VarName),
     BinOp(Span, Box<SimplExpr>, BinOp, Box<SimplExpr>),
@@ -63,6 +65,10 @@ impl std::fmt::Display for SimplExpr {
             SimplExpr::FunctionCall(_, function_name, args) => {
                 write!(f, "{}({})", function_name, args.iter().join(", "))
             }
+            SimplExpr::JsonArray(_, values) => write!(f, "[{}]", values.iter().join(", ")),
+            SimplExpr::JsonObject(_, entries) => {
+                write!(f, "{{{}}}", entries.iter().map(|(k, v)| format!("{}: {}", k, v)).join(", "))
+            }
         }
     }
 }
@@ -81,10 +87,13 @@ impl SimplExpr {
         Self::Literal(s.into())
     }
 }
+
 impl Spanned for SimplExpr {
     fn span(&self) -> Span {
         match self {
             SimplExpr::Literal(x) => x.span(),
+            SimplExpr::JsonArray(span, _) => *span,
+            SimplExpr::JsonObject(span, _) => *span,
             SimplExpr::Concat(span, _) => *span,
             SimplExpr::VarRef(span, _) => *span,
             SimplExpr::BinOp(span, ..) => *span,

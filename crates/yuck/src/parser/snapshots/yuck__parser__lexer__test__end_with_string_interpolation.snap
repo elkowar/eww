@@ -1,0 +1,9 @@
+---
+source: crates/yuck/src/parser/lexer.rs
+expression: "v!(r#\"(box \"foo ${1 + 2}\")\"#)"
+
+---
+(0, LPren, 1)
+(1, Symbol("box"), 4)
+(5, SimplExpr([(5, StringLit([(5, Literal("foo "), 12), (12, Interp([(12, NumLit("1"), 13), (14, Plus, 15), (16, NumLit("2"), 17)]), 17), (17, Literal(""), 19)]), 19)]), 19)
+(19, RPren, 20)

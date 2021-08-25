@@ -1,6 +1,11 @@
 ---
 source: crates/yuck/src/parser/lexer.rs
-expression: "r#\"(foo + - \"text\" )\"#"
+expression: "v!(r#\"(foo + - \"text\" )\"#)"
 
 ---
-(foo + - "text" )
+(0, LPren, 1)
+(1, Symbol("foo"), 4)
+(5, Symbol("+"), 6)
+(7, Symbol("-"), 8)
+(9, SimplExpr([(9, StringLit([(9, Literal("text"), 15)]), 15)]), 15)
+(16, RPren, 17)

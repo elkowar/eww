@@ -1,6 +1,6 @@
 ---
 source: crates/yuck/src/parser/lexer.rs
-expression: "r#\"{ \"   \" + music}\"#"
+expression: "v!(r#\"{ \"   \" + music}\"#)"
 
 ---
-{ "   " + music}
+(2, SimplExpr([(2, StringLit([(2, Literal("\u{f001}   "), 10)]), 10), (11, Plus, 12), (13, Ident("music"), 18)]), 19)

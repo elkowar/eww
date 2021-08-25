@@ -1,0 +1,8 @@
+---
+source: crates/simplexpr/src/parser/mod.rs
+expression: "p.parse(0, Lexer::new(0, 0, r#\"[1, 2, 3 + 4, \"bla\", [blub, blo]]\"#))"
+
+---
+Ok(
+    ["1", "2", ("3" + "4"), "bla", [blub, blo]],
+)

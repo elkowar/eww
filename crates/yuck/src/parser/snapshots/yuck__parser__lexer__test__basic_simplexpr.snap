@@ -1,0 +1,8 @@
+---
+source: crates/yuck/src/parser/lexer.rs
+expression: "v!(r#\"({2})\"#)"
+
+---
+(0, LPren, 1)
+(2, SimplExpr([(2, NumLit("2"), 3)]), 4)
+(4, RPren, 5)

@@ -35,6 +35,8 @@ pub enum Token {
     Colon,
     LPren,
     RPren,
+    LCurl,
+    RCurl,
     LBrack,
     RBrack,
     Dot,
@@ -92,6 +94,8 @@ regex_rules! {
     escape(r")")     => |_| Token::RPren,
     escape(r"[")     => |_| Token::LBrack,
     escape(r"]")     => |_| Token::RBrack,
+    escape(r"{")     => |_| Token::LCurl,
+    escape(r"}")     => |_| Token::RCurl,
     escape(r".")     => |_| Token::Dot,
     escape(r"true")  => |_| Token::True,
     escape(r"false") => |_| Token::False,
@@ -222,14 +226,31 @@ impl<'s> Lexer<'s> {
             } else {
                 let segment_start = self.pos;
                 let mut toks = Vec::new();
-                while self.pos < self.source.len() && !self.remaining().starts_with(STR_INTERPOLATION_END) {
-                    match self.next_token()? {
-                        Ok(tok) => toks.push(tok),
-                        Err(err) => return Some(Err(err)),
+                let mut curly_nesting = 0;
+
+                'inner: while let Some(tok) = self.next_token() {
+                    if self.pos >= self.source.len() {
+                        break 'inner;
+                    }
+
+                    let tok = match tok {
+                        Ok(x) => x,
+                        Err(e) => return Some(Err(e)),
+                    };
+                    if tok.1 == Token::LCurl {
+                        curly_nesting += 1;
+                    } else if tok.1 == Token::RCurl {
+                        curly_nesting -= 1;
+                    }
+
+                    if curly_nesting < 0 {
+                        break 'inner;
+                    } else {
+                        toks.push(tok);
                     }
                 }
-                elements.push((segment_start + self.offset, StrLitSegment::Interp(toks), self.pos + self.offset));
-                self.advance_by(STR_INTERPOLATION_END.len());
+
+                elements.push((segment_start + self.offset, StrLitSegment::Interp(toks), self.pos + self.offset - 1));
                 in_string_lit = true;
             }
         }
@@ -282,9 +303,13 @@ mod test {
         number_in_ident       => v!(r#"foo_1_bar"#),
         interpolation_1       => v!(r#" "foo ${2 * 2} bar" "#),
         interpolation_nested  => v!(r#" "foo ${(2 * 2) + "${5 + 5}"} bar" "#),
+        json_in_interpolation => v!(r#" "${ {1: 2} }" "#),
         escaping              => v!(r#" "a\"b\{}" "#),
         comments              => v!("foo ; bar"),
         weird_char_boundaries => v!(r#""   " + music"#),
         symbol_spam           => v!(r#"(foo + - "()" "a\"b" true false [] 12.2)"#),
+        weird_nesting => v!(r#"
+            "${ {"hi": "ho"}.hi }".hi
+        "#),
     }
 }

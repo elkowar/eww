@@ -34,6 +34,8 @@ extern {
     ")"  => Token::RPren,
     "["  => Token::LBrack,
     "]"  => Token::RBrack,
+    "{"  => Token::LCurl,
+    "}"  => Token::RCurl,
     "."  => Token::Dot,
 
     "true"  => Token::True,
@@ -59,10 +61,6 @@ Comma<T>: Vec<T> = {
 pub Expr: SimplExpr = {
 
   #[precedence(level="0")]
-  //<l:@L> "lexer_error" <r:@R> =>? {
-  //  Err(ParseError::User { error: LexicalError(l, r, fid) })
-  //},
-
   <l:@L> <x:"string"> <r:@R> =>? parse_stringlit(Span(l, r, fid), x),
   <l:@L> <x:"number"> <r:@R> => SimplExpr::literal(Span(l, r, fid), x),
   <l:@L> "true"       <r:@R> => SimplExpr::literal(Span(l, r, fid), "true".into()),
@@ -70,6 +68,8 @@ pub Expr: SimplExpr = {
 
   <l:@L> <ident:"identifier"> <r:@R> => VarRef(Span(l, r, fid), VarName(ident.to_string())),
   "(" <ExprReset> ")",
+  <l:@L> "[" <values: Comma<ExprReset>> "]" <r:@R> => SimplExpr::JsonArray(Span(l, r, fid), values),
+  <l:@L> "{" <values: Comma<JsonKeyValue>> "}" <r:@R> => SimplExpr::JsonObject(Span(l, r, fid), values),
 
   #[precedence(level="1")] #[assoc(side="right")]
   <l:@L> <ident:"identifier"> "(" <args: Comma<ExprReset>> ")" <r:@R> => FunctionCall(Span(l, r, fid), ident, args),
@@ -110,3 +110,7 @@ pub Expr: SimplExpr = {
 };
 
 ExprReset = <Expr>;
+
+
+JsonKeyValue = <Expr> ":" <Expr>;
+

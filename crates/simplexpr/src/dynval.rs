@@ -1,7 +1,7 @@
 use eww_shared_util::{Span, Spanned};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use std::{fmt, iter::FromIterator, str::FromStr};
+use std::{convert::TryFrom, fmt, iter::FromIterator, str::FromStr};
 
 pub type Result<T> = std::result::Result<T, ConversionError>;
 
@@ -93,6 +93,14 @@ macro_rules! impl_dynval_from {
 }
 
 impl_dynval_from!(bool, i32, u32, f32, u8, f64, &str);
+
+impl TryFrom<serde_json::Value> for DynVal {
+    type Error = serde_json::Error;
+
+    fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
+        Ok(DynVal(serde_json::to_string(&value)?, Span::DUMMY))
+    }
+}
 
 impl From<std::time::Duration> for DynVal {
     fn from(d: std::time::Duration) -> Self {

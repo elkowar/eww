@@ -1,6 +1,6 @@
 ---
 source: crates/yuck/src/parser/lexer.rs
-expression: "r#\"{ \" } ' }\" }\"#"
+expression: "v!(r#\"{ \" } ' }\" }\"#)"
 
 ---
-{ " } ' }" }
+(2, SimplExpr([(2, StringLit([(2, Literal(" } ' }"), 10)]), 10)]), 12)
