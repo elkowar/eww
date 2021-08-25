@@ -1,0 +1,8 @@
+---
+source: crates/simplexpr/src/parser/mod.rs
+expression: "p.parse(0, Lexer::new(0, 0, r#\"{ \"key\": \"value\", 5: 1+2, true: false }\"#))"
+
+---
+Ok(
+    {"key": "value", "5": ("1" + "2"), "true": "false"},
+)

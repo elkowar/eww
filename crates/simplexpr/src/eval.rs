@@ -5,7 +5,7 @@ use crate::{
     dynval::{ConversionError, DynVal},
 };
 use eww_shared_util::{Span, Spanned, VarName};
-use std::collections::HashMap;
+use std::{collections::HashMap, convert::TryFrom};
 
 #[derive(Debug, thiserror::Error)]
 pub enum EvalError {
@@ -29,6 +29,9 @@ pub enum EvalError {
 
     #[error("Unable to index into value {0}")]
     CannotIndex(String),
+
+    #[error("Json operation failed: {0}")]
+    SerdeError(#[from] serde_json::error::Error),
 
     #[error("{1}")]
     Spanned(Span, Box<EvalError>),
@@ -74,6 +77,16 @@ impl SimplExpr {
                 FunctionCall(span, name, args.into_iter().map(|x| x.try_map_var_refs(f)).collect::<Result<_, _>>()?)
             }
             VarRef(span, name) => f(span, name)?,
+            JsonArray(span, values) => {
+                JsonArray(span, values.into_iter().map(|x| x.try_map_var_refs(f)).collect::<Result<_, _>>()?)
+            }
+            JsonObject(span, entries) => JsonObject(
+                span,
+                entries
+                    .into_iter()
+                    .map(|(k, v)| Ok((k.try_map_var_refs(f)?, v.try_map_var_refs(f)?)))
+                    .collect::<Result<_, _>>()?,
+            ),
             x @ Literal(..) => x,
         })
     }
@@ -121,6 +134,8 @@ impl SimplExpr {
                 refs
             }
             FunctionCall(_, _, args) => args.iter().flat_map(|a| a.var_refs()).collect(),
+            JsonArray(_, values) => values.iter().flat_map(|v| v.var_refs()).collect(),
+            JsonObject(_, entries) => entries.iter().flat_map(|(k, v)| k.var_refs().into_iter().chain(v.var_refs())).collect(),
         }
     }
 
@@ -217,6 +232,20 @@ impl SimplExpr {
             SimplExpr::FunctionCall(span, function_name, args) => {
                 let args = args.into_iter().map(|a| a.eval(values)).collect::<Result<_, EvalError>>()?;
                 call_expr_function(&function_name, args).map(|x| x.at(*span)).map_err(|e| e.at(*span))
+            }
+            SimplExpr::JsonArray(span, entries) => {
+                let entries = entries
+                    .into_iter()
+                    .map(|v| Ok(serde_json::Value::String(v.eval(values)?.as_string()?)))
+                    .collect::<Result<_, EvalError>>()?;
+                Ok(DynVal::try_from(serde_json::Value::Array(entries))?.at(*span))
+            }
+            SimplExpr::JsonObject(span, entries) => {
+                let entries = entries
+                    .into_iter()
+                    .map(|(k, v)| Ok((k.eval(values)?.as_string()?, serde_json::Value::String(v.eval(values)?.as_string()?))))
+                    .collect::<Result<_, EvalError>>()?;
+                Ok(DynVal::try_from(serde_json::Value::Object(entries))?.at(*span))
             }
         };
         Ok(value?.at(span))

@@ -8,8 +8,16 @@ Config(
     "bar": WidgetDefinition(
       name: "bar",
       expected_args: [
-        AttrName("arg"),
-        AttrName("arg2"),
+        AttrSpec(
+          name: AttrName("arg"),
+          optional: false,
+          span: Span(25, 28, 0),
+        ),
+        AttrSpec(
+          name: AttrName("arg2"),
+          optional: false,
+          span: Span(29, 33, 0),
+        ),
       ],
       widget: WidgetUse(
         name: "foo",
@@ -87,6 +95,7 @@ Config(
     VarName("stuff"): Listen(ListenScriptVar(
       name: VarName("stuff"),
       command: "tail -f stuff",
+      initial_value: DynVal("", Span(18446744073709551615, 18446744073709551615, 18446744073709551615)),
       command_span: Span(168, 183, 0),
       name_span: Span(162, 167, 0),
     )),

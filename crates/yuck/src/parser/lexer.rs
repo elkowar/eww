@@ -96,27 +96,32 @@ impl Lexer {
     }
 
     fn simplexpr(&mut self) -> Option<Result<(usize, Token, usize), parse_error::ParseError>> {
+        use simplexpr::parser::lexer as simplexpr_lexer;
         self.pos += 1;
-        let mut simplexpr_lexer = simplexpr::parser::lexer::Lexer::new(self.file_id, self.pos, &self.source[self.pos..]);
-        let mut toks = Vec::new();
+        let mut simplexpr_lexer = simplexpr_lexer::Lexer::new(self.file_id, self.pos, &self.source[self.pos..]);
+        let mut toks: Vec<(usize, _, usize)> = Vec::new();
         let mut end = self.pos;
+        let mut curly_nesting = 0;
         loop {
-            match simplexpr_lexer.next_token() {
-                Some(Ok((lo, tok, hi))) => {
+            match simplexpr_lexer.next_token()? {
+                Ok((lo, tok, hi)) => {
                     end = hi;
+                    if tok == simplexpr_lexer::Token::LCurl {
+                        curly_nesting += 1;
+                    } else if tok == simplexpr_lexer::Token::RCurl {
+                        curly_nesting -= 1;
+                        if curly_nesting < 0 {
+                            let start = toks.first().map(|(start, ..)| *start).unwrap_or(end);
+                            self.pos = end;
+                            self.advance_until_char_boundary();
+                            return Some(Ok((start, Token::SimplExpr(toks), end)));
+                        }
+                    }
                     toks.push((lo, tok, hi));
                 }
-                Some(Err(err)) => {
-                    if simplexpr_lexer.continues_with('}') {
-                        let start = toks.first().map(|x| x.0).unwrap_or(end);
-                        self.pos = end + 1;
-                        self.advance_until_char_boundary();
-                        return Some(Ok((start, Token::SimplExpr(toks), end)));
-                    } else {
-                        return Some(Err(parse_error::ParseError::LexicalError(err.span())));
-                    }
+                Err(err) => {
+                    return Some(Err(parse_error::ParseError::LexicalError(err.span())));
                 }
-                None => return None,
             }
         }
     }
@@ -182,7 +187,7 @@ mod test {
 
     macro_rules! v {
         ($x:literal) => {
-            Lexer::new(0, 0, $x)
+            Lexer::new(0, $x.to_string())
                 .map(|x| match x {
                     Ok((l, x, r)) => format!("({}, {:?}, {})", l, x, r),
                     Err(err) => format!("{}", err),
@@ -192,10 +197,12 @@ mod test {
     }
 
     snapshot_string! {
-        basic => r#"(foo + - "text" )"#,
-        escaped_strings => r#"{ bla "} \" }" " \" "}"#,
-        escaped_quote => r#""< \" >""#,
-        char_boundary => r#"{ "   " + music}"#,
-        quotes_in_quotes => r#"{ " } ' }" }"#,
+        basic => v!(r#"(foo + - "text" )"#),
+        basic_simplexpr => v!(r#"({2})"#),
+        escaped_strings => v!(r#"{ bla "} \" }" " \" "}"#),
+        escaped_quote => v!(r#""< \" >""#),
+        char_boundary => v!(r#"{ "   " + music}"#),
+        quotes_in_quotes => v!(r#"{ " } ' }" }"#),
+        end_with_string_interpolation => v!(r#"(box "foo ${1 + 2}")"#),
     }
 }

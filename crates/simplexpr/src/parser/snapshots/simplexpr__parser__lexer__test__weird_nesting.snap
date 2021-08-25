@@ -1,0 +1,8 @@
+---
+source: crates/simplexpr/src/parser/lexer.rs
+expression: "v!(r#\"\n            \"${ {\"hi\": \"ho\"}.hi }\".hi\n        \"#)"
+
+---
+(13, StringLit([(13, Literal(""), 16), (16, Interp([(17, LCurl, 18), (18, StringLit([(18, Literal("hi"), 22)]), 22), (22, Colon, 23), (24, StringLit([(24, Literal("ho"), 28)]), 28), (28, RCurl, 29), (29, Dot, 30), (30, Ident("hi"), 32)]), 33), (33, Literal(""), 35)]), 35)
+(35, Dot, 36)
+(36, Ident("hi"), 38)
