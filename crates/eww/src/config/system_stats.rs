@@ -18,13 +18,15 @@ pub fn get_disks() -> String {
             .map(|c| {
                 let total_space = c.get_total_space();
                 let available_space = c.get_available_space();
+                let used_space = total_space - available_space;
                 format!(
-                    r#""{}": {{"name": {:?}, "total": {}, "free": {}, "used": {}}}"#,
+                    r#""{}": {{"name": {:?}, "total": {}, "free": {}, "used": {}, "used_perc": {}}}"#,
                     c.get_mount_point().display(),
                     c.get_name(),
                     total_space,
                     available_space,
-                    total_space - available_space,
+                    used_space,
+                    used_space / total_space,
                 )
             })
             .join(",")
@@ -45,7 +47,7 @@ pub fn get_ram() -> String {
         c.get_free_swap(),
         c.get_available_memory(),
         used_memory,
-        used_memory / total_memory,
+        (used_memory / total_memory) * 100,
     )
 }
 
