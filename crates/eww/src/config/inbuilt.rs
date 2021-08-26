@@ -45,14 +45,6 @@ pub fn get_inbuilt_vars() -> HashMap<VarName, ScriptVarDefinition> {
         // @desc EWW_CPU - Information on the CPU cores: frequency and usage (No MacOS support)
         "EWW_CPU" => || Ok(DynVal::from(get_cpus())),
 
-        // TODO: Change this eventually, maybe implement an error system
-        // @desc EWW_CPU_USAGE - Outdated, use `EWW_CPU` instead
-        "EWW_CPU_USAGE" => {
-            log::warn!("EWW_CPU_BATTERY is deprecated, use EWW_CPU instead");
-            || Ok(DynVal::from(get_cpus()))
-        },
-
-
         // @desc EWW_NET - Bytes up/down on all interfaces
         "EWW_NET" => || Ok(DynVal::from(net())),
     }

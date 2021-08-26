@@ -184,13 +184,23 @@ impl ToDiagnostic for ValidationError {
                         "Hint: Define it as a global variable"
                     }
                 };
-                diag.with_notes(vec![format!(
-                    "Hint: If you meant to use the literal value \"{}\", surround the value in quotes",
-                    name
-                )])
+
+                let mut extra_notes =
+                    vec![format!("Hint: If you meant to use the literal value \"{}\", surround the value in quotes", name)];
+
+                if let Some(deprecation_note) = variable_deprecation_note(name.to_string()) {
+                    extra_notes.push(deprecation_note)
+                };
+
+                diag.with_notes(extra_notes)
             }
         }
     }
+}
+
+fn variable_deprecation_note(var_name: String) -> Option<String> {
+    (var_name == "EWW_CPU_USAGE")
+        .then(|| "Note: EWW_CPU_USAGE has recently been removed, and has now been renamed to EWW_CPU".to_string())
 }
 
 fn lalrpop_error_to_diagnostic<T: std::fmt::Display, E: Spanned + ToDiagnostic>(
