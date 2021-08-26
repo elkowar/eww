@@ -26,7 +26,7 @@ pub fn get_disks() -> String {
                     total_space,
                     available_space,
                     used_space,
-                    used_space / total_space,
+                    (used_space as f32 / total_space as f32) * 100f32,
                 )
             })
             .join(",")
@@ -38,16 +38,17 @@ pub fn get_ram() -> String {
     c.refresh_memory();
 
     let total_memory = c.get_total_memory();
-    let used_memory = c.get_used_memory();
+    let available_memory = c.get_available_memory();
+    let used_memory = total_memory as f32 - available_memory as f32;
     format!(
         r#"{{"total_mem": {}, "free_mem": {}, "total_swap": {}, "free_swap": {}, "available_mem": {}, "used_mem": {}, "used_mem_perc": {}}}"#,
         total_memory,
         c.get_free_memory(),
         c.get_total_swap(),
         c.get_free_swap(),
-        c.get_available_memory(),
+        available_memory,
         used_memory,
-        (used_memory / total_memory) * 100,
+        (used_memory / total_memory as f32) * 100f32,
     )
 }
 
