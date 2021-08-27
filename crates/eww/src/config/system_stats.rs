@@ -7,7 +7,7 @@ use sysinfo::{ComponentExt, DiskExt, NetworkExt, NetworksExt, ProcessorExt, Syst
 
 static SYSTEM: Lazy<Mutex<System>> = Lazy::new(|| Mutex::new(System::new()));
 
-pub fn disk() -> String {
+pub fn get_disks() -> String {
     let mut c = SYSTEM.lock().unwrap();
     c.refresh_disks_list();
 
@@ -15,24 +15,44 @@ pub fn disk() -> String {
         "{{ {} }}",
         c.get_disks()
             .iter()
-            .map(|c| format!(
-                r#""{}": {{"name": {:?}, "total": {}, "free": {}}}"#,
-                c.get_mount_point().display(),
-                c.get_name(),
-                c.get_total_space(),
-                c.get_available_space(),
-            ))
+            .map(|c| {
+                let total_space = c.get_total_space();
+                let available_space = c.get_available_space();
+                let used_space = total_space - available_space;
+                format!(
+                    r#""{}": {{"name": {:?}, "total": {}, "free": {}, "used": {}, "used_perc": {}}}"#,
+                    c.get_mount_point().display(),
+                    c.get_name(),
+                    total_space,
+                    available_space,
+                    used_space,
+                    (used_space as f32 / total_space as f32) * 100f32,
+                )
+            })
             .join(",")
     )
 }
 
-pub fn ram() -> f32 {
+pub fn get_ram() -> String {
     let mut c = SYSTEM.lock().unwrap();
     c.refresh_memory();
-    (c.get_used_memory() as f32 + c.get_used_swap() as f32) / 1_000_000f32
+
+    let total_memory = c.get_total_memory();
+    let available_memory = c.get_available_memory();
+    let used_memory = total_memory as f32 - available_memory as f32;
+    format!(
+        r#"{{"total_mem": {}, "free_mem": {}, "total_swap": {}, "free_swap": {}, "available_mem": {}, "used_mem": {}, "used_mem_perc": {}}}"#,
+        total_memory,
+        c.get_free_memory(),
+        c.get_total_swap(),
+        c.get_free_swap(),
+        available_memory,
+        used_memory,
+        (used_memory / total_memory as f32) * 100f32,
+    )
 }
 
-pub fn cores() -> String {
+pub fn get_temperatures() -> String {
     let mut c = SYSTEM.lock().unwrap();
     c.refresh_components_list();
     c.refresh_components();
@@ -45,7 +65,7 @@ pub fn cores() -> String {
     )
 }
 
-pub fn get_avg_cpu_usage() -> String {
+pub fn get_cpus() -> String {
     let mut c = SYSTEM.lock().unwrap();
     c.refresh_cpu();
     let processors = c.get_processors();
@@ -53,7 +73,12 @@ pub fn get_avg_cpu_usage() -> String {
         r#"{{ "cores": [{}], "avg": {} }}"#,
         processors
             .iter()
-            .map(|a| format!(r#"{{"core": "{}", "freq": {}, "usage": {}}}"#, a.get_name(), a.get_frequency(), a.get_cpu_usage()))
+            .map(|a| format!(
+                r#"{{"core": "{}", "freq": {}, "usage": {:.0}}}"#,
+                a.get_name(),
+                a.get_frequency(),
+                a.get_cpu_usage()
+            ))
             .join(","),
         processors.iter().map(|a| a.get_cpu_usage()).avg()
     )
@@ -133,11 +158,12 @@ pub fn get_battery_capacity() -> Result<String> {
 #[cfg(not(target_os = "macos"))]
 #[cfg(not(target_os = "linux"))]
 pub fn get_battery_capacity() -> Result<u8> {
-    anyhow!("eww doesn't support your OS for getting the battery capacity")
+    anyhow!("Eww doesn't support your OS for getting the battery capacity")
 }
 
 pub fn net() -> String {
     let mut c = SYSTEM.lock().unwrap();
+    c.refresh_networks_list();
     let interfaces = format!(
         "{{ {} }}",
         &c.get_networks()
@@ -145,6 +171,5 @@ pub fn net() -> String {
             .map(|a| format!(r#""{}": {{ "NET_UP": {}, "NET_DOWN": {} }}"#, a.0, a.1.get_transmitted(), a.1.get_received()))
             .join(","),
     );
-    c.refresh_networks_list();
     interfaces
 }
