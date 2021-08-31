@@ -67,6 +67,7 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
 
     let on_scroll_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
     let on_hover_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
+    let on_hover_leave_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
     let cursor_hover_enter_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
     let cursor_hover_leave_handler_id: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::new(RefCell::new(None));
 
@@ -128,7 +129,7 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
         },
         // @prop timeout - timeout of the command
         // @prop onhover - event to execute when the user hovers over the widget
-        prop(timeout: as_duration = Duration::from_millis(200),onhover: as_string) {
+        prop(timeout: as_duration = Duration::from_millis(200), onhover: as_string) {
             gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
             let old_id = on_hover_handler_id.replace(Some(
                 gtk_widget.connect_enter_notify_event(move |_, evt| {
@@ -138,6 +139,18 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
             ));
             old_id.map(|id| gtk_widget.disconnect(id));
         },
+        // @prop timeout - timeout of the command
+        // @prop onhover - event to execute when the user hovers over the widget
+        prop(timeout: as_duration = Duration::from_millis(200), onhoverlost: as_string) {
+            gtk_widget.add_events(gdk::EventMask::LEAVE_NOTIFY_MASK);
+            let old_id = on_hover_leave_handler_id.replace(Some(
+                gtk_widget.connect_leave_notify_event(move |_, evt| {
+                    run_command(timeout, &onhoverlost, format!("{} {}", evt.get_position().0, evt.get_position().1));
+                    gtk::Inhibit(false)
+                })
+            ));
+            old_id.map(|id| gtk_widget.disconnect(id));
+        },        
 
         // @prop cursor - Cursor to show while hovering (see [gtk3-cursors](https://developer.gnome.org/gdk3/stable/gdk3-Cursors.html) for possible names)
         prop(cursor: as_string) {
@@ -153,6 +166,7 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
                 })
             )).map(|id| gtk_widget.disconnect(id));
 
+            gtk_widget.add_events(gdk::EventMask::LEAVE_NOTIFY_MASK);
             cursor_hover_leave_handler_id.replace(Some(
                 gtk_widget.connect_leave_notify_event(move |widget, _evt| {
                     let gdk_window = widget.get_window();
@@ -202,7 +216,7 @@ pub(super) fn resolve_range_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Ran
         // @prop onchange - command executed once the value is changes. The placeholder `{}`, used in the command will be replaced by the new value.
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_string) {
             gtk_widget.set_sensitive(true);
-            gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
+            gtk_widget.add_events(gdk::EventMask::PROPERTY_CHANGE_MASK);
             let old_id = on_change_handler_id.replace(Some(
                 gtk_widget.connect_value_changed(move |gtk_widget| {
                     run_command(timeout, &onchange, gtk_widget.get_value());
@@ -444,7 +458,7 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
             onmiddleclick: as_string = "",
             onrightclick: as_string = ""
         ) {
-            gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
+            gtk_widget.add_events(gdk::EventMask::BUTTON_PRESS_MASK);
             let old_id = on_click_handler_id.replace(Some(
                 gtk_widget.connect_button_press_event(move |_, evt| {
                     match evt.get_button() {
