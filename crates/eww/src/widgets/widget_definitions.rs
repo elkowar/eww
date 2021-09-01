@@ -10,7 +10,12 @@ use glib;
 use gtk::{self, prelude::*, ImageExt};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
-use std::{cell::RefCell, collections::{HashMap, HashSet}, rc::Rc, time::Duration};
+use std::{
+    cell::RefCell,
+    collections::{HashMap, HashSet},
+    rc::Rc,
+    time::Duration,
+};
 use yuck::{
     config::validate::ValidationError,
     error::{AstError, AstResult, AstResultExt},
@@ -50,7 +55,9 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::Widge
     Ok(gtk_widget)
 }
 
-static DEPRECATED_ATTRS: Lazy<HashSet<&str>> = Lazy::new(|| ["timeout", "onscroll", "onhover", "cursor"].iter().cloned().collect());
+/// Deprecated attributes from top of widget hierarchy
+static DEPRECATED_ATTRS: Lazy<HashSet<&str>> =
+    Lazy::new(|| ["timeout", "onscroll", "onhover", "cursor"].iter().cloned().collect());
 
 /// attributes that apply to all widgets
 /// @widget widget
@@ -59,7 +66,7 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
     let widget = bargs.widget;
 
     if DEPRECATED_ATTRS.to_owned().iter().any(|attr| match widget.get_attr(attr).err().map(|e| e.downcast::<AstError>()) {
-        Some(Ok(AstError::ValidationError(ValidationError::MissingAttr {..}))) => false,
+        Some(Ok(AstError::ValidationError(ValidationError::MissingAttr { .. }))) => false,
         _ => true,
     }) {
         let args_set: HashSet<&str> = widget.attrs.keys().map(|attr| &attr.0 as &str).collect();
