@@ -557,7 +557,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
             ));
             old_id.map(|id| gtk_widget.disconnect(id));
         },
-        // @prop cursor - Cursor to show while hovering (see [gtk3-cursors](https://developer.gnome.org/gdk3/stable/gdk3-Cursors.html) for possible names)
+        // @prop cursor - Cursor to show while hovering (see [gtk3-cursors](https://docs.gtk.org/gdk3/ctor.Cursor.new_from_name.html) for possible names)
         prop(cursor: as_string) {
             gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
             gtk_widget.add_events(gdk::EventMask::LEAVE_NOTIFY_MASK);
