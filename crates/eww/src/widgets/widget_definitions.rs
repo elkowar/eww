@@ -5,7 +5,7 @@ use crate::{
 };
 use anyhow::*;
 use codespan_reporting::diagnostic::Severity;
-use gdk::WindowExt;
+use gdk::{NotifyType, WindowExt};
 use glib;
 use gtk::{self, prelude::*, ImageExt};
 use itertools::Itertools;
@@ -63,29 +63,21 @@ static DEPRECATED_ATTRS: Lazy<HashSet<&str>> =
 /// @widget widget
 /// @desc these properties apply to _all_ widgets, and can be used anywhere!
 pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Widget) {
-    let widget = bargs.widget;
-
-    if DEPRECATED_ATTRS.to_owned().iter().any(|attr| match widget.get_attr(attr).err().map(|e| e.downcast::<AstError>()) {
-        Some(Ok(AstError::ValidationError(ValidationError::MissingAttr { .. }))) => false,
-        _ => true,
-    }) {
-        let args_set: HashSet<&str> = widget.attrs.keys().map(|attr| &attr.0 as &str).collect();
-        let intersection: Vec<_> = args_set.intersection(&DEPRECATED_ATTRS).collect();
-
+    let deprecated: HashSet<_> = DEPRECATED_ATTRS.to_owned();
+    let contained_deprecated: Vec<_> = bargs.unhandled_attrs.drain_filter(|a| deprecated.contains(&a.0 as &str)).collect();
+    if !contained_deprecated.is_empty() {
         let diag = error_handling_ctx::stringify_diagnostic(gen_diagnostic! {
             kind =  Severity::Error,
-            msg = format!("Deprecated attributes ({}) should not be used, consider using eventbox widget as wrapper instead.", intersection.iter().join(", ")),
-            label = widget.span => "Found in here"
+            msg = format!("Deprecated attributes ({}) should not be used, consider using eventbox widget as wrapper instead.", contained_deprecated.iter().join(", ")),
+            label = bargs.widget.span => "Found in here"
         }).unwrap();
         eprintln!("{}", diag);
-
-        intersection.iter().for_each(|v| bargs.unhandled_attrs.retain(|a| &a.0 != &v.replace('_', "-")));
     }
 
     let css_provider = gtk::CssProvider::new();
 
     if let Ok(visible) =
-        widget.get_attr("visible").and_then(|v| bargs.eww_state.resolve_once(v)?.as_bool().map_err(|e| anyhow!(e)))
+        bargs.widget.get_attr("visible").and_then(|v| bargs.eww_state.resolve_once(v)?.as_bool().map_err(|e| anyhow!(e)))
     {
         connect_first_map(gtk_widget, move |w| {
             if visible {
@@ -539,7 +531,9 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
             gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
             let old_id = on_hover_handler_id.replace(Some(
                 gtk_widget.connect_enter_notify_event(move |_, evt| {
-                    run_command(timeout, &onhover, format!("{} {}", evt.get_position().0, evt.get_position().1));
+                    if evt.get_detail() != NotifyType::Inferior {
+                        run_command(timeout, &onhover, format!("{} {}", evt.get_position().0, evt.get_position().1));
+                    }
                     gtk::Inhibit(false)
                 })
             ));
@@ -551,7 +545,9 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
             gtk_widget.add_events(gdk::EventMask::LEAVE_NOTIFY_MASK);
             let old_id = on_hover_leave_handler_id.replace(Some(
                 gtk_widget.connect_leave_notify_event(move |_, evt| {
-                    run_command(timeout, &onhoverlost, format!("{} {}", evt.get_position().0, evt.get_position().1));
+                    if evt.get_detail() != NotifyType::Inferior {
+                        run_command(timeout, &onhoverlost, format!("{} {}", evt.get_position().0, evt.get_position().1));
+                    }
                     gtk::Inhibit(false)
                 })
             ));
@@ -564,10 +560,12 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
 
             cursor_hover_enter_handler_id.replace(Some(
                 gtk_widget.connect_enter_notify_event(move |widget, _evt| {
-                    let display = gdk::Display::get_default();
-                    let gdk_window = widget.get_window();
-                    if let (Some(display), Some(gdk_window)) = (display, gdk_window) {
-                        gdk_window.set_cursor(gdk::Cursor::from_name(&display, &cursor).as_ref());
+                    if _evt.get_detail() != NotifyType::Inferior {
+                        let display = gdk::Display::get_default();
+                        let gdk_window = widget.get_window();
+                        if let (Some(display), Some(gdk_window)) = (display, gdk_window) {
+                            gdk_window.set_cursor(gdk::Cursor::from_name(&display, &cursor).as_ref());
+                        }
                     }
                     gtk::Inhibit(false)
                 })
@@ -575,9 +573,11 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
 
             cursor_hover_leave_handler_id.replace(Some(
                 gtk_widget.connect_leave_notify_event(move |widget, _evt| {
-                    let gdk_window = widget.get_window();
-                    if let Some(gdk_window) = gdk_window {
-                        gdk_window.set_cursor(None);
+                    if _evt.get_detail() != NotifyType::Inferior {
+                        let gdk_window = widget.get_window();
+                        if let Some(gdk_window) = gdk_window {
+                            gdk_window.set_cursor(None);
+                        }
                     }
                     gtk::Inhibit(false)
                 })
