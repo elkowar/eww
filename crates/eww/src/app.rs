@@ -139,8 +139,14 @@ impl App {
                     sender.respond_with_error_list(errors)?;
                 }
                 DaemonCommand::OpenWindow { window_name, pos, size, anchor, screen: monitor, should_toggle, sender } => {
-                    let result = if should_toggle && self.open_windows.contains_key(&window_name) {
-                        self.close_window(&window_name)
+                    let is_open = self.open_windows.contains_key(&window_name);
+                    let result = if is_open {
+                        if should_toggle {
+                            self.close_window(&window_name)
+                        } else {
+                            // user should use `eww reload` to reload windows (https://github.com/elkowar/eww/issues/260)
+                            Ok(())
+                        }
                     } else {
                         self.open_window(&window_name, pos, size, monitor, anchor)
                     };
