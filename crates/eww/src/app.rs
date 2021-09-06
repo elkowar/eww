@@ -153,7 +153,7 @@ impl App {
                     sender.respond_with_result(result)?;
                 }
                 DaemonCommand::CloseWindows { windows, sender } => {
-                    let errors = windows.iter().map(|window| self.close_window(&window)).filter_map(Result::err);
+                    let errors = windows.iter().map(|window| self.close_window(window)).filter_map(Result::err);
                     sender.respond_with_error_list(errors)?;
                 }
                 DaemonCommand::PrintState { all, sender } => {
@@ -238,7 +238,7 @@ impl App {
             window_def.geometry = window_def.geometry.map(|x| x.override_if_given(anchor, pos, size));
 
             let root_widget =
-                window_def.widget.render(&mut self.eww_state, window_name, &self.eww_config.get_widget_definitions())?;
+                window_def.widget.render(&mut self.eww_state, window_name, self.eww_config.get_widget_definitions())?;
 
             root_widget.get_style_context().add_class(&window_name.to_string());
 
@@ -352,7 +352,7 @@ fn initialize_window(
         if let Some(geometry) = window_def.geometry {
             let _ = apply_window_position(geometry, monitor_geometry, &window);
             window.connect_configure_event(move |window, _| {
-                let _ = apply_window_position(geometry, monitor_geometry, &window);
+                let _ = apply_window_position(geometry, monitor_geometry, window);
                 false
             });
         }

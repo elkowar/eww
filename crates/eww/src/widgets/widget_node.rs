@@ -113,7 +113,7 @@ pub fn generate_generic_widget_node(
 ) -> AstResult<Box<dyn WidgetNode>> {
     if let Some(def) = defs.get(&w.name) {
         if !w.children.is_empty() {
-            Err(AstError::TooManyNodes(w.children_span(), 0).note("User-defined widgets cannot be given children."))?
+            return Err(AstError::TooManyNodes(w.children_span(), 0).note("User-defined widgets cannot be given children."))
         }
 
         let mut new_local_env = w
@@ -126,9 +126,7 @@ pub fn generate_generic_widget_node(
         // handle default value for optional arguments
         for expected in def.expected_args.iter().filter(|x| x.optional) {
             let var_name = VarName(expected.name.clone().0);
-            if !new_local_env.contains_key(&var_name) {
-                new_local_env.insert(var_name, SimplExpr::literal(expected.span, String::new()));
-            }
+            new_local_env.entry(var_name).or_insert_with(|| SimplExpr::literal(expected.span, String::new()));
         }
 
         let content = generate_generic_widget_node(defs, &new_local_env, def.widget.clone())?;
