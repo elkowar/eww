@@ -103,8 +103,8 @@ regex_rules! {
     r"[ \n\n\f]+" => |_| Token::Skip,
     r";.*"=> |_| Token::Comment,
 
-    r"[a-zA-Z_][a-zA-Z0-9_-]*" => |x| Token::Ident(x.to_string()),
-    r"[+-]?(?:[0-9]+[.])?[0-9]+" => |x| Token::NumLit(x.to_string())
+    r"[a-zA-Z_][a-zA-Z0-9_-]*" => |x| Token::Ident(x),
+    r"[+-]?(?:[0-9]+[.])?[0-9]+" => |x| Token::NumLit(x)
 }
 
 #[derive(Debug)]

@@ -230,19 +230,19 @@ impl SimplExpr {
                 }
             }
             SimplExpr::FunctionCall(span, function_name, args) => {
-                let args = args.into_iter().map(|a| a.eval(values)).collect::<Result<_, EvalError>>()?;
-                call_expr_function(&function_name, args).map(|x| x.at(*span)).map_err(|e| e.at(*span))
+                let args = args.iter().map(|a| a.eval(values)).collect::<Result<_, EvalError>>()?;
+                call_expr_function(function_name, args).map(|x| x.at(*span)).map_err(|e| e.at(*span))
             }
             SimplExpr::JsonArray(span, entries) => {
                 let entries = entries
-                    .into_iter()
+                    .iter()
                     .map(|v| Ok(serde_json::Value::String(v.eval(values)?.as_string()?)))
                     .collect::<Result<_, EvalError>>()?;
                 Ok(DynVal::try_from(serde_json::Value::Array(entries))?.at(*span))
             }
             SimplExpr::JsonObject(span, entries) => {
                 let entries = entries
-                    .into_iter()
+                    .iter()
                     .map(|(k, v)| Ok((k.eval(values)?.as_string()?, serde_json::Value::String(v.eval(values)?.as_string()?))))
                     .collect::<Result<_, EvalError>>()?;
                 Ok(DynVal::try_from(serde_json::Value::Object(entries))?.at(*span))
