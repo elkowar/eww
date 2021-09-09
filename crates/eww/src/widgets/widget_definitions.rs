@@ -570,6 +570,11 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
     // the file id the literal-content has been stored under, for error reporting.
     let literal_file_id: Rc<RefCell<Option<usize>>> = Rc::new(RefCell::new(None));
 
+    // Go unsafe, create a second mutable reference of EwwState cuz when this block runs, it is
+    // guarenteed that the state is not mutated (see EwwState::resolve), it is mutated after the
+    // block execution only and we really need this state to build child_widget first
+    let eww_state = bargs.eww_state as *mut eww_state::EwwState;
+
     resolve_block!(bargs, gtk_widget, {
         // @prop content - inline yuck that will be rendered as a widget.
         prop(content: as_string) {
@@ -590,12 +595,14 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
                 };
 
                 let widget_node = widget_node_result.context_label(literal_use_span, "Error in the literal used here")?;
-                let child_widget = widget_node.render(&mut eww_state::EwwState::default(), &window_name, &widget_definitions)
-                    .map_err(|e| AstError::ErrorContext {
-                        label_span: literal_use_span,
-                        context: "Error in the literal used here".to_string(),
-                        main_err: Box::new(error_handling_ctx::anyhow_err_to_diagnostic(&e).unwrap_or_else(|| gen_diagnostic!(e)))
-                    })?;
+                let child_widget = unsafe {
+                    widget_node.render(std::mem::transmute(eww_state), &window_name, &widget_definitions)
+                        .map_err(|e| AstError::ErrorContext {
+                            label_span: literal_use_span,
+                            context: "Error in the literal used here".to_string(),
+                            main_err: Box::new(error_handling_ctx::anyhow_err_to_diagnostic(&e).unwrap_or_else(|| gen_diagnostic!(e)))
+                        })?
+                };
                 gtk_widget.add(&child_widget);
                 child_widget.show();
             }
