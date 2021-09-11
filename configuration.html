@@ -273,14 +273,19 @@ Instead, you explicitly update them by calling eww like so: <code>eww update f
 <p>This is useful if you have values that change very rarely, or may change as a result of some external script you wrote.
 They may also be useful to have buttons within eww change what is shown within your widget, by setting attributes like <code>onclick</code> to run <code>eww update</code>.</p>
 <p><strong>Polling variables (<code>defpoll</code>)</strong></p>
-<pre><code class="language-lisp">(defpoll time :interval &quot;1s&quot;
-              :initial &quot;initial-value&quot; ; setting initial is optional
+<pre><code class="language-lisp">(defvar time-visible false)   ; for :run-while property of below variable
+                              ; when this turns true, the polling starts and
+                              ; var gets updated with given interval
+
+(defpoll time :interval &quot;1s&quot;
+              :initial &quot;initial-value&quot;  ; optional, defaults to poll at startup
+              :run-while time-visible   ; optional, defaults to 'true'
   `date +%H:%M:%S`)
 </code></pre>
 <p>A polling variable is a variable which runs a provided shell-script repeatedly, in a given interval.</p>
 <p>This may be the most commonly used type of variable.
 They are useful to access any quickly retrieved value repeatedly,
-and thus are the perfect choice for showing your time, date, as well as other bits of information such as your volume.</p>
+and thus are the perfect choice for showing your time, date, as well as other bits of information such as pending package updates, weather and battery-level.</p>
 <p>You can also specify an initial-value, this should prevent eww from waiting for the result of a give command during startup, thus,
 making the startup time faster.</p>
 <p><strong>Listening variables (<code>deflisten</code>)</strong></p>
@@ -291,9 +296,11 @@ making the startup time faster.</p>
 A listening variable runs a script once, and reads its output continously.
 Whenever the script outputs a new line, the value will be updated to that new line.
 In the example given above, the value of <code>foo</code> will start out as <code>&quot;whatever&quot;</code>, and will change whenever a new line is appended to <code>/tmp/some_file</code>.</p>
-<p>These are particularly useful if you have a script that can monitor some value on its own.
-For example, the command <code>xprop -spy -root _NET_CURRENT_DESKTOP</code> writes the currently focused desktop whenever it changes.
-This can be used to implement a workspace widget for a bar, for example.
+<p>These are particularly useful when you want to apply changes instantaneously when an operation happens if you have a script
+that can monitor some value on its own. Volume, brighness, workspaces that get added/removed at runtime,
+monitoring currently focused desktop/tag, etc. are the most common usecases of this type of variable.
+These are particularly efficient and should be preffered if possible.</p>
+<p>For example, the command <code>xprop -spy -root _NET_CURRENT_DESKTOP</code> writes the currently focused desktop whenever it changes.
 Another example usecase is monitoring the currently playing song with playerctl: <code>playerctl --follow metadata --format {{title}}</code>.</p>
 <p><strong>Built-in &quot;magic&quot; variables</strong></p>
 <p>In addition to definition your own variables, eww provides some values for you to use out of the box.
