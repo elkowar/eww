@@ -1,6 +1,6 @@
 use std::{collections::HashMap, time::Duration};
 
-use simplexpr::dynval::DynVal;
+use simplexpr::{dynval::DynVal, SimplExpr};
 use yuck::config::script_var_definition::{PollScriptVar, ScriptVarDefinition, VarSource};
 
 use crate::config::system_stats::*;
@@ -12,6 +12,8 @@ macro_rules! builtin_vars {
             $(
             VarName::from($name) => ScriptVarDefinition::Poll(PollScriptVar {
                 name: VarName::from($name),
+                run_while_expr: SimplExpr::Literal(DynVal::from(true)),
+                run_while_var_refs: Vec::new(),
                 command: VarSource::Function($fun),
                 initial_value: None,
                 interval: $interval,

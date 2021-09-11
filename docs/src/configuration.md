@@ -154,8 +154,13 @@ They may also be useful to have buttons within eww change what is shown within y
 **Polling variables (`defpoll`)**
 
 ```lisp
+(defvar time-visible false)   ; for :run-while property of below variable
+                              ; when this turns true, the polling starts and
+                              ; var gets updated with given interval
+
 (defpoll time :interval "1s"
-              :initial "initial-value" ; setting initial is optional
+              :initial "initial-value"  ; optional, defaults to poll at startup
+              :run-while time-visible   ; optional, defaults to 'true'
   `date +%H:%M:%S`)
 ```
 
@@ -163,7 +168,7 @@ A polling variable is a variable which runs a provided shell-script repeatedly, 
 
 This may be the most commonly used type of variable.
 They are useful to access any quickly retrieved value repeatedly,
-and thus are the perfect choice for showing your time, date, as well as other bits of information such as your volume.
+and thus are the perfect choice for showing your time, date, as well as other bits of information such as pending package updates, weather and battery-level.
 
 You can also specify an initial-value, this should prevent eww from waiting for the result of a give command during startup, thus,
 making the startup time faster.
@@ -180,9 +185,12 @@ A listening variable runs a script once, and reads its output continously.
 Whenever the script outputs a new line, the value will be updated to that new line.
 In the example given above, the value of `foo` will start out as `"whatever"`, and will change whenever a new line is appended to `/tmp/some_file`.
 
-These are particularly useful if you have a script that can monitor some value on its own.
+These are particularly useful when you want to apply changes instantaneously when an operation happens if you have a script
+that can monitor some value on its own. Volume, brighness, workspaces that get added/removed at runtime,
+monitoring currently focused desktop/tag, etc. are the most common usecases of this type of variable.
+These are particularly efficient and should be preffered if possible.
+
 For example, the command `xprop -spy -root _NET_CURRENT_DESKTOP` writes the currently focused desktop whenever it changes.
-This can be used to implement a workspace widget for a bar, for example.
 Another example usecase is monitoring the currently playing song with playerctl: `playerctl --follow metadata --format {{title}}`.
 
 **Built-in "magic" variables**

@@ -113,7 +113,7 @@ pub fn generate_generic_widget_node(
 ) -> AstResult<Box<dyn WidgetNode>> {
     if let Some(def) = defs.get(&w.name) {
         if !w.children.is_empty() {
-            return Err(AstError::TooManyNodes(w.children_span(), 0).note("User-defined widgets cannot be given children."))
+            return Err(AstError::TooManyNodes(w.children_span(), 0).note("User-defined widgets cannot be given children."));
         }
 
         let mut new_local_env = w

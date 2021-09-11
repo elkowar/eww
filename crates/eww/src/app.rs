@@ -1,18 +1,23 @@
 use crate::{
-    config, daemon_response::DaemonResponseSender, display_backend, error_handling_ctx, eww_state, script_var_handler::*,
+    config,
+    daemon_response::DaemonResponseSender,
+    display_backend, error_handling_ctx, eww_state,
+    gtk::prelude::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt},
+    script_var_handler::*,
     EwwPaths,
 };
 use anyhow::*;
 use debug_stub_derive::*;
 use eww_shared_util::VarName;
-use gdk::WindowExt;
-use gtk::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt};
 use itertools::Itertools;
 use simplexpr::dynval::DynVal;
 use std::collections::{HashMap, HashSet};
 use tokio::sync::mpsc::UnboundedSender;
 use yuck::{
-    config::window_geometry::{AnchorPoint, WindowGeometry},
+    config::{
+        script_var_definition::ScriptVarDefinition,
+        window_geometry::{AnchorPoint, WindowGeometry},
+    },
     value::Coords,
 };
 
@@ -200,7 +205,20 @@ impl App {
     }
 
     fn update_state(&mut self, fieldname: VarName, value: DynVal) {
-        self.eww_state.update_variable(fieldname, value)
+        self.eww_state.update_variable(fieldname.clone(), value);
+
+        if let Ok(linked_poll_vars) = self.eww_config.get_poll_var_link(&fieldname) {
+            linked_poll_vars.iter().filter_map(|name| self.eww_config.get_script_var(name).ok()).for_each(|var| {
+                if let ScriptVarDefinition::Poll(poll_var) = var {
+                    match poll_var.run_while_expr.eval(self.eww_state.get_variables()).map(|v| v.as_bool()) {
+                        Ok(Ok(true)) => self.script_var_handler.add(var.clone()),
+                        Ok(Ok(false)) => self.script_var_handler.stop_for_variable(poll_var.name.clone()),
+                        Ok(Err(err)) => error_handling_ctx::print_error(anyhow!(err)),
+                        Err(err) => error_handling_ctx::print_error(anyhow!(err)),
+                    };
+                }
+            });
+        }
     }
 
     fn close_window(&mut self, window_name: &String) -> Result<()> {
@@ -240,7 +258,7 @@ impl App {
             let root_widget =
                 window_def.widget.render(&mut self.eww_state, window_name, self.eww_config.get_widget_definitions())?;
 
-            root_widget.get_style_context().add_class(&window_name.to_string());
+            root_widget.style_context().add_class(&window_name.to_string());
 
             let monitor_geometry = get_monitor_geometry(monitor.or(window_def.monitor_number))?;
 
@@ -344,7 +362,7 @@ fn initialize_window(
 
     window.add(&root_widget);
 
-    window.show_all();
+    window.realize();
 
     #[cfg(feature = "x11")]
     {
@@ -357,6 +375,9 @@ fn initialize_window(
         }
         display_backend::set_xprops(&window, monitor_geometry, &window_def)?;
     }
+
+    window.show_all();
+
     Ok(EwwWindow { name: window_def.name.clone(), definition: window_def, gtk_window: window })
 }
 
@@ -367,29 +388,35 @@ fn apply_window_position(
     monitor_geometry: gdk::Rectangle,
     window: &gtk::Window,
 ) -> Result<()> {
-    let gdk_window = window.get_window().context("Failed to get gdk window from gtk window")?;
-    window_geometry.size = Coords::from_pixels(window.get_size());
+    let gdk_window = window.window().context("Failed to get gdk window from gtk window")?;
+    window_geometry.size = Coords::from_pixels(window.size());
     let actual_window_rect = get_window_rectangle(window_geometry, monitor_geometry);
-    gdk_window.move_(actual_window_rect.x, actual_window_rect.y);
+
+    let gdk_origin = gdk_window.origin();
+
+    if actual_window_rect.x != gdk_origin.1 || actual_window_rect.y != gdk_origin.2 {
+        gdk_window.move_(actual_window_rect.x, actual_window_rect.y);
+    }
+
     Ok(())
 }
 
 fn on_screen_changed(window: &gtk::Window, _old_screen: Option<&gdk::Screen>) {
     let visual = window
-        .get_screen()
-        .and_then(|screen| screen.get_rgba_visual().filter(|_| screen.is_composited()).or_else(|| screen.get_system_visual()));
+        .screen()
+        .and_then(|screen| screen.rgba_visual().filter(|_| screen.is_composited()).or_else(|| screen.system_visual()));
     window.set_visual(visual.as_ref());
 }
 
 /// Get the monitor geometry of a given monitor number, or the default if none is given
 fn get_monitor_geometry(n: Option<i32>) -> Result<gdk::Rectangle> {
     #[allow(deprecated)]
-    let display = gdk::Display::get_default().expect("could not get default display");
+    let display = gdk::Display::default().expect("could not get default display");
     let monitor = match n {
-        Some(n) => display.get_monitor(n).with_context(|| format!("Failed to get monitor with index {}", n))?,
-        None => display.get_primary_monitor().context("Failed to get primary monitor from GTK")?,
+        Some(n) => display.monitor(n).with_context(|| format!("Failed to get monitor with index {}", n))?,
+        None => display.primary_monitor().context("Failed to get primary monitor from GTK")?,
     };
-    Ok(monitor.get_geometry())
+    Ok(monitor.geometry())
 }
 
 pub fn get_window_rectangle(geometry: WindowGeometry, screen_rect: gdk::Rectangle) -> gdk::Rectangle {
