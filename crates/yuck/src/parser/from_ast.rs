@@ -50,7 +50,7 @@ impl<T: FromAstElementContent> FromAst for T {
 impl FromAst for SimplExpr {
     fn from_ast(e: Ast) -> AstResult<Self> {
         match e {
-            Ast::Symbol(span, x) => Ok(SimplExpr::VarRef(span.into(), VarName(x))),
+            Ast::Symbol(span, x) => Ok(SimplExpr::VarRef(span, VarName(x))),
             Ast::SimplExpr(span, x) => Ok(x),
             _ => Err(AstError::NotAValue(e.span(), e.expr_type())),
         }

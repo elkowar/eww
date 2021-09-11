@@ -98,7 +98,7 @@ impl YuckFiles {
         let yuck_file =
             YuckFile { name, line_starts, source_len_bytes: content.len(), source: YuckSource::Literal(content.to_string()) };
         let file_id = self.insert_file(yuck_file);
-        Ok(crate::parser::parse_toplevel(file_id, content)?)
+        crate::parser::parse_toplevel(file_id, content)
     }
 
     pub fn unload(&mut self, id: usize) {
@@ -116,7 +116,7 @@ impl<'a> Files<'a> for YuckFiles {
     }
 
     fn source(&'a self, id: Self::FileId) -> Result<Self::Source, codespan_reporting::files::Error> {
-        Ok(self.get_file(id)?.source.read_content().map_err(codespan_reporting::files::Error::Io)?)
+        self.get_file(id)?.source.read_content().map_err(codespan_reporting::files::Error::Io)
     }
 
     fn line_index(&self, id: Self::FileId, byte_index: usize) -> Result<usize, codespan_reporting::files::Error> {

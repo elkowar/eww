@@ -15,6 +15,7 @@ use std::{
     collections::{HashMap, HashSet},
     rc::Rc,
     time::Duration,
+    cmp::Ordering,
 };
 use yuck::{
     config::validate::ValidationError,
@@ -49,7 +50,7 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::Widge
         "revealer" => build_gtk_revealer(bargs)?.upcast(),
         "if-else" => build_if_else(bargs)?.upcast(),
         _ => {
-            Err(AstError::ValidationError(ValidationError::UnknownWidget(bargs.widget.name_span, bargs.widget.name.to_string())))?
+            return Err(AstError::ValidationError(ValidationError::UnknownWidget(bargs.widget.name_span, bargs.widget.name.to_string())).into())
         }
     };
     Ok(gtk_widget)
@@ -68,7 +69,7 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
     if !contained_deprecated.is_empty() {
         let diag = error_handling_ctx::stringify_diagnostic(gen_diagnostic! {
             kind =  Severity::Error,
-            msg = format!("Deprecated attributes ({}) should not be used, consider using eventbox widget as wrapper instead.", contained_deprecated.iter().join(", ")),
+            msg = format!("The attribute(s) ({}) has/have been removed, as GTK does not support it consistently. Instead, use eventbox to wrap this widget and set the attribute there. See #251 (https://github.com/elkowar/eww/issues/251) for more details.", contained_deprecated.iter().join(", ")),
             label = bargs.widget.span => "Found in here"
         }).unwrap();
         eprintln!("{}", diag);
@@ -476,28 +477,32 @@ fn build_center_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
         prop(orientation: as_string) { gtk_widget.set_orientation(parse_orientation(&orientation)?) },
     });
 
-    if bargs.widget.children.len() < 3 {
-        Err(DiagError::new(gen_diagnostic!("centerbox must contain exactly 3 elements", bargs.widget.span)))?
-    } else if bargs.widget.children.len() > 3 {
-        let (_, additional_children) = bargs.widget.children.split_at(3);
-        // we know that there is more than three children, so unwrapping on first and left here is fine.
-        let first_span = additional_children.first().unwrap().span();
-        let last_span = additional_children.last().unwrap().span();
-        Err(DiagError::new(gen_diagnostic!("centerbox must contain exactly 3 elements, but got more", first_span.to(last_span))))?
+    match bargs.widget.children.len().cmp(&3) {
+        Ordering::Less => {
+            Err(DiagError::new(gen_diagnostic!("centerbox must contain exactly 3 elements", bargs.widget.span)).into())
+        }
+        Ordering::Greater => {
+            let (_, additional_children) = bargs.widget.children.split_at(3);
+            // we know that there is more than three children, so unwrapping on first and left here is fine.
+            let first_span = additional_children.first().unwrap().span();
+            let last_span = additional_children.last().unwrap().span();
+            Err(DiagError::new(gen_diagnostic!("centerbox must contain exactly 3 elements, but got more", first_span.to(last_span))).into())
+        }
+        Ordering::Equal => {
+            let mut children =
+            bargs.widget.children.iter().map(|child| child.render(bargs.eww_state, bargs.window_name, bargs.widget_definitions));
+            // we know that we have exactly three children here, so we can unwrap here.
+            let (first, center, end) = children.next_tuple().unwrap();
+            let (first, center, end) = (first?, center?, end?);
+            gtk_widget.pack_start(&first, true, true, 0);
+            gtk_widget.set_center_widget(Some(&center));
+            gtk_widget.pack_end(&end, true, true, 0);
+            first.show();
+            center.show();
+            end.show();
+            Ok(gtk_widget)
+        }
     }
-
-    let mut children =
-        bargs.widget.children.iter().map(|child| child.render(bargs.eww_state, bargs.window_name, bargs.widget_definitions));
-    // we know that we have exactly three children here, so we can unwrap here.
-    let (first, center, end) = children.next_tuple().unwrap();
-    let (first, center, end) = (first?, center?, end?);
-    gtk_widget.pack_start(&first, true, true, 0);
-    gtk_widget.set_center_widget(Some(&center));
-    gtk_widget.pack_end(&end, true, true, 0);
-    first.show();
-    center.show();
-    end.show();
-    Ok(gtk_widget)
 }
 
 /// @widget eventbox extends container
@@ -595,8 +600,15 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
     resolve_block!(bargs, gtk_widget, {
         // @prop text - the text to display
         // @prop limit-width - maximum count of characters to display
-        prop(text: as_string, limit_width: as_i32 = i32::MAX) {
-            let text = text.chars().take(limit_width as usize).collect::<String>();
+        // @prop show_truncated - show whether the text was truncated
+        prop(text: as_string, limit_width: as_i32 = i32::MAX, show_truncated: as_bool = true) {
+            let truncated = text.chars().count() > limit_width as usize;
+            let mut text = text.chars().take(limit_width as usize).collect::<String>();
+
+            if show_truncated && truncated {
+                text.push_str("...");
+            }
+
             let text = unescape::unescape(&text).context(format!("Failed to unescape label text {}", &text))?;
             let text = unindent::unindent(&text);
             gtk_widget.set_text(&text);

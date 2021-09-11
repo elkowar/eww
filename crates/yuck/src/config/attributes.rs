@@ -87,12 +87,12 @@ impl Attributes {
         E: std::error::Error + 'static + Sync + Send,
         T: FromDynVal<Err = E>,
     {
-        let ast: SimplExpr = self.ast_required(&key)?;
+        let ast: SimplExpr = self.ast_required(key)?;
         Ok(ast
             .eval_no_vars()
             .map_err(|err| AttrError::EvaluationError(ast.span(), err))?
             .read_as()
-            .map_err(|e| AttrError::Other(ast.span().into(), Box::new(e)))?)
+            .map_err(|e| AttrError::Other(ast.span(), Box::new(e)))?)
     }
 
     pub fn primitive_optional<T, E>(&mut self, key: &str) -> Result<Option<T>, AstError>
@@ -108,7 +108,7 @@ impl Attributes {
             ast.eval_no_vars()
                 .map_err(|err| AttrError::EvaluationError(ast.span(), err))?
                 .read_as()
-                .map_err(|e| AttrError::Other(ast.span().into(), Box::new(e)))?,
+                .map_err(|e| AttrError::Other(ast.span(), Box::new(e)))?,
         ))
     }
 

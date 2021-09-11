@@ -4,7 +4,7 @@ Please follow this template, if applicable.
 
 Provide a short description of the changes your PR introduces.
 This includes the actual feature you are adding,
-as well as any other relevant additions that where necessary to implement your feature.
+as well as any other relevant additions that were necessary to implement your feature.
 
 ## Usage
 
@@ -18,7 +18,7 @@ This is not strictly required, but strongly appreciated.
 
 ## Additional Notes
 
-Anything else you want to add, such as remaining questions or explainations.
+Anything else you want to add, such as remaining questions or explanations.
 
 ## Checklist
 

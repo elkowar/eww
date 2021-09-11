@@ -1,7 +1,6 @@
 # Writing your eww configuration
 
 (For a list of all built in widgets (i.e. `box`, `label`, `button`)  see [Widget Documentation](widgets.md))
-
 Eww is configured using its own language called `yuck`.
 using yuck, you declare the structure and content of your widgets, the geometry, position and behavior of any windows,
 as well as any state and data that will be used in your widgets.
@@ -156,7 +155,7 @@ They may also be useful to have buttons within eww change what is shown within y
 
 ```lisp
 (defpoll time :interval "1s"
-              :timeout "0.1s" ; setting timeout is optional
+              :initial "initial-value" ; setting initial is optional
   `date +%H:%M:%S`)
 ```
 
@@ -166,8 +165,8 @@ This may be the most commonly used type of variable.
 They are useful to access any quickly retrieved value repeatedly,
 and thus are the perfect choice for showing your time, date, as well as other bits of information such as your volume.
 
-Optionally, you can specify a timeout, after which the provided script will be aborted.
-This helps to avoid accidentally launching thousands of never-ending processes on your system.
+You can also specify an initial-value, this should prevent eww from waiting for the result of a give command during startup, thus,
+making the startup time faster.
 
 **Listening variables (`deflisten`)**
 

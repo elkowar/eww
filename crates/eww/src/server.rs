@@ -152,7 +152,7 @@ async fn run_filewatch<P: AsRef<Path>>(config_dir: P, evt_send: UnboundedSender<
         Ok(_) => {}
         Err(e) => log::error!("Encountered Error While Watching Files: {}", e),
     })?;
-    watcher.watch(&config_dir.as_ref(), RecursiveMode::Recursive)?;
+    watcher.watch(config_dir.as_ref(), RecursiveMode::Recursive)?;
 
     // make sure to not trigger reloads too much by only accepting one reload every 500ms.
     let debounce_done = Arc::new(std::sync::atomic::AtomicBool::new(true));
@@ -184,7 +184,7 @@ async fn run_filewatch<P: AsRef<Path>>(config_dir: P, evt_send: UnboundedSender<
         },
         else => break
     };
-    return Ok(());
+    Ok(())
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -213,7 +213,7 @@ fn do_detach(log_file_path: impl AsRef<Path>) -> Result<ForkResult> {
         .create(true)
         .append(true)
         .open(&log_file_path)
-        .expect(&format!("Error opening log file ({}), for writing", log_file_path.as_ref().to_string_lossy()));
+        .unwrap_or_else(|_| panic!("Error opening log file ({}), for writing", log_file_path.as_ref().to_string_lossy()));
     let fd = file.as_raw_fd();
 
     if nix::unistd::isatty(1)? {
