@@ -544,8 +544,15 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
     resolve_block!(bargs, gtk_widget, {
         // @prop text - the text to display
         // @prop limit-width - maximum count of characters to display
-        prop(text: as_string, limit_width: as_i32 = i32::MAX) {
-            let text = text.chars().take(limit_width as usize).collect::<String>();
+        // @prop show_truncated - show whether the text was truncated
+        prop(text: as_string, limit_width: as_i32 = i32::MAX, show_truncated: as_bool = true) {
+            let truncated = text.chars().count() > limit_width as usize;
+            let mut text = text.chars().take(limit_width as usize).collect::<String>();
+
+            if show_truncated && truncated {
+                text.push_str("...");
+            }
+
             let text = unescape::unescape(&text).context(format!("Failed to unescape label text {}", &text))?;
             let text = unindent::unindent(&text);
             gtk_widget.set_text(&text);
