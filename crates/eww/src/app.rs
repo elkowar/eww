@@ -344,7 +344,7 @@ fn initialize_window(
 
     window.add(&root_widget);
 
-    window.show_all();
+    window.realize();
 
     #[cfg(feature = "x11")]
     {
@@ -357,6 +357,9 @@ fn initialize_window(
         }
         display_backend::set_xprops(&window, monitor_geometry, &window_def)?;
     }
+
+    window.show_all();
+
     Ok(EwwWindow { name: window_def.name.clone(), definition: window_def, gtk_window: window })
 }
 
@@ -370,7 +373,13 @@ fn apply_window_position(
     let gdk_window = window.get_window().context("Failed to get gdk window from gtk window")?;
     window_geometry.size = Coords::from_pixels(window.get_size());
     let actual_window_rect = get_window_rectangle(window_geometry, monitor_geometry);
-    gdk_window.move_(actual_window_rect.x, actual_window_rect.y);
+
+    let gdk_origin = gdk_window.get_origin();
+
+    if actual_window_rect.x != gdk_origin.1 || actual_window_rect.y != gdk_origin.2 {
+        gdk_window.move_(actual_window_rect.x, actual_window_rect.y);
+    }
+
     Ok(())
 }
 
