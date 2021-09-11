@@ -316,16 +316,13 @@ Instead, you explicitly update them by calling eww like so: <code>eww update f
 They may also be useful to have buttons within eww change what is shown within your widget, by setting attributes like <code>onclick</code> to run <code>eww update</code>.</p>
 <p><strong>Polling variables (<code>defpoll</code>)</strong></p>
 <pre><code class="language-lisp">(defpoll time :interval &quot;1s&quot;
-              :timeout &quot;0.1s&quot; ; setting timeout is optional
-              :initial &quot;initial-value&quot; ; setting timeout is optional
+              :initial &quot;initial-value&quot; ; setting initial is optional
   `date +%H:%M:%S`)
 </code></pre>
 <p>A polling variable is a variable which runs a provided shell-script repeatedly, in a given interval.</p>
 <p>This may be the most commonly used type of variable.
 They are useful to access any quickly retrieved value repeatedly,
 and thus are the perfect choice for showing your time, date, as well as other bits of information such as your volume.</p>
-<p>Optionally, you can specify a timeout, after which the provided script will be aborted.
-This helps to avoid accidentally launching thousands of never-ending processes on your system.</p>
 <p>You can also specify an initial-value, this should prevent eww from waiting for the result of a give command during startup, thus,
 making the startup time faster.</p>
 <p><strong>Listening variables (<code>deflisten</code>)</strong></p>
