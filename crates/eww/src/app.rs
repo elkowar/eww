@@ -274,7 +274,6 @@ impl App {
         // refresh script-var poll stuff
         self.script_var_handler.stop_all();
 
-
         log::trace!("loading config: {:#?}", config);
 
         self.eww_config = config;

@@ -13,6 +13,7 @@ macro_rules! builtin_vars {
             VarName::from($name) => ScriptVarDefinition::Poll(PollScriptVar {
                 name: VarName::from($name),
                 command: VarSource::Function($fun),
+                initial_value: None,
                 interval: $interval,
                 name_span: eww_shared_util::span::Span::DUMMY,
             })

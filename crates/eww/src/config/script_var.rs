@@ -22,14 +22,18 @@ pub fn create_script_var_failed_warn(span: Span, var_name: &VarName, error_outpu
 
 pub fn initial_value(var: &ScriptVarDefinition) -> Result<DynVal> {
     match var {
-        ScriptVarDefinition::Poll(x) => match &x.command {
-            VarSource::Function(f) => {
-                f().map_err(|err| anyhow!(err)).with_context(|| format!("Failed to compute initial value for {}", &var.name()))
-            }
-            VarSource::Shell(span, command) => {
-                run_command(command).map_err(|e| anyhow!(create_script_var_failed_warn(*span, var.name(), &e.to_string())))
-            }
+        ScriptVarDefinition::Poll(x) => match &x.initial_value {
+            Some(value) => Ok(value.clone()),
+            None => match &x.command {
+                VarSource::Function(f) => f()
+                    .map_err(|err| anyhow!(err))
+                    .with_context(|| format!("Failed to compute initial value for {}", &var.name())),
+                VarSource::Shell(span, command) => {
+                    run_command(command).map_err(|e| anyhow!(create_script_var_failed_warn(*span, var.name(), &e.to_string())))
+                }
+            },
         },
+
         ScriptVarDefinition::Listen(var) => Ok(var.initial_value.clone()),
     }
 }
