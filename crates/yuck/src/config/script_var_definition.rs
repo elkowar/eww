@@ -36,7 +36,7 @@ impl ScriptVarDefinition {
     pub fn command_span(&self) -> Option<Span> {
         match self {
             ScriptVarDefinition::Poll(x) => match x.command {
-                VarSource::Shell(span, _) => Some(span),
+                VarSource::Shell(span, ..) => Some(span),
                 VarSource::Function(_) => None,
             },
             ScriptVarDefinition::Listen(x) => Some(x.command_span),
@@ -70,11 +70,6 @@ impl FromAstElementContent for PollScriptVar {
             let mut attrs = iter.expect_key_values()?;
             let initial_value = Some(attrs.primitive_optional("initial")?.unwrap_or_else(|| DynVal::from_string(String::new())));
             let interval = attrs.primitive_required::<DynVal, _>("interval")?.as_duration()?;
-            let timeout = attrs
-                .primitive_optional::<DynVal, _>("timeout")?
-                .map(|x| x.as_duration())
-                .transpose()?
-                .unwrap_or_else(|| std::time::Duration::from_millis(200));
             let (script_span, script) = iter.expect_literal()?;
             iter.expect_done()?;
             Self {
