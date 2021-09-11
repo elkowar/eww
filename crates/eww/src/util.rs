@@ -116,7 +116,6 @@ pub fn parse_scss_from_file(path: &Path) -> Result<String> {
     grass::from_string(file_content, &grass_config).map_err(|err| anyhow!("Encountered SCSS parsing error: {:?}", err))
 }
 
-
 #[ext(pub, name = StringExt)]
 impl<T: AsRef<str>> T {
     /// check if the string is empty after removing all linebreaks and trimming

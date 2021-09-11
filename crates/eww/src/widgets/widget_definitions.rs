@@ -8,7 +8,7 @@ use gdk::WindowExt;
 use glib;
 use gtk::{self, prelude::*, ImageExt};
 use itertools::Itertools;
-use std::{cell::RefCell, collections::HashMap, rc::Rc, time::Duration, cmp::Ordering};
+use std::{cell::RefCell, cmp::Ordering, collections::HashMap, rc::Rc, time::Duration};
 use yuck::{
     config::validate::ValidationError,
     error::{AstError, AstResult, AstResultExt},
@@ -41,7 +41,11 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::Widge
         "revealer" => build_gtk_revealer(bargs)?.upcast(),
         "if-else" => build_if_else(bargs)?.upcast(),
         _ => {
-            return Err(AstError::ValidationError(ValidationError::UnknownWidget(bargs.widget.name_span, bargs.widget.name.to_string())).into())
+            return Err(AstError::ValidationError(ValidationError::UnknownWidget(
+                bargs.widget.name_span,
+                bargs.widget.name.to_string(),
+            ))
+            .into())
         }
     };
     Ok(gtk_widget)
@@ -517,11 +521,18 @@ fn build_center_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
             // we know that there is more than three children, so unwrapping on first and left here is fine.
             let first_span = additional_children.first().unwrap().span();
             let last_span = additional_children.last().unwrap().span();
-            Err(DiagError::new(gen_diagnostic!("centerbox must contain exactly 3 elements, but got more", first_span.to(last_span))).into())
+            Err(DiagError::new(gen_diagnostic!(
+                "centerbox must contain exactly 3 elements, but got more",
+                first_span.to(last_span)
+            ))
+            .into())
         }
         Ordering::Equal => {
-            let mut children =
-            bargs.widget.children.iter().map(|child| child.render(bargs.eww_state, bargs.window_name, bargs.widget_definitions));
+            let mut children = bargs
+                .widget
+                .children
+                .iter()
+                .map(|child| child.render(bargs.eww_state, bargs.window_name, bargs.widget_definitions));
             // we know that we have exactly three children here, so we can unwrap here.
             let (first, center, end) = children.next_tuple().unwrap();
             let (first, center, end) = (first?, center?, end?);

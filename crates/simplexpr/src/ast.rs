@@ -86,6 +86,39 @@ impl SimplExpr {
     pub fn synth_literal<T: Into<DynVal>>(s: T) -> Self {
         Self::Literal(s.into())
     }
+
+    pub fn dfs_collect_var_refs_into(&self, dest: &mut Vec<VarName>) {
+        match self {
+            SimplExpr::VarRef(_, x) => dest.push(x.clone()),
+            SimplExpr::UnaryOp(_, _, x) => x.as_ref().dfs_collect_var_refs_into(dest),
+            SimplExpr::BinOp(_, l, _, r) => {
+                l.as_ref().dfs_collect_var_refs_into(dest);
+                r.as_ref().dfs_collect_var_refs_into(dest);
+            }
+            SimplExpr::IfElse(_, a, b, c) => {
+                a.as_ref().dfs_collect_var_refs_into(dest);
+                b.as_ref().dfs_collect_var_refs_into(dest);
+                c.as_ref().dfs_collect_var_refs_into(dest);
+            }
+            SimplExpr::JsonAccess(_, value, index) => {
+                value.as_ref().dfs_collect_var_refs_into(dest);
+                index.as_ref().dfs_collect_var_refs_into(dest);
+            }
+            SimplExpr::FunctionCall(_, _, args) => args.iter().for_each(|x: &SimplExpr| x.dfs_collect_var_refs_into(dest)),
+            SimplExpr::JsonArray(_, values) => values.iter().for_each(|v| v.dfs_collect_var_refs_into(dest)),
+            SimplExpr::JsonObject(_, entries) => entries.iter().for_each(|(k, v)| {
+                k.dfs_collect_var_refs_into(dest);
+                v.dfs_collect_var_refs_into(dest);
+            }),
+            _ => (),
+        };
+    }
+
+    pub fn dfs_collect_var_refs(&self) -> Vec<VarName> {
+        let mut dest = Vec::new();
+        self.dfs_collect_var_refs_into(&mut dest);
+        dest
+    }
 }
 
 impl Spanned for SimplExpr {

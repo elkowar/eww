@@ -24,11 +24,18 @@ pub struct EwwConfig {
     windows: HashMap<String, EwwWindowDefinition>,
     initial_variables: HashMap<VarName, DynVal>,
     script_vars: HashMap<VarName, ScriptVarDefinition>,
+    pub poll_var_trigger: HashMap<VarName, Vec<VarName>>,
 }
 
 impl Default for EwwConfig {
     fn default() -> Self {
-        Self { widgets: HashMap::new(), windows: HashMap::new(), initial_variables: HashMap::new(), script_vars: HashMap::new() }
+        Self {
+            widgets: HashMap::new(),
+            windows: HashMap::new(),
+            initial_variables: HashMap::new(),
+            script_vars: HashMap::new(),
+            poll_var_trigger: HashMap::new(),
+        }
     }
 }
 
@@ -44,6 +51,17 @@ impl EwwConfig {
 
         let Config { widget_definitions, window_definitions, var_definitions, mut script_vars } = config;
         script_vars.extend(crate::config::inbuilt::get_inbuilt_vars());
+
+        let mut poll_var_trigger = HashMap::<VarName, Vec<VarName>>::new();
+        script_vars
+            .iter()
+            .filter_map(|(_, var)| if let ScriptVarDefinition::Poll(poll_var) = var { Some(poll_var) } else { None })
+            .for_each(|var| {
+                var.trigger_var_refs
+                    .iter()
+                    .for_each(|name| poll_var_trigger.entry(name.clone()).or_default().push(var.name.clone()))
+            });
+
         Ok(EwwConfig {
             windows: window_definitions
                 .into_iter()
@@ -52,6 +70,7 @@ impl EwwConfig {
             widgets: widget_definitions,
             initial_variables: var_definitions.into_iter().map(|(k, v)| (k, v.initial_value)).collect(),
             script_vars,
+            poll_var_trigger,
         })
     }
 
