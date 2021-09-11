@@ -70,7 +70,7 @@ pub fn initialize_server(paths: EwwPaths, action: Option<DaemonCommand>) -> Resu
         paths,
     };
 
-    if let Some(screen) = gdk::Screen::get_default() {
+    if let Some(screen) = gdk::Screen::default() {
         gtk::StyleContext::add_provider_for_screen(&screen, &app.css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
     }
 

@@ -71,14 +71,14 @@ fn build_builtin_gtk_widget(
 
     if let Some(gtk_widget) = gtk_widget.dynamic_cast_ref::<gtk::Container>() {
         resolve_container_attrs(&mut bargs, gtk_widget);
-        if gtk_widget.get_children().is_empty() {
+        if gtk_widget.children().is_empty() {
             for child in &widget.children {
                 let child_widget = child.render(bargs.eww_state, window_name, widget_definitions).with_context(|| {
                     format!(
                         "{}error while building child '{:#?}' of '{}'",
                         format!("{} | ", widget.span),
                         &child,
-                        &gtk_widget.get_widget_name()
+                        &gtk_widget.widget_name()
                     )
                 })?;
                 gtk_widget.add(&child_widget);
