@@ -94,8 +94,8 @@ pub Expr: SimplExpr = {
   #[precedence(level="5")] #[assoc(side="left")]
   <l:@L> <le:Expr> "==" <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), Equals,     b(re)),
   <l:@L> <le:Expr> "!=" <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), NotEquals,  b(re)),
-  <l:@L> <le:Expr> "<"  <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), GT,         b(re)),
-  <l:@L> <le:Expr> ">"  <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), LT,         b(re)),
+  <l:@L> <le:Expr> ">"  <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), GT,         b(re)),
+  <l:@L> <le:Expr> "<"  <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), LT,         b(re)),
   <l:@L> <le:Expr> "=~" <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), RegexMatch, b(re)),
 
   #[precedence(level="6")] #[assoc(side="left")]
