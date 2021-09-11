@@ -134,6 +134,10 @@ impl PollVarHandler {
     }
 
     async fn start(&mut self, var: PollScriptVar) {
+        if self.poll_handles.contains_key(&var.name) {
+            return;
+        }
+
         log::debug!("starting poll var {}", &var.name);
         let cancellation_token = CancellationToken::new();
         self.poll_handles.insert(var.name.clone(), cancellation_token.clone());

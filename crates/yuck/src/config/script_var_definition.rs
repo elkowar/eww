@@ -55,6 +55,8 @@ pub enum VarSource {
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub struct PollScriptVar {
     pub name: VarName,
+    pub run_while_expr: SimplExpr,
+    pub run_while_var_refs: Vec<VarName>,
     pub command: VarSource,
     pub initial_value: Option<DynVal>,
     pub interval: std::time::Duration,
@@ -71,10 +73,17 @@ impl FromAstElementContent for PollScriptVar {
             let initial_value = Some(attrs.primitive_optional("initial")?.unwrap_or_else(|| DynVal::from_string(String::new())));
             let interval = attrs.primitive_required::<DynVal, _>("interval")?.as_duration()?;
             let (script_span, script) = iter.expect_literal()?;
+
+            let run_while_expr =
+                attrs.ast_optional::<SimplExpr>("run-while")?.unwrap_or_else(|| SimplExpr::Literal(DynVal::from(true)));
+            let run_while_var_refs = run_while_expr.collect_var_refs();
+
             iter.expect_done()?;
             Self {
                 name_span,
                 name: VarName(name),
+                run_while_expr,
+                run_while_var_refs,
                 command: VarSource::Shell(script_span, script.to_string()),
                 initial_value,
                 interval,
