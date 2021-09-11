@@ -56,6 +56,7 @@ pub enum VarSource {
 pub struct PollScriptVar {
     pub name: VarName,
     pub command: VarSource,
+    pub initial_value: Option<DynVal>,
     pub interval: std::time::Duration,
     pub name_span: Span,
 }
@@ -67,6 +68,7 @@ impl FromAstElementContent for PollScriptVar {
         let result: AstResult<_> = try {
             let (name_span, name) = iter.expect_symbol()?;
             let mut attrs = iter.expect_key_values()?;
+            let initial_value = Some(attrs.primitive_optional("initial")?.unwrap_or_else(|| DynVal::from_string(String::new())));
             let interval = attrs.primitive_required::<DynVal, _>("interval")?.as_duration()?;
             let timeout = attrs
                 .primitive_optional::<DynVal, _>("timeout")?
@@ -75,7 +77,13 @@ impl FromAstElementContent for PollScriptVar {
                 .unwrap_or_else(|| std::time::Duration::from_millis(200));
             let (script_span, script) = iter.expect_literal()?;
             iter.expect_done()?;
-            Self { name_span, name: VarName(name), command: VarSource::Shell(script_span, script.to_string()), interval }
+            Self {
+                name_span,
+                name: VarName(name),
+                command: VarSource::Shell(script_span, script.to_string()),
+                initial_value,
+                interval,
+            }
         };
         result.note(r#"Expected format: `(defpoll name :interval "10s" "echo 'a shell script'")`"#)
     }
