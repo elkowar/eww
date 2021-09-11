@@ -54,7 +54,7 @@ fn label_from_simplexpr(value: SimplExpr, span: Span) -> WidgetUse {
             maplit::hashmap! {
                 AttrName("text".to_string()) => AttrEntry::new(
                     span,
-                    Ast::SimplExpr(span.into(), value.clone())
+                    Ast::SimplExpr(span, value)
                 )
             },
         ),

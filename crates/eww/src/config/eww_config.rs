@@ -70,7 +70,7 @@ impl EwwConfig {
         &self.windows
     }
 
-    pub fn get_window(&self, name: &String) -> Result<&EwwWindowDefinition> {
+    pub fn get_window(&self, name: &str) -> Result<&EwwWindowDefinition> {
         self.windows.get(name).with_context(|| {
             format!(
                 "No window named '{}' exists in config.\nThis may also be caused by your config failing to load properly, \

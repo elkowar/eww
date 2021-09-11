@@ -47,7 +47,7 @@ pub fn validate(config: &Config, additional_globals: Vec<VarName>) -> Result<(),
         validate_variables_in_widget_use(&config.widget_definitions, &var_names, &window.widget, false)?;
     }
     for def in config.widget_definitions.values() {
-        validate_widget_definition(&config.widget_definitions, &var_names, &def)?;
+        validate_widget_definition(&config.widget_definitions, &var_names, def)?;
     }
     Ok(())
 }
@@ -97,7 +97,7 @@ pub fn validate_variables_in_widget_use(
             .find(|(_, var_ref)| !variables.contains(var_ref))
     });
     if let Some((span, var)) = unknown_var {
-        return Err(ValidationError::UnknownVariable { span, name: var.clone(), in_definition: is_in_definition });
+        return Err(ValidationError::UnknownVariable { span, name: var, in_definition: is_in_definition });
     }
 
     for child in widget.children.iter() {

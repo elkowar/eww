@@ -70,7 +70,7 @@ macro_rules! enum_parse {
         match input.as_str() {
             $( $( $s )|* => Ok($val) ),*,
             _ => Err(EnumParseError {
-                input: input,
+                input,
                 expected: vec![$($($s),*),*],
             })
         }
