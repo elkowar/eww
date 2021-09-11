@@ -5,8 +5,7 @@ use crate::{
 use anyhow::*;
 use debug_stub_derive::*;
 use eww_shared_util::VarName;
-use gdk::WindowExt;
-use gtk::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt};
+use crate::gtk::prelude::{GtkWindowExt, WidgetExt, ContainerExt, CssProviderExt, StyleContextExt};
 use itertools::Itertools;
 use simplexpr::dynval::DynVal;
 use std::collections::{HashMap, HashSet};
@@ -240,7 +239,7 @@ impl App {
             let root_widget =
                 window_def.widget.render(&mut self.eww_state, window_name, self.eww_config.get_widget_definitions())?;
 
-            root_widget.get_style_context().add_class(&window_name.to_string());
+            root_widget.style_context().add_class(&window_name.to_string());
 
             let monitor_geometry = get_monitor_geometry(monitor.or(window_def.monitor_number))?;
 
@@ -368,13 +367,14 @@ fn initialize_window(
 fn apply_window_position(
     mut window_geometry: WindowGeometry,
     monitor_geometry: gdk::Rectangle,
-    window: &gtk::Window,
+    window: &gtk::Window
 ) -> Result<()> {
-    let gdk_window = window.get_window().context("Failed to get gdk window from gtk window")?;
-    window_geometry.size = Coords::from_pixels(window.get_size());
+
+    let gdk_window = window.window().context("Failed to get gdk window from gtk window")?;
+    window_geometry.size = Coords::from_pixels(window.size());
     let actual_window_rect = get_window_rectangle(window_geometry, monitor_geometry);
 
-    let gdk_origin = gdk_window.get_origin();
+    let gdk_origin = gdk_window.origin();
 
     if actual_window_rect.x != gdk_origin.1 || actual_window_rect.y != gdk_origin.2 {
         gdk_window.move_(actual_window_rect.x, actual_window_rect.y);
@@ -385,20 +385,20 @@ fn apply_window_position(
 
 fn on_screen_changed(window: &gtk::Window, _old_screen: Option<&gdk::Screen>) {
     let visual = window
-        .get_screen()
-        .and_then(|screen| screen.get_rgba_visual().filter(|_| screen.is_composited()).or_else(|| screen.get_system_visual()));
+        .screen()
+        .and_then(|screen| screen.rgba_visual().filter(|_| screen.is_composited()).or_else(|| screen.system_visual()));
     window.set_visual(visual.as_ref());
 }
 
 /// Get the monitor geometry of a given monitor number, or the default if none is given
 fn get_monitor_geometry(n: Option<i32>) -> Result<gdk::Rectangle> {
     #[allow(deprecated)]
-    let display = gdk::Display::get_default().expect("could not get default display");
+    let display = gdk::Display::default().expect("could not get default display");
     let monitor = match n {
-        Some(n) => display.get_monitor(n).with_context(|| format!("Failed to get monitor with index {}", n))?,
-        None => display.get_primary_monitor().context("Failed to get primary monitor from GTK")?,
+        Some(n) => display.monitor(n).with_context(|| format!("Failed to get monitor with index {}", n))?,
+        None => display.primary_monitor().context("Failed to get primary monitor from GTK")?,
     };
-    Ok(monitor.get_geometry())
+    Ok(monitor.geometry())
 }
 
 pub fn get_window_rectangle(geometry: WindowGeometry, screen_rect: gdk::Rectangle) -> gdk::Rectangle {
