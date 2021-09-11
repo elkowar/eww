@@ -205,10 +205,10 @@ impl App {
     fn update_state(&mut self, fieldname: VarName, value: DynVal) {
         self.eww_state.update_variable(fieldname.clone(), value);
 
-        if let Some(linked_poll_vars) = self.eww_config.poll_var_trigger.get(&fieldname) {
+        if let Ok(linked_poll_vars) = self.eww_config.get_poll_var_link(&fieldname) {
             linked_poll_vars.iter().filter_map(|name| self.eww_config.get_script_var(name).ok()).for_each(|var| {
                 if let ScriptVarDefinition::Poll(poll_var) = var {
-                    match poll_var.trigger_expr.eval(self.eww_state.get_variables()).map(|v| v.as_bool()) {
+                    match poll_var.run_while_expr.eval(self.eww_state.get_variables()).map(|v| v.as_bool()) {
                         Ok(Ok(true)) => self.script_var_handler.add(var.clone()),
                         Ok(Ok(false)) => self.script_var_handler.stop_for_variable(poll_var.name.clone()),
                         Ok(Err(err)) => error_handling_ctx::print_error(anyhow!(err)),
