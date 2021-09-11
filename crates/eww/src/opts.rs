@@ -173,7 +173,7 @@ fn parse_var_update_arg(s: &str) -> Result<(VarName, DynVal)> {
 
 impl ActionWithServer {
     pub fn can_start_daemon(&self) -> bool {
-        matches!(self, ActionWithServer::OpenWindow {..} | ActionWithServer::OpenMany { .. })
+        matches!(self, ActionWithServer::OpenWindow { .. } | ActionWithServer::OpenMany { .. })
     }
 
     pub fn into_daemon_command(self) -> (app::DaemonCommand, Option<daemon_response::DaemonResponseReceiver>) {
