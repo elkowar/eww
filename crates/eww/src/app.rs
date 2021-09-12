@@ -1,11 +1,14 @@
 use crate::{
-    config, daemon_response::DaemonResponseSender, display_backend, error_handling_ctx, eww_state, script_var_handler::*,
+    config,
+    daemon_response::DaemonResponseSender,
+    display_backend, error_handling_ctx, eww_state,
+    gtk::prelude::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt},
+    script_var_handler::*,
     EwwPaths,
 };
 use anyhow::*;
 use debug_stub_derive::*;
 use eww_shared_util::VarName;
-use crate::gtk::prelude::{GtkWindowExt, WidgetExt, ContainerExt, CssProviderExt, StyleContextExt};
 use itertools::Itertools;
 use simplexpr::dynval::DynVal;
 use std::collections::{HashMap, HashSet};
@@ -383,9 +386,8 @@ fn initialize_window(
 fn apply_window_position(
     mut window_geometry: WindowGeometry,
     monitor_geometry: gdk::Rectangle,
-    window: &gtk::Window
+    window: &gtk::Window,
 ) -> Result<()> {
-
     let gdk_window = window.window().context("Failed to get gdk window from gtk window")?;
     window_geometry.size = Coords::from_pixels(window.size());
     let actual_window_rect = get_window_rectangle(window_geometry, monitor_geometry);

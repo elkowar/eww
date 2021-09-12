@@ -4,10 +4,19 @@ use crate::{
     enum_parse, error::DiagError, error_handling_ctx, eww_state, resolve_block, util::list_difference, widgets::widget_node,
 };
 use anyhow::*;
+use codespan_reporting::diagnostic::Severity;
+use gdk::NotifyType;
 use glib;
 use gtk::{self, prelude::*};
 use itertools::Itertools;
-use std::{cell::RefCell, cmp::Ordering, collections::HashMap, rc::Rc, time::Duration};
+use once_cell::sync::Lazy;
+use std::{
+    cell::RefCell,
+    cmp::Ordering,
+    collections::{HashMap, HashSet},
+    rc::Rc,
+    time::Duration,
+};
 use yuck::{
     config::validate::ValidationError,
     error::{AstError, AstResult, AstResultExt},
@@ -26,6 +35,7 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::Widge
     let gtk_widget = match bargs.widget.name.as_str() {
         "box" => build_gtk_box(bargs)?.upcast(),
         "centerbox" => build_center_box(bargs)?.upcast(),
+        "eventbox" => build_gtk_event_box(bargs)?.upcast(),
         "scale" => build_gtk_scale(bargs)?.upcast(),
         "progress" => build_gtk_progress(bargs)?.upcast(),
         "image" => build_gtk_image(bargs)?.upcast(),
@@ -52,10 +62,26 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::Widge
     Ok(gtk_widget)
 }
 
+/// Deprecated attributes from top of widget hierarchy
+static DEPRECATED_ATTRS: Lazy<HashSet<&str>> =
+    Lazy::new(|| ["timeout", "onscroll", "onhover", "cursor"].iter().cloned().collect());
+
 /// attributes that apply to all widgets
 /// @widget widget
 /// @desc these properties apply to _all_ widgets, and can be used anywhere!
 pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Widget) {
+    let deprecated: HashSet<_> = DEPRECATED_ATTRS.to_owned();
+    let contained_deprecated: Vec<_> = bargs.unhandled_attrs.drain_filter(|a| deprecated.contains(&a.0 as &str)).collect();
+    if !contained_deprecated.is_empty() {
+        let diag = error_handling_ctx::stringify_diagnostic(gen_diagnostic! {
+            kind =  Severity::Error,
+            msg = "Unsupported attributes provided",
+            label = bargs.widget.span => "Found in here",
+            note = format!("The attribute(s) ({}) has/have been removed, as GTK does not support it consistently. Instead, use eventbox to wrap this widget and set the attribute there. See #251 (https://github.com/elkowar/eww/issues/251) for more details.", contained_deprecated.iter().join(", ")),
+        }).unwrap();
+        eprintln!("{}", diag);
+    }
+
     let css_provider = gtk::CssProvider::new();
 
     if let Ok(visible) =
@@ -69,11 +95,6 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
             }
         })
     }
-
-    let on_scroll_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
-    let on_hover_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
-    let cursor_hover_enter_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
-    let cursor_hover_leave_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
 
     resolve_block!(bargs, gtk_widget, {
         // @prop class - css class name
@@ -118,56 +139,6 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
             css_provider.load_from_data(format!("* {{ {} }}", style).as_bytes())?;
             gtk_widget.style_context().add_provider(&css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION)
         },
-        // @prop timeout - timeout of the command
-        // @prop onscroll - event to execute when the user scrolls with the mouse over the widget. The placeholder `{}` used in the command will be replaced with either `up` or `down`.
-        prop(timeout: as_duration = Duration::from_millis(200), onscroll: as_string) {
-            gtk_widget.add_events(gdk::EventMask::SCROLL_MASK);
-            gtk_widget.add_events(gdk::EventMask::SMOOTH_SCROLL_MASK);
-            let old_id = on_scroll_handler_id.replace(Some(
-                gtk_widget.connect_scroll_event(move |_, evt| {
-                    run_command(timeout, &onscroll, if evt.delta().1 < 0f64 { "up" } else { "down" });
-                    gtk::Inhibit(false)
-                })
-            ));
-            old_id.map(|id| gtk_widget.disconnect(id));
-        },
-        // @prop timeout - timeout of the command
-        // @prop onhover - event to execute when the user hovers over the widget
-        prop(timeout: as_duration = Duration::from_millis(200),onhover: as_string) {
-            gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
-            let old_id = on_hover_handler_id.replace(Some(
-                gtk_widget.connect_enter_notify_event(move |_, evt| {
-                    run_command(timeout, &onhover, format!("{} {}", evt.position().0, evt.position().1));
-                    gtk::Inhibit(false)
-                })
-            ));
-            old_id.map(|id| gtk_widget.disconnect(id));
-        },
-
-        // @prop cursor - Cursor to show while hovering (see [gtk3-cursors](https://developer.gnome.org/gdk3/stable/gdk3-Cursors.html) for possible names)
-        prop(cursor: as_string) {
-            gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
-            cursor_hover_enter_handler_id.replace(Some(
-                gtk_widget.connect_enter_notify_event(move |widget, _evt| {
-                    let display = gdk::Display::default();
-                    let gdk_window = widget.window();
-                    if let (Some(display), Some(gdk_window)) = (display, gdk_window) {
-                        gdk_window.set_cursor(gdk::Cursor::from_name(&display, &cursor).as_ref());
-                    }
-                    gtk::Inhibit(false)
-                })
-            )).map(|id| gtk_widget.disconnect(id));
-
-            cursor_hover_leave_handler_id.replace(Some(
-                gtk_widget.connect_leave_notify_event(move |widget, _evt| {
-                    let gdk_window = widget.window();
-                    if let Some(gdk_window) = gdk_window {
-                        gdk_window.set_cursor(None);
-                    }
-                    gtk::Inhibit(false)
-                })
-            )).map(|id| gtk_widget.disconnect(id));
-        },
     });
 }
 
@@ -207,7 +178,7 @@ pub(super) fn resolve_range_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Ran
         // @prop onchange - command executed once the value is changes. The placeholder `{}`, used in the command will be replaced by the new value.
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_string) {
             gtk_widget.set_sensitive(true);
-            gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
+            gtk_widget.add_events(gdk::EventMask::PROPERTY_CHANGE_MASK);
             let old_id = on_change_handler_id.replace(Some(
                 gtk_widget.connect_value_changed(move |gtk_widget| {
                     run_command(timeout, &onchange, gtk_widget.value());
@@ -449,7 +420,7 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
             onmiddleclick: as_string = "",
             onrightclick: as_string = ""
         ) {
-            gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
+            gtk_widget.add_events(gdk::EventMask::BUTTON_PRESS_MASK);
             let old_id = on_click_handler_id.replace(Some(
                 gtk_widget.connect_button_press_event(move |_, evt| {
                     match evt.button() {
@@ -546,6 +517,93 @@ fn build_center_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
             Ok(gtk_widget)
         }
     }
+}
+
+/// @widget eventbox extends container
+/// @desc a container which can receive events and must contain exactly one child
+fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
+    let gtk_widget = gtk::EventBox::new();
+
+    let on_scroll_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
+    let on_hover_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
+    let on_hover_leave_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
+    let cursor_hover_enter_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
+    let cursor_hover_leave_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
+
+    resolve_block!(bargs, gtk_widget, {
+        // @prop timeout - timeout of the command
+        // @prop onscroll - event to execute when the user scrolls with the mouse over the widget. The placeholder `{}` used in the command will be replaced with either `up` or `down`.
+        prop(timeout: as_duration = Duration::from_millis(200), onscroll: as_string) {
+            gtk_widget.add_events(gdk::EventMask::SCROLL_MASK);
+            gtk_widget.add_events(gdk::EventMask::SMOOTH_SCROLL_MASK);
+            let old_id = on_scroll_handler_id.replace(Some(
+                gtk_widget.connect_scroll_event(move |_, evt| {
+                    run_command(timeout, &onscroll, if evt.delta().1 < 0f64 { "up" } else { "down" });
+                    gtk::Inhibit(false)
+                })
+            ));
+            old_id.map(|id| gtk_widget.disconnect(id));
+        },
+        // @prop timeout - timeout of the command
+        // @prop onhover - event to execute when the user hovers over the widget
+        prop(timeout: as_duration = Duration::from_millis(200), onhover: as_string) {
+            gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
+            let old_id = on_hover_handler_id.replace(Some(
+                gtk_widget.connect_enter_notify_event(move |_, evt| {
+                    if evt.detail() != NotifyType::Inferior {
+                        run_command(timeout, &onhover, format!("{} {}", evt.position().0, evt.position().1));
+                    }
+                    gtk::Inhibit(false)
+                })
+            ));
+            old_id.map(|id| gtk_widget.disconnect(id));
+        },
+        // @prop timeout - timeout of the command
+        // @prop onhoverlost - event to execute when the user losts hovers over the widget
+        prop(timeout: as_duration = Duration::from_millis(200), onhoverlost: as_string) {
+            gtk_widget.add_events(gdk::EventMask::LEAVE_NOTIFY_MASK);
+            let old_id = on_hover_leave_handler_id.replace(Some(
+                gtk_widget.connect_leave_notify_event(move |_, evt| {
+                    if evt.detail() != NotifyType::Inferior {
+                        run_command(timeout, &onhoverlost, format!("{} {}", evt.position().0, evt.position().1));
+                    }
+                    gtk::Inhibit(false)
+                })
+            ));
+            old_id.map(|id| gtk_widget.disconnect(id));
+        },
+        // @prop cursor - Cursor to show while hovering (see [gtk3-cursors](https://docs.gtk.org/gdk3/ctor.Cursor.new_from_name.html) for possible names)
+        prop(cursor: as_string) {
+            gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
+            gtk_widget.add_events(gdk::EventMask::LEAVE_NOTIFY_MASK);
+
+            cursor_hover_enter_handler_id.replace(Some(
+                gtk_widget.connect_enter_notify_event(move |widget, _evt| {
+                    if _evt.detail() != NotifyType::Inferior {
+                        let display = gdk::Display::default();
+                        let gdk_window = widget.window();
+                        if let (Some(display), Some(gdk_window)) = (display, gdk_window) {
+                            gdk_window.set_cursor(gdk::Cursor::from_name(&display, &cursor).as_ref());
+                        }
+                    }
+                    gtk::Inhibit(false)
+                })
+            )).map(|id| gtk_widget.disconnect(id));
+
+            cursor_hover_leave_handler_id.replace(Some(
+                gtk_widget.connect_leave_notify_event(move |widget, _evt| {
+                    if _evt.detail() != NotifyType::Inferior {
+                        let gdk_window = widget.window();
+                        if let Some(gdk_window) = gdk_window {
+                            gdk_window.set_cursor(None);
+                        }
+                    }
+                    gtk::Inhibit(false)
+                })
+            )).map(|id| gtk_widget.disconnect(id));
+        },
+    });
+    Ok(gtk_widget)
 }
 
 /// @widget label

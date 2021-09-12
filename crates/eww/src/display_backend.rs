@@ -152,13 +152,9 @@ mod platform {
             monitor_rect: gdk::Rectangle,
             window_def: &EwwWindowDefinition,
         ) -> Result<()> {
-            let gdk_window = window
-                .window()
-                .context("Couldn't get gdk window from gtk window")?;
-            let win_id = gdk_window
-                .downcast_ref::<gdkx11::X11Window>()
-                .context("Failed to get x11 window for gtk window")?
-                .xid() as u32;
+            let gdk_window = window.window().context("Couldn't get gdk window from gtk window")?;
+            let win_id =
+                gdk_window.downcast_ref::<gdkx11::X11Window>().context("Failed to get x11 window for gtk window")?.xid() as u32;
             let strut_def = window_def.backend_options.struts;
             let root_window_geometry = self.conn.get_geometry(self.root_window)?.reply()?;
 
