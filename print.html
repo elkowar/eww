@@ -465,11 +465,6 @@ or check the <a href="working_with_gtk.html#gtk-debugger">GTK-Debugger</a>.</p>
 <li><strong><code>tooltip</code></strong>: <em><code>string</code></em> tooltip text (on hover)</li>
 <li><strong><code>visible</code></strong>: <em><code>bool</code></em> visibility of the widget</li>
 <li><strong><code>style</code></strong>: <em><code>string</code></em> inline css style applied to the widget</li>
-<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command</li>
-<li><strong><code>onscroll</code></strong>: <em><code>string</code></em> event to execute when the user scrolls with the mouse over the widget. The placeholder <code>{}</code> used in the command will be replaced with either <code>up</code> or <code>down</code>.</li>
-<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command</li>
-<li><strong><code>onhover</code></strong>: <em><code>string</code></em> event to execute when the user hovers over the widget</li>
-<li><strong><code>cursor</code></strong>: <em><code>string</code></em> Cursor to show while hovering (see <a href="https://developer.gnome.org/gdk3/stable/gdk3-Cursors.html">gtk3-cursors</a> for possible names)</li>
 </ul>
 <h2 id="combo-box-text"><a class="header" href="#combo-box-text"><code>combo-box-text</code></a></h2>
 <p>A combo box allowing the user to choose between several items.</p>
@@ -576,6 +571,18 @@ or check the <a href="working_with_gtk.html#gtk-debugger">GTK-Debugger</a>.</p>
 <p><strong>Properties</strong></p>
 <ul>
 <li><strong><code>orientation</code></strong>: <em><code>string</code></em> orientation of the centerbox. possible values: &quot;vertical&quot;, &quot;v&quot;, &quot;horizontal&quot;, &quot;h&quot;</li>
+</ul>
+<h2 id="eventbox"><a class="header" href="#eventbox"><code>eventbox</code></a></h2>
+<p>a container which can receive events and must contain exactly one child</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command</li>
+<li><strong><code>onscroll</code></strong>: <em><code>string</code></em> event to execute when the user scrolls with the mouse over the widget. The placeholder <code>{}</code> used in the command will be replaced with either <code>up</code> or <code>down</code>.</li>
+<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command</li>
+<li><strong><code>onhover</code></strong>: <em><code>string</code></em> event to execute when the user hovers over the widget</li>
+<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command</li>
+<li><strong><code>onhoverlost</code></strong>: <em><code>string</code></em> event to execute when the user losts hovers over the widget</li>
+<li><strong><code>cursor</code></strong>: <em><code>string</code></em> Cursor to show while hovering (see <a href="https://docs.gtk.org/gdk3/ctor.Cursor.new_from_name.html">gtk3-cursors</a> for possible names)</li>
 </ul>
 <h2 id="label"><a class="header" href="#label"><code>label</code></a></h2>
 <p>A text widget giving you more control over how the text is displayed</p>
