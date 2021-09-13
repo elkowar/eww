@@ -108,13 +108,16 @@ function parseDocs(code: string) {
             if (possibleMatch == -1) {
                 console.log(`Failed to find a match for "${propMatch[1].replace("-", "_")}" ~ ${JSON.stringify(matches, null, 2)} ~ ${lines[no]}`)
             }
-            const type = replaceTypeNames(matches[possibleMatch + 1])
 
-            widgets[currentWidget].props.push({
-                name: propMatch[1],
-                desc: propMatch[2],
-                type: type ?? "no-type-found"
-            });
+            if (!widgets[currentWidget].props.some(p => p.name == propMatch[1])) {
+                const type = replaceTypeNames(matches[possibleMatch + 1])
+
+                widgets[currentWidget].props.push({
+                    name: propMatch[1],
+                    desc: propMatch[2],
+                    type: type ?? "no-type-found"
+                });
+            }
         }
     }
     return widgets;
