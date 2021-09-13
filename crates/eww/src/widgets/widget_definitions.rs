@@ -538,7 +538,10 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
             gtk_widget.add_events(gdk::EventMask::SMOOTH_SCROLL_MASK);
             let old_id = on_scroll_handler_id.replace(Some(
                 gtk_widget.connect_scroll_event(move |_, evt| {
-                    run_command(timeout, &onscroll, if evt.delta().1 < 0f64 { "up" } else { "down" });
+                    let delta = evt.delta().1;
+                    if delta != 0f64 { // Ignore the first event https://bugzilla.gnome.org/show_bug.cgi?id=675959
+                        run_command(timeout, &onscroll, if delta < 0f64 { "up" } else { "down" });
+                    }
                     gtk::Inhibit(false)
                 })
             ));
