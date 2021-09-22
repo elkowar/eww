@@ -8,7 +8,7 @@ use std::{fmt, str::FromStr};
 pub enum Error {
     #[error("Failed to parse \"{0}\" as a length value")]
     NumParseFailed(String),
-    #[error("Inalid unit \"{0}\", must be either % or px")]
+    #[error("Invalid unit \"{0}\", must be either % or px")]
     InvalidUnit(String),
     #[error("Invalid format. Coordinates must be formated like 200x100")]
     MalformedCoords,
