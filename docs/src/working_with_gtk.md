@@ -4,8 +4,8 @@
 
 Eww is styled in GTK CSS.
 To make theming even easier, it makes use of `scss` and then compiles that into CSS for you.
-If you don't know any way to style something check out the [GTK CSS Overview wiki](https://developer.gnome.org/gtk3/stable/chap-css-overview.html),
-the [GTK CSS Properties Overview wiki ](https://developer.gnome.org/gtk3/stable/chap-css-properties.html),
+If you don't know any way to style something check out the [GTK CSS Overview wiki](https://docs.gtk.org/gtk3/css-overview.html),
+the [GTK CSS Properties Overview wiki ](https://docs.gtk.org/gtk3/css-properties.html),
 or check the [GTK-Debugger](#gtk-debugger).
 
 If you have **NO** clue about how to do CSS, check out some online guides or tutorials.
