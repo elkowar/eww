@@ -76,6 +76,10 @@ pub enum ActionWithServer {
         mappings: Vec<(VarName, DynVal)>,
     },
 
+    // Open the GTK debugger
+    #[structopt(name = "inspector", alias = "debugger")]
+    OpenInspector,
+
     /// open a window
     #[structopt(name = "open", alias = "o")]
     OpenWindow {
@@ -179,6 +183,7 @@ impl ActionWithServer {
     pub fn into_daemon_command(self) -> (app::DaemonCommand, Option<daemon_response::DaemonResponseReceiver>) {
         let command = match self {
             ActionWithServer::Update { mappings } => app::DaemonCommand::UpdateVars(mappings),
+            ActionWithServer::OpenInspector => app::DaemonCommand::OpenInspector,
 
             ActionWithServer::KillServer => app::DaemonCommand::KillServer,
             ActionWithServer::CloseAll => app::DaemonCommand::CloseAll,

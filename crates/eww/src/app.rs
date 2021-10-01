@@ -28,6 +28,7 @@ pub enum DaemonCommand {
     ReloadConfigAndCss(DaemonResponseSender),
     UpdateConfig(config::EwwConfig),
     UpdateCss(String),
+    OpenInspector,
     OpenMany {
         windows: Vec<String>,
         should_toggle: bool,
@@ -94,6 +95,9 @@ impl App {
         let result: Result<_> = try {
             match event {
                 DaemonCommand::NoOp => {}
+                DaemonCommand::OpenInspector => {
+                    gtk::Window::set_interactive_debugging(true);
+                }
                 DaemonCommand::UpdateVars(mappings) => {
                     for (var_name, new_value) in mappings {
                         self.update_state(var_name, new_value);
