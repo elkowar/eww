@@ -31,8 +31,10 @@
 
         eww-wayland = naersk-lib.buildPackage {
           pname = "eww";
+          buildInputs = with pkgs; [ gtk-layer-shell ];
           nativeBuildInputs = with pkgs; [ pkg-config gtk3 ];
-          cargoBuildOptions = opts: opts ++ ["--no-default-features" "--features=wayland"];
+          cargoBuildOptions = opts:
+            opts ++ [ "--no-default-features" "--features=wayland" ];
           root = ./.;
         };
 
