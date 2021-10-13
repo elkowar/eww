@@ -23,35 +23,23 @@
           rustc = pkgs.rustc;
         });
 
-        eww = naersk-lib.buildPackage {
-          pname = "eww";
-          nativeBuildInputs = with pkgs; [ pkg-config gtk3 ];
-          root = ./.;
-        };
+        eww = { wayland ? false }:
+          naersk-lib.buildPackage {
+            pname = "eww";
+            buildInputs = pkgs.lib.optional wayland pkgs.gtk-layer-shell;
+            nativeBuildInputs = with pkgs; [ pkg-config gtk3 ];
+            cargoBuildOptions = opts: opts ++ pkgs.lib.optionals wayland [ "--no-default-features" "--features=wayland" ];
+            root = ./.;
+          };
 
-        eww-wayland = naersk-lib.buildPackage {
-          pname = "eww";
-          buildInputs = with pkgs; [ gtk-layer-shell ];
-          nativeBuildInputs = with pkgs; [ pkg-config gtk3 ];
-          cargoBuildOptions = opts:
-            opts ++ [ "--no-default-features" "--features=wayland" ];
-          root = ./.;
-        };
+      in rec {
+        packages.eww = eww {};
+        packages.eww-wayland = eww {wayland=true;};
 
+        defaultPackage = self.packages.${system}.eww;
 
-      in
-      rec {
-        packages.eww = eww;
-        packages.eww-wayland = eww-wayland;
-
-        defaultPackage = eww;
-
-        apps.eww = flake-utils.lib.mkApp {
-          drv = eww;
-        };
-        apps.eww-wayland = flake-utils.lib.mkApp {
-          drv = eww-wayland;
-        };
+        apps.eww = flake-utils.lib.mkApp { drv = packages.eww; };
+        apps.eww-wayland = flake-utils.lib.mkApp { drv = packages.eww-wayland; };
         defaultApp = apps.eww;
 
         devShell = import ./shell.nix { inherit pkgs; };
