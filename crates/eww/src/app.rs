@@ -15,6 +15,7 @@ use std::collections::{HashMap, HashSet};
 use tokio::sync::mpsc::UnboundedSender;
 use yuck::{
     config::{
+        backend_window_options::WindowType,
         script_var_definition::ScriptVarDefinition,
         window_geometry::{AnchorPoint, WindowGeometry},
     },
@@ -372,10 +373,12 @@ fn initialize_window(
     {
         if let Some(geometry) = window_def.geometry {
             let _ = apply_window_position(geometry, monitor_geometry, &window);
-            window.connect_configure_event(move |window, _| {
-                let _ = apply_window_position(geometry, monitor_geometry, window);
-                false
-            });
+            if window_def.backend_options.window_type != WindowType::Normal {
+                window.connect_configure_event(move |window, _| {
+                    let _ = apply_window_position(geometry, monitor_geometry, window);
+                    false
+                });
+            }
         }
         display_backend::set_xprops(&window, monitor_geometry, &window_def)?;
     }
