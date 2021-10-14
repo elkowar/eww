@@ -1,5 +1,5 @@
 use crate::{
-    config,
+    config::{self, initial_value},
     daemon_response::DaemonResponseSender,
     display_backend, error_handling_ctx, eww_state,
     gtk::prelude::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt},
@@ -216,8 +216,8 @@ impl App {
             linked_poll_vars.iter().filter_map(|name| self.eww_config.get_script_var(name).ok()).for_each(|var| {
                 if let ScriptVarDefinition::Poll(poll_var) = var {
                     match poll_var.run_while_expr.eval(self.eww_state.get_variables()).map(|v| v.as_bool()) {
-                        Ok(Ok(true)) => self.script_var_handler.add(var.clone()),
-                        Ok(Ok(false)) => self.script_var_handler.stop_for_variable(poll_var.name.clone()),
+                        Ok(Ok(true)) => self.script_var_handler.flag_add(var.clone()),
+                        Ok(Ok(false)) => self.script_var_handler.flag_stop(poll_var.name.clone()),
                         Ok(Err(err)) => error_handling_ctx::print_error(anyhow!(err)),
                         Err(err) => error_handling_ctx::print_error(anyhow!(err)),
                     };
@@ -227,9 +227,9 @@ impl App {
     }
 
     fn close_window(&mut self, window_name: &String) -> Result<()> {
-        for unused_var in self.variables_only_used_in(window_name) {
+        for unused_var in self.all_variables_referenced_in(window_name) {
             log::debug!("stopping for {}", &unused_var);
-            self.script_var_handler.stop_for_variable(unused_var.clone());
+            self.script_var_handler.flag_stop(unused_var.clone());
         }
 
         self.open_windows
@@ -273,10 +273,26 @@ impl App {
 
             // initialize script var handlers for variables that where not used before opening this window.
             // TODO somehow make this less shit
-            for newly_used_var in
-                self.variables_only_used_in(window_name).filter_map(|var| self.eww_config.get_script_var(var).ok())
-            {
-                self.script_var_handler.add(newly_used_var.clone());
+            // TODO somehow update eww_state without cloning ScriptVarDefinition
+            let vars: Vec<_> = self
+                .all_variables_referenced_in(window_name)
+                .into_iter()
+                .filter_map(|var| self.eww_config.get_script_var(&var).ok())
+                .map(|v| v.clone())
+                .collect();
+
+            for var in &vars {
+                self.eww_state.update_variable(var.name().clone(), initial_value(var)?);
+            }
+            for var in &vars {
+                match &var {
+                    &ScriptVarDefinition::Listen(..) => self.script_var_handler.flag_add(var.clone()),
+                    &ScriptVarDefinition::Poll(poll_var) => {
+                        if poll_var.run_while_expr.eval(self.eww_state.get_variables())?.as_bool()? {
+                            self.script_var_handler.flag_add(var.clone())
+                        }
+                    }
+                }
             }
         };
 
@@ -331,12 +347,28 @@ impl App {
         vars
     }
 
-    /// Get all variables that are only used in the given window.
-    pub fn variables_only_used_in<'a>(&'a self, window: &'a String) -> impl Iterator<Item = &'a VarName> {
-        self.currently_used_variables()
+    /// Get all variables that are referenced in the given window.
+    pub fn all_variables_referenced_in<'a>(&'a self, window: &'a String) -> HashSet<&'a VarName> {
+        let currently_used_variables: HashMap<_, _> = self.currently_used_variables();
+
+        let mut variables_used_in_window: Vec<_> = currently_used_variables
             .into_iter()
             .filter(move |(_, wins)| wins.len() == 1 && wins.contains(&window))
             .map(|(var, _)| var)
+            .collect();
+
+        // Iteratively finds and collects the referenced variables
+        let mut all_vars_referenced_in_window = HashSet::new();
+
+        while let Some(last) = variables_used_in_window.pop() {
+            if all_vars_referenced_in_window.insert(last) {
+                if let Some(ScriptVarDefinition::Poll(poll_var)) = self.eww_config.get_script_var(last).ok() {
+                    variables_used_in_window.extend(poll_var.run_while_var_refs.iter());
+                }
+            }
+        }
+
+        all_vars_referenced_in_window
     }
 }
 

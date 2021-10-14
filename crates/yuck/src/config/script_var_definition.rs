@@ -1,4 +1,7 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    hash::{Hash, Hasher},
+};
 
 use simplexpr::{dynval::DynVal, SimplExpr};
 
@@ -44,6 +47,12 @@ impl ScriptVarDefinition {
     }
 }
 
+impl Hash for ScriptVarDefinition {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.name().hash(state);
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub enum VarSource {
     // TODO allow for other executors? (python, etc)
@@ -70,7 +79,7 @@ impl FromAstElementContent for PollScriptVar {
         let result: AstResult<_> = try {
             let (name_span, name) = iter.expect_symbol()?;
             let mut attrs = iter.expect_key_values()?;
-            let initial_value = Some(attrs.primitive_optional("initial")?.unwrap_or_else(|| DynVal::from_string(String::new())));
+            let initial_value = attrs.primitive_optional("initial")?;
             let interval = attrs.primitive_required::<DynVal, _>("interval")?.as_duration()?;
             let (script_span, script) = iter.expect_literal()?;
 

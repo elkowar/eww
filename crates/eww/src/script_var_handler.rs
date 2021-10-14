@@ -36,10 +36,10 @@ pub fn init(evt_send: UnboundedSender<DaemonCommand>) -> ScriptVarHandlerHandle 
                 crate::loop_select_exiting! {
                     Some(msg) = msg_recv.recv() => match msg {
                         ScriptVarHandlerMsg::AddVar(var) => {
-                            handler.add(var).await;
+                            handler.flag_add(var).await;
                         }
                         ScriptVarHandlerMsg::Stop(name) => {
-                            handler.stop_for_variable(&name)?;
+                            handler.flag_stop(&name)?;
                         }
                         ScriptVarHandlerMsg::StopAll => {
                             handler.stop_all();
@@ -59,23 +59,23 @@ pub struct ScriptVarHandlerHandle {
 }
 
 impl ScriptVarHandlerHandle {
-    /// Add a new script-var that should be executed.
-    pub fn add(&self, script_var: ScriptVarDefinition) {
+    /// Add a new script-var that should be executed, or increment new-add ref count.
+    pub fn flag_add(&self, script_var: ScriptVarDefinition) {
         crate::print_result_err!(
             "while forwarding instruction to script-var handler",
             self.msg_send.send(ScriptVarHandlerMsg::AddVar(script_var))
         );
     }
 
-    /// Stop the execution of a specific script-var.
-    pub fn stop_for_variable(&self, name: VarName) {
+    /// Stop the execution of a specific script-var, if called equal time add_flag was called.
+    pub fn flag_stop(&self, name: VarName) {
         crate::print_result_err!(
             "while forwarding instruction to script-var handler",
             self.msg_send.send(ScriptVarHandlerMsg::Stop(name)),
         );
     }
 
-    /// Stop the execution of all script-vars.
+    /// Stop the execution of all script-vars forcefully.
     pub fn stop_all(&self) {
         crate::print_result_err!(
             "while forwarding instruction to script-var handler",
@@ -99,22 +99,23 @@ struct ScriptVarHandler {
 }
 
 impl ScriptVarHandler {
-    async fn add(&mut self, script_var: ScriptVarDefinition) {
+    /// Add a new script-var that should be executed, or increment new-add ref count.
+    async fn flag_add(&mut self, script_var: ScriptVarDefinition) {
         match script_var {
-            ScriptVarDefinition::Poll(var) => self.poll_handler.start(var).await,
-            ScriptVarDefinition::Listen(var) => self.listen_handler.start(var).await,
+            ScriptVarDefinition::Poll(var) => self.poll_handler.flag_start(var).await,
+            ScriptVarDefinition::Listen(var) => self.listen_handler.flag_start(var).await,
         };
     }
 
-    /// Stop the handler that is responsible for a given variable.
-    fn stop_for_variable(&mut self, name: &VarName) -> Result<()> {
+    /// Stop the handler that is responsible for a given variable, if called equal time add_flag was called.
+    fn flag_stop(&mut self, name: &VarName) -> Result<()> {
         log::debug!("Stopping script var process for variable {}", name);
-        self.listen_handler.stop_for_variable(name);
-        self.poll_handler.stop_for_variable(name);
+        self.listen_handler.flag_stop(name);
+        self.poll_handler.flag_stop(name);
         Ok(())
     }
 
-    /// stop all running scripts and schedules
+    /// stop all running scripts and schedules forcefully.
     fn stop_all(&mut self) {
         log::debug!("Stopping script-var-handlers");
         self.listen_handler.stop_all();
@@ -124,7 +125,7 @@ impl ScriptVarHandler {
 
 struct PollVarHandler {
     evt_send: UnboundedSender<DaemonCommand>,
-    poll_handles: HashMap<VarName, CancellationToken>,
+    poll_handles: HashMap<VarName, (u32, CancellationToken)>,
 }
 
 impl PollVarHandler {
@@ -133,14 +134,15 @@ impl PollVarHandler {
         Ok(handler)
     }
 
-    async fn start(&mut self, var: PollScriptVar) {
-        if self.poll_handles.contains_key(&var.name) {
+    async fn flag_start(&mut self, var: PollScriptVar) {
+        if let Some((ref_count, _)) = self.poll_handles.get_mut(&var.name) {
+            *ref_count += 1;
             return;
         }
 
         log::debug!("starting poll var {}", &var.name);
         let cancellation_token = CancellationToken::new();
-        self.poll_handles.insert(var.name.clone(), cancellation_token.clone());
+        self.poll_handles.insert(var.name.clone(), (1, cancellation_token.clone()));
         let evt_send = self.evt_send.clone();
         tokio::spawn(async move {
             let result: Result<_> = try {
@@ -165,15 +167,19 @@ impl PollVarHandler {
         });
     }
 
-    fn stop_for_variable(&mut self, name: &VarName) {
-        if let Some(token) = self.poll_handles.remove(name) {
-            log::debug!("stopped poll var {}", name);
-            token.cancel()
+    fn flag_stop(&mut self, name: &VarName) {
+        if let Some((ref_count, token)) = self.poll_handles.get_mut(name) {
+            if *ref_count == 1 {
+                log::debug!("stopped poll var {}", name);
+                token.cancel()
+            } else {
+                *ref_count -= 1;
+            }
         }
     }
 
     fn stop_all(&mut self) {
-        self.poll_handles.drain().for_each(|(_, token)| token.cancel());
+        self.poll_handles.drain().for_each(|(_, (_, token))| token.cancel());
     }
 }
 
@@ -194,7 +200,7 @@ impl Drop for PollVarHandler {
 
 struct ListenVarHandler {
     evt_send: UnboundedSender<DaemonCommand>,
-    listen_process_handles: HashMap<VarName, CancellationToken>,
+    listen_process_handles: HashMap<VarName, (u32, CancellationToken)>,
 }
 
 impl ListenVarHandler {
@@ -203,10 +209,15 @@ impl ListenVarHandler {
         Ok(handler)
     }
 
-    async fn start(&mut self, var: ListenScriptVar) {
+    async fn flag_start(&mut self, var: ListenScriptVar) {
+        if let Some((ref_count, _)) = self.listen_process_handles.get_mut(&var.name) {
+            *ref_count += 1;
+            return;
+        }
+
         log::debug!("starting listen-var {}", &var.name);
         let cancellation_token = CancellationToken::new();
-        self.listen_process_handles.insert(var.name.clone(), cancellation_token.clone());
+        self.listen_process_handles.insert(var.name.clone(), (1, cancellation_token.clone()));
 
         let evt_send = self.evt_send.clone();
         tokio::spawn(async move {
@@ -241,15 +252,19 @@ impl ListenVarHandler {
         });
     }
 
-    fn stop_for_variable(&mut self, name: &VarName) {
-        if let Some(token) = self.listen_process_handles.remove(name) {
-            log::debug!("stopped listen-var {}", name);
-            token.cancel();
+    fn flag_stop(&mut self, name: &VarName) {
+        if let Some((ref_count, token)) = self.listen_process_handles.get_mut(name) {
+            if *ref_count == 1 {
+                log::debug!("stopped poll var {}", name);
+                token.cancel()
+            } else {
+                *ref_count -= 1;
+            }
         }
     }
 
     fn stop_all(&mut self) {
-        self.listen_process_handles.drain().for_each(|(_, token)| token.cancel());
+        self.listen_process_handles.drain().for_each(|(_, (_, token))| token.cancel());
     }
 }
 
