@@ -65,7 +65,7 @@ fn main() {
             }
 
             // a running daemon is necessary for this command
-            opts::Action::WithServer(action) if action.can_start_daemon() => {
+            opts::Action::WithServer(action) if action.can_start_daemon() && !opts.no_daemonize => {
                 if opts.restart {
                     let _ = handle_server_command(&paths, &ActionWithServer::KillServer, 1);
                     std::thread::sleep(std::time::Duration::from_millis(200));
@@ -83,7 +83,7 @@ fn main() {
 
                     let (command, response_recv) = action.into_daemon_command();
                     // start the daemon and give it the command
-                    let fork_result = server::initialize_server(paths.clone(), Some(command))?;
+                    let fork_result = server::initialize_server(paths.clone(), Some(command), true)?;
                     let is_parent = fork_result == ForkResult::Parent;
                     if let (Some(recv), true) = (response_recv, is_parent) {
                         listen_for_daemon_response(recv);
@@ -115,8 +115,8 @@ fn main() {
                 if !opts.show_logs {
                     println!("Run `{} logs` to see any errors while editing your configuration.", eww_binary_name);
                 }
-                let fork_result = server::initialize_server(paths.clone(), None)?;
-                fork_result == ForkResult::Parent
+                let fork_result = server::initialize_server(paths.clone(), None, !opts.no_daemonize)?;
+                opts.no_daemonize || fork_result == ForkResult::Parent
             }
         };
         if would_show_logs && opts.show_logs {

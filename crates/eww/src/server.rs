@@ -14,7 +14,7 @@ use std::{
 };
 use tokio::sync::mpsc::*;
 
-pub fn initialize_server(paths: EwwPaths, action: Option<DaemonCommand>) -> Result<ForkResult> {
+pub fn initialize_server(paths: EwwPaths, action: Option<DaemonCommand>, should_daemonize: bool) -> Result<ForkResult> {
     let (ui_send, mut ui_recv) = tokio::sync::mpsc::unbounded_channel();
 
     std::env::set_current_dir(&paths.get_config_dir())
@@ -32,10 +32,12 @@ pub fn initialize_server(paths: EwwPaths, action: Option<DaemonCommand>) -> Resu
         }
     };
 
-    let fork_result = do_detach(&paths.get_log_file())?;
+    if should_daemonize {
+        let fork_result = do_detach(&paths.get_log_file())?;
 
-    if fork_result == ForkResult::Parent {
-        return Ok(ForkResult::Parent);
+        if fork_result == ForkResult::Parent {
+            return Ok(ForkResult::Parent);
+        }
     }
 
     println!(

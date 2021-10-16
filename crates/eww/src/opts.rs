@@ -18,6 +18,7 @@ pub struct Opt {
     pub restart: bool,
     pub config_path: Option<std::path::PathBuf>,
     pub action: Action,
+    pub no_daemonize: bool,
 }
 
 #[derive(StructOpt, Debug, Serialize, Deserialize, PartialEq)]
@@ -33,6 +34,10 @@ struct RawOpt {
     /// Watch the log output after executing the command
     #[structopt(long = "logs", global = true)]
     show_logs: bool,
+
+    /// Avoid daemonizing eww.
+    #[structopt(long = "no-daemonize", global = true)]
+    no_daemonize: bool,
 
     /// Restart the daemon completely before running the command
     #[structopt(long = "restart", global = true)]
@@ -163,8 +168,8 @@ impl Opt {
 
 impl From<RawOpt> for Opt {
     fn from(other: RawOpt) -> Self {
-        let RawOpt { action, log_debug, show_logs, config, restart } = other;
-        Opt { action, log_debug, show_logs, config_path: config, restart }
+        let RawOpt { log_debug, config, show_logs, no_daemonize, restart, action } = other;
+        Opt { log_debug, show_logs, restart, config_path: config, action, no_daemonize }
     }
 }
 
