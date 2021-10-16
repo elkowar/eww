@@ -358,6 +358,7 @@ fn build_gtk_scale(bargs: &mut BuilderArgs) -> Result<gtk::Scale> {
 
         // @prop marks - draw marks
         prop(marks: as_string) {
+            gtk_widget.clear_marks();
             for mark in marks.split(","){
                 gtk_widget.add_mark(mark.trim().parse()?, gtk::PositionType::Bottom, None)
         }},
