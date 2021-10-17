@@ -351,9 +351,17 @@ fn build_gtk_color_chooser(bargs: &mut BuilderArgs) -> Result<gtk::ColorChooserW
 /// @desc A slider.
 fn build_gtk_scale(bargs: &mut BuilderArgs) -> Result<gtk::Scale> {
     let gtk_widget = gtk::Scale::new(gtk::Orientation::Horizontal, Some(&gtk::Adjustment::new(0.0, 0.0, 100.0, 1.0, 1.0, 1.0)));
+
     resolve_block!(bargs, gtk_widget, {
         // @prop flipped - flip the direction
         prop(flipped: as_bool) { gtk_widget.set_inverted(flipped) },
+
+        // @prop marks - draw marks
+        prop(marks: as_string) {
+            gtk_widget.clear_marks();
+            for mark in marks.split(","){
+                gtk_widget.add_mark(mark.trim().parse()?, gtk::PositionType::Bottom, None)
+        }},
 
         // @prop draw-value - draw the value of the property
         prop(draw_value: as_bool = false) { gtk_widget.set_draw_value(draw_value) },
