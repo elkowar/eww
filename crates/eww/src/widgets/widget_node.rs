@@ -112,10 +112,7 @@ pub fn generate_generic_widget_node(
     w: WidgetUse,
 ) -> AstResult<Box<dyn WidgetNode>> {
     if let Some(def) = defs.get(&w.name) {
-        if !w.children.is_empty() {
-            return Err(AstError::TooManyNodes(w.children_span(), 0).note("User-defined widgets cannot be given children."));
-        }
-
+        let children_span = w.children_span();
         let mut new_local_env = w
             .attrs
             .attrs
@@ -129,7 +126,9 @@ pub fn generate_generic_widget_node(
             new_local_env.entry(var_name).or_insert_with(|| SimplExpr::literal(expected.span, String::new()));
         }
 
-        let content = generate_generic_widget_node(defs, &new_local_env, def.widget.clone())?;
+        let definition_content = replace_children_placeholder_in(children_span, def.widget.clone(), &w.children)?;
+
+        let content = generate_generic_widget_node(defs, &new_local_env, definition_content)?;
         Ok(Box::new(UserDefined { name: w.name, span: w.span, content }))
     } else {
         Ok(Box::new(Generic {
@@ -150,4 +149,34 @@ pub fn generate_generic_widget_node(
                 .collect::<AstResult<Vec<_>>>()?,
         }))
     }
+}
+
+/// Replaces all the `children` placeholders in the given [`widget`](w) using the provided [`children`](provided_children).
+fn replace_children_placeholder_in(use_span: Span, mut w: WidgetUse, provided_children: &[WidgetUse]) -> AstResult<WidgetUse> {
+    // Take the current children from the widget and replace them with an empty vector that we will now add widgets to again.
+    let child_count = w.children.len();
+    let widget_children = std::mem::replace(&mut w.children, Vec::with_capacity(child_count));
+
+    for mut child in widget_children.into_iter() {
+        if child.name == "children" {
+            // Note that we use `primitive_optional` here, meaning that the value for `nth` must be static.
+            // We'll be able to make this dynamic after the state management structure rework
+            if let Some(nth) = child.attrs.primitive_optional::<usize, _>("nth")? {
+                // If a single child is referenced, push that single widget into the children
+                let selected_child: &WidgetUse = provided_children
+                    .get(nth)
+                    .ok_or_else(|| AstError::MissingNode(use_span).context_label(child.span, "required here"))?;
+                w.children.push(selected_child.clone());
+            } else {
+                // otherwise append all provided children
+                w.children.append(&mut provided_children.to_vec());
+            }
+        } else {
+            // If this isn't a `children`-node, then recursively go into it and replace the children there.
+            // If there are no children referenced in there, this will append the widget unchanged.
+            let child = replace_children_placeholder_in(use_span, child, provided_children)?;
+            w.children.push(child);
+        }
+    }
+    Ok(w)
 }
