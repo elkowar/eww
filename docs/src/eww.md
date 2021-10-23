@@ -19,6 +19,23 @@ Rather than with your system package manager,
 I recommend installing it using  [rustup](https://rustup.rs/),
 as this makes it easy to use the nightly toolchain necessary to build eww.
 
+Additionally, eww requires some dynamic libraries to be available on your system.
+The exact names of the packages that provide these may differ depending on your distribution.
+The following list of package names should work for arch linux:
+
+<details>
+<summary>Packages</summary>
+
+- gtk3 (libgdk-3, libgtk-3)
+- pango (libpango)
+- gdk-pixbuf2 (libgdk_pixbuf-2)
+- cairo (libcairo, libcairo-gobject)
+- glib2 (libgio, libglib-2, libgobject-2)
+- gcc-libs (libgcc)
+- glibc
+
+</details>
+
 ### Building
 
 Once you have the prerequisites ready, you're ready to install and build eww.
