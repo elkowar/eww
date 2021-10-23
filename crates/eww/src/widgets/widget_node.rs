@@ -112,10 +112,7 @@ pub fn generate_generic_widget_node(
     w: WidgetUse,
 ) -> AstResult<Box<dyn WidgetNode>> {
     if let Some(def) = defs.get(&w.name) {
-        if !w.children.is_empty() {
-            return Err(AstError::TooManyNodes(w.children_span(), 0).note("User-defined widgets cannot be given children."));
-        }
-
+        let children_span = w.children_span();
         let mut new_local_env = w
             .attrs
             .attrs
@@ -129,7 +126,10 @@ pub fn generate_generic_widget_node(
             new_local_env.entry(var_name).or_insert_with(|| SimplExpr::literal(expected.span, String::new()));
         }
 
-        let content = generate_generic_widget_node(defs, &new_local_env, def.widget.clone())?;
+        let mut definition_content = def.widget.clone();
+        replace_children_placeholder_in(children_span, &mut definition_content, &w.children)?;
+
+        let content = generate_generic_widget_node(defs, &new_local_env, definition_content)?;
         Ok(Box::new(UserDefined { name: w.name, span: w.span, content }))
     } else {
         Ok(Box::new(Generic {
@@ -150,4 +150,26 @@ pub fn generate_generic_widget_node(
                 .collect::<AstResult<Vec<_>>>()?,
         }))
     }
+}
+
+fn replace_children_placeholder_in(use_span: Span, w: &mut WidgetUse, provided_children: &[WidgetUse]) -> AstResult<()> {
+    let children = Vec::with_capacity(w.children.len());
+    let widget_children = std::mem::replace(&mut w.children, children);
+
+    for mut child in widget_children.into_iter() {
+        if child.name == "children" {
+            if let Some(nth) = child.attrs.primitive_optional::<usize, _>("nth")? {
+                let selected_child: &WidgetUse = provided_children
+                    .get(nth)
+                    .ok_or_else(|| AstError::MissingNode(use_span).context_label(child.span, "required here"))?;
+                w.children.push(selected_child.clone());
+            } else {
+                w.children.append(&mut provided_children.to_vec());
+            }
+        } else {
+            replace_children_placeholder_in(use_span, &mut child, provided_children)?;
+            w.children.push(child);
+        }
+    }
+    Ok(())
 }
