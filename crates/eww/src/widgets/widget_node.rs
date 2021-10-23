@@ -126,8 +126,7 @@ pub fn generate_generic_widget_node(
             new_local_env.entry(var_name).or_insert_with(|| SimplExpr::literal(expected.span, String::new()));
         }
 
-        let mut definition_content = def.widget.clone();
-        replace_children_placeholder_in(children_span, &mut definition_content, &w.children)?;
+        let definition_content = replace_children_placeholder_in(children_span, def.widget.clone(), &w.children)?;
 
         let content = generate_generic_widget_node(defs, &new_local_env, definition_content)?;
         Ok(Box::new(UserDefined { name: w.name, span: w.span, content }))
@@ -152,24 +151,31 @@ pub fn generate_generic_widget_node(
     }
 }
 
-fn replace_children_placeholder_in(use_span: Span, w: &mut WidgetUse, provided_children: &[WidgetUse]) -> AstResult<()> {
-    let children = Vec::with_capacity(w.children.len());
-    let widget_children = std::mem::replace(&mut w.children, children);
+/// Replaces all the `children` placeholders in the given [`widget`](w) using the provided [`children`](provided_children).
+fn replace_children_placeholder_in(use_span: Span, mut w: WidgetUse, provided_children: &[WidgetUse]) -> AstResult<WidgetUse> {
+    let child_count = w.children.len();
+
+    // Take the current children from the widget, and replace them with an empty vector, that we will now add widgets to again.
+    let widget_children = std::mem::replace(&mut w.children, Vec::with_capacity(child_count));
 
     for mut child in widget_children.into_iter() {
         if child.name == "children" {
             if let Some(nth) = child.attrs.primitive_optional::<usize, _>("nth")? {
+                // If a single child is referenced, push that single widget into the children
                 let selected_child: &WidgetUse = provided_children
                     .get(nth)
                     .ok_or_else(|| AstError::MissingNode(use_span).context_label(child.span, "required here"))?;
                 w.children.push(selected_child.clone());
             } else {
+                // otherwise append all provided children
                 w.children.append(&mut provided_children.to_vec());
             }
         } else {
-            replace_children_placeholder_in(use_span, &mut child, provided_children)?;
+            // If this isn't a `children`-node, then recursively go into it and replace the children there.
+            // If there are no children referenced in there, this will append the widget unchanged.
+            let child = replace_children_placeholder_in(use_span, child, provided_children)?;
             w.children.push(child);
         }
     }
-    Ok(())
+    Ok(w)
 }
