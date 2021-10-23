@@ -27,6 +27,13 @@ Additionally, a couple _amazing_ people have started to work on an
 * A basic bar, see [examples](./examples/eww-bar)
 ![Example 1](./examples/eww-bar/eww-bar.png)
 
+* [Some setups by Druskus20](https://github.com/druskus20/eugh)
+![Druskus20-bar](https://github.com/druskus20/eugh/raw/master/polybar-replacement/preview.png)
+
+* [My own vertical bar](https://github.com/elkowar/dots-of-war/tree/master/eww-bar/.config/eww-bar)
+
+<img src="https://raw.githubusercontent.com/elkowar/dots-of-war/master/eww-bar/.config/eww-bar/showcase.png" height="400" width="auto"/>
+
 * [Setup by Axarva](https://github.com/Axarva/dotfiles-2.0)
 ![Axarva-rice](https://raw.githubusercontent.com/Axarva/dotfiles-2.0/main/screenshots/center.png)
 
