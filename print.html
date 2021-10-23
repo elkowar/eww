@@ -301,6 +301,29 @@ This allows us to easily refer to any variables within strings.
 In fact, there is a lot more you can do withing <code>${...}</code> - more on that in the chapter about the <a href="expression_language.html">expression language</a>.</p>
 <p>To then use our widget, we call it just like we would use any other built-in widget, and provide the required attributes.</p>
 <p>As you may have noticed, we are using a couple predefined widgets here. These are all listed and explained in the <a href="widgets.html">widgets chapter</a>.</p>
+<h3 id="rendering-children-in-your-widgets"><a class="header" href="#rendering-children-in-your-widgets">Rendering children in your widgets</a></h3>
+<p>(Note that this feature is currently considered <strong>unstable</strong>. The API might change, and there might be bugs here. If you encounter any, please do report them.)</p>
+<p>As your configuration grows, you might want to improve the structure of you config by factoring out functionality into basic reusable widgets.
+Eww allows you to create custom wrapper widgets that can themselves take children, just like some of the built-in widgets like <code>box</code> or <code>button</code> can.
+For this, use the <code>children</code> placeholder:</p>
+<pre><code class="language-lisp">(defwidget labeled-container [name]
+  (box :class &quot;container&quot;
+    name
+    (children)))
+</code></pre>
+<p>Now you can use this widget as expected:</p>
+<pre><code class="language-lisp">(labeled-container :name &quot;foo&quot;
+  (button :onclick &quot;notify-send hey ho&quot;
+    &quot;click me&quot;))
+</code></pre>
+<p>You can also create more complex structure by referring to specific children with the <code>nth</code>-attribute:</p>
+<pre><code class="language-lisp">(defwidget two-boxes []
+  (box
+    (box :class &quot;first&quot; (children :nth 0))
+    (box :class &quot;second&quot; (children :nth 1))))
+</code></pre>
+<p><strong>NOTE</strong>: It is currently not possible to dynamically change which child is shown.
+This means that <code>nth</code> needs to be set to a static value, and cannot refer to a variable.</p>
 <h2 id="adding-dynamic-content"><a class="header" href="#adding-dynamic-content">Adding dynamic content</a></h2>
 <p>Now that you feel sufficiently greeted by your bar, you may realize that showing data like the time and date might be even more useful than having a button that greets you.</p>
 <p>To implement dynamic content in your widgets you make use of <em>variables</em>.</p>
