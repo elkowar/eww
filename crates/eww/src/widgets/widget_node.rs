@@ -153,13 +153,14 @@ pub fn generate_generic_widget_node(
 
 /// Replaces all the `children` placeholders in the given [`widget`](w) using the provided [`children`](provided_children).
 fn replace_children_placeholder_in(use_span: Span, mut w: WidgetUse, provided_children: &[WidgetUse]) -> AstResult<WidgetUse> {
+    // Take the current children from the widget and replace them with an empty vector that we will now add widgets to again.
     let child_count = w.children.len();
-
-    // Take the current children from the widget, and replace them with an empty vector, that we will now add widgets to again.
     let widget_children = std::mem::replace(&mut w.children, Vec::with_capacity(child_count));
 
     for mut child in widget_children.into_iter() {
         if child.name == "children" {
+            // Note that we use `primitive_optional` here, meaning that the value for `nth` must be static.
+            // We'll be able to make this dynamic after the state management structure rework
             if let Some(nth) = child.attrs.primitive_optional::<usize, _>("nth")? {
                 // If a single child is referenced, push that single widget into the children
                 let selected_child: &WidgetUse = provided_children

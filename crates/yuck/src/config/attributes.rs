@@ -82,6 +82,8 @@ impl Attributes {
         }
     }
 
+    /// Retrieve a required attribute from the set which _must not_ reference any variables,
+    /// and is thus known to be static.
     pub fn primitive_required<T, E>(&mut self, key: &str) -> Result<T, AstError>
     where
         E: std::error::Error + 'static + Sync + Send,
@@ -95,6 +97,8 @@ impl Attributes {
             .map_err(|e| AttrError::Other(ast.span(), Box::new(e)))?)
     }
 
+    /// Retrieve an optional attribute from the set which _must not_ reference any variables,
+    /// and is thus known to be static.
     pub fn primitive_optional<T, E>(&mut self, key: &str) -> Result<Option<T>, AstError>
     where
         E: std::error::Error + 'static + Sync + Send,
