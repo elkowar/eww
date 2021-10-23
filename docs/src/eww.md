@@ -36,6 +36,8 @@ The following list of package names should work for arch linux:
 
 </details>
 
+(Note that you will most likely need the -devel variants of your distros packages to be able to compile eww.)
+
 ### Building
 
 Once you have the prerequisites ready, you're ready to install and build eww.
