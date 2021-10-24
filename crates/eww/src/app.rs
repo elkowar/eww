@@ -53,6 +53,10 @@ pub enum DaemonCommand {
         all: bool,
         sender: DaemonResponseSender,
     },
+    GetVar {
+        name: String,
+        sender: DaemonResponseSender,
+    },
     PrintDebug(DaemonResponseSender),
     PrintWindows(DaemonResponseSender),
 }
@@ -175,6 +179,17 @@ impl App {
                             .join("\n")
                     };
                     sender.send_success(output)?
+                }
+                DaemonCommand::GetVar { name, sender } => {
+                    let vars = self.eww_state.get_variables();
+                    match vars.get(name.as_str()) {
+                        Some(x) => sender.send_success(format!("{}: {}", name, x))?,
+                        None => {
+                            let errors = vec!(anyhow!("Variable not found \"{}\"", name));
+                            sender.respond_with_error_list(errors)?;
+                        },
+
+                    }
                 }
                 DaemonCommand::PrintWindows(sender) => {
                     let output = self

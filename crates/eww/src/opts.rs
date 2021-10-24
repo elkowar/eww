@@ -131,7 +131,7 @@ pub enum ActionWithServer {
     #[structopt(name = "reload", alias = "r")]
     Reload,
 
-    /// kill the eww daemon
+    /// Kill the eww daemon
     #[structopt(name = "kill", alias = "k")]
     KillServer,
 
@@ -146,6 +146,10 @@ pub enum ActionWithServer {
         #[structopt(short, long)]
         all: bool,
     },
+
+    // Get the value of a variable if defined
+    #[structopt(name = "get")]
+    GetVar { name: String },
 
     /// Print the names of all configured windows. Windows with a * in front of them are currently opened.
     #[structopt(name = "windows")]
@@ -218,6 +222,9 @@ impl ActionWithServer {
             ActionWithServer::ShowWindows => return with_response_channel(app::DaemonCommand::PrintWindows),
             ActionWithServer::ShowState { all } => {
                 return with_response_channel(|sender| app::DaemonCommand::PrintState { all, sender })
+            }
+            ActionWithServer::GetVar { name } => {
+                return with_response_channel(|sender| app::DaemonCommand::GetVar { name, sender })
             }
             ActionWithServer::ShowDebug => return with_response_channel(app::DaemonCommand::PrintDebug),
         };
