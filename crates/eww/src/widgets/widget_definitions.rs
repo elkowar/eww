@@ -528,7 +528,7 @@ fn build_center_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
 }
 
 /// @widget eventbox extends container
-/// @desc a container which can receive events and must contain exactly one child
+/// @desc a container which can receive events and must contain exactly one child. Supports `:hover` css selectors.
 fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
     let gtk_widget = gtk::EventBox::new();
 
@@ -537,6 +537,21 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
     let on_hover_leave_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
     let cursor_hover_enter_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
     let cursor_hover_leave_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
+
+    // Support :hover selector
+    gtk_widget.connect_enter_notify_event(|gtk_widget, evt| {
+        if evt.detail() != NotifyType::Inferior {
+            gtk_widget.clone().set_state_flags(gtk::StateFlags::PRELIGHT, false);
+        }
+        gtk::Inhibit(false)
+    });
+
+    gtk_widget.connect_leave_notify_event(|gtk_widget, evt| {
+        if evt.detail() != NotifyType::Inferior {
+            gtk_widget.clone().unset_state_flags(gtk::StateFlags::PRELIGHT);
+        }
+        gtk::Inhibit(false)
+    });
 
     resolve_block!(bargs, gtk_widget, {
         // @prop timeout - timeout of the command
