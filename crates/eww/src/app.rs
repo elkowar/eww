@@ -183,7 +183,7 @@ impl App {
                 DaemonCommand::GetVar { name, sender } => {
                     let vars = self.eww_state.get_variables();
                     match vars.get(name.as_str()) {
-                        Some(x) => sender.send_success(format!("{}: {}", name, x))?,
+                        Some(x) => sender.send_success(x.to_string())?,
                         None => {
                             let errors = vec!(anyhow!("Variable not found \"{}\"", name));
                             sender.respond_with_error_list(errors)?;

@@ -81,11 +81,11 @@ pub enum ActionWithServer {
         mappings: Vec<(VarName, DynVal)>,
     },
 
-    // Open the GTK debugger
+    /// Open the GTK debugger
     #[structopt(name = "inspector", alias = "debugger")]
     OpenInspector,
 
-    /// open a window
+    /// Open a window
     #[structopt(name = "open", alias = "o")]
     OpenWindow {
         /// Name of the window you want to open.
@@ -147,7 +147,7 @@ pub enum ActionWithServer {
         all: bool,
     },
 
-    // Get the value of a variable if defined
+    /// Get the value of a variable if defined
     #[structopt(name = "get")]
     GetVar { name: String },
 
