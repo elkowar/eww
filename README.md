@@ -28,7 +28,7 @@ Additionally, a couple _amazing_ people have started to work on an
 ![Example 1](./examples/eww-bar/eww-bar.png)
 
 * [Some setups by Druskus20](https://github.com/druskus20/eugh)
-![Druskus20-bar](https://github.com/druskus20/eugh/raw/master/polybar-replacement/preview.png)
+![Druskus20-bar](https://raw.githubusercontent.com/druskus20/eugh/master/polybar-replacement/.github/preview.png)
 
 * [My own vertical bar](https://github.com/elkowar/dots-of-war/tree/master/eww-bar/.config/eww-bar)
 
