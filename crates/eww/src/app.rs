@@ -184,10 +184,7 @@ impl App {
                     let vars = self.eww_state.get_variables();
                     match vars.get(name.as_str()) {
                         Some(x) => sender.send_success(x.to_string())?,
-                        None => {
-                            sender.send_failure(format!("Variable not found \"{}\"", name))?;
-                        },
-
+                        None => sender.send_failure(format!("Variable not found \"{}\"", name))?,
                     }
                 }
                 DaemonCommand::PrintWindows(sender) => {
