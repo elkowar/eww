@@ -64,6 +64,14 @@ impl EwwConfig {
                     .for_each(|name| poll_var_links.entry(name.clone()).or_default().push(var.name.clone()))
             });
 
+        for (name, window) in window_definitions.clone().iter() {
+            crate::new_state_stuff::do_stuff(
+                var_definitions.clone().into_iter().map(|(k, v)| (k, v.initial_value)).collect(),
+                &widget_definitions,
+                window,
+            )?;
+        }
+
         Ok(EwwConfig {
             windows: window_definitions
                 .into_iter()
