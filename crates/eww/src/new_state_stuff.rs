@@ -5,10 +5,7 @@ use anyhow::*;
 use eww_shared_util::VarName;
 use petgraph::graph::NodeIndex;
 use simplexpr::{dynval::DynVal, SimplExpr};
-use yuck::config::{
-    var_definition::VarDefinition, widget_definition::WidgetDefinition, widget_use::WidgetUse,
-    window_definition::WindowDefinition,
-};
+use yuck::config::{widget_definition::WidgetDefinition, widget_use::WidgetUse, window_definition::WindowDefinition};
 
 pub type ScopeTree = pettree::ScopeTree<Scope>;
 
@@ -130,8 +127,8 @@ impl pettree::ScopeTree<Scope> {
                 let var = scope
                     .data
                     .get(required_key)
-                    .or_else(|| self.lookup_variable_in_scope(index, var_name))
-                    .with_context(|| format!("Variable '{}' not in scope", var_name))?;
+                    .or_else(|| self.lookup_variable_in_scope(index, required_key))
+                    .with_context(|| format!("Variable '{}' not in scope", required_key))?;
                 all_vars.insert(required_key.clone(), var);
             }
             (listener.f)(all_vars)?;
@@ -140,6 +137,7 @@ impl pettree::ScopeTree<Scope> {
     }
 
     pub fn update_value(&mut self, index: NodeIndex, var_name: &VarName, value: DynVal) -> Result<()> {
+        let index = self.find_scope_with_variable(index, var_name).context("Variable not found in scope")?;
         self.value_at_mut(index).map(|scope| scope.update_value(var_name, value));
         self.run_listeners_for_value_change(index, var_name)?;
 
@@ -194,8 +192,7 @@ mod test {
             .register_listener(
                 child_index,
                 Listener {
-                     //needed_variables: vec![VarName("foo".to_string()), VarName("bar".to_string())],
-                     needed_variables: vec![VarName("foo".to_string()), VarName("bar".to_string())],
+                    needed_variables: vec![VarName("foo".to_string()), VarName("bar".to_string())],
                     f: Box::new(|x| {
                         println!("{:?}", x);
                         Ok(())
@@ -205,7 +202,7 @@ mod test {
             .unwrap();
 
         scope_tree.update_value(child_index, &VarName("foo".to_string()), DynVal::from("pog")).unwrap();
-        scope_tree.update_value(child_index, &VarName("bar".to_string()), DynVal::from("pog")).unwrap();
+        scope_tree.update_value(child_index, &VarName("bar".to_string()), DynVal::from("poggers")).unwrap();
         panic!();
     }
 }
