@@ -2,6 +2,8 @@ use std::{collections::HashMap, sync::Arc};
 
 use anyhow::*;
 use eww_shared_util::VarName;
+use gdk::prelude::Cast;
+use gtk::prelude::LabelExt;
 use petgraph::{
     graph::{DiGraph, NodeIndex},
     EdgeDirection::{Incoming, Outgoing},
@@ -31,14 +33,37 @@ pub fn build_gtk_widget(
     widget_defs: &HashMap<String, WidgetDefinition>,
     mut widget_use: WidgetUse,
 ) -> Result<gtk::Widget> {
-    match widget_use.name.as_str() {
-        "label" => {
-            let gtk_widget = gtk::Label::new(None);
-            let label_text: SimplExpr = widget_use.attrs.ast_required("text")?;
+    if let Some(custom_widget) = widget_defs.get(&widget_use.name) {
+        // TODO how do I ,.... oh no pls no
+        let new_scope = tree.add_scope(scope_index, )
+        //custom_widget.widget
+    } else {
+        match widget_use.name.as_str() {
+            "label" => {
+                let gtk_widget = gtk::Label::new(None);
+                let label_text: SimplExpr = widget_use.attrs.ast_required("text")?;
+                let required_vars = label_text.var_refs();
+                if !required_vars.is_empty() {
+                    tree.register_listener(
+                        scope_index,
+                        Listener {
+                            needed_variables: required_vars.into_iter().map(|(_, name)| name.clone()).collect(),
+                            f: Box::new({
+                                let gtk_widget = gtk_widget.clone();
+                                move |values| {
+                                    let new_value = label_text.eval(&values)?;
+                                    gtk_widget.set_label(&new_value.as_string()?);
+                                    Ok(())
+                                }
+                            }),
+                        },
+                    )?;
+                }
+                Ok(gtk_widget.upcast())
+            }
+            _ => bail!("Unknown widget '{}'", &widget_use.name),
         }
-        _ => bail!("Unknown widget '{}'", &widget_use.name),
     }
-    Ok(todo!())
 }
 
 #[derive(Debug)]
@@ -58,7 +83,7 @@ impl Scope {
 
 pub struct Listener {
     needed_variables: Vec<VarName>,
-    f: Box<dyn Fn(HashMap<VarName, &DynVal>) -> Result<()>>,
+    f: Box<dyn Fn(HashMap<VarName, DynVal>) -> Result<()>>,
 }
 impl std::fmt::Debug for Listener {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -125,7 +150,7 @@ impl ScopeTree {
                     .get(required_key)
                     .or_else(|| self.lookup_variable_in_scope(index, required_key))
                     .with_context(|| format!("Variable '{}' not in scope", required_key))?;
-                all_vars.insert(required_key.clone(), var);
+                all_vars.insert(required_key.clone(), var.clone());
             }
             (listener.f)(all_vars)?;
         }
@@ -254,6 +279,7 @@ impl ScopeTree {
     }
 }
 
+#[allow(unused)]
 macro_rules! make_listener {
     (|$($varname:expr => $name:ident),*| $body:block) => {
         Listener {
