@@ -254,8 +254,24 @@ impl ScopeTree {
     }
 }
 
+macro_rules! make_listener {
+    (|$($varname:expr => $name:ident),*| $body:block) => {
+        Listener {
+            needed_variables: vec![$($varname),*],
+            f: Box::new(move |values| {
+                $(
+                    let $name = values.get(&$varname).unwrap();
+                )*
+                $body
+            })
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
+    use std::sync::Mutex;
+
     use super::*;
     use eww_shared_util::VarName;
     use maplit::hashmap;
@@ -275,21 +291,36 @@ mod test {
             },
         );
 
+        let test_var = Arc::new(Mutex::new(String::new()));
+
+        // let l = make_listener!(|VarName("foo".to_string()) => foo, VarName("bar".to_string()) => bar| {
+        // println!("{}-{}", foo, bar);
+        // Ok(())
+        //});
+
         scope_tree
             .register_listener(
                 child_index,
                 Listener {
                     needed_variables: vec![VarName("foo".to_string()), VarName("bar".to_string())],
-                    f: Box::new(|x| {
-                        println!("{:?}", x);
-                        Ok(())
+                    f: Box::new({
+                        let test_var = test_var.clone();
+                        move |x| {
+                            *(test_var.lock().unwrap()) = format!("{}-{}", x.get("foo").unwrap(), x.get("bar").unwrap());
+                            Ok(())
+                        }
                     }),
                 },
             )
             .unwrap();
 
         scope_tree.update_value(child_index, &VarName("foo".to_string()), DynVal::from("pog")).unwrap();
+        {
+            assert_eq!(*(test_var.lock().unwrap()), "pog-ho".to_string());
+        }
         scope_tree.update_value(child_index, &VarName("bar".to_string()), DynVal::from("poggers")).unwrap();
-        panic!();
+        {
+            assert_eq!(*(test_var.lock().unwrap()), "pog-poggers".to_string());
+        }
     }
 }
