@@ -30,6 +30,13 @@ pub fn do_stuff(
     Ok(())
 }
 
+// IDEA:
+// To handle children with this, I'll probably need to implement gtk widget building
+// on a per-scope or at least per-user-defined widget basis, keeping the children
+// around for at least that long,... that's not yet all that clear of an implementation strategy
+// but already painful enough to give me nightmares
+// this is gonna be fun
+
 pub fn build_gtk_widget(
     tree: &mut ScopeTree,
     scope_index: NodeIndex,
@@ -384,60 +391,75 @@ macro_rules! make_listener {
     }
 }
 
-//#[cfg(test)]
-// mod test {
-// use std::sync::Mutex;
+#[cfg(test)]
+mod test {
+    use std::sync::Mutex;
 
-// use super::*;
-// use eww_shared_util::VarName;
-// use maplit::hashmap;
-// use simplexpr::dynval::DynVal;
+    use super::*;
+    use eww_shared_util::{Span, VarName};
+    use maplit::hashmap;
+    use simplexpr::dynval::DynVal;
 
-//#[test]
-// fn test_stuff() {
-// let globals = hashmap! {
-// VarName("global_1".to_string()) => DynVal::from("hi"),
-//};
-// let mut scope_tree = ScopeTree::from_global_vars(globals);
+    #[test]
+    fn test_stuff() {
+        let globals = hashmap! {
+         VarName("global_1".to_string()) => DynVal::from("hi"),
+        };
+        let mut scope_tree = ScopeTree::from_global_vars(globals);
 
-// let foo_index = scope_tree.add_scope(
+        let widget_foo_scope = scope_tree
+            .register_new_scope(
+                Some(scope_tree.root_index),
+                scope_tree.root_index,
+                hashmap! {
+                    AttrName("arg1".to_string()) => SimplExpr::VarRef(Span::DUMMY, VarName("global_1".to_string())),
+                    AttrName("arg2".to_string()) => SimplExpr::synth_string("static value".to_string()),
+                },
+            )
+            .unwrap();
+        let widget_bar_scope = scope_tree
+            .register_new_scope(
+                Some(scope_tree.root_index),
+                widget_foo_scope,
+                hashmap! {
+                    AttrName("arg3".to_string()) => SimplExpr::Concat(Span::DUMMY, vec![
+                        SimplExpr::VarRef(Span::DUMMY, VarName("arq_1".to_string())),
+                        SimplExpr::VarRef(Span::DUMMY, VarName("global_1".to_string())),
+                    ])
+                },
+            )
+            .unwrap();
 
-//)
+        let test_var = Arc::new(Mutex::new(String::new()));
 
-// let child_index = scope_tree.add_scope(
-// Some(scope_tree.root_index),
-// hashmap! {
-// VarName("bar".to_string()) => DynVal::from("ho"),
-//},
-//);
+        // let l = make_listener!(|VarName("foo".to_string()) => foo, VarName("bar".to_string()) => bar| {
+        // println!("{}-{}", foo, bar);
+        // Ok(())
+        // });
 
-// let test_var = Arc::new(Mutex::new(String::new()));
+        scope_tree
+            .register_listener(
+                child_index,
+                Listener {
+                    needed_variables: vec![VarName("foo".to_string()), VarName("bar".to_string())],
+                    f: Box::new({
+                        let test_var = test_var.clone();
+                        move |x| {
+                            *(test_var.lock().unwrap()) = format!("{}-{}", x.get("foo").unwrap(), x.get("bar").unwrap());
+                            Ok(())
+                        }
+                    }),
+                },
+            )
+            .unwrap();
 
-//// let l = make_listener!(|VarName("foo".to_string()) => foo, VarName("bar".to_string()) => bar| {
-//// println!("{}-{}", foo, bar);
-//// Ok(())
-//// });
-
-// scope_tree
-//.register_listener(
-// child_index,
-// Listener {
-// needed_variables: vec![VarName("foo".to_string()), VarName("bar".to_string())],
-// f: Box::new({
-// let test_var = test_var.clone();
-// move |x| {
-//*(test_var.lock().unwrap()) = format!("{}-{}", x.get("foo").unwrap(), x.get("bar").unwrap());
-// Ok(())
-//}),
-//},
-//)
-//.unwrap();
-
-// scope_tree.update_value(child_index, &VarName("foo".to_string()), DynVal::from("pog")).unwrap();
-//{
-// assert_eq!(*(test_var.lock().unwrap()), "pog-ho".to_string());
-//}
-// scope_tree.update_value(child_index, &VarName("bar".to_string()), DynVal::from("poggers")).unwrap();
-//{
-// assert_eq!(*(test_var.lock().unwrap()), "pog-poggers".to_string());
-//}
+        scope_tree.update_value(child_index, &VarName("foo".to_string()), DynVal::from("pog")).unwrap();
+        {
+            assert_eq!(*(test_var.lock().unwrap()), "pog-ho".to_string());
+        }
+        scope_tree.update_value(child_index, &VarName("bar".to_string()), DynVal::from("poggers")).unwrap();
+        {
+            assert_eq!(*(test_var.lock().unwrap()), "pog-poggers".to_string());
+        }
+    }
+}
