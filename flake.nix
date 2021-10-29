@@ -42,6 +42,21 @@
         apps.eww-wayland = flake-utils.lib.mkApp { drv = packages.eww-wayland; };
         defaultApp = apps.eww;
 
-        devShell = import ./shell.nix { inherit pkgs; };
+        devShell = pkgs.mkShell {
+          packages = with pkgs; [
+            rustc
+            cargo
+            rust-analyzer
+            gcc
+            gtk3
+            gtk-layer-shell
+            pkg-config
+            rustfmt-preview
+            clippy-preview
+            deno
+            mdbook
+          ];
+          RUST_SRC_PATH = "${pkgs.rust-src}/lib/rustlib/src/rust/library";
+        };
       });
 }
