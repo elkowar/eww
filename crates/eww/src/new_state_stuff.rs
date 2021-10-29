@@ -1,11 +1,14 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use anyhow::*;
-use eww_shared_util::VarName;
+use eww_shared_util::{AttrName, VarName};
 use gdk::prelude::Cast;
 use gtk::prelude::LabelExt;
 use petgraph::{
-    graph::{DiGraph, NodeIndex},
+    graph::{DiGraph, EdgeIndex, NodeIndex},
     EdgeDirection::{Incoming, Outgoing},
 };
 use simplexpr::{dynval::DynVal, SimplExpr};
@@ -34,32 +37,41 @@ pub fn build_gtk_widget(
     mut widget_use: WidgetUse,
 ) -> Result<gtk::Widget> {
     if let Some(custom_widget) = widget_defs.get(&widget_use.name) {
-        // TODO how do I ,.... oh no pls no
-        let new_scope = tree.add_scope(scope_index, )
-        //custom_widget.widget
+        let widget_use_attributes: HashMap<_, _> = widget_use
+            .attrs
+            .attrs
+            .iter()
+            .map(|(name, value)| Ok((name.clone(), value.value.as_simplexpr()?)))
+            .collect::<Result<_>>()?;
+        let new_scope_index = tree.register_new_scope(Some(tree.root_index), scope_index, widget_use_attributes)?;
+
+        build_gtk_widget(tree, new_scope_index, widget_defs, custom_widget.widget.clone())
     } else {
         match widget_use.name.as_str() {
             "label" => {
                 let gtk_widget = gtk::Label::new(None);
                 let label_text: SimplExpr = widget_use.attrs.ast_required("text")?;
-                let required_vars = label_text.var_refs();
-                if !required_vars.is_empty() {
-                    tree.register_listener(
-                        scope_index,
-                        Listener {
-                            needed_variables: required_vars.into_iter().map(|(_, name)| name.clone()).collect(),
-                            f: Box::new({
-                                let gtk_widget = gtk_widget.clone();
-                                move |values| {
-                                    let new_value = label_text.eval(&values)?;
-                                    gtk_widget.set_label(&new_value.as_string()?);
-                                    Ok(())
-                                }
-                            }),
-                        },
-                    )?;
-                }
-                Ok(gtk_widget.upcast())
+                // continue here
+
+                //let required_vars = label_text.var_refs();
+                //if !required_vars.is_empty() {
+                    //tree.register_listener(
+                        //scope_index,
+                        //Listener {
+                            //needed_variables: required_vars.into_iter().map(|(_, name)| name.clone()).collect(),
+                            //f: Box::new({
+                                //let gtk_widget = gtk_widget.clone();
+                                //move |values| {
+                                    //let new_value = label_text.eval(&values)?;
+                                    //gtk_widget.set_label(&new_value.as_string()?);
+                                    //Ok(())
+                                //}
+                            //}),
+                        //},
+                    //)?;
+                //}
+                //Ok(gtk_widget.upcast())
+                todo!()
             }
             _ => bail!("Unknown widget '{}'", &widget_use.name),
         }
@@ -96,19 +108,37 @@ pub struct ListenerId(usize);
 
 #[derive(Debug, Eq, PartialEq)]
 enum ScopeTreeEdge {
-    ChildOf,
-    ReferencesVariable(VarName),
+    // ChildOf,
+    /// a --inherits scope of--> b
+    /// A single scope inherit from 0-1 scopes. (global scope inherits from no other scope).
+    /// If a inherits from b, and references variable V, V may either be available in b or in scopes that b inherits from.
+    Inherits { references: HashSet<VarName> },
+
+    /// a --provides attribute [`attr_name`] calculated via [`expression`] to--> b
+    /// A single scope may provide 0-n attributes to 0-n scopes.
+    ProvidesAttribute { attr_name: AttrName, expression: SimplExpr },
 }
 
 impl ScopeTreeEdge {
+    fn is_inherits_relation(&self) -> bool {
+        matches!(self, Self::Inherits { .. })
+    }
+
     fn references_var(&self, name: &VarName) -> bool {
         match self {
-            ScopeTreeEdge::ChildOf => false,
-            ScopeTreeEdge::ReferencesVariable(x) => x == name,
+            ScopeTreeEdge::Inherits { references } => references.contains(name),
+            _ => false,
         }
     }
 }
-
+/// A tree structure of scopes that inherit from each other and provide attributes to other scopes.
+/// Invariants:
+/// - every scope inherits from exactly 0 or 1 scopes.
+/// - any scope may provide 0-n attributes to 0-n scopes.
+/// - Inheritance is transitive
+/// - There must not be inheritance loops
+///
+/// If a inherits from b, b is called "parent scope" of a
 #[derive(Debug)]
 pub struct ScopeTree {
     graph: DiGraph<Scope, ScopeTreeEdge>,
@@ -125,95 +155,131 @@ impl ScopeTree {
         Self { graph, root_index }
     }
 
-    pub fn add_scope(&mut self, child_of: NodeIndex, scope_variables: HashMap<VarName, DynVal>) -> NodeIndex {
+    /// Register a new scope in the graph. This will look up and resolve variable references in attributes to set up the correct
+    /// [ScopeTreeEdge::ProvidesAttribute] relationships.
+    pub fn register_new_scope(
+        &mut self,
+        parent_scope: Option<NodeIndex>,
+        calling_scope: NodeIndex,
+        attributes: HashMap<AttrName, SimplExpr>,
+    ) -> Result<NodeIndex> {
+        let mut scope_variables = HashMap::new();
+
+        // First get the current values. If nothing here fails, we know that everything is in scope.
+        for (attr_name, attr_value) in &attributes {
+            let needed_vars = attr_value
+                .collect_var_refs()
+                .into_iter()
+                .map(|var_name| {
+                    let value = self
+                        .lookup_variable_in_scope(calling_scope, &var_name)
+                        .with_context(|| format!("Could not find variable {} in scope", var_name))?
+                        .clone();
+                    Ok((var_name, value))
+                })
+                .collect::<Result<HashMap<_, _>>>()?;
+            let current_value = attr_value.eval(&needed_vars).unwrap();
+            scope_variables.insert(VarName(attr_name.0.clone()), current_value);
+        }
+
+        // Now that we're sure that we have all of the values, we can make changes to the scope tree without
+        // risking getting it into an inconsistent state by adding a scope that can't get fully instantiated
+        // and aborting that operation prematurely.
+        let new_scope_index = self.add_scope(parent_scope, scope_variables);
+        for (attr_name, expression) in attributes {
+            self.add_edge(calling_scope, new_scope_index, ScopeTreeEdge::ProvidesAttribute { attr_name, expression });
+        }
+        Ok(new_scope_index)
+    }
+
+    fn add_scope(&mut self, parent_scope: Option<NodeIndex>, scope_variables: HashMap<VarName, DynVal>) -> NodeIndex {
         let scope = Scope::new(scope_variables);
         let new_index = self.graph.add_node(scope);
-        self.graph.add_edge(child_of, new_index, ScopeTreeEdge::ChildOf);
+        if let Some(parent_scope) = parent_scope {
+            self.graph.add_edge(new_index, parent_scope, ScopeTreeEdge::Inherits { references: HashSet::new() });
+        }
         self.value_at_mut(new_index).map(|scope| {
             scope.node_index = new_index;
         });
         new_index
     }
 
-    pub fn run_listeners_for_value_change(&mut self, index: NodeIndex, var_name: &VarName) -> Result<()> {
-        let scope = self.value_at(index).context("Missing node at given index")?;
-        let listeners = match scope.listeners.get(var_name) {
-            Some(x) => x,
-            None => return Ok(()),
-        };
-
-        for listener in listeners {
-            let mut all_vars = HashMap::new();
-            for required_key in listener.as_ref().needed_variables.iter() {
-                let var = scope
-                    .data
-                    .get(required_key)
-                    .or_else(|| self.lookup_variable_in_scope(index, required_key))
-                    .with_context(|| format!("Variable '{}' not in scope", required_key))?;
-                all_vars.insert(required_key.clone(), var.clone());
-            }
-            (listener.f)(all_vars)?;
-        }
-        Ok(())
+    fn add_edge(&mut self, from: NodeIndex, to: NodeIndex, edge: ScopeTreeEdge) -> EdgeIndex {
+        self.graph.add_edge(from, to, edge)
     }
 
-    pub fn update_value(&mut self, index: NodeIndex, var_name: &VarName, value: DynVal) -> Result<()> {
-        let index = self.find_scope_with_variable(index, var_name).context("Variable not found in scope")?;
-        self.value_at_mut(index).map(|scope| {
-            if let Some(map_entry) = scope.data.get_mut(var_name) {
-                *map_entry = value;
-            }
-        });
-        self.run_listeners_for_value_change(index, var_name)?;
+    // pub fn run_listeners_for_value_change(&mut self, index: NodeIndex, var_name: &VarName) -> Result<()> {
+    // let scope = self.value_at(index).context("Missing node at given index")?;
+    // let listeners = match scope.listeners.get(var_name) {
+    // Some(x) => x,
+    // None => return Ok(()),
+    //};
 
-        for child in self.children_referencing(index, var_name) {
-            // TODO collect errors rather than doing this
-            self.run_listeners_for_value_change(child, var_name)?;
-        }
-        Ok(())
-    }
+    // for listener in listeners {
+    // let mut all_vars = HashMap::new();
+    // for required_key in listener.as_ref().needed_variables.iter() {
+    // let var = scope
+    //.data
+    //.get(required_key)
+    //.or_else(|| self.lookup_variable_in_scope(index, required_key))
+    //.with_context(|| format!("Variable '{}' not in scope", required_key))?;
+    // all_vars.insert(required_key.clone(), var.clone());
+    //}
+    //(listener.f)(all_vars)?;
+    //}
+    // Ok(())
+    //}
 
-    pub fn register_listener(&mut self, index: NodeIndex, listener: Listener) -> Result<()> {
-        // Set up the graph edges describing that a scope has a listener that references a variable from another scope.
-        for needed_var in listener.needed_variables.iter() {
-            let scope = self.value_at(index).context("Given index is not in the graph")?;
-            if !scope.data.contains_key(needed_var) {
-                let mut cur_idx = index;
-                while let Some(parent) = self.parent_of(cur_idx) {
-                    let parent_scope = self.value_at(parent).expect("Nodes parent was not in the graph...");
-                    if parent_scope.data.contains_key(needed_var) {
-                        self.graph.add_edge(parent, index, ScopeTreeEdge::ReferencesVariable(needed_var.clone()));
-                        break;
-                    }
-                    cur_idx = parent;
-                }
-            }
-        }
-        self.value_at_mut(index).map(|scope| {
-            let listener = Arc::new(listener);
-            for needed_var in listener.needed_variables.iter() {
-                scope.listeners.entry(needed_var.clone()).or_default().push(listener.clone());
-            }
-        });
-        Ok(())
-    }
+    // pub fn update_value(&mut self, index: NodeIndex, var_name: &VarName, value: DynVal) -> Result<()> {
+    // let index = self.find_scope_with_variable(index, var_name).context("Variable not found in scope")?;
+    // self.value_at_mut(index).map(|scope| {
+    // if let Some(map_entry) = scope.data.get_mut(var_name) {
+    //*map_entry = value;
+    //});
+    // self.run_listeners_for_value_change(index, var_name)?;
 
+    // for child in self.children_referencing(index, var_name) {
+    //// TODO collect errors rather than doing this
+    // self.run_listeners_for_value_change(child, var_name)?;
+    //}
+    // Ok(())
+    //}
+
+    // pub fn register_listener(&mut self, index: NodeIndex, listener: Listener) -> Result<()> {
+    // Set up the graph edges describing that a scope has a listener that references a variable from another scope.
+    // for needed_var in listener.needed_variables.iter() {
+    // let scope = self.value_at(index).context("Given index is not in the graph")?;
+    // if !scope.data.contains_key(needed_var) {
+    // let mut cur_idx = index;
+    // while let Some(parent) = self.parent_of(cur_idx) {
+    // let parent_scope = self.value_at(parent).expect("Nodes parent was not in the graph...");
+    // if parent_scope.data.contains_key(needed_var) {
+    // self.graph.add_edge(index, parent, ScopeTreeEdge::Inherits(needed_var.clone()));
+    // break;
+    // }
+    // cur_idx = parent;
+    // }
+    // }
+    // }
+    // self.value_at_mut(index).map(|scope| {
+    // let listener = Arc::new(listener);
+    // for needed_var in listener.needed_variables.iter() {
+    // scope.listeners.entry(needed_var.clone()).or_default().push(listener.clone());
+    // }
+    // });
+    // Ok(())
+    // }
+
+    /// Find the closest available scope that contains variable with the given name.
     pub fn find_scope_with_variable(&self, index: NodeIndex, var_name: &VarName) -> Option<NodeIndex> {
-        self.find_ancestor_or_self(index, |scope| scope.data.contains_key(var_name))
+        self.find_available_scope_where(index, |scope| scope.data.contains_key(var_name))
     }
 
+    /// Find the value of a variable in the closest available scope that contains a variable with that name.
     pub fn lookup_variable_in_scope(&self, index: NodeIndex, var_name: &VarName) -> Option<&DynVal> {
         self.find_scope_with_variable(index, var_name)
             .and_then(|scope_index| self.value_at(scope_index))
             .map(|x| x.data.get(var_name).unwrap())
-    }
-
-    pub fn remove_node_recursively(&mut self, index: NodeIndex) {
-        let mut children = self.graph.neighbors_directed(index, Outgoing).detach();
-        while let Some(child) = children.next_node(&self.graph) {
-            self.remove_node_recursively(child);
-        }
-        self.graph.remove_node(index);
     }
 
     pub fn value_at(&self, index: NodeIndex) -> Option<&Scope> {
@@ -224,14 +290,12 @@ impl ScopeTree {
         self.graph.node_weight_mut(index)
     }
 
-    pub fn parent_of(&self, index: NodeIndex) -> Option<NodeIndex> {
-        self.find_neighbor(index, Incoming, |edge| edge == &ScopeTreeEdge::ChildOf)
+    /// find the scope a given other scope directly inherits from.
+    pub fn parent_scope_of(&self, index: NodeIndex) -> Option<NodeIndex> {
+        self.find_neighbor(index, Outgoing, |edge| edge.is_inherits_relation())
     }
 
-    pub fn children_referencing(&self, index: NodeIndex, var_name: &VarName) -> Vec<NodeIndex> {
-        self.neighbors_where(index, Outgoing, |edge| edge.references_var(var_name))
-    }
-
+    /// Find a connected scope where the edge between the scopes satisfies a given predicate.
     fn find_neighbor(
         &self,
         index: NodeIndex,
@@ -251,6 +315,7 @@ impl ScopeTree {
         None
     }
 
+    /// Find all connected scopes where the edges satisfy a given predicate.
     fn neighbors_where(
         &self,
         index: NodeIndex,
@@ -267,14 +332,13 @@ impl ScopeTree {
         result
     }
 
-    /// Search through the ancestors of a node for a value that satisfies the given predicate.
-    /// Also looks at the given node itself.
-    pub fn find_ancestor_or_self(&self, index: NodeIndex, f: impl Fn(&Scope) -> bool) -> Option<NodeIndex> {
-        let content = self.value_at(index)?;
+    /// Search through all available scopes for a scope that satisfies the given condition
+    pub fn find_available_scope_where(&self, scope_index: NodeIndex, f: impl Fn(&Scope) -> bool) -> Option<NodeIndex> {
+        let content = self.value_at(scope_index)?;
         if f(content) {
-            Some(index)
+            Some(scope_index)
         } else {
-            self.find_ancestor_or_self(self.parent_of(index)?, f)
+            self.find_available_scope_where(self.parent_scope_of(scope_index)?, f)
         }
     }
 }
@@ -294,59 +358,60 @@ macro_rules! make_listener {
     }
 }
 
-#[cfg(test)]
-mod test {
-    use std::sync::Mutex;
+//#[cfg(test)]
+// mod test {
+// use std::sync::Mutex;
 
-    use super::*;
-    use eww_shared_util::VarName;
-    use maplit::hashmap;
-    use simplexpr::dynval::DynVal;
+// use super::*;
+// use eww_shared_util::VarName;
+// use maplit::hashmap;
+// use simplexpr::dynval::DynVal;
 
-    #[test]
-    fn test_stuff() {
-        let globals = hashmap! {
-            VarName("foo".to_string()) => DynVal::from("hi"),
-        };
-        let mut scope_tree = ScopeTree::from_global_vars(globals);
+//#[test]
+// fn test_stuff() {
+// let globals = hashmap! {
+// VarName("global_1".to_string()) => DynVal::from("hi"),
+//};
+// let mut scope_tree = ScopeTree::from_global_vars(globals);
 
-        let child_index = scope_tree.add_scope(
-            scope_tree.root_index,
-            hashmap! {
-                VarName("bar".to_string()) => DynVal::from("ho"),
-            },
-        );
+// let foo_index = scope_tree.add_scope(
 
-        let test_var = Arc::new(Mutex::new(String::new()));
+//)
 
-        // let l = make_listener!(|VarName("foo".to_string()) => foo, VarName("bar".to_string()) => bar| {
-        // println!("{}-{}", foo, bar);
-        // Ok(())
-        //});
+// let child_index = scope_tree.add_scope(
+// Some(scope_tree.root_index),
+// hashmap! {
+// VarName("bar".to_string()) => DynVal::from("ho"),
+//},
+//);
 
-        scope_tree
-            .register_listener(
-                child_index,
-                Listener {
-                    needed_variables: vec![VarName("foo".to_string()), VarName("bar".to_string())],
-                    f: Box::new({
-                        let test_var = test_var.clone();
-                        move |x| {
-                            *(test_var.lock().unwrap()) = format!("{}-{}", x.get("foo").unwrap(), x.get("bar").unwrap());
-                            Ok(())
-                        }
-                    }),
-                },
-            )
-            .unwrap();
+// let test_var = Arc::new(Mutex::new(String::new()));
 
-        scope_tree.update_value(child_index, &VarName("foo".to_string()), DynVal::from("pog")).unwrap();
-        {
-            assert_eq!(*(test_var.lock().unwrap()), "pog-ho".to_string());
-        }
-        scope_tree.update_value(child_index, &VarName("bar".to_string()), DynVal::from("poggers")).unwrap();
-        {
-            assert_eq!(*(test_var.lock().unwrap()), "pog-poggers".to_string());
-        }
-    }
-}
+//// let l = make_listener!(|VarName("foo".to_string()) => foo, VarName("bar".to_string()) => bar| {
+//// println!("{}-{}", foo, bar);
+//// Ok(())
+//// });
+
+// scope_tree
+//.register_listener(
+// child_index,
+// Listener {
+// needed_variables: vec![VarName("foo".to_string()), VarName("bar".to_string())],
+// f: Box::new({
+// let test_var = test_var.clone();
+// move |x| {
+//*(test_var.lock().unwrap()) = format!("{}-{}", x.get("foo").unwrap(), x.get("bar").unwrap());
+// Ok(())
+//}),
+//},
+//)
+//.unwrap();
+
+// scope_tree.update_value(child_index, &VarName("foo".to_string()), DynVal::from("pog")).unwrap();
+//{
+// assert_eq!(*(test_var.lock().unwrap()), "pog-ho".to_string());
+//}
+// scope_tree.update_value(child_index, &VarName("bar".to_string()), DynVal::from("poggers")).unwrap();
+//{
+// assert_eq!(*(test_var.lock().unwrap()), "pog-poggers".to_string());
+//}
