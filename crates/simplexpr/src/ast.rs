@@ -87,31 +87,39 @@ impl SimplExpr {
         Self::Literal(s.into())
     }
 
-    pub fn collect_var_refs_into(&self, dest: &mut Vec<VarName>) {
+    pub fn references_var(&self, var: &VarName) -> bool {
+        use SimplExpr::*;
         match self {
-            SimplExpr::VarRef(_, x) => dest.push(x.clone()),
-            SimplExpr::UnaryOp(_, _, x) => x.as_ref().collect_var_refs_into(dest),
-            SimplExpr::BinOp(_, l, _, r) => {
-                l.as_ref().collect_var_refs_into(dest);
-                r.as_ref().collect_var_refs_into(dest);
+            Literal(_) => false,
+            Concat(_, x) | FunctionCall(_, _, x) | JsonArray(_, x) => x.iter().any(|x| x.references_var(var)),
+            JsonObject(_, x) => x.iter().any(|(k, v)| k.references_var(var) || v.references_var(var)),
+            JsonAccess(_, a, b) | BinOp(_, a, _, b) => a.references_var(var) || b.references_var(var),
+            UnaryOp(_, _, x) => x.references_var(var),
+            IfElse(_, a, b, c) => a.references_var(var) || b.references_var(var) || c.references_var(var),
+            VarRef(_, x) => x == var,
+        }
+    }
+
+    pub fn collect_var_refs_into(&self, dest: &mut Vec<VarName>) {
+        use SimplExpr::*;
+        match self {
+            VarRef(_, x) => dest.push(x.clone()),
+            UnaryOp(_, _, x) => x.as_ref().collect_var_refs_into(dest),
+            BinOp(_, a, _, b) | JsonAccess(_, a, b) => {
+                a.as_ref().collect_var_refs_into(dest);
+                b.as_ref().collect_var_refs_into(dest);
             }
-            SimplExpr::IfElse(_, a, b, c) => {
+            IfElse(_, a, b, c) => {
                 a.as_ref().collect_var_refs_into(dest);
                 b.as_ref().collect_var_refs_into(dest);
                 c.as_ref().collect_var_refs_into(dest);
             }
-            SimplExpr::JsonAccess(_, value, index) => {
-                value.as_ref().collect_var_refs_into(dest);
-                index.as_ref().collect_var_refs_into(dest);
-            }
-            SimplExpr::FunctionCall(_, _, args) => args.iter().for_each(|x: &SimplExpr| x.collect_var_refs_into(dest)),
-            SimplExpr::JsonArray(_, values) => values.iter().for_each(|v| v.collect_var_refs_into(dest)),
-            SimplExpr::JsonObject(_, entries) => entries.iter().for_each(|(k, v)| {
+            JsonArray(_, xs) | FunctionCall(_, _, xs) | Concat(_, xs) => xs.iter().for_each(|x| x.collect_var_refs_into(dest)),
+            JsonObject(_, entries) => entries.iter().for_each(|(k, v)| {
                 k.collect_var_refs_into(dest);
                 v.collect_var_refs_into(dest);
             }),
-            SimplExpr::Concat(_, values) => values.iter().for_each(|x| x.collect_var_refs_into(dest)),
-            SimplExpr::Literal(_) => {}
+            Literal(_) => {}
         };
     }
 
