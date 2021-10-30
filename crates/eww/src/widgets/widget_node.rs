@@ -80,7 +80,7 @@ impl Generic {
 
     /// returns all the variables that are referenced in this widget
     pub fn referenced_vars(&self) -> impl Iterator<Item = &VarName> {
-        self.attrs.iter().flat_map(|(_, value)| value.var_refs()).map(|(_, value)| value)
+        self.attrs.iter().flat_map(|(_, value)| value.var_refs_with_span()).map(|(_, value)| value)
     }
 }
 

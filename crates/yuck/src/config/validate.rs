@@ -90,7 +90,7 @@ pub fn validate_variables_in_widget_use(
     let values = widget.attrs.attrs.values();
     let unknown_var = values.filter_map(|value| value.value.as_simplexpr().ok()).find_map(|expr: SimplExpr| {
         let span = expr.span();
-        expr.var_refs()
+        expr.var_refs_with_span()
             .iter()
             .cloned()
             .map(|(span, var_ref)| (span, var_ref.clone()))
