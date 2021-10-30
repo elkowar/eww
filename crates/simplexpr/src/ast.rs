@@ -110,7 +110,8 @@ impl SimplExpr {
                 k.collect_var_refs_into(dest);
                 v.collect_var_refs_into(dest);
             }),
-            _ => (),
+            SimplExpr::Concat(_, values) => values.iter().for_each(|x| x.collect_var_refs_into(dest)),
+            SimplExpr::Literal(_) => {}
         };
     }
 
