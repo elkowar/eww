@@ -15,7 +15,7 @@ pub struct StateChangeHandler {
 
 impl StateChangeHandler {
     fn used_variables(&self) -> impl Iterator<Item = &VarName> {
-        self.unresolved_values.iter().flat_map(|(_, value)| value.var_refs()).map(|(_, value)| value)
+        self.unresolved_values.iter().flat_map(|(_, value)| value.var_refs_with_span()).map(|(_, value)| value)
     }
 
     /// Run the StateChangeHandler.

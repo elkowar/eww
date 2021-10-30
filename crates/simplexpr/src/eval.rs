@@ -115,27 +115,27 @@ impl SimplExpr {
         })
     }
 
-    pub fn var_refs(&self) -> Vec<(Span, &VarName)> {
+    pub fn var_refs_with_span(&self) -> Vec<(Span, &VarName)> {
         use SimplExpr::*;
         match self {
             Literal(..) => Vec::new(),
             VarRef(span, name) => vec![(*span, name)],
-            Concat(_, elems) => elems.iter().flat_map(|x| x.var_refs().into_iter()).collect(),
+            Concat(_, elems) => elems.iter().flat_map(|x| x.var_refs_with_span().into_iter()).collect(),
             BinOp(_, box a, _, box b) | JsonAccess(_, box a, box b) => {
-                let mut refs = a.var_refs();
-                refs.extend(b.var_refs().iter());
+                let mut refs = a.var_refs_with_span();
+                refs.extend(b.var_refs_with_span().iter());
                 refs
             }
-            UnaryOp(_, _, box x) => x.var_refs(),
+            UnaryOp(_, _, box x) => x.var_refs_with_span(),
             IfElse(_, box a, box b, box c) => {
-                let mut refs = a.var_refs();
-                refs.extend(b.var_refs().iter());
-                refs.extend(c.var_refs().iter());
+                let mut refs = a.var_refs_with_span();
+                refs.extend(b.var_refs_with_span().iter());
+                refs.extend(c.var_refs_with_span().iter());
                 refs
             }
-            FunctionCall(_, _, args) => args.iter().flat_map(|a| a.var_refs()).collect(),
-            JsonArray(_, values) => values.iter().flat_map(|v| v.var_refs()).collect(),
-            JsonObject(_, entries) => entries.iter().flat_map(|(k, v)| k.var_refs().into_iter().chain(v.var_refs())).collect(),
+            FunctionCall(_, _, args) => args.iter().flat_map(|a| a.var_refs_with_span()).collect(),
+            JsonArray(_, values) => values.iter().flat_map(|v| v.var_refs_with_span()).collect(),
+            JsonObject(_, entries) => entries.iter().flat_map(|(k, v)| k.var_refs_with_span().into_iter().chain(v.var_refs_with_span())).collect(),
         }
     }
 
