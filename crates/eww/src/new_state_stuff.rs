@@ -187,14 +187,15 @@ impl ScopeTree {
         Ok(expr.eval(&needed_vars)?)
     }
 
-    /// Register a new scope in the graph. This will look up and resolve variable references in attributes to set up the correct
-    /// [ScopeTreeEdge::ProvidesAttribute] relationships.
+    /// Register a new scope in the graph.
+    /// This will look up and resolve variable references in attributes to set up the correct [ScopeTreeEdge::ProvidesAttribute] relationships.
     pub fn register_new_scope(
         &mut self,
         parent_scope: Option<NodeIndex>,
         calling_scope: NodeIndex,
         attributes: HashMap<AttrName, SimplExpr>,
     ) -> Result<NodeIndex> {
+        // TODO this needs a lot of optimization
         let mut scope_variables = HashMap::new();
 
         // First get the current values. If nothing here fails, we know that everything is in scope.
@@ -208,7 +209,9 @@ impl ScopeTree {
         // and aborting that operation prematurely.
         let new_scope_index = self.add_scope(parent_scope, scope_variables);
         for (attr_name, expression) in attributes {
-            self.add_edge(calling_scope, new_scope_index, ScopeTreeEdge::ProvidesAttribute { attr_name, expression });
+            if !expression.collect_var_refs().is_empty() {
+                self.add_edge(calling_scope, new_scope_index, ScopeTreeEdge::ProvidesAttribute { attr_name, expression });
+            }
         }
         Ok(new_scope_index)
     }
@@ -237,7 +240,7 @@ impl ScopeTree {
     /// Find the value of a variable in the closest available scope that contains a variable with that name.
     pub fn lookup_variable_in_scope(&self, index: NodeIndex, var_name: &VarName) -> Option<&DynVal> {
         self.find_scope_with_variable(index, var_name)
-            .and_then(|scope_index| self.value_at(scope_index))
+            .and_then(|scope| self.value_at(scope))
             .map(|x| x.data.get(var_name).unwrap())
     }
 
@@ -412,8 +415,8 @@ mod test {
                 Some(scope_tree.root_index),
                 scope_tree.root_index,
                 hashmap! {
-                    AttrName("arg1".to_string()) => SimplExpr::VarRef(Span::DUMMY, VarName("global_1".to_string())),
-                    AttrName("arg2".to_string()) => SimplExpr::synth_string("static value".to_string()),
+                    AttrName("arg_1".to_string()) => SimplExpr::VarRef(Span::DUMMY, VarName("global_1".to_string())),
+                    AttrName("arg_2".to_string()) => SimplExpr::synth_string("static value".to_string()),
                 },
             )
             .unwrap();
@@ -422,9 +425,9 @@ mod test {
                 Some(scope_tree.root_index),
                 widget_foo_scope,
                 hashmap! {
-                    AttrName("arg3".to_string()) => SimplExpr::Concat(Span::DUMMY, vec![
-                        SimplExpr::VarRef(Span::DUMMY, VarName("arq_1".to_string())),
-                        SimplExpr::VarRef(Span::DUMMY, VarName("global_1".to_string())),
+                    AttrName("arg_3".to_string()) => SimplExpr::Concat(Span::DUMMY, vec![
+                        SimplExpr::VarRef(Span::DUMMY, VarName("arg_1".to_string())),
+                        SimplExpr::synth_literal("static_value".to_string()),
                     ])
                 },
             )
@@ -439,13 +442,30 @@ mod test {
 
         scope_tree
             .register_listener(
-                child_index,
+                widget_foo_scope,
                 Listener {
-                    needed_variables: vec![VarName("foo".to_string()), VarName("bar".to_string())],
+                    needed_variables: vec![VarName("arg_1".to_string())],
                     f: Box::new({
                         let test_var = test_var.clone();
                         move |x| {
-                            *(test_var.lock().unwrap()) = format!("{}-{}", x.get("foo").unwrap(), x.get("bar").unwrap());
+                            println!("foo: arg_1 changed to {}", x.get("arg_1").unwrap());
+                            //*(test_var.lock().unwrap()) = format!("foo: arg_1 changed to {}", x.get("arg_1").unwrap());
+                            Ok(())
+                        }
+                    }),
+                },
+            )
+            .unwrap();
+        scope_tree
+            .register_listener(
+                widget_bar_scope,
+                Listener {
+                    needed_variables: vec![VarName("arg_3".to_string())],
+                    f: Box::new({
+                        let test_var = test_var.clone();
+                        move |x| {
+                            println!("bar: arg_3 changed to {}", x.get("arg_3").unwrap());
+                            //*(test_var.lock().unwrap()) = format!("foo: arg_1 changed to {}", x.get("arg_1").unwrap());
                             Ok(())
                         }
                     }),
@@ -453,13 +473,15 @@ mod test {
             )
             .unwrap();
 
-        scope_tree.update_value(child_index, &VarName("foo".to_string()), DynVal::from("pog")).unwrap();
-        {
-            assert_eq!(*(test_var.lock().unwrap()), "pog-ho".to_string());
-        }
-        scope_tree.update_value(child_index, &VarName("bar".to_string()), DynVal::from("poggers")).unwrap();
-        {
-            assert_eq!(*(test_var.lock().unwrap()), "pog-poggers".to_string());
-        }
+        scope_tree.update_value(scope_tree.root_index, &VarName("global_1".to_string()), DynVal::from("pog")).unwrap();
+
+        panic!();
+        //{
+        // assert_eq!(*(test_var.lock().unwrap()), "pog-ho".to_string());
+        //}
+        // scope_tree.update_value(child_index, &VarName("bar".to_string()), DynVal::from("poggers")).unwrap();
+        //{
+        // assert_eq!(*(test_var.lock().unwrap()), "pog-poggers".to_string());
+        //}
     }
 }
