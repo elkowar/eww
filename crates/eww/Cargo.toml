@@ -69,4 +69,3 @@ codespan-reporting = "0.11"
 simplexpr = { path = "../simplexpr" }
 eww_shared_util = { path = "../eww_shared_util" }
 yuck = { path = "../yuck", default-features = false}
-petgraph = {version = "0.6.0", features = ["stable_graph"]}

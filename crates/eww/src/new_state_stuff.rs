@@ -1,16 +1,9 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
+use std::{collections::HashMap, sync::Arc};
 
 use anyhow::*;
 use eww_shared_util::{AttrName, VarName};
 use gdk::prelude::Cast;
 use gtk::prelude::LabelExt;
-use petgraph::{
-    stable_graph::{StableDiGraph, EdgeIndex, NodeIndex},
-    EdgeDirection::{Incoming, Outgoing},
-};
 use simplexpr::{dynval::DynVal, SimplExpr};
 use yuck::config::{widget_definition::WidgetDefinition, widget_use::WidgetUse, window_definition::WindowDefinition};
 
@@ -22,7 +15,7 @@ pub fn do_stuff(
     let mut tree = ScopeTree::from_global_vars(global_vars);
     let root_index = tree.root_index;
 
-    if let Some(custom_widget_def) = widget_defs.get(&window.widget.name) {
+    if let Some(_custom_widget_def) = widget_defs.get(&window.widget.name) {
     } else {
         build_gtk_widget(&mut tree, root_index, widget_defs, window.widget.clone())?;
     }
@@ -39,7 +32,7 @@ pub fn do_stuff(
 
 pub fn build_gtk_widget(
     tree: &mut ScopeTree,
-    scope_index: NodeIndex,
+    scope_index: ScopeIndex,
     widget_defs: &HashMap<String, WidgetDefinition>,
     mut widget_use: WidgetUse,
 ) -> Result<gtk::Widget> {
@@ -59,6 +52,7 @@ pub fn build_gtk_widget(
                 let gtk_widget = gtk::Label::new(None);
                 let label_text: SimplExpr = widget_use.attrs.ast_required("text")?;
                 let value = tree.evaluate_simplexpr_in_scope(scope_index, &label_text)?;
+                gtk_widget.set_label(&value.as_string()?);
                 let required_vars = label_text.var_refs_with_span();
                 if !required_vars.is_empty() {
                     tree.register_listener(
@@ -89,14 +83,14 @@ pub struct Scope {
     /// **Note** that there might be VarNames referenced here that are not defined in this scope.
     /// In those cases it is necessary to look into the scopes this scope is inheriting from.
     listeners: HashMap<VarName, Vec<Arc<Listener>>>,
-    node_index: NodeIndex,
+    node_index: ScopeIndex,
 }
 
 impl Scope {
     /// Initializes a scope **incompletely**. The [`node_index`] is not set correctly, and needs to be
     /// set to the index of the node in the scope graph that connects to this scope.
     fn new(data: HashMap<VarName, DynVal>) -> Self {
-        Self { data, listeners: HashMap::new(), node_index: NodeIndex::default() }
+        Self { data, listeners: HashMap::new(), node_index: ScopeIndex(0) }
     }
 }
 
@@ -110,34 +104,6 @@ impl std::fmt::Debug for Listener {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
-pub struct ListenerId(usize);
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-enum ScopeTreeEdge {
-    // ChildOf,
-    /// a --inherits scope of--> b
-    /// A single scope inherit from 0-1 scopes. (global scope inherits from no other scope).
-    /// If a inherits from b, and references variable V, V may either be available in b or in scopes that b inherits from.
-    Inherits { references: HashSet<VarName> },
-
-    /// a --provides attribute [`attr_name`] calculated via [`expression`] to--> b
-    /// A single scope may provide 0-n attributes to 0-n scopes.
-    ProvidesAttribute { attr_name: AttrName, expression: SimplExpr },
-}
-
-impl ScopeTreeEdge {
-    fn is_inherits_relation(&self) -> bool {
-        matches!(self, Self::Inherits { .. })
-    }
-
-    fn is_inherits_referencing(&self, var_name: &VarName) -> bool {
-        match self {
-            ScopeTreeEdge::Inherits { references } => references.contains(var_name),
-            _ => false,
-        }
-    }
-}
 /// A tree structure of scopes that inherit from each other and provide attributes to other scopes.
 /// Invariants:
 /// - every scope inherits from exactly 0 or 1 scopes.
@@ -148,21 +114,19 @@ impl ScopeTreeEdge {
 /// If a inherits from b, b is called "parent scope" of a
 #[derive(Debug)]
 pub struct ScopeTree {
-    graph: StableDiGraph<Scope, ScopeTreeEdge>,
-    pub root_index: NodeIndex,
+    graph: ScopeGraph,
+    pub root_index: ScopeIndex,
 }
 
 impl ScopeTree {
     pub fn from_global_vars(vars: HashMap<VarName, DynVal>) -> Self {
-        let mut graph = StableDiGraph::new();
-        let root_index = graph.add_node(Scope { data: vars, listeners: HashMap::new(), node_index: NodeIndex::default() });
-        graph.node_weight_mut(root_index).map(|scope| {
-            scope.node_index = root_index;
-        });
+        let mut graph = ScopeGraph::new();
+        let root_index = graph.add_scope(Scope { data: vars, listeners: HashMap::new(), node_index: ScopeIndex(0) });
+        graph.scope_at_mut(root_index).map(|scope| scope.node_index = root_index);
         Self { graph, root_index }
     }
 
-    pub fn evaluate_simplexpr_in_scope(&self, index: NodeIndex, expr: &SimplExpr) -> Result<DynVal> {
+    pub fn evaluate_simplexpr_in_scope(&self, index: ScopeIndex, expr: &SimplExpr) -> Result<DynVal> {
         let needed_vars = expr
             .collect_var_refs()
             .into_iter()
@@ -181,10 +145,10 @@ impl ScopeTree {
     /// This will look up and resolve variable references in attributes to set up the correct [ScopeTreeEdge::ProvidesAttribute] relationships.
     pub fn register_new_scope(
         &mut self,
-        parent_scope: Option<NodeIndex>,
-        calling_scope: NodeIndex,
+        parent_scope: Option<ScopeIndex>,
+        calling_scope: ScopeIndex,
         attributes: HashMap<AttrName, SimplExpr>,
-    ) -> Result<NodeIndex> {
+    ) -> Result<ScopeIndex> {
         // TODO this needs a lot of optimization
         let mut scope_variables = HashMap::new();
 
@@ -198,36 +162,40 @@ impl ScopeTree {
         // risking getting it into an inconsistent state by adding a scope that can't get fully instantiated
         // and aborting that operation prematurely.
         let new_scope = Scope::new(scope_variables);
-        let new_scope_index = self.graph.add_node(new_scope);
+
+        let new_scope_index = self.graph.add_scope(new_scope);
         if let Some(parent_scope) = parent_scope {
-            self.graph.add_edge(new_scope_index, parent_scope, ScopeTreeEdge::Inherits { references: HashSet::new() });
+            self.graph.add_inherits_edge(new_scope_index, parent_scope, InheritsEdge { references: Vec::new() });
         }
-        self.value_at_mut(new_scope_index).map(|scope| {
+        self.graph.scope_at_mut(new_scope_index).map(|scope| {
             scope.node_index = new_scope_index;
         });
 
         for (attr_name, expression) in attributes {
             if !expression.collect_var_refs().is_empty() {
-                self.add_edge(calling_scope, new_scope_index, ScopeTreeEdge::ProvidesAttribute { attr_name, expression });
+                self.graph.add_provides_attr_edge(calling_scope, new_scope_index, ProvidesAttrEdge { attr_name, expression });
             }
         }
         Ok(new_scope_index)
     }
 
     /// Search through all available scopes for a scope that satisfies the given condition
-    pub fn find_available_scope_where(&self, scope_index: NodeIndex, f: impl Fn(&Scope) -> bool) -> Option<NodeIndex> {
-        let content = self.value_at(scope_index)?;
+    pub fn find_available_scope_where(&self, scope_index: ScopeIndex, f: impl Fn(&Scope) -> bool) -> Option<ScopeIndex> {
+        let content = self.graph.scope_at(scope_index)?;
         if f(content) {
             Some(scope_index)
         } else {
-            self.find_available_scope_where(self.parent_scope_of(scope_index)?, f)
+            self.find_available_scope_where(self.graph.parent_scope_of(scope_index)?, f)
         }
     }
 
     /// Register a listener. This listener will get called when any of the required variables change.
     /// This should be used to update the gtk widgets that are in a scope.
-    pub fn register_listener(&mut self, scope_index: NodeIndex, listener: Listener) -> Result<()> {
-        let scope = self.value_at_mut(scope_index).context("Scope not in tree")?;
+    pub fn register_listener(&mut self, scope_index: ScopeIndex, listener: Listener) -> Result<()> {
+        for required_var in &listener.needed_variables {
+            self.register_scope_referencing_variable(scope_index, required_var.clone())?;
+        }
+        let scope = self.graph.scope_at_mut(scope_index).context("Scope not in tree")?;
         let listener = Arc::new(listener);
         for required_var in &listener.needed_variables {
             scope.listeners.entry(required_var.clone()).or_default().push(listener.clone());
@@ -235,67 +203,53 @@ impl ScopeTree {
         Ok(())
     }
 
-    pub fn add_reference_to_parent(&mut self, scope_index: NodeIndex, var_name: &VarName) -> Result<()> {
-        let parent_scope = self
-            .find_scope_with_variable(scope_index, var_name)
-            .with_context(|| format!("Variable {} not in scope", var_name))?;
-        if parent_scope != scope_index {
-            let edges = self.graph.edges_connecting(scope_index, parent_scope);
-            while let Some(edge) = edges.next() {
-                // TODO pain I need to mutate the edge but apparently that's a big ooph
-            }
+    /// Register the fact that a scope is referencing a given variable.
+    /// If the scope contains the variable itself, this is a No-op. Otherwise, will add that reference to the inherited scope relation.
+    pub fn register_scope_referencing_variable(&mut self, scope_index: ScopeIndex, var_name: VarName) -> Result<()> {
+        if !self.graph.scope_at(scope_index).context("scope not in graph")?.data.contains_key(&var_name) {
+            let parent_scope =
+                self.graph.parent_scope_of(scope_index).with_context(|| format!("Variable {} not in scope", var_name))?;
+            self.graph.add_reference_to_inherits_edge(scope_index, parent_scope, var_name.clone())?;
+            self.register_scope_referencing_variable(parent_scope, var_name)?;
         }
         Ok(())
     }
 
-    pub fn update_value(&mut self, original_scope_index: NodeIndex, updated_var: &VarName, new_value: DynVal) -> Result<()> {
+    pub fn update_value(&mut self, original_scope_index: ScopeIndex, updated_var: &VarName, new_value: DynVal) -> Result<()> {
         let scope_index = self
             .find_scope_with_variable(original_scope_index, updated_var)
             .with_context(|| format!("Variable {} not scope", updated_var))?;
 
-        self.value_at_mut(scope_index).and_then(|scope| scope.data.get_mut(updated_var)).map(|entry| *entry = new_value);
+        self.graph.scope_at_mut(scope_index).and_then(|scope| scope.data.get_mut(updated_var)).map(|entry| *entry = new_value);
 
         // Update scopes that reference the changed variable in their attribute expressions.
-        let mut neighbors = self.graph.neighbors_directed(scope_index, Outgoing).detach();
-        while let Some(neighbor_index) = neighbors.next_node(&self.graph) {
-            let edges: Vec<_> =
-                self.graph.edges_connecting(scope_index, neighbor_index).map(|edge| edge.weight()).cloned().collect();
-            for edge in &edges {
-                if let ScopeTreeEdge::ProvidesAttribute { attr_name, expression } = edge {
-                    if expression.collect_var_refs().iter().any(|used_var| used_var == updated_var) {
-                        let updated_attr_value = self.evaluate_simplexpr_in_scope(scope_index, expression)?;
-                        self.update_value(neighbor_index, attr_name.to_var_name_ref(), updated_attr_value)?;
-                    }
-                };
-            }
+        let edges: Vec<(ScopeIndex, ProvidesAttrEdge)> =
+            self.graph.scopes_providing_attr_using(scope_index, updated_var).into_iter().map(|(a, b)| (*a, b.clone())).collect();
+        for (referencing_scope, edge) in edges {
+            let updated_attr_value = self.evaluate_simplexpr_in_scope(scope_index, &edge.expression)?;
+            self.update_value(referencing_scope, edge.attr_name.to_var_name_ref(), updated_attr_value)?;
         }
 
-        // Trigger the listeners from this scope
-        self.call_listeners_in_scope(scope_index, updated_var)?;
-
-        // Now find child scopes that reference this variable
-        // TODO transitivity of inheritance is not yet implemented
-        let affected_child_scopes = self.child_scopes_referencing_variable(scope_index, updated_var);
-        for affected_child_scope in affected_child_scopes {
-            dbg!(&affected_child_scope);
-            self.call_listeners_in_scope(affected_child_scope, updated_var)?;
-        }
+        self.notify_value_changed(scope_index, updated_var)?;
 
         Ok(())
     }
 
-    fn child_scopes_referencing_variable(
-        &self,
-        scope_index: NodeIndex,
-        var_name: &VarName,
-    ) -> impl Iterator<Item = NodeIndex> + '_ {
-        self.neighbors_where(scope_index, Incoming, |edge| edge.is_inherits_referencing(var_name))
-            .into_iter()
-            .map(|(_, scope)| scope)
+    /// Notify a scope that a value has been changed. This triggers the listeners and notifies further child scopes recursively.
+    pub fn notify_value_changed(&mut self, scope_index: ScopeIndex, updated_var: &VarName) -> Result<()> {
+        // Trigger the listeners from this scope
+        self.call_listeners_in_scope(scope_index, updated_var)?;
+
+        // Now find child scopes that reference this variable
+        let affected_child_scopes = self.graph.child_scopes_referencing(scope_index, updated_var);
+        for affected_child_scope in affected_child_scopes {
+            self.notify_value_changed(affected_child_scope, updated_var)?;
+        }
+        Ok(())
     }
 
-    pub fn call_listeners_in_scope(&self, scope_index: NodeIndex, updated_var: &VarName) -> Result<()> {
-        let scope = self.value_at(scope_index).context("Scope not in tree")?;
+    pub fn call_listeners_in_scope(&self, scope_index: ScopeIndex, updated_var: &VarName) -> Result<()> {
+        let scope = self.graph.scope_at(scope_index).context("Scope not in tree")?;
         if let Some(triggered_listeners) = scope.listeners.get(updated_var) {
             for listener in triggered_listeners {
                 let mut required_variables = HashMap::new();
@@ -312,73 +266,142 @@ impl ScopeTree {
     }
 
     /// Find the closest available scope that contains variable with the given name.
-    pub fn find_scope_with_variable(&self, index: NodeIndex, var_name: &VarName) -> Option<NodeIndex> {
+    pub fn find_scope_with_variable(&self, index: ScopeIndex, var_name: &VarName) -> Option<ScopeIndex> {
         self.find_available_scope_where(index, |scope| scope.data.contains_key(var_name))
     }
 
     /// Find the value of a variable in the closest available scope that contains a variable with that name.
-    pub fn lookup_variable_in_scope(&self, index: NodeIndex, var_name: &VarName) -> Option<&DynVal> {
+    pub fn lookup_variable_in_scope(&self, index: ScopeIndex, var_name: &VarName) -> Option<&DynVal> {
         self.find_scope_with_variable(index, var_name)
-            .and_then(|scope| self.value_at(scope))
+            .and_then(|scope| self.graph.scope_at(scope))
             .map(|x| x.data.get(var_name).unwrap())
     }
+}
 
-    pub fn value_at(&self, index: NodeIndex) -> Option<&Scope> {
-        self.graph.node_weight(index)
+#[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
+pub struct ScopeIndex(u32);
+
+impl ScopeIndex {
+    fn advance(&mut self) {
+        self.0 += 1;
     }
+}
 
-    pub fn value_at_mut(&mut self, index: NodeIndex) -> Option<&mut Scope> {
-        self.graph.node_weight_mut(index)
-    }
+/// a -- inherits scope of --> b
+/// A single scope inherit from 0-1 scopes. (global scope inherits from no other scope).
+/// If a inherits from b, and references variable V, V may either be available in b or in scopes that b inherits from.
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct InheritsEdge {
+    references: Vec<VarName>,
+}
 
-    /// find the scope a given other scope directly inherits from.
-    pub fn parent_scope_of(&self, index: NodeIndex) -> Option<NodeIndex> {
-        self.find_neighbor(index, Outgoing, |edge| edge.is_inherits_relation())
-    }
+/// a --provides attribute [`attr_name`] calculated via [`expression`] to--> b
+/// A single scope may provide 0-n attributes to 0-n scopes.
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct ProvidesAttrEdge {
+    attr_name: AttrName,
+    expression: SimplExpr,
+}
 
-    fn add_edge(&mut self, from: NodeIndex, to: NodeIndex, edge: ScopeTreeEdge) -> EdgeIndex {
-        self.graph.add_edge(from, to, edge)
-    }
+#[derive(Debug)]
+pub struct ScopeGraph {
+    last_index: ScopeIndex,
+    scopes: HashMap<ScopeIndex, Scope>,
+    provides_attr_edges: HashMap<ScopeIndex, HashMap<ScopeIndex, ProvidesAttrEdge>>,
 
-    /// Find a connected scope where the edge between the scopes satisfies a given predicate.
-    fn find_neighbor(
-        &self,
-        index: NodeIndex,
-        dir: petgraph::EdgeDirection,
-        f: impl Fn(&ScopeTreeEdge) -> bool,
-    ) -> Option<NodeIndex> {
-        let mut neighbors = self.graph.neighbors_directed(index, dir).detach();
-        while let Some(neighbor) = neighbors.next_node(&self.graph) {
-            let edges = match dir {
-                Outgoing => self.graph.edges_connecting(index, neighbor),
-                Incoming => self.graph.edges_connecting(neighbor, index),
-            };
-            if edges.into_iter().any(|x| f(x.weight())) {
-                return Some(neighbor);
-            }
+    /// Set of edges where scope K inherits from scope V.0
+    inherits_edges: HashMap<ScopeIndex, (ScopeIndex, InheritsEdge)>,
+
+    /// Set of scopes V that inherit a given scope K
+    /// In other words: map of scopes to list of their children
+    child_scopes: HashMap<ScopeIndex, Vec<ScopeIndex>>,
+}
+
+impl ScopeGraph {
+    pub fn new() -> Self {
+        Self {
+            last_index: ScopeIndex(0),
+            scopes: HashMap::new(),
+            inherits_edges: HashMap::new(),
+            child_scopes: HashMap::new(),
+            provides_attr_edges: HashMap::new(),
         }
-        None
     }
 
-    /// Find all connected scopes where the edges satisfy a given predicate.
-    fn neighbors_where(
-        &self,
-        index: NodeIndex,
-        dir: petgraph::EdgeDirection,
-        f: impl Fn(&ScopeTreeEdge) -> bool,
-    ) -> Vec<(&ScopeTreeEdge, NodeIndex)> {
-        let mut neighbors = self.graph.neighbors_directed(index, dir).detach();
-        let mut result = Vec::new();
-        while let Some(neighbor) = neighbors.next_node(&self.graph) {
-            let edges = match dir {
-                Outgoing => self.graph.edges_connecting(index, neighbor),
-                Incoming => self.graph.edges_connecting(neighbor, index),
-            };
-            if let Some(edge) = edges.into_iter().find(|x| f(x.weight())) {
-                result.push((edge.weight(), neighbor));
-            }
+    fn add_scope(&mut self, scope: Scope) -> ScopeIndex {
+        let idx = self.last_index;
+        self.scopes.insert(idx, scope);
+        self.last_index.advance();
+        idx
+    }
+
+    fn add_inherits_edge(&mut self, a: ScopeIndex, b: ScopeIndex, edge: InheritsEdge) {
+        self.inherits_edges.insert(a, (b, edge));
+        self.child_scopes.entry(b).or_default().push(a);
+    }
+
+    fn add_provides_attr_edge(&mut self, a: ScopeIndex, b: ScopeIndex, edge: ProvidesAttrEdge) {
+        self.provides_attr_edges.entry(a).or_default().insert(b, edge);
+    }
+
+    fn scope_at(&self, index: ScopeIndex) -> Option<&Scope> {
+        self.scopes.get(&index)
+    }
+
+    fn scope_at_mut(&mut self, index: ScopeIndex) -> Option<&mut Scope> {
+        self.scopes.get_mut(&index)
+    }
+
+    fn child_scopes_referencing(&self, index: ScopeIndex, var_name: &VarName) -> Vec<ScopeIndex> {
+        if let Some(child_scopes) = self.child_scopes.get(&index) {
+            child_scopes
+                .iter()
+                .filter(|scope_index| {
+                    self.inherits_edges.get(scope_index).map(|(_, edge)| edge.references.contains(var_name)) == Some(true)
+                })
+                .cloned()
+                .collect()
+        } else {
+            Vec::new()
         }
-        result
+    }
+
+    fn parent_scope_of(&self, index: ScopeIndex) -> Option<ScopeIndex> {
+        self.inherits_edges.get(&index).map(|(idx, _)| *idx)
+    }
+
+    fn scopes_providing_attr_using(&self, index: ScopeIndex, var_name: &VarName) -> Vec<(&ScopeIndex, &ProvidesAttrEdge)> {
+        if let Some(edge_mappings) = self.provides_attr_edges.get(&index) {
+            edge_mappings.iter().filter(|(_, v)| v.expression.references_var(&var_name)).collect()
+        } else {
+            Vec::new()
+        }
+    }
+
+    fn add_reference_to_inherits_edge(
+        &mut self,
+        scope_index: ScopeIndex,
+        parent_scope: ScopeIndex,
+        var_name: VarName,
+    ) -> Result<()> {
+        let endpoint = self.inherits_edges.get_mut(&scope_index).with_context(|| {
+            format!(
+                "Given scope {:?} does not have any parent scope, but is assumed to have parent {:?}",
+                scope_index, parent_scope
+            )
+        })?;
+        if endpoint.0 != parent_scope {
+            bail!(
+                "Given scope {:?} does not actually inherit from the given parent scope {:?}, but from {:?}",
+                scope_index,
+                parent_scope,
+                endpoint.0
+            );
+        }
+
+        endpoint.1.references.push(var_name);
+
+        Ok(())
     }
 }
 
@@ -392,19 +415,34 @@ macro_rules! make_listener {
                     let $name = values.get(&$varname).unwrap();
                 )*
                 $body
+                Ok(())
             })
         }
+    };
+    (@short |$($varname:ident),*| $body:block) => {
+        make_listener!(|$(VarName(stringify!($varname).to_string()) => $varname),*| $body)
     }
 }
 
 #[cfg(test)]
+#[allow(unused)]
 mod test {
-    use std::sync::Mutex;
+    use std::sync::{
+        atomic::{AtomicBool, Ordering},
+        Mutex,
+    };
 
     use super::*;
     use eww_shared_util::{Span, VarName};
     use maplit::hashmap;
     use simplexpr::dynval::DynVal;
+
+    pub fn create_fn_verificator() -> (Arc<AtomicBool>, Box<dyn Fn()>) {
+        let check = Arc::new(AtomicBool::new(false));
+        let check_moved = check.clone();
+        let f = Box::new(move || check_moved.store(true, Ordering::Relaxed));
+        (check, f)
+    }
 
     #[test]
     fn test_stuff() {
@@ -437,72 +475,50 @@ mod test {
             )
             .unwrap();
 
-        let test_var = Arc::new(Mutex::new(String::new()));
-
-        // let l = make_listener!(|VarName("foo".to_string()) => foo, VarName("bar".to_string()) => bar| {
-        // println!("{}-{}", foo, bar);
-        // Ok(())
-        // });
+        let (foo_verify, foo_f) = create_fn_verificator();
 
         scope_tree
             .register_listener(
                 widget_foo_scope,
-                Listener {
-                    needed_variables: vec![VarName("arg_1".to_string())],
-                    f: Box::new({
-                        let test_var = test_var.clone();
-                        move |x| {
-                            println!("foo: arg_1 changed to {}", x.get("arg_1").unwrap());
-                            //*(test_var.lock().unwrap()) = format!("foo: arg_1 changed to {}", x.get("arg_1").unwrap());
-                            Ok(())
-                        }
-                    }),
-                },
+                make_listener!(@short |arg_1| {
+                    println!("foo: arg_1 changed to {}", arg_1);
+                    if arg_1 == &DynVal::from("pog") {
+                        foo_f()
+                    }
+                }),
             )
             .unwrap();
+        let (bar_verify, bar_f) = create_fn_verificator();
         scope_tree
             .register_listener(
                 widget_bar_scope,
-                Listener {
-                    needed_variables: vec![VarName("arg_3".to_string())],
-                    f: Box::new({
-                        let test_var = test_var.clone();
-                        move |x| {
-                            println!("bar: arg_3 changed to {}", x.get("arg_3").unwrap());
-                            //*(test_var.lock().unwrap()) = format!("foo: arg_1 changed to {}", x.get("arg_1").unwrap());
-                            Ok(())
-                        }
-                    }),
-                },
+                make_listener!(@short |arg_3| {
+                    println!("bar: arg_3 changed to {}", arg_3);
+                    if arg_3 == &DynVal::from("pogstatic_value") {
+                        bar_f()
+                    }
+                }),
             )
             .unwrap();
+
+        let (bar_2_verify, bar_2_f) = create_fn_verificator();
         scope_tree
             .register_listener(
                 widget_bar_scope,
-                Listener {
-                    needed_variables: vec![VarName("global_2".to_string())],
-                    f: Box::new({
-                        let test_var = test_var.clone();
-                        move |x| {
-                            println!("bar: global_2 changed to {}", x.get("global_2").unwrap());
-                            //*(test_var.lock().unwrap()) = format!("foo: arg_1 changed to {}", x.get("arg_1").unwrap());
-                            Ok(())
-                        }
-                    }),
-                },
+                make_listener!(@short |global_2| {
+                    println!("bar: global_2 changed to {}", global_2);
+                    if global_2 == &DynVal::from("new global 2") {
+                        bar_2_f()
+                    }
+                }),
             )
             .unwrap();
 
         scope_tree.update_value(scope_tree.root_index, &VarName("global_1".to_string()), DynVal::from("pog")).unwrap();
-        scope_tree.update_value(scope_tree.root_index, &VarName("global_2".to_string()), DynVal::from("new global 2")).unwrap();
+        assert!(foo_verify.load(Ordering::Relaxed), "update in foo did not trigger properly");
+        assert!(bar_verify.load(Ordering::Relaxed), "update in bar did not trigger properly");
 
-        panic!();
-        //{
-        // assert_eq!(*(test_var.lock().unwrap()), "pog-ho".to_string());
-        //}
-        // scope_tree.update_value(child_index, &VarName("bar".to_string()), DynVal::from("poggers")).unwrap();
-        //{
-        // assert_eq!(*(test_var.lock().unwrap()), "pog-poggers".to_string());
-        //}
+        scope_tree.update_value(scope_tree.root_index, &VarName("global_2".to_string()), DynVal::from("new global 2")).unwrap();
+        assert!(bar_2_verify.load(Ordering::Relaxed), "inherited global update did not trigger properly");
     }
 }

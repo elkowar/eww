@@ -439,7 +439,6 @@ dependencies = [
  "nix",
  "notify",
  "once_cell",
- "petgraph 0.6.0",
  "pretty_env_logger",
  "regex",
  "serde",
@@ -506,12 +505,6 @@ name = "fixedbitset"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37ab347416e802de484e4d03c7316c48f1ecb56574dfd4a46a80f173ce1de04d"
-
-[[package]]
-name = "fixedbitset"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "398ea4fabe40b9b0d885340a2a991a44c8a645624075ad966d21f88688e2b69e"
 
 [[package]]
 name = "fsevent-sys"
@@ -1176,7 +1169,7 @@ dependencies = [
  "ena",
  "itertools 0.10.1",
  "lalrpop-util",
- "petgraph 0.5.1",
+ "petgraph",
  "pico-args",
  "regex",
  "regex-syntax",
@@ -1467,17 +1460,7 @@ version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "467d164a6de56270bd7c4d070df81d07beace25012d5103ced4e9ff08d6afdb7"
 dependencies = [
- "fixedbitset 0.2.0",
- "indexmap",
-]
-
-[[package]]
-name = "petgraph"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a13a2fa9d0b63e5f22328828741e523766fff0ee9e779316902290dff3f824f"
-dependencies = [
- "fixedbitset 0.4.0",
+ "fixedbitset",
  "indexmap",
 ]
 
