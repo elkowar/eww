@@ -19,6 +19,8 @@ glib_wrapper! {
 pub struct CircProgPriv {
     start_angle: RefCell<f32>,
     value: RefCell<f32>,
+
+    content: RefCell<Option<gtk::Widget>>,
 }
 
 static PROPERTIES: [subclass::Property; 2] = [
@@ -64,7 +66,7 @@ impl ObjectImpl for CircProgPriv {
 impl ObjectSubclass for CircProgPriv {
     type Class = subclass::simple::ClassStruct<Self>;
     type Instance = subclass::simple::InstanceStruct<Self>;
-    type ParentType = gtk::Box;
+    type ParentType = gtk::Bin;
 
     const ABSTRACT: bool = false;
     const NAME: &'static str = "CircProg";
@@ -77,7 +79,7 @@ impl ObjectSubclass for CircProgPriv {
     }
 
     fn new() -> Self {
-        Self { value: RefCell::new(0f32), start_angle: RefCell::new(0f32) }
+        Self { value: RefCell::new(0f32), start_angle: RefCell::new(0f32), content: RefCell::new(None) }
     }
 }
 impl CircProg {
@@ -88,36 +90,48 @@ impl CircProg {
             .expect("Created MyAwesome Widget is of wrong type")
     }
 }
-
-impl BoxImpl for CircProgPriv {}
-//impl BinImpl for CircProgPriv {}
-impl ContainerImpl for CircProgPriv {}
+impl ContainerImpl for CircProgPriv {
+    fn add(&self, container: &gtk::Container, widget: &gtk::Widget) {
+        self.parent_add(container, widget);
+        self.content.replace(Some(widget.clone()));
+    }
+}
+impl BinImpl for CircProgPriv {}
 impl WidgetImpl for CircProgPriv {
     // https://sourcegraph.com/github.com/GNOME/fractal/-/blob/fractal-gtk/src/widgets/clip_container.rs?L119 ???
+    // https://stackoverflow.com/questions/50283367/drawingarea-fill-area-outside-a-region
     fn draw(&self, widget: &gtk::Widget, cr: &cairo::Context) -> Inhibit {
         let styles = widget.get_style_context();
         let value = *self.value.borrow();
-        cr.save();
         let width = widget.get_allocated_width() as f64;
         let height = widget.get_allocated_height() as f64;
 
+        // Outer ring
         #[allow(deprecated)]
         let bg_color = styles.get_background_color(gtk::StateFlags::NORMAL);
+        cr.save();
         cr.set_source_rgba(bg_color.red, bg_color.green, bg_color.blue, bg_color.alpha);
-
+        cr.arc(width / 2.0, height / 2.0, f64::min(width, height) / 2.0, 0.0, perc_to_rad(value as f64));
         cr.move_to(width / 2.0, height / 2.0);
-        cr.arc(width / 2.0, height / 2.0, height / 4.0, 0.0, perc_to_rad(value as f64));
+        // cr.set_operator(cairo::Operator::Clear);
+        cr.arc(width / 2.0, height / 2.0, f64::min(width, height) / 4.0, 0.0, perc_to_rad(value as f64));
+        cr.set_fill_rule(cairo::FillRule::EvenOdd); // Substract one circle from the other
         cr.fill();
+        cr.restore();
+
+        if let Some(child) = &*self.content.borrow() {
+            widget.downcast_ref::<gtk::Container>().unwrap().propagate_draw(child, &cr);
+        }
         gtk::Inhibit(false)
     }
 
-    fn get_request_mode(&self, widget: &gtk::Widget) -> gtk::SizeRequestMode {
-        self.parent_get_request_mode(widget)
-    }
+    // fn get_request_mode(&self, widget: &gtk::Widget) -> gtk::SizeRequestMode {
+    //    self.parent_get_request_mode(widget)
+    //}
 
-    //fn size_allocate(&self, widget: &gtk::Widget, allocation: &gdk::Rectangle) {
-        ////self.parent_size_allocate(widget, allocation);
-        ////widget.downcast_ref::<gtk::Box>().unwrap().size_allocate(allocation)
+    // fn size_allocate(&self, widget: &gtk::Widget, allocation: &gdk::Rectangle) {
+    //    self.parent_size_allocate(widget, allocation);
+    //    widget.downcast_ref::<gtk::Bin>().unwrap().size_allocate(allocation)
     //}
 }
 
