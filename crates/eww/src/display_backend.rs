@@ -2,9 +2,10 @@ pub use platform::*;
 
 #[cfg(not(any(feature = "x11", feature = "wayland")))]
 mod platform {
-    use crate::config::EwwWindowDefinition;
+    use crate::config::WindowDefinition;
+    use yuck::config::window_definition::{WindowDefinition, WindowStacking};
 
-    pub fn initialize_window(_window_def: &EwwWindowDefinition, _monitor: gdk::Rectangle) -> Option<gtk::Window> {
+    pub fn initialize_window(_window_def: &WindowDefinition, _monitor: gdk::Rectangle) -> Option<gtk::Window> {
         Some(gtk::Window::new(gtk::WindowType::Toplevel))
     }
 }
@@ -13,11 +14,9 @@ mod platform {
 mod platform {
     use gdk;
     use gtk::prelude::*;
-    use yuck::config::{window_definition::WindowStacking, window_geometry::AnchorAlignment};
+    use yuck::config::{window_definition::{WindowStacking, WindowDefinition}, window_geometry::AnchorAlignment};
 
-    use crate::config::EwwWindowDefinition;
-
-    pub fn initialize_window(window_def: &EwwWindowDefinition, monitor: gdk::Rectangle) -> Option<gtk::Window> {
+    pub fn initialize_window(window_def: &WindowDefinition, monitor: gdk::Rectangle) -> Option<gtk::Window> {
         let window = gtk::Window::new(gtk::WindowType::Toplevel);
         // Initialising a layer shell surface
         gtk_layer_shell::init_for_window(&window);

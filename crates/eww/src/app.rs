@@ -1,9 +1,9 @@
 use crate::{
     config,
     daemon_response::DaemonResponseSender,
-    display_backend, error_handling_ctx, eww_state,
+    display_backend, error_handling_ctx,
     gtk::prelude::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt},
-    new_state_stuff::{self, BuilderContext, ScopeTree},
+    new_state_stuff::{self, ScopeTree},
     script_var_handler::*,
     EwwPaths,
 };
@@ -284,10 +284,8 @@ impl App {
 
             let root_index = self.scope_tree.borrow().root_index.clone();
             let root_widget = new_state_stuff::build_gtk_widget(
-                BuilderContext {
-                    tree: self.scope_tree.clone(),
-                    widget_defs: Rc::new(self.eww_config.get_widget_definitions().clone()),
-                },
+                &mut *self.scope_tree.borrow_mut(),
+                Rc::new(self.eww_config.get_widget_definitions().clone()),
                 root_index,
                 window_def.widget.clone(),
                 None,
