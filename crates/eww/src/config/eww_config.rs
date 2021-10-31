@@ -67,7 +67,7 @@ impl EwwConfig {
         for (_, window) in window_definitions.clone().iter() {
             crate::new_state_stuff::do_stuff(
                 var_definitions.clone().into_iter().map(|(k, v)| (k, v.initial_value)).collect(),
-                &widget_definitions,
+                widget_definitions.clone(),
                 window,
             )?;
         }
