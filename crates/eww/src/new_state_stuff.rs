@@ -12,36 +12,46 @@ use yuck::config::{widget_definition::WidgetDefinition, widget_use::WidgetUse, w
 
 pub fn do_stuff(
     global_vars: HashMap<VarName, DynVal>,
-    widget_defs: &HashMap<String, WidgetDefinition>,
+    widget_defs: HashMap<String, WidgetDefinition>,
     window: &WindowDefinition,
 ) -> Result<()> {
     let tree = ScopeTree::from_global_vars(global_vars);
     let root_index = tree.root_index;
     let tree = Rc::new(RefCell::new(tree));
 
-    if let Some(_custom_widget_def) = widget_defs.get(&window.widget.name) {
-    } else {
-        build_gtk_widget(tree, root_index, widget_defs, window.widget.clone(), None)?;
-    }
+    let ctx = BuilderContext { tree, widget_defs: Rc::new(widget_defs) };
+
+    build_gtk_widget(ctx, root_index, window.widget.clone(), None)?;
 
     Ok(())
 }
 
-// IDEA:
-// To handle children with this, I'll probably need to implement gtk widget building
-// on a per-scope or at least per-user-defined widget basis, keeping the children
-// around for at least that long,... that's not yet all that clear of an implementation strategy
-// but already painful enough to give me nightmares
-// this is gonna be fun
+/// When a custom widget gets used, some context about that invocation needs to be
+/// remembered whilst building it's content. If the body of the custom widget uses a `children`
+/// widget, the children originally passed to the widget need to be set.
+/// This struct represents that context
+pub struct CustomWidgetInvocation {
+    /// The scope the custom widget was invoked in
+    scope: ScopeIndex,
+    /// The children the custom widget was given. These should be evaluated in [scope]
+    children: Vec<WidgetUse>,
+}
+
+/// Values used throughout building and changing the widget tree.
+/// Cloning this is cheap, as all of the contents are behind `Rc` indirection.
+#[derive(Clone, Debug)]
+pub struct BuilderContext {
+    tree: Rc<RefCell<ScopeTree>>,
+    widget_defs: Rc<HashMap<String, WidgetDefinition>>,
+}
 
 pub fn build_gtk_widget(
-    tree: Rc<RefCell<ScopeTree>>,
+    ctx: BuilderContext,
     scope_index: ScopeIndex,
-    widget_defs: &HashMap<String, WidgetDefinition>,
     mut widget_use: WidgetUse,
-    current_children: Option<(ScopeIndex, Vec<WidgetUse>)>,
+    custom_widget_invocation: Option<Rc<CustomWidgetInvocation>>,
 ) -> Result<gtk::Widget> {
-    if let Some(custom_widget) = widget_defs.get(&widget_use.name) {
+    if let Some(custom_widget) = ctx.widget_defs.clone().get(&widget_use.name) {
         let widget_use_attributes: HashMap<_, _> = widget_use
             .attrs
             .attrs
@@ -49,14 +59,13 @@ pub fn build_gtk_widget(
             .map(|(name, value)| Ok((name.clone(), value.value.as_simplexpr()?)))
             .collect::<Result<_>>()?;
         let new_scope_index =
-            tree.borrow_mut().register_new_scope(Some(tree.borrow().root_index), scope_index, widget_use_attributes)?;
+            ctx.tree.borrow_mut().register_new_scope(Some(ctx.tree.borrow().root_index), scope_index, widget_use_attributes)?;
 
         build_gtk_widget(
-            tree,
+            ctx,
             new_scope_index,
-            widget_defs,
             custom_widget.widget.clone(),
-            Some((scope_index, widget_use.children)),
+            Some(Rc::new(CustomWidgetInvocation { scope: scope_index, children: widget_use.children })),
         )
     } else {
         let gtk_widget: gtk::Widget = match widget_use.name.as_str() {
@@ -67,11 +76,11 @@ pub fn build_gtk_widget(
             "label" => {
                 let gtk_widget = gtk::Label::new(None);
                 let label_text: SimplExpr = widget_use.attrs.ast_required("text")?;
-                let value = tree.borrow().evaluate_simplexpr_in_scope(scope_index, &label_text)?;
+                let value = ctx.tree.borrow().evaluate_simplexpr_in_scope(scope_index, &label_text)?;
                 gtk_widget.set_label(&value.as_string()?);
                 let required_vars = label_text.var_refs_with_span();
                 if !required_vars.is_empty() {
-                    tree.borrow_mut().register_listener(
+                    ctx.tree.borrow_mut().register_listener(
                         scope_index,
                         Listener {
                             needed_variables: required_vars.into_iter().map(|(_, name)| name.clone()).collect(),
@@ -92,70 +101,91 @@ pub fn build_gtk_widget(
         };
 
         if let Some(gtk_container) = gtk_widget.dynamic_cast_ref::<gtk::Container>() {
-            let (calling_scope, current_children) = current_children.context("No children provided")?;
-            for child in widget_use.children {
-                if child.name == "children" {
-                    if let Some(nth) = widget_use.attrs.ast_optional::<SimplExpr>("nth")? {
-                        // This should be a custom gtk::Bin subclass,..
-                        let child_container = gtk::Box::new(Orientation::Horizontal, 0);
-                        gtk_container.add(&child_container);
-
-                        {
-                            let nth_current = tree.borrow().evaluate_simplexpr_in_scope(scope_index, &nth)?.as_i32()?;
-                            let nth_child_widget_use = current_children
-                                .get(nth_current as usize)
-                                .with_context(|| format!("No child at index {}", nth_current))?;
-                            let current_child_widget =
-                                build_gtk_widget(tree.clone(), calling_scope, widget_defs, nth_child_widget_use.clone(), None)?;
-
-                            child_container.add(&current_child_widget);
-                        }
-                        tree.clone().borrow_mut().register_listener(
-                            scope_index,
-                            Listener {
-                                needed_variables: nth.collect_var_refs(),
-                                f: Box::new({
-                                    let current_children = current_children.clone();
-                                    let widget_defs = widget_defs.clone();
-                                    let tree = tree.clone();
-                                    move |values| {
-                                        let nth_value = nth.eval(&values)?.as_i32()?;
-                                        let nth_child_widget_use = current_children
-                                            .get(nth_value as usize)
-                                            .with_context(|| format!("No child at index {}", nth_value))?;
-                                        let current_child_widget = build_gtk_widget(
-                                            tree.clone(),
-                                            calling_scope,
-                                            &widget_defs,
-                                            nth_child_widget_use.clone(),
-                                            None,
-                                        )?;
-                                        child_container.set_child(Some(&current_child_widget));
-                                        Ok(())
-                                    }
-                                }),
-                            },
-                        )?;
-                    } else {
-                        for child in &current_children {
-                            let child_widget = build_gtk_widget(tree.clone(), calling_scope, widget_defs, child.clone(), None)?;
-                            gtk_container.add(&child_widget);
-                        }
-                    }
-                } else {
-                    let child_widget = build_gtk_widget(
-                        tree.clone(),
-                        scope_index,
-                        widget_defs,
-                        child,
-                        Some((calling_scope, current_children.clone())),
-                    )?;
-                    gtk_container.add(&child_widget);
-                }
-            }
+            populate_widget_children(ctx, scope_index, gtk_container, widget_use.children, custom_widget_invocation)?;
         }
         Ok(gtk_widget)
     }
+}
+
+/// If a [gtk widget](gtk_container) can take children (→ it is a `gtk::Container`) we need to add the provided [widget_use_children]
+/// into that container. Those children might be uses of the special `children`-[widget_use], which will get expanded here, too.
+fn populate_widget_children(
+    ctx: BuilderContext,
+    scope_index: ScopeIndex,
+    gtk_container: &gtk::Container,
+    widget_use_children: Vec<WidgetUse>,
+    custom_widget_invocation: Option<Rc<CustomWidgetInvocation>>,
+) -> Result<()> {
+    for child in widget_use_children {
+        if child.name == "children" {
+            let custom_widget_invocation = custom_widget_invocation.clone().context("Not in a custom widget invocation")?;
+            build_gtk_children(ctx.clone(), scope_index, child, gtk_container, custom_widget_invocation)?;
+        } else {
+            let child_widget = build_gtk_widget(ctx.clone(), scope_index, child, custom_widget_invocation.clone())?;
+            gtk_container.add(&child_widget);
+        }
+    }
+    Ok(())
+}
+
+/// Handle an invocation of the special `children` [widget_use].
+/// This widget expands to multiple other widgets, thus we require the [gtk_container] we should expand the widgets into.
+/// The [custom_widget_invocation] will be used here to evaluate the provided children in their
+/// original scope and expand them into the given container.
+fn build_gtk_children(
+    ctx: BuilderContext,
+    scope_index: ScopeIndex,
+    mut widget_use: WidgetUse,
+    gtk_container: &gtk::Container,
+    custom_widget_invocation: Rc<CustomWidgetInvocation>,
+) -> Result<()> {
+    assert_eq!(&widget_use.name, "children");
+
+    if let Some(nth) = widget_use.attrs.ast_optional::<SimplExpr>("nth")? {
+        // This should be a custom gtk::Bin subclass,..
+        let child_container = gtk::Box::new(Orientation::Horizontal, 0);
+        gtk_container.add(&child_container);
+
+        {
+            let nth_current = ctx.tree.borrow().evaluate_simplexpr_in_scope(scope_index, &nth)?.as_i32()?;
+            let nth_child_widget_use = custom_widget_invocation
+                .children
+                .get(nth_current as usize)
+                .with_context(|| format!("No child at index {}", nth_current))?;
+            let current_child_widget =
+                build_gtk_widget(ctx.clone(), custom_widget_invocation.scope, nth_child_widget_use.clone(), None)?;
+
+            child_container.add(&current_child_widget);
+        }
+
+        ctx.tree.clone().borrow_mut().register_listener(
+            scope_index,
+            Listener {
+                needed_variables: nth.collect_var_refs(),
+                f: Box::new({
+                    let custom_widget_invocation = custom_widget_invocation.clone();
+                    let ctx = ctx.clone();
+                    move |values| {
+                        let nth_value = nth.eval(&values)?.as_i32()?;
+                        let nth_child_widget_use = custom_widget_invocation
+                            .children
+                            .get(nth_value as usize)
+                            .with_context(|| format!("No child at index {}", nth_value))?;
+                        let current_child_widget =
+                            build_gtk_widget(ctx.clone(), custom_widget_invocation.scope, nth_child_widget_use.clone(), None)?;
+                        child_container.set_child(Some(&current_child_widget));
+                        Ok(())
+                    }
+                }),
+            },
+        )?;
+    } else {
+        for child in &custom_widget_invocation.children {
+            let child_widget = build_gtk_widget(ctx.clone(), custom_widget_invocation.scope, child.clone(), None)?;
+            gtk_container.add(&child_widget);
+        }
+    }
+    Ok(())
 }
 
 #[derive(Debug)]
@@ -209,17 +239,7 @@ impl ScopeTree {
     }
 
     pub fn evaluate_simplexpr_in_scope(&self, index: ScopeIndex, expr: &SimplExpr) -> Result<DynVal> {
-        let needed_vars = expr
-            .collect_var_refs()
-            .into_iter()
-            .map(|var_name| {
-                let value = self
-                    .lookup_variable_in_scope(index, &var_name)
-                    .with_context(|| format!("Could not find variable {} in scope", var_name))?
-                    .clone();
-                Ok((var_name, value))
-            })
-            .collect::<Result<HashMap<_, _>>>()?;
+        let needed_vars = self.lookup_variables_in_scope(index, &expr.collect_var_refs())?;
         Ok(expr.eval(&needed_vars)?)
     }
 
@@ -330,17 +350,12 @@ impl ScopeTree {
         Ok(())
     }
 
-    pub fn call_listeners_in_scope(&self, scope_index: ScopeIndex, updated_var: &VarName) -> Result<()> {
+    /// Call all of the listeners in a given [scope_index] that are affected by a change to the [updated_var].
+    fn call_listeners_in_scope(&self, scope_index: ScopeIndex, updated_var: &VarName) -> Result<()> {
         let scope = self.graph.scope_at(scope_index).context("Scope not in tree")?;
         if let Some(triggered_listeners) = scope.listeners.get(updated_var) {
             for listener in triggered_listeners {
-                let mut required_variables = HashMap::new();
-                for required_var_name in &listener.needed_variables {
-                    let value = self
-                        .lookup_variable_in_scope(scope_index, &required_var_name)
-                        .with_context(|| format!("Variable {} not in scope", required_var_name))?;
-                    required_variables.insert(required_var_name.clone(), value.clone());
-                }
+                let required_variables = self.lookup_variables_in_scope(scope_index, &listener.needed_variables)?;
                 (*listener.f)(required_variables)?;
             }
         }
@@ -357,6 +372,19 @@ impl ScopeTree {
         self.find_scope_with_variable(index, var_name)
             .and_then(|scope| self.graph.scope_at(scope))
             .map(|x| x.data.get(var_name).unwrap())
+    }
+
+    /// like [Self::lookup_variable_in_scope], but looks up a set of variables and stores them in a HashMap.
+    pub fn lookup_variables_in_scope(&self, scope_index: ScopeIndex, vars: &[VarName]) -> Result<HashMap<VarName, DynVal>> {
+        vars.iter()
+            .map(|required_var_name| {
+                let value = self
+                    .lookup_variable_in_scope(scope_index, &required_var_name)
+                    .with_context(|| format!("Variable {} not in scope", required_var_name))?;
+
+                Ok((required_var_name.clone(), value.clone()))
+            })
+            .collect::<Result<_>>()
     }
 }
 
@@ -377,7 +405,7 @@ pub struct InheritsEdge {
     references: Vec<VarName>,
 }
 
-/// a --provides attribute [`attr_name`] calculated via [`expression`] to--> b
+/// a --provides attribute [attr_name] calculated via [`expression`] to--> b
 /// A single scope may provide 0-n attributes to 0-n scopes.
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ProvidesAttrEdge {
@@ -386,7 +414,7 @@ pub struct ProvidesAttrEdge {
 }
 
 #[derive(Debug)]
-pub struct ScopeGraph {
+struct ScopeGraph {
     last_index: ScopeIndex,
     scopes: HashMap<ScopeIndex, Scope>,
     provides_attr_edges: HashMap<ScopeIndex, HashMap<ScopeIndex, ProvidesAttrEdge>>,
@@ -400,7 +428,7 @@ pub struct ScopeGraph {
 }
 
 impl ScopeGraph {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             last_index: ScopeIndex(0),
             scopes: HashMap::new(),
