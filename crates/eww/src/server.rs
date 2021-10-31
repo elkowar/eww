@@ -1,15 +1,17 @@
 use crate::{
     app::{self, DaemonCommand},
-    config, daemon_response, error_handling_ctx,
-    eww_state::*,
-    ipc_server, script_var_handler, util, EwwPaths,
+    config, daemon_response, error_handling_ctx, ipc_server,
+    new_state_stuff::ScopeTree,
+    script_var_handler, util, EwwPaths,
 };
 use anyhow::*;
 
+use debug_cell::RefCell;
 use std::{
     collections::{HashMap, HashSet},
     os::unix::io::AsRawFd,
     path::Path,
+    rc::Rc,
     sync::{atomic::Ordering, Arc},
 };
 use tokio::sync::mpsc::*;
@@ -60,9 +62,8 @@ pub fn initialize_server(paths: EwwPaths, action: Option<DaemonCommand>, should_
 
     log::debug!("Initializing script var handler");
     let script_var_handler = script_var_handler::init(ui_send.clone());
-
     let mut app = app::App {
-        eww_state: EwwState::from_default_vars(eww_config.generate_initial_state()?),
+        scope_tree: Rc::new(RefCell::new(ScopeTree::from_global_vars(eww_config.generate_initial_state()?))),
         eww_config,
         open_windows: HashMap::new(),
         failed_windows: HashSet::new(),
