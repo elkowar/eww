@@ -19,13 +19,17 @@ glib_wrapper! {
 pub struct CircProgPriv {
     start_angle: RefCell<f32>,
     value: RefCell<f32>,
+    thickness: RefCell<f32>,
 
     content: RefCell<Option<gtk::Widget>>,
 }
 
-static PROPERTIES: [subclass::Property; 2] = [
+static PROPERTIES: [subclass::Property; 3] = [
     subclass::Property("value", |v| {
         glib::ParamSpec::float(v, "Value", "The value", 0f32, 100f32, 0f32, glib::ParamFlags::READWRITE)
+    }),
+    subclass::Property("thickness", |v| {
+        glib::ParamSpec::float(v, "Thickness", "Thickness", 0f32, 100f32, 0f32, glib::ParamFlags::READWRITE)
     }),
     subclass::Property("start-angle", |v| {
         glib::ParamSpec::float(v, "Starting angle", "Starting angle", 0f32, 100f32, 0f32, glib::ParamFlags::READWRITE)
@@ -46,6 +50,9 @@ impl ObjectImpl for CircProgPriv {
             "value" => {
                 self.value.replace(value.get_some().unwrap());
             }
+            "thickness" => {
+                self.thickness.replace(value.get_some().unwrap());
+            }
             "start-angle" => {
                 self.start_angle.replace(value.get_some().unwrap());
             }
@@ -58,6 +65,7 @@ impl ObjectImpl for CircProgPriv {
         match prop.0 {
             "value" => Ok(self.value.borrow().to_value()),
             "start-angle" => Ok(self.start_angle.borrow().to_value()),
+            "thickness" => Ok(self.thickness.borrow().to_value()),
             x => panic!("Tried to access inexistant property of CircProg: {}", x,),
         }
     }
@@ -79,7 +87,12 @@ impl ObjectSubclass for CircProgPriv {
     }
 
     fn new() -> Self {
-        Self { value: RefCell::new(0f32), start_angle: RefCell::new(0f32), content: RefCell::new(None) }
+        Self {
+            value: RefCell::new(0f32),
+            start_angle: RefCell::new(0f32),
+            content: RefCell::new(None),
+            thickness: RefCell::new(0f32),
+        }
     }
 }
 impl CircProg {
@@ -104,6 +117,7 @@ impl WidgetImpl for CircProgPriv {
         let styles = widget.get_style_context();
         let value = *self.value.borrow();
         let start_angle = *self.start_angle.borrow() as f64;
+        let thickness = *self.thickness.borrow() as f64;
         let width = widget.get_allocated_width() as f64;
         let height = widget.get_allocated_height() as f64;
 
@@ -119,7 +133,7 @@ impl WidgetImpl for CircProgPriv {
         cr.arc(width / 2.0, height / 2.0, f64::min(width, height) / 2.0, 0.0, perc_to_rad(value as f64));
         cr.set_source_rgba(20.0, bg_color.green, bg_color.blue, bg_color.alpha);
         cr.move_to(width / 2.0, height / 2.0);
-        cr.arc(width / 2.0, height / 2.0, f64::min(width, height) / 3.0, 0.0, perc_to_rad(value as f64));
+        cr.arc(width / 2.0, height / 2.0, (f64::min(width, height) - thickness) / 2.0, 0.0, perc_to_rad(value as f64));
         cr.set_fill_rule(cairo::FillRule::EvenOdd); // Substract one circle from the other
         cr.fill();
         cr.restore();
