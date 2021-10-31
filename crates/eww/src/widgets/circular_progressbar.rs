@@ -103,18 +103,23 @@ impl WidgetImpl for CircProgPriv {
     fn draw(&self, widget: &gtk::Widget, cr: &cairo::Context) -> Inhibit {
         let styles = widget.get_style_context();
         let value = *self.value.borrow();
+        let start_angle = *self.start_angle.borrow() as f64;
         let width = widget.get_allocated_width() as f64;
         let height = widget.get_allocated_height() as f64;
 
-        // Outer ring
         #[allow(deprecated)]
         let bg_color = styles.get_background_color(gtk::StateFlags::NORMAL);
+
         cr.save();
+        cr.translate(width / 2.0, height / 2.0);
+        cr.rotate(perc_to_rad(start_angle as f64));
+        cr.translate(-width / 2.0, -height / 2.0);
         cr.set_source_rgba(bg_color.red, bg_color.green, bg_color.blue, bg_color.alpha);
-        cr.arc(width / 2.0, height / 2.0, f64::min(width, height) / 2.0, 0.0, perc_to_rad(value as f64));
         cr.move_to(width / 2.0, height / 2.0);
-        // cr.set_operator(cairo::Operator::Clear);
-        cr.arc(width / 2.0, height / 2.0, f64::min(width, height) / 4.0, 0.0, perc_to_rad(value as f64));
+        cr.arc(width / 2.0, height / 2.0, f64::min(width, height) / 2.0, 0.0, perc_to_rad(value as f64));
+        cr.set_source_rgba(20.0, bg_color.green, bg_color.blue, bg_color.alpha);
+        cr.move_to(width / 2.0, height / 2.0);
+        cr.arc(width / 2.0, height / 2.0, f64::min(width, height) / 3.0, 0.0, perc_to_rad(value as f64));
         cr.set_fill_rule(cairo::FillRule::EvenOdd); // Substract one circle from the other
         cr.fill();
         cr.restore();
