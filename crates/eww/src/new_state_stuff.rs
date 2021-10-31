@@ -1,6 +1,5 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
-
 use anyhow::*;
+use debug_cell::RefCell;
 use eww_shared_util::{AttrName, VarName};
 use gdk::prelude::Cast;
 use gtk::{
@@ -8,6 +7,7 @@ use gtk::{
     Orientation,
 };
 use simplexpr::{dynval::DynVal, SimplExpr};
+use std::{collections::HashMap, rc::Rc, sync::Arc};
 use yuck::config::{widget_definition::WidgetDefinition, widget_use::WidgetUse, window_definition::WindowDefinition};
 
 pub fn do_stuff(
@@ -39,10 +39,12 @@ pub struct CustomWidgetInvocation {
 
 /// Values used throughout building and changing the widget tree.
 /// Cloning this is cheap, as all of the contents are behind `Rc` indirection.
-#[derive(Clone, Debug)]
+
+/// TODORW This should not be public
+#[derive(Clone)]
 pub struct BuilderContext {
-    tree: Rc<RefCell<ScopeTree>>,
-    widget_defs: Rc<HashMap<String, WidgetDefinition>>,
+    pub tree: Rc<RefCell<ScopeTree>>,
+    pub widget_defs: Rc<HashMap<String, WidgetDefinition>>,
 }
 
 pub fn build_gtk_widget(
@@ -58,8 +60,8 @@ pub fn build_gtk_widget(
             .iter()
             .map(|(name, value)| Ok((name.clone(), value.value.as_simplexpr()?)))
             .collect::<Result<_>>()?;
-        let new_scope_index =
-            ctx.tree.borrow_mut().register_new_scope(Some(ctx.tree.borrow().root_index), scope_index, widget_use_attributes)?;
+        let root_index = ctx.tree.borrow().root_index.clone();
+        let new_scope_index = ctx.tree.borrow_mut().register_new_scope(Some(root_index), scope_index, widget_use_attributes)?;
 
         build_gtk_widget(
             ctx,
@@ -158,7 +160,7 @@ fn build_gtk_children(
             child_container.add(&current_child_widget);
         }
 
-        ctx.tree.clone().borrow_mut().register_listener(
+        ctx.tree.borrow_mut().register_listener(
             scope_index,
             Listener {
                 needed_variables: nth.collect_var_refs(),
@@ -228,6 +230,13 @@ impl std::fmt::Debug for Listener {
 pub struct ScopeTree {
     graph: ScopeGraph,
     pub root_index: ScopeIndex,
+}
+
+// other stuff
+impl ScopeTree {
+    pub fn update_global_value(&mut self, var_name: &VarName, value: DynVal) -> Result<()> {
+        self.update_value(self.root_index, var_name, value)
+    }
 }
 
 impl ScopeTree {
@@ -389,7 +398,7 @@ impl ScopeTree {
 }
 
 #[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
-pub struct ScopeIndex(u32);
+pub struct ScopeIndex(pub u32);
 
 impl ScopeIndex {
     fn advance(&mut self) {

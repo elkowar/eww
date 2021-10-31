@@ -3,19 +3,25 @@ use crate::{
     daemon_response::DaemonResponseSender,
     display_backend, error_handling_ctx, eww_state,
     gtk::prelude::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt},
+    new_state_stuff::{self, BuilderContext, ScopeTree},
     script_var_handler::*,
     EwwPaths,
 };
 use anyhow::*;
+use debug_cell::RefCell;
 use debug_stub_derive::*;
 use eww_shared_util::VarName;
 use itertools::Itertools;
 use simplexpr::dynval::DynVal;
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    rc::Rc,
+};
 use tokio::sync::mpsc::UnboundedSender;
 use yuck::{
     config::{
         script_var_definition::ScriptVarDefinition,
+        window_definition::WindowDefinition,
         window_geometry::{AnchorPoint, WindowGeometry},
     },
     value::Coords,
@@ -64,7 +70,7 @@ pub enum DaemonCommand {
 #[derive(Debug, Clone)]
 pub struct EwwWindow {
     pub name: String,
-    pub definition: config::EwwWindowDefinition,
+    pub definition: yuck::config::window_definition::WindowDefinition,
     pub gtk_window: gtk::Window,
 }
 
@@ -76,7 +82,8 @@ impl EwwWindow {
 
 #[derive(DebugStub)]
 pub struct App {
-    pub eww_state: eww_state::EwwState,
+    #[debug_stub = "bruh"]
+    pub scope_tree: Rc<RefCell<ScopeTree>>,
     pub eww_config: config::EwwConfig,
     pub open_windows: HashMap<String, EwwWindow>,
     /// Window names that are supposed to be open, but failed.
@@ -104,7 +111,7 @@ impl App {
                 }
                 DaemonCommand::UpdateVars(mappings) => {
                     for (var_name, new_value) in mappings {
-                        self.update_state(var_name, new_value);
+                        self.update_global_state(var_name, new_value);
                     }
                 }
                 DaemonCommand::ReloadConfigAndCss(sender) => {
@@ -170,15 +177,17 @@ impl App {
                     sender.respond_with_error_list(errors)?;
                 }
                 DaemonCommand::PrintState { all, sender } => {
-                    let vars = self.eww_state.get_variables().iter();
-                    let output = if all {
-                        vars.map(|(key, value)| format!("{}: {}", key, value)).join("\n")
-                    } else {
-                        vars.filter(|(x, _)| self.eww_state.referenced_vars().any(|var| x == &var))
-                            .map(|(key, value)| format!("{}: {}", key, value))
-                            .join("\n")
-                    };
-                    sender.send_success(output)?
+                    // TODORW
+                    // let vars = self.eww_state.get_variables().iter();
+                    // let output = if all {
+                    // vars.map(|(key, value)| format!("{}: {}", key, value)).join("\n")
+                    //} else {
+                    // vars.filter(|(x, _)| self.eww_state.referenced_vars().any(|var| x == &var))
+                    //.map(|(key, value)| format!("{}: {}", key, value))
+                    //.join("\n")
+                    //};
+                    // sender.send_success(output)?
+                    sender.send_success("".to_string())?
                 }
                 DaemonCommand::GetVar { name, sender } => {
                     let vars = self.eww_state.get_variables();
@@ -219,18 +228,20 @@ impl App {
         gtk::main_quit();
     }
 
-    fn update_state(&mut self, fieldname: VarName, value: DynVal) {
-        self.eww_state.update_variable(fieldname.clone(), value);
+    fn update_global_state(&mut self, fieldname: VarName, value: DynVal) {
+        // TODORW use this
+        self.scope_tree.borrow_mut().update_global_value(&fieldname, value);
 
         if let Ok(linked_poll_vars) = self.eww_config.get_poll_var_link(&fieldname) {
             linked_poll_vars.iter().filter_map(|name| self.eww_config.get_script_var(name).ok()).for_each(|var| {
                 if let ScriptVarDefinition::Poll(poll_var) = var {
-                    match poll_var.run_while_expr.eval(self.eww_state.get_variables()).map(|v| v.as_bool()) {
-                        Ok(Ok(true)) => self.script_var_handler.add(var.clone()),
-                        Ok(Ok(false)) => self.script_var_handler.stop_for_variable(poll_var.name.clone()),
-                        Ok(Err(err)) => error_handling_ctx::print_error(anyhow!(err)),
-                        Err(err) => error_handling_ctx::print_error(anyhow!(err)),
-                    };
+                    // TODORW
+                    // match poll_var.run_while_expr.eval(self.eww_state.get_variables()).map(|v| v.as_bool()) {
+                    // Ok(Ok(true)) => self.script_var_handler.add(var.clone()),
+                    // Ok(Ok(false)) => self.script_var_handler.stop_for_variable(poll_var.name.clone()),
+                    // Ok(Err(err)) => error_handling_ctx::print_error(anyhow!(err)),
+                    // Err(err) => error_handling_ctx::print_error(anyhow!(err)),
+                    //};
                 }
             });
         }
@@ -247,7 +258,8 @@ impl App {
             .with_context(|| format!("Tried to close window named '{}', but no such window was open", window_name))?
             .close();
 
-        self.eww_state.clear_window_state(window_name);
+        // TODORW
+        // self.eww_state.clear_window_state(window_name);
 
         Ok(())
     }
@@ -270,8 +282,16 @@ impl App {
             let mut window_def = self.eww_config.get_window(window_name)?.clone();
             window_def.geometry = window_def.geometry.map(|x| x.override_if_given(anchor, pos, size));
 
-            let root_widget =
-                window_def.widget.render(&mut self.eww_state, window_name, self.eww_config.get_widget_definitions())?;
+            let root_index = self.scope_tree.borrow().root_index.clone();
+            let root_widget = new_state_stuff::build_gtk_widget(
+                BuilderContext {
+                    tree: self.scope_tree.clone(),
+                    widget_defs: Rc::new(self.eww_config.get_widget_definitions().clone()),
+                },
+                root_index,
+                window_def.widget.clone(),
+                None,
+            )?;
 
             root_widget.style_context().add_class(&window_name.to_string());
 
@@ -283,11 +303,13 @@ impl App {
 
             // initialize script var handlers for variables that where not used before opening this window.
             // TODO somehow make this less shit
-            for newly_used_var in
-                self.variables_only_used_in(window_name).filter_map(|var| self.eww_config.get_script_var(var).ok())
-            {
-                self.script_var_handler.add(newly_used_var.clone());
-            }
+
+            // TODORW
+            // for newly_used_var in
+            // self.variables_only_used_in(window_name).filter_map(|var| self.eww_config.get_script_var(var).ok())
+            //{
+            // self.script_var_handler.add(newly_used_var.clone());
+            //}
         };
 
         if let Err(err) = open_result {
@@ -310,7 +332,8 @@ impl App {
         log::trace!("loading config: {:#?}", config);
 
         self.eww_config = config;
-        self.eww_state.clear_all_window_states();
+        // TODORW
+        // self.eww_state.clear_all_window_states();
 
         let window_names: Vec<String> =
             self.open_windows.keys().cloned().chain(self.failed_windows.iter().cloned()).dedup().collect();
@@ -327,16 +350,20 @@ impl App {
 
     /// Get all variable names that are currently referenced in any of the open windows.
     pub fn get_currently_used_variables(&self) -> impl Iterator<Item = &VarName> {
-        self.open_windows.keys().flat_map(move |window_name| self.eww_state.vars_referenced_in(window_name))
+        // TODORW
+        // self.open_windows.keys().flat_map(move |window_name| self.eww_state.vars_referenced_in(window_name))
+
+        std::iter::empty()
     }
 
     /// Get all variables mapped to a list of windows they are being used in.
     pub fn currently_used_variables<'a>(&'a self) -> HashMap<&'a VarName, Vec<&'a String>> {
         let mut vars: HashMap<&'a VarName, Vec<_>> = HashMap::new();
         for window_name in self.open_windows.keys() {
-            for var in self.eww_state.vars_referenced_in(window_name) {
-                vars.entry(var).and_modify(|l| l.push(window_name)).or_insert_with(|| vec![window_name]);
-            }
+            // TODORW
+            // for var in self.eww_state.vars_referenced_in(window_name) {
+            // vars.entry(var).and_modify(|l| l.push(window_name)).or_insert_with(|| vec![window_name]);
+            //}
         }
         vars
     }
@@ -353,7 +380,7 @@ impl App {
 fn initialize_window(
     monitor_geometry: gdk::Rectangle,
     root_widget: gtk::Widget,
-    window_def: config::EwwWindowDefinition,
+    window_def: WindowDefinition,
 ) -> Result<EwwWindow> {
     let window = display_backend::initialize_window(&window_def, monitor_geometry)
         .with_context(|| format!("monitor {} is unavailable", window_def.monitor_number.unwrap()))?;

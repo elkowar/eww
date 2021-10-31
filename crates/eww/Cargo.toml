@@ -65,6 +65,7 @@ wait-timeout = "0.2"
 notify = "5.0.0-pre.7"
 
 codespan-reporting = "0.11"
+debug-cell = "0.1"
 
 simplexpr = { path = "../simplexpr" }
 eww_shared_util = { path = "../eww_shared_util" }
