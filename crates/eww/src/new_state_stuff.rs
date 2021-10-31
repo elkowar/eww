@@ -50,13 +50,23 @@ pub fn build_gtk_widget(
         let root_index = tree.root_index.clone();
         let new_scope_index = tree.register_new_scope(Some(root_index), scope_index, widget_use_attributes)?;
 
-        build_gtk_widget(
+        let gtk_widget = build_gtk_widget(
             tree,
             widget_defs,
             new_scope_index,
             custom_widget.widget.clone(),
             Some(Rc::new(CustomWidgetInvocation { scope: scope_index, children: widget_use.children })),
-        )
+        )?;
+
+        gtk_widget.connect_destroy(|_|{
+            // This will need to edit the tree, which will be horrible,..
+            // because that means I need to move a mutable reference to the tree
+            // into a gtk callback, where I _can't_ just give it the &mut ScopeTree.
+            // This means I might need to go the RefCell route
+            // There might also be some other way using widget paths and some event queue system or something
+            // but all of those are pretty painful as well,.... aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        });
+        Ok(gtk_widget)
     } else {
         let gtk_widget: gtk::Widget = match widget_use.name.as_str() {
             "box" => {
