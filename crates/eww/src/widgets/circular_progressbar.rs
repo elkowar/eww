@@ -16,9 +16,10 @@ wrapper! {
 
 #[derive(Default)]
 pub struct CircProgPriv {
-    start_angle: RefCell<f32>,
+    start_at: RefCell<f32>,
     value: RefCell<f32>,
     thickness: RefCell<f32>,
+    clockwise: RefCell<bool>,
 
     content: RefCell<Option<gtk::Widget>>,
 }
@@ -40,14 +41,22 @@ impl ObjectImpl for CircProgPriv {
                     glib::ParamFlags::READWRITE,
                 ),
                 glib::ParamSpec::new_float(
-                    "start-angle",
-                    "Starting angle",
-                    "Starting angle",
+                    "start-at",
+                    "Starting at",
+                    "Starting at",
                     0f32,
                     100f32,
                     0f32,
                     glib::ParamFlags::READWRITE,
                 ),
+               glib::ParamSpec::new_boolean(
+                    "clockwise",
+                    "Clockwise",
+                    "Clockwise",
+                    true,
+                    glib::ParamFlags::READWRITE,
+                ),
+
             ]
         });
 
@@ -66,9 +75,13 @@ impl ObjectImpl for CircProgPriv {
             "thickness" => {
                 self.thickness.replace(value.get().unwrap());
             }
-            "start-angle" => {
-                self.start_angle.replace(value.get().unwrap());
+            "start-at" => {
+                self.start_at.replace(value.get().unwrap());
             }
+            "clockwise" => {
+                self.clockwise.replace(value.get().unwrap());
+            }
+
             x => panic!("Tried to set inexistant property of CircProg: {}", x,),
         }
     }
@@ -76,8 +89,9 @@ impl ObjectImpl for CircProgPriv {
     fn property(&self, _obj: &Self::Type, _id: usize, pspec: &glib::ParamSpec) -> glib::Value {
         match pspec.name() {
             "value" => self.value.borrow().to_value(),
-            "start-angle" => self.start_angle.borrow().to_value(),
+            "start-at" => self.start_at.borrow().to_value(),
             "thickness" => self.thickness.borrow().to_value(),
+            "clockwise" => self.clockwise.borrow().to_value(),
             x => panic!("Tried to access inexistant property of CircProg: {}", x,),
         }
     }
@@ -109,24 +123,33 @@ impl WidgetImpl for CircProgPriv {
     fn draw(&self, widget: &Self::Type, cr: &cairo::Context) -> Inhibit {
         let styles = widget.style_context();
         let value = *self.value.borrow();
-        let start_angle = *self.start_angle.borrow() as f64;
+        let start_at = *self.start_at.borrow() as f64;
+
         let thickness = *self.thickness.borrow() as f64;
         let width = widget.allocated_width() as f64;
         let height = widget.allocated_height() as f64;
+        let clockwise = *self.clockwise.borrow() as bool;
 
         let res: Result<()> = try {
             let bg_color: gdk::RGBA = styles.style_property_for_state("background-color", gtk::StateFlags::NORMAL).get()?;
+            let c = (width / 2.0, height / 2.0); // Center
+            let (start_angle, end_angle) = if clockwise {
+                (0.0, perc_to_rad(value as f64))
+            }
+            else {
+                (perc_to_rad(100.0 - value as f64), 0.0)
+            };
 
             cr.save()?;
-            cr.translate(width / 2.0, height / 2.0);
-            cr.rotate(perc_to_rad(start_angle as f64));
-            cr.translate(-width / 2.0, -height / 2.0);
+            cr.translate(c.0, c.1);
+            cr.rotate(perc_to_rad(start_at as f64));
+            cr.translate(-c.0, -c.1);
             cr.set_source_rgba(bg_color.red, bg_color.green, bg_color.blue, bg_color.alpha);
-            cr.move_to(width / 2.0, height / 2.0);
-            cr.arc(width / 2.0, height / 2.0, f64::min(width, height) / 2.0, 0.0, perc_to_rad(value as f64));
+            cr.move_to(c.0, c.1);
+            cr.arc(c.0, c.1, f64::min(width, height) / 2.0, start_angle, end_angle);
             cr.set_source_rgba(bg_color.red, bg_color.green, bg_color.blue, bg_color.alpha);
-            cr.move_to(width / 2.0, height / 2.0);
-            cr.arc(width / 2.0, height / 2.0, (f64::min(width, height) - thickness) / 2.0, 0.0, perc_to_rad(value as f64));
+            cr.move_to(c.0, c.1);
+            cr.arc(c.0, c.1, (f64::min(width, height) - thickness) / 2.0, start_angle, end_angle);
             cr.set_fill_rule(cairo::FillRule::EvenOdd); // Substract one circle from the other
             cr.fill()?;
             cr.restore()?;
@@ -146,7 +169,7 @@ impl WidgetImpl for CircProgPriv {
     //    self.parent_get_request_mode(widget)
     //}
 
-    // fn size_allocate(&self, widget: &gtk::Widget, allocation: &gdk::Rectangle) {
+    // fn size_allocate(&self, widget: &gtk::Widget, allocation: &gdk::Rectat) {
     //    self.parent_size_allocate(widget, allocation);
     //    widget.downcast_ref::<gtk::Bin>().unwrap().size_allocate(allocation)
     //}
