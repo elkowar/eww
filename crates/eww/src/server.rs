@@ -62,8 +62,11 @@ pub fn initialize_server(paths: EwwPaths, action: Option<DaemonCommand>, should_
 
     log::debug!("Initializing script var handler");
     let script_var_handler = script_var_handler::init(ui_send.clone());
+
+    let (scope_tree_evt_send, mut scope_tree_evt_recv) = tokio::sync::mpsc::unbounded_channel();
+
     let mut app = app::App {
-        scope_tree: Rc::new(RefCell::new(ScopeTree::from_global_vars(eww_config.generate_initial_state()?))),
+        scope_tree: Rc::new(RefCell::new(ScopeTree::from_global_vars(eww_config.generate_initial_state()?, scope_tree_evt_send))),
         eww_config,
         open_windows: HashMap::new(),
         failed_windows: HashSet::new(),
@@ -89,8 +92,17 @@ pub fn initialize_server(paths: EwwPaths, action: Option<DaemonCommand>, should_
         if let Some(action) = action {
             app.handle_command(action);
         }
-        while let Some(event) = ui_recv.recv().await {
-            app.handle_command(event);
+
+        loop {
+            tokio::select! {
+                Some(scope_tree_evt) = scope_tree_evt_recv.recv() => {
+                    app.scope_tree.borrow_mut().handle_scope_tree_event(scope_tree_evt);
+                },
+                Some(ui_event) = ui_recv.recv() => {
+                    app.handle_command(ui_event);
+                }
+                else => break,
+            }
         }
     });
 

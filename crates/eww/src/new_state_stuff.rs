@@ -7,20 +7,8 @@ use gtk::{
 };
 use simplexpr::{dynval::DynVal, SimplExpr};
 use std::{collections::HashMap, rc::Rc, sync::Arc};
-use yuck::config::{widget_definition::WidgetDefinition, widget_use::WidgetUse, window_definition::WindowDefinition};
-
-pub fn do_stuff(
-    global_vars: HashMap<VarName, DynVal>,
-    widget_defs: HashMap<String, WidgetDefinition>,
-    window: &WindowDefinition,
-) -> Result<()> {
-    let mut tree = ScopeTree::from_global_vars(global_vars);
-    let root_index = tree.root_index;
-
-    build_gtk_widget(&mut tree, Rc::new(widget_defs), root_index, window.widget.clone(), None)?;
-
-    Ok(())
-}
+use tokio::sync::mpsc::UnboundedSender;
+use yuck::config::{widget_definition::WidgetDefinition, widget_use::WidgetUse};
 
 /// When a custom widget gets used, some context about that invocation needs to be
 /// remembered whilst building it's content. If the body of the custom widget uses a `children`
@@ -58,13 +46,9 @@ pub fn build_gtk_widget(
             Some(Rc::new(CustomWidgetInvocation { scope: scope_index, children: widget_use.children })),
         )?;
 
-        gtk_widget.connect_destroy(|_|{
-            // This will need to edit the tree, which will be horrible,..
-            // because that means I need to move a mutable reference to the tree
-            // into a gtk callback, where I _can't_ just give it the &mut ScopeTree.
-            // This means I might need to go the RefCell route
-            // There might also be some other way using widget paths and some event queue system or something
-            // but all of those are pretty painful as well,.... aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        let scope_tree_sender = tree.event_sender.clone();
+        gtk_widget.connect_unmap(move |_| {
+            let _ = scope_tree_sender.send(ScopeTreeEvent::RemoveScope(new_scope_index));
         });
         Ok(gtk_widget)
     } else {
@@ -234,6 +218,10 @@ impl std::fmt::Debug for Listener {
     }
 }
 
+pub enum ScopeTreeEvent {
+    RemoveScope(ScopeIndex),
+}
+
 /// A tree structure of scopes that inherit from each other and provide attributes to other scopes.
 /// Invariants:
 /// - every scope inherits from exactly 0 or 1 scopes.
@@ -246,6 +234,7 @@ impl std::fmt::Debug for Listener {
 pub struct ScopeTree {
     graph: ScopeGraph,
     pub root_index: ScopeIndex,
+    pub event_sender: UnboundedSender<ScopeTreeEvent>,
 }
 
 // other stuff
@@ -253,14 +242,22 @@ impl ScopeTree {
     pub fn update_global_value(&mut self, var_name: &VarName, value: DynVal) -> Result<()> {
         self.update_value(self.root_index, var_name, value)
     }
+
+    pub fn handle_scope_tree_event(&mut self, evt: ScopeTreeEvent) {
+        match evt {
+            ScopeTreeEvent::RemoveScope(scope_index) => {
+                println!("yeeting scope with index {:?}", scope_index);
+            }
+        }
+    }
 }
 
 impl ScopeTree {
-    pub fn from_global_vars(vars: HashMap<VarName, DynVal>) -> Self {
+    pub fn from_global_vars(vars: HashMap<VarName, DynVal>, event_sender: UnboundedSender<ScopeTreeEvent>) -> Self {
         let mut graph = ScopeGraph::new();
         let root_index = graph.add_scope(Scope { data: vars, listeners: HashMap::new(), node_index: ScopeIndex(0) });
         graph.scope_at_mut(root_index).map(|scope| scope.node_index = root_index);
-        Self { graph, root_index }
+        Self { graph, root_index, event_sender }
     }
 
     pub fn evaluate_simplexpr_in_scope(&self, index: ScopeIndex, expr: &SimplExpr) -> Result<DynVal> {
@@ -585,7 +582,10 @@ mod test {
          VarName("global_1".to_string()) => DynVal::from("hi"),
          VarName("global_2".to_string()) => DynVal::from("hey"),
         };
-        let mut scope_tree = ScopeTree::from_global_vars(globals);
+
+        let (send, recv) = tokio::sync::mpsc::unbounded_channel();
+
+        let mut scope_tree = ScopeTree::from_global_vars(globals, send);
 
         let widget_foo_scope = scope_tree
             .register_new_scope(
