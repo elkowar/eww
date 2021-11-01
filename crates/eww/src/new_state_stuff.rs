@@ -6,9 +6,19 @@ use gtk::{
     Orientation,
 };
 use simplexpr::{dynval::DynVal, SimplExpr};
-use std::{collections::HashMap, rc::Rc, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    rc::Rc,
+    sync::Arc,
+};
 use tokio::sync::mpsc::UnboundedSender;
 use yuck::config::{widget_definition::WidgetDefinition, widget_use::WidgetUse};
+
+
+// TODO current state: nested linking through inheritance seems to not work
+// since I introduced window level scopes, stuff has stopped working
+
+
 
 /// When a custom widget gets used, some context about that invocation needs to be
 /// remembered whilst building it's content. If the body of the custom widget uses a `children`
@@ -246,7 +256,7 @@ impl ScopeTree {
     pub fn handle_scope_tree_event(&mut self, evt: ScopeTreeEvent) {
         match evt {
             ScopeTreeEvent::RemoveScope(scope_index) => {
-                println!("yeeting scope with index {:?}", scope_index);
+                self.graph.remove_scope(scope_index);
             }
         }
     }
@@ -258,6 +268,32 @@ impl ScopeTree {
         let root_index = graph.add_scope(Scope { data: vars, listeners: HashMap::new(), node_index: ScopeIndex(0) });
         graph.scope_at_mut(root_index).map(|scope| scope.node_index = root_index);
         Self { graph, root_index, event_sender }
+    }
+
+    pub fn currently_used_globals(&self) -> HashSet<VarName> {
+        self.variables_used_in(self.root_index)
+    }
+
+    pub fn variables_used_in(&self, index: ScopeIndex) -> HashSet<VarName> {
+        if let Some(root_scope) = self.graph.scope_at(index) {
+            let mut result: HashSet<_> = root_scope.listeners.keys().cloned().collect();
+
+            if let Some(provides_attr_edges) = self.graph.provides_attr_edges.get(&index) {
+                result.extend(provides_attr_edges.values().flat_map(|edge| edge.expression.collect_var_refs()));
+            }
+
+            if let Some(child_scopes) = self.graph.child_scopes.get(&index) {
+                for child_scope in child_scopes {
+                    if let Some((_, edge)) = self.graph.inherits_edges.get(child_scope) {
+                        result.extend(edge.references.iter().cloned())
+                    }
+                }
+            }
+
+            result
+        } else {
+            HashSet::new()
+        }
     }
 
     pub fn evaluate_simplexpr_in_scope(&self, index: ScopeIndex, expr: &SimplExpr) -> Result<DynVal> {
@@ -465,6 +501,18 @@ impl ScopeGraph {
         self.scopes.insert(idx, scope);
         self.last_index.advance();
         idx
+    }
+
+    // TODORW is this allowed to leave danging references in the tree?
+    fn remove_scope(&mut self, index: ScopeIndex) {
+        self.scopes.remove(&index);
+        if let Some(child_scopes) = self.child_scopes.remove(&index) {
+            for child in &child_scopes {
+                self.inherits_edges.remove(child);
+            }
+        }
+        self.inherits_edges.remove(&index);
+        self.provides_attr_edges.remove(&index);
     }
 
     fn add_inherits_edge(&mut self, a: ScopeIndex, b: ScopeIndex, edge: InheritsEdge) {
