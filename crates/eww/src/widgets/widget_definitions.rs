@@ -6,8 +6,7 @@ use crate::{
 use anyhow::*;
 use codespan_reporting::diagnostic::Severity;
 use gdk::NotifyType;
-use glib;
-use gtk::{self, prelude::*};
+use gtk::{self, glib, prelude::*};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use std::{
