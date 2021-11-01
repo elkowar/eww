@@ -75,6 +75,10 @@ impl ScriptVarHandlerHandle {
         );
     }
 
+    pub fn stop_all_but(&self, vars: &[VarName]) {
+
+    }
+
     /// Stop the execution of all script-vars.
     pub fn stop_all(&self) {
         crate::print_result_err!(

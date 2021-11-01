@@ -3,7 +3,7 @@ use crate::{
     daemon_response::DaemonResponseSender,
     display_backend, error_handling_ctx,
     gtk::prelude::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt},
-    new_state_stuff::{self, ScopeTree},
+    new_state_stuff::{self, ScopeIndex, ScopeTree},
     script_var_handler::*,
     EwwPaths,
 };
@@ -71,6 +71,7 @@ pub enum DaemonCommand {
 pub struct EwwWindow {
     pub name: String,
     pub definition: yuck::config::window_definition::WindowDefinition,
+    pub scope_index: ScopeIndex,
     pub gtk_window: gtk::Window,
 }
 
@@ -187,7 +188,7 @@ impl App {
                     //.join("\n")
                     //};
                     // sender.send_success(output)?
-                    sender.send_success("".to_string())?
+                    sender.send_success(format!("{:#?}", *self.scope_tree.borrow()))?
                 }
                 DaemonCommand::GetVar { name, sender } => {
                     let vars = self.eww_state.get_variables();
@@ -229,8 +230,10 @@ impl App {
     }
 
     fn update_global_state(&mut self, fieldname: VarName, value: DynVal) {
-        // TODORW use this
-        self.scope_tree.borrow_mut().update_global_value(&fieldname, value);
+        let result = self.scope_tree.borrow_mut().update_global_value(&fieldname, value);
+        if let Err(err) = result {
+            error_handling_ctx::print_error(err);
+        }
 
         if let Ok(linked_poll_vars) = self.eww_config.get_poll_var_link(&fieldname) {
             linked_poll_vars.iter().filter_map(|name| self.eww_config.get_script_var(name).ok()).for_each(|var| {
@@ -248,18 +251,25 @@ impl App {
     }
 
     fn close_window(&mut self, window_name: &String) -> Result<()> {
-        for unused_var in self.variables_only_used_in(window_name) {
-            log::debug!("stopping for {}", &unused_var);
-            self.script_var_handler.stop_for_variable(unused_var.clone());
-        }
-
-        self.open_windows
+        let eww_window = self
+            .open_windows
             .remove(window_name)
-            .with_context(|| format!("Tried to close window named '{}', but no such window was open", window_name))?
-            .close();
+            .with_context(|| format!("Tried to close window named '{}', but no such window was open", window_name))?;
+
+        let variables_used_in_window = self.scope_tree.borrow().variables_used_in(eww_window.scope_index);
+
+        eww_window.close();
 
         // TODORW
         // self.eww_state.clear_window_state(window_name);
+
+        let still_used_variables = self.scope_tree.borrow().currently_used_globals();
+
+        let now_unused_variables = variables_used_in_window.difference(&still_used_variables);
+        for unused_var in now_unused_variables {
+            log::debug!("stopping for {}", &unused_var);
+            self.script_var_handler.stop_for_variable(unused_var.clone());
+        }
 
         Ok(())
     }
@@ -283,10 +293,13 @@ impl App {
             window_def.geometry = window_def.geometry.map(|x| x.override_if_given(anchor, pos, size));
 
             let root_index = self.scope_tree.borrow().root_index.clone();
+
+            let window_scope = self.scope_tree.borrow_mut().register_new_scope(Some(root_index), root_index, HashMap::new())?;
+
             let root_widget = new_state_stuff::build_gtk_widget(
                 &mut *self.scope_tree.borrow_mut(),
                 Rc::new(self.eww_config.get_widget_definitions().clone()),
-                root_index,
+                window_scope,
                 window_def.widget.clone(),
                 None,
             )?;
@@ -295,7 +308,8 @@ impl App {
 
             let monitor_geometry = get_monitor_geometry(monitor.or(window_def.monitor_number))?;
 
-            let eww_window = initialize_window(monitor_geometry, root_widget, window_def)?;
+            let eww_window = initialize_window(monitor_geometry, root_widget, window_def, window_scope)?;
+            // TODORW connect to destroy of eww_window.gtk_window and clean up window_scope
 
             self.open_windows.insert(window_name.clone(), eww_window);
 
@@ -354,31 +368,32 @@ impl App {
         std::iter::empty()
     }
 
-    /// Get all variables mapped to a list of windows they are being used in.
-    pub fn currently_used_variables<'a>(&'a self) -> HashMap<&'a VarName, Vec<&'a String>> {
-        let mut vars: HashMap<&'a VarName, Vec<_>> = HashMap::new();
-        for window_name in self.open_windows.keys() {
-            // TODORW
-            // for var in self.eww_state.vars_referenced_in(window_name) {
-            // vars.entry(var).and_modify(|l| l.push(window_name)).or_insert_with(|| vec![window_name]);
-            //}
-        }
-        vars
-    }
+    // Get all variables mapped to a list of windows they are being used in.
+    // pub fn currently_used_variables<'a>(&'a self) -> HashMap<&'a VarName, Vec<&'a String>> {
+    // let mut vars: HashMap<&'a VarName, Vec<_>> = HashMap::new();
+    // for window_name in self.open_windows.keys() {
+    //// TODORW
+    //// for var in self.eww_state.vars_referenced_in(window_name) {
+    //// vars.entry(var).and_modify(|l| l.push(window_name)).or_insert_with(|| vec![window_name]);
+    //// }
+    //}
+    // vars
+    //}
 
-    /// Get all variables that are only used in the given window.
-    pub fn variables_only_used_in<'a>(&'a self, window: &'a String) -> impl Iterator<Item = &'a VarName> {
-        self.currently_used_variables()
-            .into_iter()
-            .filter(move |(_, wins)| wins.len() == 1 && wins.contains(&window))
-            .map(|(var, _)| var)
-    }
+    // Get all variables that are only used in the given window.
+    // pub fn variables_only_used_in<'a>(&'a self, window: &'a String) -> impl Iterator<Item = &'a VarName> {
+    // self.currently_used_variables()
+    //.into_iter()
+    //.filter(move |(_, wins)| wins.len() == 1 && wins.contains(&window))
+    //.map(|(var, _)| var)
+    //}
 }
 
 fn initialize_window(
     monitor_geometry: gdk::Rectangle,
     root_widget: gtk::Widget,
     window_def: WindowDefinition,
+    window_scope: ScopeIndex,
 ) -> Result<EwwWindow> {
     let window = display_backend::initialize_window(&window_def, monitor_geometry)
         .with_context(|| format!("monitor {} is unavailable", window_def.monitor_number.unwrap()))?;
@@ -420,7 +435,7 @@ fn initialize_window(
 
     window.show_all();
 
-    Ok(EwwWindow { name: window_def.name.clone(), definition: window_def, gtk_window: window })
+    Ok(EwwWindow { name: window_def.name.clone(), definition: window_def, gtk_window: window, scope_index: window_scope })
 }
 
 /// Apply the provided window-positioning rules to the window.
