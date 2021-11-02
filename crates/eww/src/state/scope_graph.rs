@@ -62,21 +62,6 @@ pub struct ScopeGraph {
     pub event_sender: UnboundedSender<ScopeGraphEvent>,
 }
 
-// other stuff
-impl ScopeGraph {
-    pub fn update_global_value(&mut self, var_name: &VarName, value: DynVal) -> Result<()> {
-        self.update_value(self.root_index, var_name, value)
-    }
-
-    pub fn handle_scope_graph_event(&mut self, evt: ScopeGraphEvent) {
-        match evt {
-            ScopeGraphEvent::RemoveScope(scope_index) => {
-                self.graph.remove_scope(scope_index);
-            }
-        }
-    }
-}
-
 impl ScopeGraph {
     pub fn from_global_vars(vars: HashMap<VarName, DynVal>, event_sender: UnboundedSender<ScopeGraphEvent>) -> Self {
         let mut graph = ScopeGraphInternal::new();
@@ -91,6 +76,22 @@ impl ScopeGraph {
         Self { graph, root_index, event_sender }
     }
 
+    pub fn update_global_value(&mut self, var_name: &VarName, value: DynVal) -> Result<()> {
+        self.update_value(self.root_index, var_name, value)
+    }
+
+    pub fn handle_scope_graph_event(&mut self, evt: ScopeGraphEvent) {
+        match evt {
+            ScopeGraphEvent::RemoveScope(scope_index) => {
+                self.remove_scope(scope_index);
+            }
+        }
+    }
+
+    pub fn remove_scope(&mut self, scope_index: ScopeIndex) {
+        self.graph.remove_scope(scope_index);
+    }
+
     pub fn validate(&self) -> Result<()> {
         self.graph.validate()
     }
@@ -102,7 +103,14 @@ impl ScopeGraph {
     pub fn currently_used_globals(&self) -> HashSet<VarName> {
         self.variables_used_in(self.root_index)
     }
+    pub fn scope_at(&self, index: ScopeIndex) -> Option<&Scope> {
+        self.graph.scope_at(index)
+    }
 
+    // TODORW this does not quite make sense
+    // What i really need is to actually look at the widget hierarchy (widget "caller" and "callees"?)
+    // to figure out which scopes and variables are used within the children of a given scope (children as in gtk widget hierarchy, not as in inheritance)
+    // Word choice: Ancestor & Descendant
     pub fn variables_used_in(&self, index: ScopeIndex) -> HashSet<VarName> {
         if let Some(root_scope) = self.graph.scope_at(index) {
             let mut result: HashSet<_> = root_scope.listeners.keys().cloned().collect();
