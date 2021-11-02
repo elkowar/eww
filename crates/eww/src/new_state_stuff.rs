@@ -35,7 +35,6 @@ pub fn build_gtk_widget(
     mut widget_use: WidgetUse,
     custom_widget_invocation: Option<Rc<CustomWidgetInvocation>>,
 ) -> Result<gtk::Widget> {
-    println!("building widget {:?}", &widget_use);
     if let Some(custom_widget) = widget_defs.clone().get(&widget_use.name) {
         let widget_use_attributes: HashMap<_, _> = widget_use
             .attrs
@@ -168,7 +167,6 @@ fn build_gtk_children(
                     let custom_widget_invocation = custom_widget_invocation.clone();
                     let widget_defs = widget_defs.clone();
                     move |tree, values| {
-                        println!("updating child");
                         let nth_value = nth.eval(&values)?.as_i32()?;
                         let nth_child_widget_use = custom_widget_invocation
                             .children
@@ -292,13 +290,13 @@ impl ScopeTree {
                 );
             }
 
-            if let Some(child_scopes) = self.graph.child_scopes.get(&index) {
-                for child_scope in child_scopes {
-                    if let Some((_, edge)) = self.graph.inherits_edges.get(child_scope) {
-                        result.extend(edge.references.iter().cloned())
-                    }
-                }
-            }
+            result.extend(
+                self.graph
+                    .inheritance_edges
+                    .child_scope_edges(index)
+                    .iter()
+                    .flat_map(|(_, edge)| edge.references.iter().cloned()),
+            );
 
             result
         } else {
@@ -345,7 +343,6 @@ impl ScopeTree {
         for (attr_name, expression) in attributes {
             let expression_var_refs = expression.collect_var_refs();
             if !expression_var_refs.is_empty() {
-                println!("{:?} provides {:?} to {:?}", calling_scope, attr_name, new_scope_index);
                 self.graph.add_provides_attr_edge(calling_scope, new_scope_index, ProvidesAttrEdge { attr_name, expression });
                 for used_variable in expression_var_refs {
                     self.register_scope_referencing_variable(calling_scope, used_variable)?;
@@ -368,7 +365,6 @@ impl ScopeTree {
     /// Register a listener. This listener will get called when any of the required variables change.
     /// This should be used to update the gtk widgets that are in a scope.
     pub fn register_listener(&mut self, scope_index: ScopeIndex, listener: Listener) -> Result<()> {
-        println!("registering listener in {:?}: {:?}", scope_index, listener);
         for required_var in &listener.needed_variables {
             self.register_scope_referencing_variable(scope_index, required_var.clone())?;
         }
@@ -383,7 +379,6 @@ impl ScopeTree {
     /// Register the fact that a scope is referencing a given variable.
     /// If the scope contains the variable itself, this is a No-op. Otherwise, will add that reference to the inherited scope relation.
     pub fn register_scope_referencing_variable(&mut self, scope_index: ScopeIndex, var_name: VarName) -> Result<()> {
-        println!("{:?} references variable {:?}", scope_index, var_name);
         if !self.graph.scope_at(scope_index).context("scope not in graph")?.data.contains_key(&var_name) {
             let parent_scope =
                 self.graph.parent_scope_of(scope_index).with_context(|| format!("Variable {} not in scope", var_name))?;
@@ -394,8 +389,6 @@ impl ScopeTree {
     }
 
     pub fn update_value(&mut self, original_scope_index: ScopeIndex, updated_var: &VarName, new_value: DynVal) -> Result<()> {
-        println!("\n\n{}\n\n", self.graph.visualize());
-        println!("updating {:?} to {:?}", updated_var, new_value);
         let scope_index = self
             .find_scope_with_variable(original_scope_index, updated_var)
             .with_context(|| format!("Variable {} not scope", updated_var))?;
@@ -416,7 +409,6 @@ impl ScopeTree {
         let edges: Vec<(ScopeIndex, ProvidesAttrEdge)> =
             self.graph.scopes_getting_attr_using(scope_index, updated_var).into_iter().map(|(a, b)| (*a, b.clone())).collect();
         for (referencing_scope, edge) in edges {
-            println!("variable is referenced by {:?} via {:?}", &referencing_scope, &edge);
             let updated_attr_value = self.evaluate_simplexpr_in_scope(scope_index, &edge.expression)?;
             self.update_value(referencing_scope, edge.attr_name.to_var_name_ref(), updated_attr_value)?;
         }
@@ -426,7 +418,6 @@ impl ScopeTree {
 
         // Now find child scopes that reference this variable
         let affected_child_scopes = self.graph.child_scopes_referencing(scope_index, updated_var);
-        println!("children of {:?} affected by updating {:?}: {:?}", scope_index, updated_var, &affected_child_scopes);
         for affected_child_scope in affected_child_scopes {
             self.notify_value_changed(affected_child_scope, updated_var)?;
         }
@@ -435,11 +426,9 @@ impl ScopeTree {
 
     /// Call all of the listeners in a given [scope_index] that are affected by a change to the [updated_var].
     fn call_listeners_in_scope(&mut self, scope_index: ScopeIndex, updated_var: &VarName) -> Result<()> {
-        dbg!("calling listeners in scope {:?} for var {:?}", scope_index, updated_var);
         let scope = self.graph.scope_at(scope_index).context("Scope not in tree")?;
         if let Some(triggered_listeners) = scope.listeners.get(updated_var) {
             for listener in triggered_listeners.clone() {
-                println!("triggering listener {:?}", &listener);
                 let required_variables = self.lookup_variables_in_scope(scope_index, &listener.needed_variables)?;
                 (*listener.f)(self, required_variables)?;
             }
@@ -511,12 +500,7 @@ struct ScopeGraph {
     /// V: map of scopes that are getting attributes form that scope to a list of edges with attributes.
     provides_attr_edges: HashMap<ScopeIndex, HashMap<ScopeIndex, Vec<ProvidesAttrEdge>>>,
 
-    /// Set of edges where scope K inherits from scope V.0
-    inherits_edges: HashMap<ScopeIndex, (ScopeIndex, InheritsEdge)>,
-
-    /// Set of scopes V that inherit a given scope K
-    /// In other words: map of scopes to list of their children
-    child_scopes: HashMap<ScopeIndex, Vec<ScopeIndex>>,
+    inheritance_edges: ParentChildScopeMap,
 }
 
 impl ScopeGraph {
@@ -524,8 +508,7 @@ impl ScopeGraph {
         Self {
             last_index: ScopeIndex(0),
             scopes: HashMap::new(),
-            inherits_edges: HashMap::new(),
-            child_scopes: HashMap::new(),
+            inheritance_edges: ParentChildScopeMap::new(),
             provides_attr_edges: HashMap::new(),
         }
     }
@@ -541,16 +524,7 @@ impl ScopeGraph {
     // this really needs to be though through more...
     fn remove_scope(&mut self, index: ScopeIndex) {
         self.scopes.remove(&index);
-        if let Some(child_scopes) = self.child_scopes.remove(&index) {
-            for child in &child_scopes {
-                self.inherits_edges.remove(child);
-            }
-        }
-        if let Some((parent_scope, _)) = self.inherits_edges.remove(&index) {
-            if let Some(children_of_parent) = self.child_scopes.get_mut(&parent_scope) {
-                children_of_parent.drain_filter(|child| *child == index);
-            }
-        }
+        self.inheritance_edges.remove(index);
         for edge in self.provides_attr_edges.values_mut() {
             edge.remove(&index);
         }
@@ -558,9 +532,7 @@ impl ScopeGraph {
     }
 
     fn add_inherits_edge(&mut self, a: ScopeIndex, b: ScopeIndex, edge: InheritsEdge) {
-        assert!(!self.inherits_edges.contains_key(&a), "scope already has registered parent scope");
-        self.inherits_edges.insert(a, (b, edge));
-        self.child_scopes.entry(b).or_default().push(a);
+        self.inheritance_edges.insert(a, b, edge).unwrap();
     }
 
     fn add_provides_attr_edge(&mut self, a: ScopeIndex, b: ScopeIndex, edge: ProvidesAttrEdge) {
@@ -576,21 +548,16 @@ impl ScopeGraph {
     }
 
     fn child_scopes_referencing(&self, index: ScopeIndex, var_name: &VarName) -> Vec<ScopeIndex> {
-        if let Some(child_scopes) = self.child_scopes.get(&index) {
-            child_scopes
-                .iter()
-                .filter(|scope_index| {
-                    self.inherits_edges.get(scope_index).map(|(_, edge)| edge.references.contains(var_name)) == Some(true)
-                })
-                .cloned()
-                .collect()
-        } else {
-            Vec::new()
-        }
+        self.inheritance_edges
+            .child_scope_edges(index)
+            .iter()
+            .filter(|(_, edge)| edge.references.contains(var_name))
+            .map(|(scope, _)| *scope)
+            .collect()
     }
 
     fn parent_scope_of(&self, index: ScopeIndex) -> Option<ScopeIndex> {
-        self.inherits_edges.get(&index).map(|(idx, _)| *idx)
+        self.inheritance_edges.get_parent_of(index)
     }
 
     /// List the scopes that are provided some attribute referencing [var_name] by the given scope [index].
@@ -611,26 +578,26 @@ impl ScopeGraph {
 
     fn add_reference_to_inherits_edge(
         &mut self,
-        scope_index: ScopeIndex,
+        child_scope: ScopeIndex,
         parent_scope: ScopeIndex,
         var_name: VarName,
     ) -> Result<()> {
-        let endpoint = self.inherits_edges.get_mut(&scope_index).with_context(|| {
+        let (endpoint_parent, edge) = self.inheritance_edges.get_parent_edge_mut(child_scope).with_context(|| {
             format!(
                 "Given scope {:?} does not have any parent scope, but is assumed to have parent {:?}",
-                scope_index, parent_scope
+                child_scope, parent_scope
             )
         })?;
-        if endpoint.0 != parent_scope {
+        if *endpoint_parent != parent_scope {
             bail!(
                 "Given scope {:?} does not actually inherit from the given parent scope {:?}, but from {:?}",
-                scope_index,
+                child_scope,
                 parent_scope,
-                endpoint.0
+                endpoint_parent
             );
         }
 
-        endpoint.1.references.insert(var_name);
+        edge.references.insert(var_name);
 
         Ok(())
     }
@@ -646,7 +613,7 @@ impl ScopeGraph {
                 }
             }
         }
-        for (child_scope, (parent_scope, _edge)) in &self.inherits_edges {
+        for (child_scope, (parent_scope, _edge)) in &self.inheritance_edges.child_to_parent {
             if !self.scopes.contains_key(&child_scope) {
                 bail!("inherits_edges lists key that is not in tree");
             }
@@ -655,13 +622,14 @@ impl ScopeGraph {
             }
         }
 
-        for (parent_scope, child_scopes) in &self.child_scopes {
+        for (parent_scope, child_scopes) in &self.inheritance_edges.parent_to_children {
             if !self.scopes.contains_key(&parent_scope) {
                 bail!("inherits_edges lists key that is not in tree");
             }
             for child_scope in child_scopes {
                 if self
-                    .inherits_edges
+                    .inheritance_edges
+                    .child_to_parent
                     .get(child_scope)
                     .context("found edge in child scopes that was not reflected in inherits_edges")?
                     .0
@@ -853,7 +821,7 @@ impl ScopeGraph {
                 scope.name,
                 format!(
                     "data: {:?}, listeners: {:?}",
-                    scope.data.iter().filter(|(k, _v)| !k.0.starts_with("E")).collect::<Vec<_>>(),
+                    scope.data.iter().filter(|(k, _v)| !k.0.starts_with("EWW")).collect::<Vec<_>>(),
                     scope
                         .listeners
                         .iter()
@@ -885,7 +853,7 @@ impl ScopeGraph {
                 }
             }
         }
-        for (child, (parent, edge)) in &self.inherits_edges {
+        for (child, (parent, edge)) in &self.inheritance_edges.child_to_parent {
             output.push_str(&format!(
                 "\"{:?}\" -> \"{:?}\" [color = \"blue\", label = \"{}\"]\n",
                 child,
@@ -893,13 +861,63 @@ impl ScopeGraph {
                 format!("inherits({:?})", edge.references).replace("\"", "'")
             ));
         }
-        for (parent, children) in &self.child_scopes {
-            for child in children {
-                output.push_str(&format!("\"{:?}\" -> \"{:?}\" [color = \"green\", label = \"parent of\"]\n", parent, child));
-            }
-        }
 
         output.push_str("}");
         output
+    }
+}
+
+/// A map that represents a structure of a 1-n relationship with edges that contain data.
+#[derive(Debug)]
+pub struct ParentChildScopeMap {
+    child_to_parent: HashMap<ScopeIndex, (ScopeIndex, InheritsEdge)>,
+    parent_to_children: HashMap<ScopeIndex, HashSet<ScopeIndex>>,
+}
+
+impl ParentChildScopeMap {
+    pub fn new() -> Self {
+        ParentChildScopeMap { child_to_parent: HashMap::new(), parent_to_children: HashMap::new() }
+    }
+
+    pub fn insert(&mut self, child: ScopeIndex, parent: ScopeIndex, edge: InheritsEdge) -> Result<()> {
+        if self.child_to_parent.contains_key(&child) {
+            bail!("this child already has a parent");
+        }
+        self.child_to_parent.insert(child, (parent, edge));
+        self.parent_to_children.entry(parent).or_default().insert(child);
+        Ok(())
+    }
+
+    pub fn remove(&mut self, scope: ScopeIndex) {
+        if let Some(children) = self.parent_to_children.remove(&scope) {
+            for child in &children {
+                self.child_to_parent.remove(child);
+            }
+        }
+        if let Some((parent, _)) = self.child_to_parent.remove(&scope) {
+            if let Some(children_of_parent) = self.parent_to_children.get_mut(&parent) {
+                children_of_parent.remove(&scope);
+            }
+        }
+    }
+
+    pub fn get_parent_of(&self, index: ScopeIndex) -> Option<ScopeIndex> {
+        self.child_to_parent.get(&index).map(|(parent, _)| *parent)
+    }
+
+    pub fn get_parent_edge_mut(&mut self, index: ScopeIndex) -> Option<&mut (ScopeIndex, InheritsEdge)> {
+        self.child_to_parent.get_mut(&index)
+    }
+
+    /// Return the children and edges to those children of a given scope
+    pub fn child_scope_edges(&self, index: ScopeIndex) -> Vec<(ScopeIndex, &InheritsEdge)> {
+        let mut result = Vec::new();
+        if let Some(children) = self.parent_to_children.get(&index) {
+            for child_scope in children {
+                let (_, edge) = self.child_to_parent.get(child_scope).expect("ParentChildMap got into inconsistent state");
+                result.push((*child_scope, edge));
+            }
+        }
+        result
     }
 }
