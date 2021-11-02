@@ -1,9 +1,4 @@
-use crate::{
-    app::{self, DaemonCommand},
-    config, daemon_response, error_handling_ctx, ipc_server,
-    new_state_stuff::ScopeTree,
-    script_var_handler, util, EwwPaths,
-};
+use crate::{EwwPaths, app::{self, DaemonCommand}, config, daemon_response, error_handling_ctx, ipc_server, script_var_handler, state::scope_graph::ScopeGraph, util};
 use anyhow::*;
 
 use debug_cell::RefCell;
@@ -63,10 +58,10 @@ pub fn initialize_server(paths: EwwPaths, action: Option<DaemonCommand>, should_
     log::debug!("Initializing script var handler");
     let script_var_handler = script_var_handler::init(ui_send.clone());
 
-    let (scope_tree_evt_send, mut scope_tree_evt_recv) = tokio::sync::mpsc::unbounded_channel();
+    let (scope_graph_evt_send, mut scope_graph_evt_recv) = tokio::sync::mpsc::unbounded_channel();
 
     let mut app = app::App {
-        scope_tree: Rc::new(RefCell::new(ScopeTree::from_global_vars(eww_config.generate_initial_state()?, scope_tree_evt_send))),
+        scope_graph: Rc::new(RefCell::new(ScopeGraph::from_global_vars(eww_config.generate_initial_state()?, scope_graph_evt_send))),
         eww_config,
         open_windows: HashMap::new(),
         failed_windows: HashSet::new(),
@@ -95,8 +90,8 @@ pub fn initialize_server(paths: EwwPaths, action: Option<DaemonCommand>, should_
 
         loop {
             tokio::select! {
-                Some(scope_tree_evt) = scope_tree_evt_recv.recv() => {
-                    app.scope_tree.borrow_mut().handle_scope_tree_event(scope_tree_evt);
+                Some(scope_graph_evt) = scope_graph_evt_recv.recv() => {
+                    app.scope_graph.borrow_mut().handle_scope_graph_event(scope_graph_evt);
                 },
                 Some(ui_event) = ui_recv.recv() => {
                     app.handle_command(ui_event);

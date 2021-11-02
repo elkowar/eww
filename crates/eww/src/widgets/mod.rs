@@ -1,3 +1,4 @@
+
 use crate::{error_handling_ctx, eww_state::*};
 use anyhow::*;
 use codespan_reporting::diagnostic::Severity;
@@ -12,6 +13,7 @@ use widget_definitions::*;
 
 pub mod circular_progressbar;
 pub mod widget_definitions;
+pub mod build_widget;
 pub mod widget_node;
 
 const CMD_STRING_PLACEHODLER: &str = "{}";
