@@ -14,11 +14,8 @@ use std::{
 use tokio::sync::mpsc::UnboundedSender;
 use yuck::config::{widget_definition::WidgetDefinition, widget_use::WidgetUse};
 
-
 // TODO current state: nested linking through inheritance seems to not work
 // since I introduced window level scopes, stuff has stopped working
-
-
 
 /// When a custom widget gets used, some context about that invocation needs to be
 /// remembered whilst building it's content. If the body of the custom widget uses a `children`
@@ -34,10 +31,11 @@ pub struct CustomWidgetInvocation {
 pub fn build_gtk_widget(
     tree: &mut ScopeTree,
     widget_defs: Rc<HashMap<String, WidgetDefinition>>,
-    scope_index: ScopeIndex,
+    calling_scope: ScopeIndex,
     mut widget_use: WidgetUse,
     custom_widget_invocation: Option<Rc<CustomWidgetInvocation>>,
 ) -> Result<gtk::Widget> {
+    println!("building widget {:?}", &widget_use);
     if let Some(custom_widget) = widget_defs.clone().get(&widget_use.name) {
         let widget_use_attributes: HashMap<_, _> = widget_use
             .attrs
@@ -46,14 +44,14 @@ pub fn build_gtk_widget(
             .map(|(name, value)| Ok((name.clone(), value.value.as_simplexpr()?)))
             .collect::<Result<_>>()?;
         let root_index = tree.root_index.clone();
-        let new_scope_index = tree.register_new_scope(Some(root_index), scope_index, widget_use_attributes)?;
+        let new_scope_index = tree.register_new_scope(Some(root_index), calling_scope, widget_use_attributes)?;
 
         let gtk_widget = build_gtk_widget(
             tree,
             widget_defs,
             new_scope_index,
             custom_widget.widget.clone(),
-            Some(Rc::new(CustomWidgetInvocation { scope: scope_index, children: widget_use.children })),
+            Some(Rc::new(CustomWidgetInvocation { scope: calling_scope, children: widget_use.children })),
         )?;
 
         let scope_tree_sender = tree.event_sender.clone();
@@ -70,12 +68,12 @@ pub fn build_gtk_widget(
             "label" => {
                 let gtk_widget = gtk::Label::new(None);
                 let label_text: SimplExpr = widget_use.attrs.ast_required("text")?;
-                let value = tree.evaluate_simplexpr_in_scope(scope_index, &label_text)?;
+                let value = tree.evaluate_simplexpr_in_scope(calling_scope, &label_text)?;
                 gtk_widget.set_label(&value.as_string()?);
                 let required_vars = label_text.var_refs_with_span();
                 if !required_vars.is_empty() {
                     tree.register_listener(
-                        scope_index,
+                        calling_scope,
                         Listener {
                             needed_variables: required_vars.into_iter().map(|(_, name)| name.clone()).collect(),
                             f: Box::new({
@@ -98,7 +96,7 @@ pub fn build_gtk_widget(
             populate_widget_children(
                 tree,
                 widget_defs,
-                scope_index,
+                calling_scope,
                 gtk_container,
                 widget_use.children,
                 custom_widget_invocation,
@@ -113,7 +111,7 @@ pub fn build_gtk_widget(
 fn populate_widget_children(
     tree: &mut ScopeTree,
     widget_defs: Rc<HashMap<String, WidgetDefinition>>,
-    scope_index: ScopeIndex,
+    calling_scope: ScopeIndex,
     gtk_container: &gtk::Container,
     widget_use_children: Vec<WidgetUse>,
     custom_widget_invocation: Option<Rc<CustomWidgetInvocation>>,
@@ -121,9 +119,10 @@ fn populate_widget_children(
     for child in widget_use_children {
         if child.name == "children" {
             let custom_widget_invocation = custom_widget_invocation.clone().context("Not in a custom widget invocation")?;
-            build_gtk_children(tree, widget_defs.clone(), scope_index, child, gtk_container, custom_widget_invocation)?;
+            build_gtk_children(tree, widget_defs.clone(), calling_scope, child, gtk_container, custom_widget_invocation)?;
         } else {
-            let child_widget = build_gtk_widget(tree, widget_defs.clone(), scope_index, child, custom_widget_invocation.clone())?;
+            let child_widget =
+                build_gtk_widget(tree, widget_defs.clone(), calling_scope, child, custom_widget_invocation.clone())?;
             gtk_container.add(&child_widget);
         }
     }
@@ -137,7 +136,7 @@ fn populate_widget_children(
 fn build_gtk_children(
     tree: &mut ScopeTree,
     widget_defs: Rc<HashMap<String, WidgetDefinition>>,
-    scope_index: ScopeIndex,
+    calling_scope: ScopeIndex,
     mut widget_use: WidgetUse,
     gtk_container: &gtk::Container,
     custom_widget_invocation: Rc<CustomWidgetInvocation>,
@@ -150,7 +149,7 @@ fn build_gtk_children(
         gtk_container.set_child(Some(&child_container));
 
         {
-            let nth_current = tree.evaluate_simplexpr_in_scope(scope_index, &nth)?.as_i32()?;
+            let nth_current = tree.evaluate_simplexpr_in_scope(calling_scope, &nth)?.as_i32()?;
             let nth_child_widget_use = custom_widget_invocation
                 .children
                 .get(nth_current as usize)
@@ -162,13 +161,14 @@ fn build_gtk_children(
         }
 
         tree.register_listener(
-            scope_index,
+            calling_scope,
             Listener {
                 needed_variables: nth.collect_var_refs(),
                 f: Box::new({
                     let custom_widget_invocation = custom_widget_invocation.clone();
                     let widget_defs = widget_defs.clone();
                     move |tree, values| {
+                        println!("updating child");
                         let nth_value = nth.eval(&values)?.as_i32()?;
                         let nth_child_widget_use = custom_widget_invocation
                             .children
@@ -279,7 +279,9 @@ impl ScopeTree {
             let mut result: HashSet<_> = root_scope.listeners.keys().cloned().collect();
 
             if let Some(provides_attr_edges) = self.graph.provides_attr_edges.get(&index) {
-                result.extend(provides_attr_edges.values().flat_map(|edge| edge.expression.collect_var_refs()));
+                result.extend(
+                    provides_attr_edges.values().flat_map(|edge| edge.iter()).flat_map(|edge| edge.expression.collect_var_refs()),
+                );
             }
 
             if let Some(child_scopes) = self.graph.child_scopes.get(&index) {
@@ -332,8 +334,13 @@ impl ScopeTree {
         });
 
         for (attr_name, expression) in attributes {
-            if !expression.collect_var_refs().is_empty() {
+            let expression_var_refs = expression.collect_var_refs();
+            if !expression_var_refs.is_empty() {
+                println!("{:?} provides {:?} to {:?}", calling_scope, attr_name, new_scope_index);
                 self.graph.add_provides_attr_edge(calling_scope, new_scope_index, ProvidesAttrEdge { attr_name, expression });
+                for used_variable in expression_var_refs {
+                    self.register_scope_referencing_variable(calling_scope, used_variable)?;
+                }
             }
         }
         Ok(new_scope_index)
@@ -352,6 +359,7 @@ impl ScopeTree {
     /// Register a listener. This listener will get called when any of the required variables change.
     /// This should be used to update the gtk widgets that are in a scope.
     pub fn register_listener(&mut self, scope_index: ScopeIndex, listener: Listener) -> Result<()> {
+        println!("registering listener in {:?}: {:?}", scope_index, listener);
         for required_var in &listener.needed_variables {
             self.register_scope_referencing_variable(scope_index, required_var.clone())?;
         }
@@ -366,6 +374,7 @@ impl ScopeTree {
     /// Register the fact that a scope is referencing a given variable.
     /// If the scope contains the variable itself, this is a No-op. Otherwise, will add that reference to the inherited scope relation.
     pub fn register_scope_referencing_variable(&mut self, scope_index: ScopeIndex, var_name: VarName) -> Result<()> {
+        println!("{:?} references variable {:?}", scope_index, var_name);
         if !self.graph.scope_at(scope_index).context("scope not in graph")?.data.contains_key(&var_name) {
             let parent_scope =
                 self.graph.parent_scope_of(scope_index).with_context(|| format!("Variable {} not in scope", var_name))?;
@@ -376,19 +385,12 @@ impl ScopeTree {
     }
 
     pub fn update_value(&mut self, original_scope_index: ScopeIndex, updated_var: &VarName, new_value: DynVal) -> Result<()> {
+        println!("updating {:?} to {:?}", updated_var, new_value);
         let scope_index = self
             .find_scope_with_variable(original_scope_index, updated_var)
             .with_context(|| format!("Variable {} not scope", updated_var))?;
 
         self.graph.scope_at_mut(scope_index).and_then(|scope| scope.data.get_mut(updated_var)).map(|entry| *entry = new_value);
-
-        // Update scopes that reference the changed variable in their attribute expressions.
-        let edges: Vec<(ScopeIndex, ProvidesAttrEdge)> =
-            self.graph.scopes_providing_attr_using(scope_index, updated_var).into_iter().map(|(a, b)| (*a, b.clone())).collect();
-        for (referencing_scope, edge) in edges {
-            let updated_attr_value = self.evaluate_simplexpr_in_scope(scope_index, &edge.expression)?;
-            self.update_value(referencing_scope, edge.attr_name.to_var_name_ref(), updated_attr_value)?;
-        }
 
         self.notify_value_changed(scope_index, updated_var)?;
 
@@ -397,6 +399,16 @@ impl ScopeTree {
 
     /// Notify a scope that a value has been changed. This triggers the listeners and notifies further child scopes recursively.
     pub fn notify_value_changed(&mut self, scope_index: ScopeIndex, updated_var: &VarName) -> Result<()> {
+        // Update scopes that reference the changed variable in their attribute expressions.
+        // TODORW very much not sure if this actually belongs here or not, lol
+        let edges: Vec<(ScopeIndex, ProvidesAttrEdge)> =
+            self.graph.scopes_getting_attr_using(scope_index, updated_var).into_iter().map(|(a, b)| (*a, b.clone())).collect();
+        for (referencing_scope, edge) in edges {
+            println!("variable is referenced by {:?} via {:?}", &referencing_scope, &edge);
+            let updated_attr_value = self.evaluate_simplexpr_in_scope(scope_index, &edge.expression)?;
+            self.update_value(referencing_scope, edge.attr_name.to_var_name_ref(), updated_attr_value)?;
+        }
+
         // Trigger the listeners from this scope
         self.call_listeners_in_scope(scope_index, updated_var)?;
 
@@ -413,6 +425,7 @@ impl ScopeTree {
         let scope = self.graph.scope_at(scope_index).context("Scope not in tree")?;
         if let Some(triggered_listeners) = scope.listeners.get(updated_var) {
             for listener in triggered_listeners.clone() {
+                println!("triggering listener {:?}", &listener);
                 let required_variables = self.lookup_variables_in_scope(scope_index, &listener.needed_variables)?;
                 (*listener.f)(self, required_variables)?;
             }
@@ -446,9 +459,14 @@ impl ScopeTree {
     }
 }
 
-#[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
+#[derive(Hash, Eq, PartialEq, Copy, Clone)]
 pub struct ScopeIndex(pub u32);
 
+impl std::fmt::Debug for ScopeIndex {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ScopeIndex({})", self.0)
+    }
+}
 impl ScopeIndex {
     fn advance(&mut self) {
         self.0 += 1;
@@ -475,7 +493,9 @@ pub struct ProvidesAttrEdge {
 struct ScopeGraph {
     last_index: ScopeIndex,
     scopes: HashMap<ScopeIndex, Scope>,
-    provides_attr_edges: HashMap<ScopeIndex, HashMap<ScopeIndex, ProvidesAttrEdge>>,
+    /// K: calling scope
+    /// V: map of scopes that are getting attributes form that scope to a list of edges with attributes.
+    provides_attr_edges: HashMap<ScopeIndex, HashMap<ScopeIndex, Vec<ProvidesAttrEdge>>>,
 
     /// Set of edges where scope K inherits from scope V.0
     inherits_edges: HashMap<ScopeIndex, (ScopeIndex, InheritsEdge)>,
@@ -504,6 +524,7 @@ impl ScopeGraph {
     }
 
     // TODORW is this allowed to leave danging references in the tree?
+    // this really needs to be though through more...
     fn remove_scope(&mut self, index: ScopeIndex) {
         self.scopes.remove(&index);
         if let Some(child_scopes) = self.child_scopes.remove(&index) {
@@ -511,17 +532,23 @@ impl ScopeGraph {
                 self.inherits_edges.remove(child);
             }
         }
-        self.inherits_edges.remove(&index);
+        if let Some((parent_scope, _)) = self.inherits_edges.remove(&index) {
+            self.child_scopes.remove(&parent_scope);
+        }
+        for edge in self.provides_attr_edges.values_mut() {
+            edge.remove(&index);
+        }
         self.provides_attr_edges.remove(&index);
     }
 
     fn add_inherits_edge(&mut self, a: ScopeIndex, b: ScopeIndex, edge: InheritsEdge) {
+        assert!(!self.inherits_edges.contains_key(&a), "scope already has registered parent scope");
         self.inherits_edges.insert(a, (b, edge));
         self.child_scopes.entry(b).or_default().push(a);
     }
 
     fn add_provides_attr_edge(&mut self, a: ScopeIndex, b: ScopeIndex, edge: ProvidesAttrEdge) {
-        self.provides_attr_edges.entry(a).or_default().insert(b, edge);
+        self.provides_attr_edges.entry(a).or_default().entry(b).or_default().push(edge);
     }
 
     fn scope_at(&self, index: ScopeIndex) -> Option<&Scope> {
@@ -550,12 +577,20 @@ impl ScopeGraph {
         self.inherits_edges.get(&index).map(|(idx, _)| *idx)
     }
 
-    fn scopes_providing_attr_using(&self, index: ScopeIndex, var_name: &VarName) -> Vec<(&ScopeIndex, &ProvidesAttrEdge)> {
-        if let Some(edge_mappings) = self.provides_attr_edges.get(&index) {
-            edge_mappings.iter().filter(|(_, v)| v.expression.references_var(&var_name)).collect()
+    /// List the scopes that are provided some attribute referencing [var_name] by the given scope [index].
+    fn scopes_getting_attr_using(&self, index: ScopeIndex, var_name: &VarName) -> Vec<(&ScopeIndex, &ProvidesAttrEdge)> {
+        // this might need to include child scopes?
+        // TODORW this might be th part thats broken rn, specifically during cleanup :thonk:
+        let edges = if let Some(edge_mappings) = self.provides_attr_edges.get(&index) {
+            edge_mappings
+                .iter()
+                .flat_map(|(k, v)| v.into_iter().map(move |edge| (k, edge)))
+                .filter(|(_, edge)| edge.expression.references_var(&var_name))
+                .collect()
         } else {
             Vec::new()
-        }
+        };
+        edges
     }
 
     fn add_reference_to_inherits_edge(
@@ -581,6 +616,45 @@ impl ScopeGraph {
 
         endpoint.1.references.push(var_name);
 
+        Ok(())
+    }
+
+    pub fn validate(&self) -> Result<()> {
+        for (scope, edges) in &self.provides_attr_edges {
+            if !self.scopes.contains_key(&scope) {
+                bail!("provides_attr_edges keys lists scope that is not in tree");
+            }
+            for (scope, _edges) in edges {
+                if !self.scopes.contains_key(&scope) {
+                    bail!("provides_attr_edges targets lists scope that is not in tree");
+                }
+            }
+        }
+        for (child_scope, (parent_scope, _edge)) in &self.inherits_edges {
+            if !self.scopes.contains_key(&child_scope) {
+                bail!("inherits_edges lists key that is not in tree");
+            }
+            if !self.scopes.contains_key(&parent_scope) {
+                bail!("inherits_edges values lists scope that is not in tree");
+            }
+        }
+
+        for (parent_scope, child_scopes) in &self.child_scopes {
+            if !self.scopes.contains_key(&parent_scope) {
+                bail!("inherits_edges lists key that is not in tree");
+            }
+            for child_scope in child_scopes {
+                if self
+                    .inherits_edges
+                    .get(child_scope)
+                    .context("found edge in child scopes that was not reflected in inherits_edges")?
+                    .0
+                    != *parent_scope
+                {
+                    bail!("Non-matching mapping in child_scopes vs. inherits_edges");
+                }
+            }
+        }
         Ok(())
     }
 }
@@ -622,6 +696,45 @@ mod test {
         let check_moved = check.clone();
         let f = Box::new(move || check_moved.store(true, Ordering::Relaxed));
         (check, f)
+    }
+
+    #[test]
+    pub fn test_delete_scope() {
+        let globals = hashmap! {
+         VarName("global_1".to_string()) => DynVal::from("hi"),
+        };
+
+        let (send, recv) = tokio::sync::mpsc::unbounded_channel();
+
+        let mut scope_tree = ScopeTree::from_global_vars(globals, send);
+
+        let widget_foo_scope = scope_tree
+            .register_new_scope(
+                Some(scope_tree.root_index),
+                scope_tree.root_index,
+                hashmap! {
+                    AttrName("arg_1".to_string()) => SimplExpr::VarRef(Span::DUMMY, VarName("global_1".to_string())),
+                },
+            )
+            .unwrap();
+        let widget_bar_scope = scope_tree
+            .register_new_scope(
+                Some(scope_tree.root_index),
+                widget_foo_scope,
+                hashmap! {
+                    AttrName("arg_3".to_string()) => SimplExpr::VarRef(Span::DUMMY, VarName("arg_1".to_string())),
+                },
+            )
+            .unwrap();
+
+        scope_tree.graph.validate().unwrap();
+
+        scope_tree.handle_scope_tree_event(ScopeTreeEvent::RemoveScope(widget_bar_scope));
+
+        scope_tree.graph.validate().unwrap();
+        dbg!(scope_tree);
+
+        panic!();
     }
 
     #[test]
