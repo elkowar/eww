@@ -3,8 +3,8 @@ use crate::{
     daemon_response::DaemonResponseSender,
     display_backend, error_handling_ctx,
     gtk::prelude::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt},
-    new_state_stuff::{self, ScopeIndex, ScopeTree},
     script_var_handler::*,
+    state::scope_graph::{ScopeGraph, ScopeIndex},
     EwwPaths,
 };
 use anyhow::*;
@@ -83,8 +83,8 @@ impl EwwWindow {
 
 #[derive(DebugStub)]
 pub struct App {
-    #[debug_stub = "bruh"]
-    pub scope_tree: Rc<RefCell<ScopeTree>>,
+    #[debug_stub = "ScopeGraph"]
+    pub scope_graph: Rc<RefCell<ScopeGraph>>,
     pub eww_config: config::EwwConfig,
     pub open_windows: HashMap<String, EwwWindow>,
     /// Window names that are supposed to be open, but failed.
@@ -188,7 +188,7 @@ impl App {
                     //.join("\n")
                     //};
                     // sender.send_success(output)?
-                    sender.send_success(format!("{:#?}", *self.scope_tree.borrow()))?
+                    sender.send_success(format!("{:#?}", *self.scope_graph.borrow()))?
                 }
                 DaemonCommand::GetVar { name, sender } => {
                     let vars = self.eww_state.get_variables();
@@ -230,7 +230,7 @@ impl App {
     }
 
     fn update_global_state(&mut self, fieldname: VarName, value: DynVal) {
-        let result = self.scope_tree.borrow_mut().update_global_value(&fieldname, value);
+        let result = self.scope_graph.borrow_mut().update_global_value(&fieldname, value);
         if let Err(err) = result {
             error_handling_ctx::print_error(err);
         }
@@ -256,14 +256,14 @@ impl App {
             .remove(window_name)
             .with_context(|| format!("Tried to close window named '{}', but no such window was open", window_name))?;
 
-        let variables_used_in_window = self.scope_tree.borrow().variables_used_in(eww_window.scope_index);
+        let variables_used_in_window = self.scope_graph.borrow().variables_used_in(eww_window.scope_index);
 
         eww_window.close();
 
         // TODORW
         // self.eww_state.clear_window_state(window_name);
 
-        let still_used_variables = self.scope_tree.borrow().currently_used_globals();
+        let still_used_variables = self.scope_graph.borrow().currently_used_globals();
 
         let now_unused_variables = variables_used_in_window.difference(&still_used_variables);
         for unused_var in now_unused_variables {
@@ -292,17 +292,17 @@ impl App {
             let mut window_def = self.eww_config.get_window(window_name)?.clone();
             window_def.geometry = window_def.geometry.map(|x| x.override_if_given(anchor, pos, size));
 
-            let root_index = self.scope_tree.borrow().root_index.clone();
+            let root_index = self.scope_graph.borrow().root_index.clone();
 
-            let window_scope = self.scope_tree.borrow_mut().register_new_scope(
+            let window_scope = self.scope_graph.borrow_mut().register_new_scope(
                 window_name.clone(),
                 Some(root_index),
                 root_index,
                 HashMap::new(),
             )?;
 
-            let root_widget = new_state_stuff::build_gtk_widget(
-                &mut *self.scope_tree.borrow_mut(),
+            let root_widget = crate::widgets::build_widget::build_gtk_widget(
+                &mut *self.scope_graph.borrow_mut(),
                 Rc::new(self.eww_config.get_widget_definitions().clone()),
                 window_scope,
                 window_def.widget.clone(),

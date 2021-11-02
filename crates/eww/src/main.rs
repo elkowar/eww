@@ -24,7 +24,7 @@ use std::{
 use crate::server::ForkResult;
 
 pub mod app;
-pub mod new_state_stuff;
+pub mod state;
 pub mod application_lifecycle;
 pub mod client;
 pub mod config;
