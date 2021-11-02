@@ -294,7 +294,12 @@ impl App {
 
             let root_index = self.scope_tree.borrow().root_index.clone();
 
-            let window_scope = self.scope_tree.borrow_mut().register_new_scope(Some(root_index), root_index, HashMap::new())?;
+            let window_scope = self.scope_tree.borrow_mut().register_new_scope(
+                window_name.clone(),
+                Some(root_index),
+                root_index,
+                HashMap::new(),
+            )?;
 
             let root_widget = new_state_stuff::build_gtk_widget(
                 &mut *self.scope_tree.borrow_mut(),

@@ -44,7 +44,7 @@ pub fn build_gtk_widget(
             .map(|(name, value)| Ok((name.clone(), value.value.as_simplexpr()?)))
             .collect::<Result<_>>()?;
         let root_index = tree.root_index.clone();
-        let new_scope_index = tree.register_new_scope(Some(root_index), calling_scope, widget_use_attributes)?;
+        let new_scope_index = tree.register_new_scope(widget_use.name, Some(root_index), calling_scope, widget_use_attributes)?;
 
         let gtk_widget = build_gtk_widget(
             tree,
@@ -202,6 +202,8 @@ fn build_gtk_children(
 
 #[derive(Debug)]
 pub struct Scope {
+    name: String,
+    created_by: Option<ScopeIndex>,
     data: HashMap<VarName, DynVal>,
     /// The listeners that react to value changes in this scope.
     /// **Note** that there might be VarNames referenced here that are not defined in this scope.
@@ -213,8 +215,8 @@ pub struct Scope {
 impl Scope {
     /// Initializes a scope **incompletely**. The [`node_index`] is not set correctly, and needs to be
     /// set to the index of the node in the scope graph that connects to this scope.
-    fn new(data: HashMap<VarName, DynVal>) -> Self {
-        Self { data, listeners: HashMap::new(), node_index: ScopeIndex(0) }
+    fn new(name: String, created_by: Option<ScopeIndex>, data: HashMap<VarName, DynVal>) -> Self {
+        Self { name, created_by, data, listeners: HashMap::new(), node_index: ScopeIndex(0) }
     }
 }
 
@@ -265,7 +267,13 @@ impl ScopeTree {
 impl ScopeTree {
     pub fn from_global_vars(vars: HashMap<VarName, DynVal>, event_sender: UnboundedSender<ScopeTreeEvent>) -> Self {
         let mut graph = ScopeGraph::new();
-        let root_index = graph.add_scope(Scope { data: vars, listeners: HashMap::new(), node_index: ScopeIndex(0) });
+        let root_index = graph.add_scope(Scope {
+            name: "global".to_string(),
+            created_by: None,
+            data: vars,
+            listeners: HashMap::new(),
+            node_index: ScopeIndex(0),
+        });
         graph.scope_at_mut(root_index).map(|scope| scope.node_index = root_index);
         Self { graph, root_index, event_sender }
     }
@@ -307,6 +315,7 @@ impl ScopeTree {
     /// This will look up and resolve variable references in attributes to set up the correct [ScopeTreeEdge::ProvidesAttribute] relationships.
     pub fn register_new_scope(
         &mut self,
+        name: String,
         parent_scope: Option<ScopeIndex>,
         calling_scope: ScopeIndex,
         attributes: HashMap<AttrName, SimplExpr>,
@@ -323,11 +332,11 @@ impl ScopeTree {
         // Now that we're sure that we have all of the values, we can make changes to the scope tree without
         // risking getting it into an inconsistent state by adding a scope that can't get fully instantiated
         // and aborting that operation prematurely.
-        let new_scope = Scope::new(scope_variables);
+        let new_scope = Scope::new(name, Some(calling_scope), scope_variables);
 
         let new_scope_index = self.graph.add_scope(new_scope);
         if let Some(parent_scope) = parent_scope {
-            self.graph.add_inherits_edge(new_scope_index, parent_scope, InheritsEdge { references: Vec::new() });
+            self.graph.add_inherits_edge(new_scope_index, parent_scope, InheritsEdge { references: HashSet::new() });
         }
         self.graph.scope_at_mut(new_scope_index).map(|scope| {
             scope.node_index = new_scope_index;
@@ -385,6 +394,7 @@ impl ScopeTree {
     }
 
     pub fn update_value(&mut self, original_scope_index: ScopeIndex, updated_var: &VarName, new_value: DynVal) -> Result<()> {
+        println!("\n\n{}\n\n", self.graph.visualize());
         println!("updating {:?} to {:?}", updated_var, new_value);
         let scope_index = self
             .find_scope_with_variable(original_scope_index, updated_var)
@@ -393,6 +403,8 @@ impl ScopeTree {
         self.graph.scope_at_mut(scope_index).and_then(|scope| scope.data.get_mut(updated_var)).map(|entry| *entry = new_value);
 
         self.notify_value_changed(scope_index, updated_var)?;
+
+        self.graph.validate()?;
 
         Ok(())
     }
@@ -414,6 +426,7 @@ impl ScopeTree {
 
         // Now find child scopes that reference this variable
         let affected_child_scopes = self.graph.child_scopes_referencing(scope_index, updated_var);
+        println!("children of {:?} affected by updating {:?}: {:?}", scope_index, updated_var, &affected_child_scopes);
         for affected_child_scope in affected_child_scopes {
             self.notify_value_changed(affected_child_scope, updated_var)?;
         }
@@ -422,6 +435,7 @@ impl ScopeTree {
 
     /// Call all of the listeners in a given [scope_index] that are affected by a change to the [updated_var].
     fn call_listeners_in_scope(&mut self, scope_index: ScopeIndex, updated_var: &VarName) -> Result<()> {
+        dbg!("calling listeners in scope {:?} for var {:?}", scope_index, updated_var);
         let scope = self.graph.scope_at(scope_index).context("Scope not in tree")?;
         if let Some(triggered_listeners) = scope.listeners.get(updated_var) {
             for listener in triggered_listeners.clone() {
@@ -478,7 +492,7 @@ impl ScopeIndex {
 /// If a inherits from b, and references variable V, V may either be available in b or in scopes that b inherits from.
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct InheritsEdge {
-    references: Vec<VarName>,
+    references: HashSet<VarName>,
 }
 
 /// a --provides attribute [attr_name] calculated via [`expression`] to--> b
@@ -533,7 +547,9 @@ impl ScopeGraph {
             }
         }
         if let Some((parent_scope, _)) = self.inherits_edges.remove(&index) {
-            self.child_scopes.remove(&parent_scope);
+            if let Some(children_of_parent) = self.child_scopes.get_mut(&parent_scope) {
+                children_of_parent.drain_filter(|child| *child == index);
+            }
         }
         for edge in self.provides_attr_edges.values_mut() {
             edge.remove(&index);
@@ -614,7 +630,7 @@ impl ScopeGraph {
             );
         }
 
-        endpoint.1.references.push(var_name);
+        endpoint.1.references.insert(var_name);
 
         Ok(())
     }
@@ -710,6 +726,7 @@ mod test {
 
         let widget_foo_scope = scope_tree
             .register_new_scope(
+                "foo".to_string(),
                 Some(scope_tree.root_index),
                 scope_tree.root_index,
                 hashmap! {
@@ -719,6 +736,7 @@ mod test {
             .unwrap();
         let widget_bar_scope = scope_tree
             .register_new_scope(
+                "bar".to_string(),
                 Some(scope_tree.root_index),
                 widget_foo_scope,
                 hashmap! {
@@ -732,7 +750,9 @@ mod test {
         scope_tree.handle_scope_tree_event(ScopeTreeEvent::RemoveScope(widget_bar_scope));
 
         scope_tree.graph.validate().unwrap();
-        dbg!(scope_tree);
+        dbg!(&scope_tree);
+
+        println!("{}", scope_tree.graph.visualize());
 
         panic!();
     }
@@ -750,6 +770,7 @@ mod test {
 
         let widget_foo_scope = scope_tree
             .register_new_scope(
+                "foo".to_string(),
                 Some(scope_tree.root_index),
                 scope_tree.root_index,
                 hashmap! {
@@ -760,6 +781,7 @@ mod test {
             .unwrap();
         let widget_bar_scope = scope_tree
             .register_new_scope(
+                "bar".to_string(),
                 Some(scope_tree.root_index),
                 widget_foo_scope,
                 hashmap! {
@@ -816,5 +838,68 @@ mod test {
 
         scope_tree.update_value(scope_tree.root_index, &VarName("global_2".to_string()), DynVal::from("new global 2")).unwrap();
         assert!(bar_2_verify.load(Ordering::Relaxed), "inherited global update did not trigger properly");
+    }
+}
+
+impl ScopeGraph {
+    pub fn visualize(&self) -> String {
+        let mut output = String::new();
+        output.push_str("digraph {");
+
+        for (scope_index, scope) in &self.scopes {
+            output.push_str(&format!(
+                "\"{:?}\"[label=\"{}\\n{}\"]\n",
+                scope_index,
+                scope.name,
+                format!(
+                    "data: {:?}, listeners: {:?}",
+                    scope.data.iter().filter(|(k, _v)| !k.0.starts_with("E")).collect::<Vec<_>>(),
+                    scope
+                        .listeners
+                        .iter()
+                        .map(|(k, v)| format!(
+                            "on {}: {:?}",
+                            k.0,
+                            v.iter()
+                                .map(|l| format!("{:?}", l.needed_variables.iter().map(|x| x.0.clone()).collect::<Vec<_>>()))
+                                .collect::<Vec<_>>()
+                        ))
+                        .collect::<Vec<_>>()
+                )
+                .replace("\"", "'")
+            ));
+            if let Some(created_by) = scope.created_by {
+                output.push_str(&format!("\"{:?}\" -> \"{:?}\"[label=\"created\"]\n", created_by, scope_index));
+            }
+        }
+
+        for (left, edges) in &self.provides_attr_edges {
+            for (right, edges) in edges.iter() {
+                for edge in edges {
+                    output.push_str(&format!(
+                        "\"{:?}\" -> \"{:?}\" [color = \"red\", label = \"{}\"]\n",
+                        left,
+                        right,
+                        format!(":{} `{:?}`", edge.attr_name, edge.expression).replace("\"", "'")
+                    ));
+                }
+            }
+        }
+        for (child, (parent, edge)) in &self.inherits_edges {
+            output.push_str(&format!(
+                "\"{:?}\" -> \"{:?}\" [color = \"blue\", label = \"{}\"]\n",
+                child,
+                parent,
+                format!("inherits({:?})", edge.references).replace("\"", "'")
+            ));
+        }
+        for (parent, children) in &self.child_scopes {
+            for child in children {
+                output.push_str(&format!("\"{:?}\" -> \"{:?}\" [color = \"green\", label = \"parent of\"]\n", parent, child));
+            }
+        }
+
+        output.push_str("}");
+        output
     }
 }
