@@ -7,12 +7,11 @@ use crate::{
     state::scope_graph::{ScopeGraph, ScopeIndex},
     EwwPaths, *,
 };
-use debug_cell::RefCell;
-use debug_stub_derive::*;
 use eww_shared_util::VarName;
 use itertools::Itertools;
 use simplexpr::dynval::DynVal;
 use std::{
+    cell::RefCell,
     collections::{HashMap, HashSet},
     rc::Rc,
 };
@@ -63,6 +62,7 @@ pub enum DaemonCommand {
         sender: DaemonResponseSender,
     },
     PrintDebug(DaemonResponseSender),
+    PrintGraph(DaemonResponseSender),
     PrintWindows(DaemonResponseSender),
 }
 
@@ -80,9 +80,7 @@ impl EwwWindow {
     }
 }
 
-#[derive(DebugStub)]
 pub struct App {
-    #[debug_stub = "ScopeGraph"]
     pub scope_graph: Rc<RefCell<ScopeGraph>>,
     pub eww_config: config::EwwConfig,
     pub open_windows: HashMap<String, EwwWindow>,
@@ -91,12 +89,22 @@ pub struct App {
     pub failed_windows: HashSet<String>,
     pub css_provider: gtk::CssProvider,
 
-    #[debug_stub = "ScriptVarHandler(...)"]
     pub app_evt_send: UnboundedSender<DaemonCommand>,
-    #[debug_stub = "ScriptVarHandler(...)"]
     pub script_var_handler: ScriptVarHandlerHandle,
 
     pub paths: EwwPaths,
+}
+
+impl std::fmt::Debug for App {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("App")
+            .field("scope_graph", &*self.scope_graph.borrow())
+            .field("eww_config", &self.eww_config)
+            .field("open_windows", &self.open_windows)
+            .field("failed_windows", &self.failed_windows)
+            .field("paths", &self.paths)
+            .finish()
+    }
 }
 
 impl App {
@@ -212,6 +220,7 @@ impl App {
                     let output = format!("{:#?}", &self);
                     sender.send_success(output)?
                 }
+                DaemonCommand::PrintGraph(sender) => sender.send_success(self.scope_graph.borrow().visualize())?,
             }
         };
 
@@ -344,7 +353,7 @@ impl App {
     /// Load the given configuration, reloading all script-vars and attempting to reopen all windows that where opened.
     pub fn load_config(&mut self, config: config::EwwConfig) -> Result<()> {
         log::info!("Reloading windows");
-        // refresh script-var poll stuff. Would be reasonable to actually remove all script_vars here and fully reinitialize, but ehh
+
         self.script_var_handler.stop_all();
         self.script_var_handler = script_var_handler::init(self.app_evt_send.clone());
 
