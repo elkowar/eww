@@ -13,6 +13,10 @@ use super::{
     scope::{Listener, Scope},
 };
 
+// TODO concepts and verification
+// can a scope ever reference / inherit scopes that are not in their ancestors / themselves?
+// If not, that should be at least documented as an invariant, and best case enforced and made use of.
+
 #[derive(Hash, Eq, PartialEq, Copy, Clone)]
 pub struct ScopeIndex(pub u32);
 
@@ -67,7 +71,7 @@ impl ScopeGraph {
         let mut graph = ScopeGraphInternal::new();
         let root_index = graph.add_scope(Scope {
             name: "global".to_string(),
-            created_by: None,
+            ancestor: None,
             data: vars,
             listeners: HashMap::new(),
             node_index: ScopeIndex(0),
@@ -101,38 +105,11 @@ impl ScopeGraph {
     }
 
     pub fn currently_used_globals(&self) -> HashSet<VarName> {
-        self.variables_used_in(self.root_index)
+        self.variables_used_in_self_or_descendants_of(self.root_index)
     }
+
     pub fn scope_at(&self, index: ScopeIndex) -> Option<&Scope> {
         self.graph.scope_at(index)
-    }
-
-    // TODORW this does not quite make sense
-    // What i really need is to actually look at the widget hierarchy (widget "caller" and "callees"?)
-    // to figure out which scopes and variables are used within the children of a given scope (children as in gtk widget hierarchy, not as in inheritance)
-    // Word choice: Ancestor & Descendant
-    pub fn variables_used_in(&self, index: ScopeIndex) -> HashSet<VarName> {
-        if let Some(root_scope) = self.graph.scope_at(index) {
-            let mut result: HashSet<_> = root_scope.listeners.keys().cloned().collect();
-
-            if let Some(provides_attr_edges) = self.graph.provides_attr_edges.get(&index) {
-                result.extend(
-                    provides_attr_edges.values().flat_map(|edge| edge.iter()).flat_map(|edge| edge.expression.collect_var_refs()),
-                );
-            }
-
-            result.extend(
-                self.graph
-                    .inheritance_edges
-                    .child_scope_edges(index)
-                    .iter()
-                    .flat_map(|(_, edge)| edge.references.iter().cloned()),
-            );
-
-            result
-        } else {
-            HashSet::new()
-        }
     }
 
     pub fn evaluate_simplexpr_in_scope(&self, index: ScopeIndex, expr: &SimplExpr) -> Result<DynVal> {
@@ -279,6 +256,17 @@ impl ScopeGraph {
             .map(|x| x.data.get(var_name).unwrap())
     }
 
+    pub fn variables_used_in_self_or_descendants_of(&self, index: ScopeIndex) -> HashSet<VarName> {
+        let mut variables: HashSet<VarName> =
+            self.scope_at(index).expect("Given scope not in graph").listeners.keys().map(|x| x.clone()).collect();
+        if let Some(descendants) = self.graph.descendants.get(&index) {
+            for descendant in descendants {
+                variables.extend(self.variables_used_in_self_or_descendants_of(*descendant).into_iter());
+            }
+        }
+        variables
+    }
+
     /// like [Self::lookup_variable_in_scope], but looks up a set of variables and stores them in a HashMap.
     pub fn lookup_variables_in_scope(&self, scope_index: ScopeIndex, vars: &[VarName]) -> Result<HashMap<VarName, DynVal>> {
         vars.iter()
@@ -299,8 +287,12 @@ struct ScopeGraphInternal {
     /// K: calling scope
     /// V: map of scopes that are getting attributes form that scope to a list of edges with attributes.
     provides_attr_edges: HashMap<ScopeIndex, HashMap<ScopeIndex, Vec<ProvidesAttrEdge>>>,
-
     inheritance_edges: ScopeInheritanceMap,
+
+    // TODO there is no single source of truth for the ancestor value currently, as it's stored both in the scope and graph.
+    /// map that maps ancestors to their descendants. Descendants are those scopes that are called from / shown within another scope
+    /// i.e. they would get removed if the ancestor scope would get removed.
+    descendants: HashMap<ScopeIndex, HashSet<ScopeIndex>>,
 }
 
 impl ScopeGraphInternal {
@@ -310,19 +302,33 @@ impl ScopeGraphInternal {
             scopes: HashMap::new(),
             inheritance_edges: ScopeInheritanceMap::new(),
             provides_attr_edges: HashMap::new(),
+            descendants: HashMap::new(),
         }
     }
 
     fn add_scope(&mut self, scope: Scope) -> ScopeIndex {
         let idx = self.last_index;
+        if let Some(ancestor) = scope.ancestor {
+            self.descendants.entry(ancestor).or_default().insert(idx);
+        }
         self.scopes.insert(idx, scope);
         self.last_index.advance();
         idx
     }
 
     fn remove_scope(&mut self, index: ScopeIndex) {
-        self.scopes.remove(&index);
+        if let Some(scope) = self.scopes.remove(&index) {
+            if let Some(descendants_of_ancestor) = scope.ancestor.and_then(|ancestor| self.descendants.get_mut(&ancestor)) {
+                descendants_of_ancestor.remove(&index);
+            }
+        }
         self.inheritance_edges.remove(index);
+        if let Some(descendants) = self.descendants.remove(&index) {
+            for descendant in descendants {
+                // TODO should this actually yeet all nested scopes?
+                self.remove_scope(descendant);
+            }
+        }
         for edge in self.provides_attr_edges.values_mut() {
             edge.remove(&index);
         }
@@ -467,7 +473,7 @@ impl ScopeGraphInternal {
                 )
                 .replace("\"", "'")
             ));
-            if let Some(created_by) = scope.created_by {
+            if let Some(created_by) = scope.ancestor {
                 output.push_str(&format!("\"{:?}\" -> \"{:?}\"[label=\"created\"]\n", created_by, scope_index));
             }
         }
