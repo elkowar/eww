@@ -262,7 +262,7 @@ impl App {
             .remove(window_name)
             .with_context(|| format!("Tried to close window named '{}', but no such window was open", window_name))?;
 
-        let variables_used_in_window = self.scope_graph.borrow().variables_used_in(eww_window.scope_index);
+        let variables_used_in_window = self.scope_graph.borrow().variables_used_in_self_or_descendants_of(eww_window.scope_index);
         self.scope_graph.borrow_mut().remove_scope(eww_window.scope_index);
 
         eww_window.close();
@@ -324,7 +324,7 @@ impl App {
             // TODORW
             // TODO maybe this could be handled by having a track_newly_used_variables function in the scope tree?
             // TODO: Only the newly referenced vars should be started. This isnt' a big deal, but it's less performant than it could be
-            for used_var in self.scope_graph.borrow().variables_used_in(eww_window.scope_index) {
+            for used_var in self.scope_graph.borrow().variables_used_in_self_or_descendants_of(eww_window.scope_index) {
                 // TODORW What i really need is to actually look at the widget hierarchy (widget "caller" and "callees"?)
                 // to figure out which scopes and variables are used within the children of a given scope (children as in gtk widget hierarchy, not as in inheritance)
                 // Word choice: Ancestor & Descendant

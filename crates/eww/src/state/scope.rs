@@ -9,7 +9,7 @@ use super::scope_graph::{ScopeIndex, ScopeGraph};
 #[derive(Debug)]
 pub struct Scope {
     pub name: String,
-    pub created_by: Option<ScopeIndex>,
+    pub ancestor: Option<ScopeIndex>,
     pub data: HashMap<VarName, DynVal>,
     /// The listeners that react to value changes in this scope.
     /// **Note** that there might be VarNames referenced here that are not defined in this scope.
@@ -22,7 +22,7 @@ impl Scope {
     /// Initializes a scope **incompletely**. The [`node_index`] is not set correctly, and needs to be
     /// set to the index of the node in the scope graph that connects to this scope.
     pub(super) fn new(name: String, created_by: Option<ScopeIndex>, data: HashMap<VarName, DynVal>) -> Self {
-        Self { name, created_by, data, listeners: HashMap::new(), node_index: ScopeIndex(0) }
+        Self { name, ancestor: created_by, data, listeners: HashMap::new(), node_index: ScopeIndex(0) }
     }
 }
 
