@@ -92,6 +92,21 @@ impl ScopeGraph {
         }
     }
 
+    /// Fully reinitialize the scope graph. Completely removes all state, and resets the ScopeIndex uniqueness.
+    pub fn clear(&mut self, vars: HashMap<VarName, DynVal>) {
+        let mut graph = ScopeGraphInternal::new();
+        let root_index = graph.add_scope(Scope {
+            name: "global".to_string(),
+            ancestor: None,
+            data: vars,
+            listeners: HashMap::new(),
+            node_index: ScopeIndex(0),
+        });
+        graph.scope_at_mut(root_index).map(|scope| scope.node_index = root_index);
+        self.graph = graph;
+        self.root_index = root_index;
+    }
+
     pub fn remove_scope(&mut self, scope_index: ScopeIndex) {
         self.graph.remove_scope(scope_index);
     }

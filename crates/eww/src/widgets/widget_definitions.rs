@@ -11,6 +11,7 @@ use glib;
 use gtk::{self, prelude::*};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
+
 use std::{
     cell::RefCell,
     cmp::Ordering,
@@ -32,7 +33,7 @@ type EventHandlerId = Rc<RefCell<Option<gtk::glib::SignalHandlerId>>>;
 
 //// widget definitions
 
-pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::Widget> {
+pub(super) fn widget_use_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::Widget> {
     let gtk_widget = match bargs.widget_use.name.as_str() {
         "box" => build_gtk_box(bargs)?.upcast(),
         "centerbox" => build_center_box(bargs)?.upcast(),
@@ -85,17 +86,20 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
 
     let css_provider = gtk::CssProvider::new();
 
-    // TODORW implement visible
-    // if let Ok(visible) =
-    // bargs.widget_use.attrs.ast_optional("visible")?.and_then(|v| bargs.eww_state.resolve_once(v)?.as_bool().map_err(|e| anyhow!(e)))
-    //{
-    // connect_first_map(gtk_widget, move |w| {
-    // if visible {
-    // w.show();
-    //} else {
-    // w.hide();
-    //})
-    //}
+    if let Some(visible_expr) = bargs.widget_use.attrs.ast_optional("visible")? {
+        let visible = bargs
+            .scope_graph
+            .evaluate_simplexpr_in_scope(bargs.calling_scope, &visible_expr)?
+            .as_bool()
+            .map_err(|e| anyhow!(e))?;
+        connect_first_map(gtk_widget, move |w| {
+            if visible {
+                w.show();
+            } else {
+                w.hide();
+            }
+        });
+    }
 
     def_widget!(bargs, _g, gtk_widget, {
         // @prop class - css class name
@@ -143,7 +147,6 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
     });
     Ok(())
 }
-
 
 /// @widget !range
 pub(super) fn resolve_range_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Range) -> Result<()> {
@@ -199,6 +202,8 @@ pub(super) fn resolve_orientable_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk
 }
 
 // concrete widgets
+
+// TODORW reimplement if else using some more generic logic that children also uses, maybe?
 
 // fn build_if_else(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
 // if bargs.widget_use.children.len() != 2 {
@@ -785,13 +790,17 @@ fn parse_align(o: &str) -> Result<gtk::Align> {
     }
 }
 
+/// Connect a function to the first map event of a widget. After that first map, the handler will get disconnected.
 fn connect_first_map<W: IsA<gtk::Widget>, F: Fn(&W) + 'static>(widget: &W, func: F) {
-    // TODO it would be better to actually remove the connect_map after first map,
-    // but that would be highly annoying to implement...
-    let is_first_map = std::rc::Rc::new(std::cell::RefCell::new(true));
-    widget.connect_map(move |w| {
-        if is_first_map.replace(false) {
-            func(w);
+    let signal_handler_id = std::rc::Rc::new(std::cell::RefCell::new(None));
+
+    signal_handler_id.borrow_mut().replace(widget.connect_map({
+        let signal_handler_id = signal_handler_id.clone();
+        move |w| {
+            if let Some(signal_handler_id) = signal_handler_id.borrow_mut().take() {
+                w.disconnect(signal_handler_id);
+            }
+            func(w)
         }
-    });
+    }));
 }
