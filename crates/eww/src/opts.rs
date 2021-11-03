@@ -161,6 +161,10 @@ pub enum ActionWithServer {
     /// and to provide additional context to the eww developers if you are filing a bug.
     #[structopt(name = "debug")]
     ShowDebug,
+
+    /// Print out the scope graph structure in graphviz dot format.
+    #[structopt(name = "graph")]
+    ShowGraph,
 }
 
 impl Opt {
@@ -227,6 +231,7 @@ impl ActionWithServer {
                 return with_response_channel(|sender| app::DaemonCommand::GetVar { name, sender })
             }
             ActionWithServer::ShowDebug => return with_response_channel(app::DaemonCommand::PrintDebug),
+            ActionWithServer::ShowGraph => return with_response_channel(app::DaemonCommand::PrintGraph),
         };
         (command, None)
     }

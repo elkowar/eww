@@ -14,6 +14,10 @@ impl ScopeInheritanceMap {
     pub fn new() -> Self {
         ScopeInheritanceMap { child_to_parent: HashMap::new(), parent_to_children: HashMap::new() }
     }
+    pub fn clear(&mut self) {
+        self.child_to_parent.clear();
+        self.parent_to_children.clear()
+    }
 
     pub fn insert(&mut self, child: ScopeIndex, parent: ScopeIndex, edge: InheritsEdge) -> Result<()> {
         if self.child_to_parent.contains_key(&child) {

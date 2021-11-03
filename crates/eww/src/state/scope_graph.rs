@@ -94,16 +94,15 @@ impl ScopeGraph {
 
     /// Fully reinitialize the scope graph. Completely removes all state, and resets the ScopeIndex uniqueness.
     pub fn clear(&mut self, vars: HashMap<VarName, DynVal>) {
-        let mut graph = ScopeGraphInternal::new();
-        let root_index = graph.add_scope(Scope {
+        self.graph.clear();
+        let root_index = self.graph.add_scope(Scope {
             name: "global".to_string(),
             ancestor: None,
             data: vars,
             listeners: HashMap::new(),
             node_index: ScopeIndex(0),
         });
-        graph.scope_at_mut(root_index).map(|scope| scope.node_index = root_index);
-        self.graph = graph;
+        self.graph.scope_at_mut(root_index).map(|scope| scope.node_index = root_index);
         self.root_index = root_index;
     }
 
@@ -276,15 +275,20 @@ impl ScopeGraph {
             .map(|x| x.data.get(var_name).unwrap())
     }
 
+    /// Get all variables that are used in the given scope or in any descendants of that scope.
+    /// If called with an index not in the tree, will return an empty set of variables.
     pub fn variables_used_in_self_or_descendants_of(&self, index: ScopeIndex) -> HashSet<VarName> {
-        let mut variables: HashSet<VarName> =
-            self.scope_at(index).expect("Given scope not in graph").listeners.keys().map(|x| x.clone()).collect();
-        if let Some(descendants) = self.graph.descendants.get(&index) {
-            for descendant in descendants {
-                variables.extend(self.variables_used_in_self_or_descendants_of(*descendant).into_iter());
+        if let Some(scope) = self.scope_at(index) {
+            let mut variables: HashSet<VarName> = scope.listeners.keys().map(|x| x.clone()).collect();
+            if let Some(descendants) = self.graph.descendants.get(&index) {
+                for descendant in descendants {
+                    variables.extend(self.variables_used_in_self_or_descendants_of(*descendant).into_iter());
+                }
             }
+            variables
+        } else {
+            HashSet::new()
         }
-        variables
     }
 
     /// like [Self::lookup_variable_in_scope], but looks up a set of variables and stores them in a HashMap.
@@ -324,6 +328,13 @@ impl ScopeGraphInternal {
             provides_attr_edges: HashMap::new(),
             descendants: HashMap::new(),
         }
+    }
+
+    fn clear(&mut self) {
+        self.scopes.clear();
+        self.provides_attr_edges.clear();
+        self.inheritance_edges.clear();
+        self.descendants.clear();
     }
 
     fn add_scope(&mut self, scope: Scope) -> ScopeIndex {
@@ -494,7 +505,7 @@ impl ScopeGraphInternal {
                 .replace("\"", "'")
             ));
             if let Some(created_by) = scope.ancestor {
-                output.push_str(&format!("\"{:?}\" -> \"{:?}\"[label=\"created\"]\n", created_by, scope_index));
+                output.push_str(&format!("\"{:?}\" -> \"{:?}\"[label=\"ancestor\"]\n", created_by, scope_index));
             }
         }
 

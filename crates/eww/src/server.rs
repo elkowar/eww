@@ -1,14 +1,12 @@
-use crate::{EwwPaths, app::{self, DaemonCommand}, config, daemon_response, error_handling_ctx, ipc_server, script_var_handler, state::scope_graph::ScopeGraph, util};
+use crate::{
+    app::{self, DaemonCommand},
+    config, daemon_response, error_handling_ctx, ipc_server, script_var_handler,
+    state::scope_graph::ScopeGraph,
+    util, EwwPaths,
+};
 use anyhow::*;
 
-use debug_cell::RefCell;
-use std::{
-    collections::{HashMap, HashSet},
-    os::unix::io::AsRawFd,
-    path::Path,
-    rc::Rc,
-    sync::{atomic::Ordering, Arc},
-};
+use std::{cell::RefCell, collections::{HashMap, HashSet}, os::unix::io::AsRawFd, path::Path, rc::Rc, sync::{atomic::Ordering, Arc}};
 use tokio::sync::mpsc::*;
 
 pub fn initialize_server(paths: EwwPaths, action: Option<DaemonCommand>, should_daemonize: bool) -> Result<ForkResult> {
@@ -61,7 +59,10 @@ pub fn initialize_server(paths: EwwPaths, action: Option<DaemonCommand>, should_
     let (scope_graph_evt_send, mut scope_graph_evt_recv) = tokio::sync::mpsc::unbounded_channel();
 
     let mut app = app::App {
-        scope_graph: Rc::new(RefCell::new(ScopeGraph::from_global_vars(eww_config.generate_initial_state()?, scope_graph_evt_send))),
+        scope_graph: Rc::new(RefCell::new(ScopeGraph::from_global_vars(
+            eww_config.generate_initial_state()?,
+            scope_graph_evt_send,
+        ))),
         eww_config,
         open_windows: HashMap::new(),
         failed_windows: HashSet::new(),
