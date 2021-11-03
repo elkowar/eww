@@ -42,7 +42,7 @@ pub fn test_delete_scope() {
      VarName("global_1".to_string()) => DynVal::from("hi"),
     };
 
-    let (send, recv) = tokio::sync::mpsc::unbounded_channel();
+    let (send, _recv) = tokio::sync::mpsc::unbounded_channel();
 
     let mut scope_graph = ScopeGraph::from_global_vars(globals, send);
 
@@ -86,7 +86,7 @@ fn test_stuff() {
      VarName("global_2".to_string()) => DynVal::from("hey"),
     };
 
-    let (send, recv) = tokio::sync::mpsc::unbounded_channel();
+    let (send, _recv) = tokio::sync::mpsc::unbounded_channel();
 
     let mut scope_graph = ScopeGraph::from_global_vars(globals, send);
 

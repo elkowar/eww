@@ -1,10 +1,11 @@
 #![allow(clippy::option_map_unit_fn)]
-use super::{run_command, BuilderArgs};
+use super::{build_widget::BuilderArgs, run_command};
 use crate::{
-    enum_parse, error::DiagError, error_handling_ctx, eww_state, resolve_block, util::list_difference, widgets::widget_node,
+    def_widget, enum_parse, error::DiagError, error_handling_ctx, util::list_difference, widgets::build_widget::build_gtk_widget,
 };
 use anyhow::*;
 use codespan_reporting::diagnostic::Severity;
+use eww_shared_util::Spanned;
 use gdk::NotifyType;
 use glib;
 use gtk::{self, prelude::*};
@@ -19,7 +20,7 @@ use std::{
 };
 use yuck::{
     config::validate::ValidationError,
-    error::{AstError, AstResult, AstResultExt},
+    error::{AstError, AstResult},
     gen_diagnostic,
     parser::from_ast::FromAst,
 };
@@ -32,7 +33,7 @@ type EventHandlerId = Rc<RefCell<Option<gtk::glib::SignalHandlerId>>>;
 //// widget definitions
 
 pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::Widget> {
-    let gtk_widget = match bargs.widget.name.as_str() {
+    let gtk_widget = match bargs.widget_use.name.as_str() {
         "box" => build_gtk_box(bargs)?.upcast(),
         "centerbox" => build_center_box(bargs)?.upcast(),
         "eventbox" => build_gtk_event_box(bargs)?.upcast(),
@@ -50,11 +51,11 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::Widge
         "combo-box-text" => build_gtk_combo_box_text(bargs)?.upcast(),
         "checkbox" => build_gtk_checkbox(bargs)?.upcast(),
         "revealer" => build_gtk_revealer(bargs)?.upcast(),
-        "if-else" => build_if_else(bargs)?.upcast(),
+        //"if-else" => build_if_else(bargs)?.upcast(),
         _ => {
             return Err(AstError::ValidationError(ValidationError::UnknownWidget(
-                bargs.widget.name_span,
-                bargs.widget.name.to_string(),
+                bargs.widget_use.name_span,
+                bargs.widget_use.name.to_string(),
             ))
             .into())
         }
@@ -69,14 +70,14 @@ static DEPRECATED_ATTRS: Lazy<HashSet<&str>> =
 /// attributes that apply to all widgets
 /// @widget widget
 /// @desc these properties apply to _all_ widgets, and can be used anywhere!
-pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Widget) {
+pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Widget) -> Result<()> {
     let deprecated: HashSet<_> = DEPRECATED_ATTRS.to_owned();
     let contained_deprecated: Vec<_> = bargs.unhandled_attrs.drain_filter(|a| deprecated.contains(&a.0 as &str)).collect();
     if !contained_deprecated.is_empty() {
         let diag = error_handling_ctx::stringify_diagnostic(gen_diagnostic! {
             kind =  Severity::Error,
             msg = "Unsupported attributes provided",
-            label = bargs.widget.span => "Found in here",
+            label = bargs.widget_use.span => "Found in here",
             note = format!("The attribute(s) ({}) has/have been removed, as GTK does not support it consistently. Instead, use eventbox to wrap this widget and set the attribute there. See #251 (https://github.com/elkowar/eww/issues/251) for more details.", contained_deprecated.iter().join(", ")),
         }).unwrap();
         eprintln!("{}", diag);
@@ -84,19 +85,19 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
 
     let css_provider = gtk::CssProvider::new();
 
-    if let Ok(visible) =
-        bargs.widget.get_attr("visible").and_then(|v| bargs.eww_state.resolve_once(v)?.as_bool().map_err(|e| anyhow!(e)))
-    {
-        connect_first_map(gtk_widget, move |w| {
-            if visible {
-                w.show();
-            } else {
-                w.hide();
-            }
-        })
-    }
+    // TODORW implement visible
+    // if let Ok(visible) =
+    // bargs.widget_use.attrs.ast_optional("visible")?.and_then(|v| bargs.eww_state.resolve_once(v)?.as_bool().map_err(|e| anyhow!(e)))
+    //{
+    // connect_first_map(gtk_widget, move |w| {
+    // if visible {
+    // w.show();
+    //} else {
+    // w.hide();
+    //})
+    //}
 
-    resolve_block!(bargs, gtk_widget, {
+    def_widget!(bargs, _g, gtk_widget, {
         // @prop class - css class name
         prop(class: as_string) {
             let old_classes = gtk_widget.style_context().list_classes();
@@ -140,15 +141,12 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
             gtk_widget.style_context().add_provider(&css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION)
         },
     });
+    Ok(())
 }
 
-/// @widget !container
-pub(super) fn resolve_container_attrs(_bargs: &mut BuilderArgs, _gtk_widget: &gtk::Container) {
-    // resolve_block!(bargs, gtk_widget, {});
-}
 
 /// @widget !range
-pub(super) fn resolve_range_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Range) {
+pub(super) fn resolve_range_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Range) -> Result<()> {
     let on_change_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
     gtk_widget.set_sensitive(false);
 
@@ -163,7 +161,7 @@ pub(super) fn resolve_range_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Ran
         gtk::Inhibit(false)
     }));
 
-    resolve_block!(bargs, gtk_widget, {
+    def_widget!(bargs, _g, gtk_widget, {
         // @prop value - the value
         prop(value: as_f64) {
             if !*is_being_dragged.borrow() {
@@ -188,47 +186,47 @@ pub(super) fn resolve_range_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Ran
 
         }
     });
+    Ok(())
 }
 
 /// @widget !orientable
-pub(super) fn resolve_orientable_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Range) {
-    resolve_block!(bargs, gtk_widget, {
+pub(super) fn resolve_orientable_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Range) -> Result<()> {
+    def_widget!(bargs, _g, gtk_widget, {
         // @prop orientation - orientation of the widget. Possible values: $orientation
         prop(orientation: as_string) { gtk_widget.set_orientation(parse_orientation(&orientation)?) },
     });
+    Ok(())
 }
 
 // concrete widgets
 
-fn build_if_else(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
-    if bargs.widget.children.len() != 2 {
-        bail!("if-widget needs to have exactly two children, but had {}", bargs.widget.children.len());
-    }
-    let gtk_widget = gtk::Box::new(gtk::Orientation::Vertical, 0);
-    let (yes_widget, no_widget) = (bargs.widget.children[0].clone(), bargs.widget.children[1].clone());
+// fn build_if_else(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
+// if bargs.widget_use.children.len() != 2 {
+// bail!("if-widget needs to have exactly two children, but had {}", bargs.widget_use.children.len());
+//}
+// let gtk_widget = gtk::Box::new(gtk::Orientation::Vertical, 0);
+// let (yes_widget, no_widget) = (bargs.widget_use.children[0].clone(), bargs.widget.children[1].clone());
 
-    let yes_widget = yes_widget.render(bargs.eww_state, bargs.window_name, bargs.widget_definitions)?;
-    let no_widget = no_widget.render(bargs.eww_state, bargs.window_name, bargs.widget_definitions)?;
+// let yes_widget = yes_widget.render(bargs.eww_state, bargs.window_name, bargs.widget_definitions)?;
+// let no_widget = no_widget.render(bargs.eww_state, bargs.window_name, bargs.widget_definitions)?;
 
-    resolve_block!(bargs, gtk_widget, {
-        prop(cond: as_bool) {
-            gtk_widget.children().iter().for_each(|w| gtk_widget.remove(w));
-            if cond {
-                gtk_widget.add(&yes_widget)
-            } else {
-                gtk_widget.add(&no_widget)
-            }
-        }
-    });
-    Ok(gtk_widget)
-}
+// def_widget!(bargs, _g, gtk_widget, {
+// prop(cond: as_bool) {
+// gtk_widget.children().iter().for_each(|w| gtk_widget.remove(w));
+// if cond {
+// gtk_widget.add(&yes_widget)
+//} else {
+// gtk_widget.add(&no_widget)
+//});
+// Ok(gtk_widget)
+//}
 
 /// @widget combo-box-text
 /// @desc A combo box allowing the user to choose between several items.
 fn build_gtk_combo_box_text(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText> {
     let gtk_widget = gtk::ComboBoxText::new();
     let on_change_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
-    resolve_block!(bargs, gtk_widget, {
+    def_widget!(bargs, _g, gtk_widget, {
         // @prop items - Items that should be displayed in the combo box
         prop(items: as_vec) {
             gtk_widget.remove_all();
@@ -253,7 +251,7 @@ fn build_gtk_combo_box_text(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText
 /// @desc A widget that can expand and collapse, showing/hiding it's children.
 fn build_gtk_expander(bargs: &mut BuilderArgs) -> Result<gtk::Expander> {
     let gtk_widget = gtk::Expander::new(None);
-    resolve_block!(bargs, gtk_widget, {
+    def_widget!(bargs, _g, gtk_widget, {
         // @prop name - name of the expander
         prop(name: as_string) {gtk_widget.set_label(Some(&name));},
         // @prop expanded - sets if the tree is expanded
@@ -266,7 +264,7 @@ fn build_gtk_expander(bargs: &mut BuilderArgs) -> Result<gtk::Expander> {
 /// @desc A widget that can reveal a child with an animation.
 fn build_gtk_revealer(bargs: &mut BuilderArgs) -> Result<gtk::Revealer> {
     let gtk_widget = gtk::Revealer::new();
-    resolve_block!(bargs, gtk_widget, {
+    def_widget!(bargs, _g, gtk_widget, {
         // @prop transition - the name of the transition. Possible values: $transition
         prop(transition: as_string = "crossfade") { gtk_widget.set_transition_type(parse_transition(&transition)?); },
         // @prop reveal - sets if the child is revealed or not
@@ -282,7 +280,7 @@ fn build_gtk_revealer(bargs: &mut BuilderArgs) -> Result<gtk::Revealer> {
 fn build_gtk_checkbox(bargs: &mut BuilderArgs) -> Result<gtk::CheckButton> {
     let gtk_widget = gtk::CheckButton::new();
     let on_change_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
-    resolve_block!(bargs, gtk_widget, {
+    def_widget!(bargs, _g, gtk_widget, {
         // @prop timeout - timeout of the command
         // @prop onchecked - action (command) to be executed when checked by the user
         // @prop onunchecked - similar to onchecked but when the widget is unchecked
@@ -304,7 +302,7 @@ fn build_gtk_checkbox(bargs: &mut BuilderArgs) -> Result<gtk::CheckButton> {
 fn build_gtk_color_button(bargs: &mut BuilderArgs) -> Result<gtk::ColorButton> {
     let gtk_widget = gtk::ColorButtonBuilder::new().build();
     let on_change_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
-    resolve_block!(bargs, gtk_widget, {
+    def_widget!(bargs, _g, gtk_widget, {
         // @prop use-alpha - bool to whether or not use alpha
         prop(use_alpha: as_bool) {gtk_widget.set_use_alpha(use_alpha);},
 
@@ -328,7 +326,7 @@ fn build_gtk_color_button(bargs: &mut BuilderArgs) -> Result<gtk::ColorButton> {
 fn build_gtk_color_chooser(bargs: &mut BuilderArgs) -> Result<gtk::ColorChooserWidget> {
     let gtk_widget = gtk::ColorChooserWidget::new();
     let on_change_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
-    resolve_block!(bargs, gtk_widget, {
+    def_widget!(bargs, _g, gtk_widget, {
         // @prop use-alpha - bool to wether or not use alpha
         prop(use_alpha: as_bool) {gtk_widget.set_use_alpha(use_alpha);},
 
@@ -352,7 +350,7 @@ fn build_gtk_color_chooser(bargs: &mut BuilderArgs) -> Result<gtk::ColorChooserW
 fn build_gtk_scale(bargs: &mut BuilderArgs) -> Result<gtk::Scale> {
     let gtk_widget = gtk::Scale::new(gtk::Orientation::Horizontal, Some(&gtk::Adjustment::new(0.0, 0.0, 100.0, 1.0, 1.0, 1.0)));
 
-    resolve_block!(bargs, gtk_widget, {
+    def_widget!(bargs, _g, gtk_widget, {
         // @prop flipped - flip the direction
         prop(flipped: as_bool) { gtk_widget.set_inverted(flipped) },
 
@@ -373,7 +371,7 @@ fn build_gtk_scale(bargs: &mut BuilderArgs) -> Result<gtk::Scale> {
 /// @desc A progress bar
 fn build_gtk_progress(bargs: &mut BuilderArgs) -> Result<gtk::ProgressBar> {
     let gtk_widget = gtk::ProgressBar::new();
-    resolve_block!(bargs, gtk_widget, {
+    def_widget!(bargs, _g, gtk_widget, {
         // @prop flipped - flip the direction
         prop(flipped: as_bool) { gtk_widget.set_inverted(flipped) },
 
@@ -391,7 +389,7 @@ fn build_gtk_progress(bargs: &mut BuilderArgs) -> Result<gtk::ProgressBar> {
 fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
     let gtk_widget = gtk::Entry::new();
     let on_change_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
-    resolve_block!(bargs, gtk_widget, {
+    def_widget!(bargs, _g, gtk_widget, {
         // @prop value - the content of the text field
         prop(value: as_string) {
             gtk_widget.set_text(&value);
@@ -417,7 +415,7 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
     let gtk_widget = gtk::Button::new();
     let on_click_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
 
-    resolve_block!(bargs, gtk_widget, {
+    def_widget!(bargs, _g, gtk_widget, {
         // @prop onclick - a command that get's run when the button is clicked
         // @prop onmiddleclick - a command that get's run when the button is middleclicked
         // @prop onrightclick - a command that get's run when the button is rightclicked
@@ -451,7 +449,7 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
 /// @desc A widget displaying an image
 fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
     let gtk_widget = gtk::Image::new();
-    resolve_block!(bargs, gtk_widget, {
+    def_widget!(bargs, _g, gtk_widget, {
         // @prop path - path to the image file
         // @prop width - width of the image
         // @prop height - height of the image
@@ -472,7 +470,7 @@ fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
 /// @desc the main layout container
 fn build_gtk_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
     let gtk_widget = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-    resolve_block!(bargs, gtk_widget, {
+    def_widget!(bargs, _g, gtk_widget, {
         // @prop spacing - spacing between elements
         prop(spacing: as_i32 = 0) { gtk_widget.set_spacing(spacing) },
         // @prop orientation - orientation of the box. possible values: $orientation
@@ -487,17 +485,17 @@ fn build_gtk_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
 /// @desc a box that must contain exactly three children, which will be layed out at the start, center and end of the container.
 fn build_center_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
     let gtk_widget = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-    resolve_block!(bargs, gtk_widget, {
+    def_widget!(bargs, _g, gtk_widget, {
         // @prop orientation - orientation of the centerbox. possible values: $orientation
         prop(orientation: as_string) { gtk_widget.set_orientation(parse_orientation(&orientation)?) },
     });
 
-    match bargs.widget.children.len().cmp(&3) {
+    match bargs.widget_use.children.len().cmp(&3) {
         Ordering::Less => {
-            Err(DiagError::new(gen_diagnostic!("centerbox must contain exactly 3 elements", bargs.widget.span)).into())
+            Err(DiagError::new(gen_diagnostic!("centerbox must contain exactly 3 elements", bargs.widget_use.span)).into())
         }
         Ordering::Greater => {
-            let (_, additional_children) = bargs.widget.children.split_at(3);
+            let (_, additional_children) = bargs.widget_use.children.split_at(3);
             // we know that there is more than three children, so unwrapping on first and left here is fine.
             let first_span = additional_children.first().unwrap().span();
             let last_span = additional_children.last().unwrap().span();
@@ -508,11 +506,15 @@ fn build_center_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
             .into())
         }
         Ordering::Equal => {
-            let mut children = bargs
-                .widget
-                .children
-                .iter()
-                .map(|child| child.render(bargs.eww_state, bargs.window_name, bargs.widget_definitions));
+            let mut children = bargs.widget_use.children.iter().map(|child| {
+                build_gtk_widget(
+                    bargs.scope_graph,
+                    bargs.widget_defs.clone(),
+                    bargs.calling_scope,
+                    child.clone(),
+                    bargs.custom_widget_invocation.clone(),
+                )
+            });
             // we know that we have exactly three children here, so we can unwrap here.
             let (first, center, end) = children.next_tuple().unwrap();
             let (first, center, end) = (first?, center?, end?);
@@ -553,7 +555,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
         gtk::Inhibit(false)
     });
 
-    resolve_block!(bargs, gtk_widget, {
+    def_widget!(bargs, _g, gtk_widget, {
         // @prop timeout - timeout of the command
         // @prop onscroll - event to execute when the user scrolls with the mouse over the widget. The placeholder `{}` used in the command will be replaced with either `up` or `down`.
         prop(timeout: as_duration = Duration::from_millis(200), onscroll: as_string) {
@@ -637,7 +639,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
 fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
     let gtk_widget = gtk::Label::new(None);
 
-    resolve_block!(bargs, gtk_widget, {
+    def_widget!(bargs, _g, gtk_widget, {
         // @prop text - the text to display
         // @prop limit-width - maximum count of characters to display
         // @prop show_truncated - show whether the text was truncated
@@ -670,19 +672,20 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
     gtk_widget.set_widget_name("literal");
 
     // TODO these clones here are dumdum
-    let window_name = bargs.window_name.to_string();
-    let widget_definitions = bargs.widget_definitions.clone();
-    let literal_use_span = bargs.widget.span;
+    let literal_use_span = bargs.widget_use.span;
 
     // the file id the literal-content has been stored under, for error reporting.
     let literal_file_id: Rc<RefCell<Option<usize>>> = Rc::new(RefCell::new(None));
 
-    resolve_block!(bargs, gtk_widget, {
+    let widget_defs = bargs.widget_defs.clone();
+    let calling_scope = bargs.calling_scope.clone();
+
+    def_widget!(bargs, scope_graph, gtk_widget, {
         // @prop content - inline yuck that will be rendered as a widget.
         prop(content: as_string) {
             gtk_widget.children().iter().for_each(|w| gtk_widget.remove(w));
             if !content.is_empty() {
-                let widget_node_result: AstResult<_> = try {
+                let content_widget_use: AstResult<_> = try {
                     let ast = {
                         let mut yuck_files = error_handling_ctx::YUCK_FILES.write().unwrap();
                         let (span, asts) = yuck_files.load_str("<literal-content>".to_string(), content)?;
@@ -692,12 +695,12 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
                         yuck::parser::require_single_toplevel(span, asts)?
                     };
 
-                    let content_widget_use = yuck::config::widget_use::WidgetUse::from_ast(ast)?;
-                    widget_node::generate_generic_widget_node(&widget_definitions, &HashMap::new(), content_widget_use)?
+                    yuck::config::widget_use::WidgetUse::from_ast(ast)?
                 };
+                let content_widget_use = content_widget_use?;
 
-                let widget_node = widget_node_result.context_label(literal_use_span, "Error in the literal used here")?;
-                let child_widget = widget_node.render(&mut eww_state::EwwState::default(), &window_name, &widget_definitions)
+                // TODO a literal should create a new scope, that I'm not even sure should inherit from root
+                let child_widget = build_gtk_widget(scope_graph, widget_defs.clone(), calling_scope, content_widget_use, None)
                     .map_err(|e| AstError::ErrorContext {
                         label_span: literal_use_span,
                         context: "Error in the literal used here".to_string(),
@@ -716,7 +719,7 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
 fn build_gtk_calendar(bargs: &mut BuilderArgs) -> Result<gtk::Calendar> {
     let gtk_widget = gtk::Calendar::new();
     let on_click_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
-    resolve_block!(bargs, gtk_widget, {
+    def_widget!(bargs, _g, gtk_widget, {
         // @prop day - the selected day
         prop(day: as_f64) { gtk_widget.set_day(day as i32) },
         // @prop month - the selected month
