@@ -93,17 +93,9 @@ macro_rules! def_widget {
     }
 }
 
-/// TODORW update this comment to make sense
-/// build a [`gtk::Widget`] out of a [`element::WidgetUse`] that uses a
-/// **builtin widget**. User defined widgets are handled by
-/// [widget_use_to_gtk_widget].
-///
-/// Also registers all the necessary handlers in the `eww_state`.
-///
-/// This may return `Err` in case there was an actual error while parsing or
-/// resolving the widget, Or `Ok(None)` if the widget_use just didn't match any
-/// widget name.
-
+/// Build a [`gtk::Widget`] out of a [`WidgetUse`].
+/// This will set up scopes in the [`ScopeGraph`], register all the listeners there,
+/// and recursively generate all the widgets and child widgets.
 pub fn build_gtk_widget(
     graph: &mut ScopeGraph,
     widget_defs: Rc<HashMap<String, WidgetDefinition>>,
@@ -131,51 +123,72 @@ pub fn build_gtk_widget(
         )?;
 
         let scope_graph_sender = graph.event_sender.clone();
+
+        // TODORW TODO figure out if we actually want unmap here.
+        // this WILL currently conflict with the :visible attribute, as that uses mapping of widgets as well
         gtk_widget.connect_unmap(move |_| {
             let _ = scope_graph_sender.send(ScopeGraphEvent::RemoveScope(new_scope_index));
         });
         Ok(gtk_widget)
     } else {
-        let mut bargs = BuilderArgs {
-            unhandled_attrs: widget_use.attrs.attrs.keys().cloned().collect(),
-            scope_graph: graph,
-            calling_scope,
-            widget_use,
-            widget_defs,
-            custom_widget_invocation,
-        };
-        let gtk_widget = widget_definitions::widget_to_gtk_widget(&mut bargs)?;
-
-        if let Some(gtk_container) = gtk_widget.dynamic_cast_ref::<gtk::Container>() {
-            populate_widget_children(
-                bargs.scope_graph,
-                bargs.widget_defs.clone(),
-                calling_scope,
-                gtk_container,
-                bargs.widget_use.children.clone(),
-                bargs.custom_widget_invocation.clone(),
-            )?;
-        }
-
-        if let Some(w) = gtk_widget.dynamic_cast_ref() {
-            resolve_range_attrs(&mut bargs, w)?;
-        }
-        if let Some(w) = gtk_widget.dynamic_cast_ref() {
-            resolve_orientable_attrs(&mut bargs, w)?;
-        };
-        resolve_widget_attrs(&mut bargs, &gtk_widget)?;
-
-        if !bargs.unhandled_attrs.is_empty() {
-            let diag = error_handling_ctx::stringify_diagnostic(gen_diagnostic! {
-                kind =  Severity::Warning,
-                msg = format!("Unknown attributes {}", bargs.unhandled_attrs.iter().map(|x| x.to_string()).join(", ")),
-                label = bargs.widget_use.span => "Found in here"
-            })?;
-            eprintln!("{}", diag);
-        }
-
-        Ok(gtk_widget)
+        build_builtin_gtk_widget(graph, widget_defs, calling_scope, widget_use, custom_widget_invocation)
     }
+}
+
+/// build a [`gtk::Widget`] out of a [`WidgetUse`] that uses a
+/// **builtin widget**. User defined widgets are handled by
+/// [widget_use_to_gtk_widget].
+///
+/// Also registers all the necessary scopes in the scope graph
+///
+/// This may return `Err` in case there was an actual error while parsing or
+/// resolving the widget, Or `Ok(None)` if the widget_use just didn't match any
+/// widget name.
+fn build_builtin_gtk_widget(
+    graph: &mut ScopeGraph,
+    widget_defs: Rc<HashMap<String, WidgetDefinition>>,
+    calling_scope: ScopeIndex,
+    widget_use: WidgetUse,
+    custom_widget_invocation: Option<Rc<CustomWidgetInvocation>>,
+) -> Result<gtk::Widget> {
+    let mut bargs = BuilderArgs {
+        unhandled_attrs: widget_use.attrs.attrs.keys().cloned().collect(),
+        scope_graph: graph,
+        calling_scope,
+        widget_use,
+        widget_defs,
+        custom_widget_invocation,
+    };
+    let gtk_widget = widget_definitions::widget_use_to_gtk_widget(&mut bargs)?;
+
+    if let Some(gtk_container) = gtk_widget.dynamic_cast_ref::<gtk::Container>() {
+        populate_widget_children(
+            bargs.scope_graph,
+            bargs.widget_defs.clone(),
+            calling_scope,
+            gtk_container,
+            bargs.widget_use.children.clone(),
+            bargs.custom_widget_invocation.clone(),
+        )?;
+    }
+
+    if let Some(w) = gtk_widget.dynamic_cast_ref() {
+        resolve_range_attrs(&mut bargs, w)?;
+    }
+    if let Some(w) = gtk_widget.dynamic_cast_ref() {
+        resolve_orientable_attrs(&mut bargs, w)?;
+    };
+    resolve_widget_attrs(&mut bargs, &gtk_widget)?;
+
+    if !bargs.unhandled_attrs.is_empty() {
+        let diag = error_handling_ctx::stringify_diagnostic(gen_diagnostic! {
+            kind =  Severity::Warning,
+            msg = format!("Unknown attributes {}", bargs.unhandled_attrs.iter().map(|x| x.to_string()).join(", ")),
+            label = bargs.widget_use.span => "Found in here"
+        })?;
+        eprintln!("{}", diag);
+    }
+    Ok(gtk_widget)
 }
 
 /// If a [gtk widget](gtk_container) can take children (→ it is a `gtk::Container`) we need to add the provided [widget_use_children]
@@ -219,18 +232,6 @@ fn build_gtk_children(
         // This should be a custom gtk::Bin subclass,..
         let child_container = gtk::Box::new(Orientation::Horizontal, 0);
         gtk_container.set_child(Some(&child_container));
-
-        {
-            let nth_current = tree.evaluate_simplexpr_in_scope(calling_scope, &nth)?.as_i32()?;
-            let nth_child_widget_use = custom_widget_invocation
-                .children
-                .get(nth_current as usize)
-                .with_context(|| format!("No child at index {}", nth_current))?;
-            let current_child_widget =
-                build_gtk_widget(tree, widget_defs.clone(), custom_widget_invocation.scope, nth_child_widget_use.clone(), None)?;
-
-            child_container.add(&current_child_widget);
-        }
 
         tree.register_listener(
             calling_scope,

@@ -3,11 +3,10 @@ use crate::{
     daemon_response::DaemonResponseSender,
     display_backend, error_handling_ctx,
     gtk::prelude::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt},
-    script_var_handler::*,
+    script_var_handler::ScriptVarHandlerHandle,
     state::scope_graph::{ScopeGraph, ScopeIndex},
-    EwwPaths,
+    EwwPaths, *,
 };
-use anyhow::*;
 use debug_cell::RefCell;
 use debug_stub_derive::*;
 use eww_shared_util::VarName;
@@ -326,10 +325,6 @@ impl App {
             // TODO maybe this could be handled by having a track_newly_used_variables function in the scope tree?
             // TODO: Only the newly referenced vars should be started. This isnt' a big deal, but it's less performant than it could be
             for used_var in self.scope_graph.borrow().variables_used_in_self_or_descendants_of(eww_window.scope_index) {
-                // TODORW What i really need is to actually look at the widget hierarchy (widget "caller" and "callees"?)
-                // to figure out which scopes and variables are used within the children of a given scope (children as in gtk widget hierarchy, not as in inheritance)
-                // Word choice: Ancestor & Descendant
-                dbg!(&used_var);
                 if let Ok(script_var) = dbg!(self.eww_config.get_script_var(&used_var)) {
                     self.script_var_handler.add(script_var.clone());
                 }
@@ -349,17 +344,15 @@ impl App {
 
     /// Load the given configuration, reloading all script-vars and attempting to reopen all windows that where opened.
     pub fn load_config(&mut self, config: config::EwwConfig) -> Result<()> {
-        // TODO the reload procedure is kinda bad.
-
         log::info!("Reloading windows");
-        // refresh script-var poll stuff
+        // refresh script-var poll stuff. Would be reasonable to actually remove all script_vars here and fully reinitialize, but ehh
         self.script_var_handler.stop_all();
+        self.script_var_handler = script_var_handler::init(self.app_evt_send.clone());
 
         log::trace!("loading config: {:#?}", config);
 
         self.eww_config = config;
-        // TODORW
-        // self.eww_state.clear_all_window_states();
+        self.scope_graph.borrow_mut().clear(self.eww_config.generate_initial_state()?);
 
         let window_names: Vec<String> =
             self.open_windows.keys().cloned().chain(self.failed_windows.iter().cloned()).dedup().collect();
