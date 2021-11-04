@@ -67,10 +67,11 @@ impl ObjectImpl for CircProgPriv {
     //        self.parent_constructed(obj);
     //    }
 
-    fn set_property(&self, _obj: &Self::Type, _id: usize, value: &glib::Value, pspec: &glib::ParamSpec) {
+    fn set_property(&self, obj: &Self::Type, _id: usize, value: &glib::Value, pspec: &glib::ParamSpec) {
         match pspec.name() {
             "value" => {
                 self.value.replace(value.get().unwrap());
+                obj.queue_draw(); // Queue a draw call with the updated value
             }
             "thickness" => {
                 self.thickness.replace(value.get().unwrap());
