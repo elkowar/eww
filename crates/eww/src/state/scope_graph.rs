@@ -11,7 +11,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use super::scope::{Listener, Scope};
 
 #[derive(Hash, Eq, PartialEq, Copy, Clone)]
-pub struct ScopeIndex(pub u32);
+pub struct ScopeIndex(pub usize);
 
 impl std::fmt::Debug for ScopeIndex {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
