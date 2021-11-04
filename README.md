@@ -40,6 +40,9 @@ Additionally, a couple _amazing_ people have started to work on an
 * [Setup by adi1090x](https://github.com/adi1090x/widgets)
 ![Nordic](https://raw.githubusercontent.com/adi1090x/widgets/main/previews/nordic.png)
 
+* [Setups by iSparsh](https://github.com/iSparsh/gross)
+![iSparsh-gross](https://user-images.githubusercontent.com/57213270/140309158-e65cbc1d-f3a8-4aec-848c-eef800de3364.png)
+
 ## Contribewwting
 
 If you want to contribute anything, like adding new widgets, features or subcommands (Including sample configs), you should definitely do so.
