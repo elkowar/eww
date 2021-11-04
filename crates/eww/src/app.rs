@@ -263,23 +263,17 @@ impl App {
     }
 
     fn close_window(&mut self, window_name: &String) -> Result<()> {
-        // TODORW verify that this fully works
-        // TODORW the scope tree stuff here could also be done by just stopping all scripts that are unused - even if they already where unused before, that doesn't really matter.
-
         let eww_window = self
             .open_windows
             .remove(window_name)
             .with_context(|| format!("Tried to close window named '{}', but no such window was open", window_name))?;
 
-        let variables_used_in_window = self.scope_graph.borrow().variables_used_in_self_or_descendants_of(eww_window.scope_index);
         self.scope_graph.borrow_mut().remove_scope(eww_window.scope_index);
 
         eww_window.close();
 
-        let still_used_variables = self.scope_graph.borrow().currently_used_globals();
-
-        let now_unused_variables = variables_used_in_window.difference(&still_used_variables);
-        for unused_var in now_unused_variables {
+        let unused_variables = self.scope_graph.borrow().currently_unused_globals();
+        for unused_var in unused_variables {
             log::debug!("stopping for {}", &unused_var);
             self.script_var_handler.stop_for_variable(unused_var.clone());
         }
@@ -331,7 +325,7 @@ impl App {
             // initialize script var handlers for variables that where not used before opening this window.
             // TODO maybe this could be handled by having a track_newly_used_variables function in the scope tree?
             for used_var in self.scope_graph.borrow().variables_used_in_self_or_descendants_of(eww_window.scope_index) {
-                if let Ok(script_var) = dbg!(self.eww_config.get_script_var(&used_var)) {
+                if let Ok(script_var) = self.eww_config.get_script_var(&used_var) {
                     self.script_var_handler.add(script_var.clone());
                 }
             }
