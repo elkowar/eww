@@ -203,29 +203,6 @@ pub(super) fn resolve_orientable_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk
 
 // concrete widgets
 
-// TODORW reimplement if else using some more generic logic that children also uses, maybe?
-
-// fn build_if_else(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
-// if bargs.widget_use.children.len() != 2 {
-// bail!("if-widget needs to have exactly two children, but had {}", bargs.widget_use.children.len());
-//}
-// let gtk_widget = gtk::Box::new(gtk::Orientation::Vertical, 0);
-// let (yes_widget, no_widget) = (bargs.widget_use.children[0].clone(), bargs.widget.children[1].clone());
-
-// let yes_widget = yes_widget.render(bargs.eww_state, bargs.window_name, bargs.widget_definitions)?;
-// let no_widget = no_widget.render(bargs.eww_state, bargs.window_name, bargs.widget_definitions)?;
-
-// def_widget!(bargs, _g, gtk_widget, {
-// prop(cond: as_bool) {
-// gtk_widget.children().iter().for_each(|w| gtk_widget.remove(w));
-// if cond {
-// gtk_widget.add(&yes_widget)
-//} else {
-// gtk_widget.add(&no_widget)
-//});
-// Ok(gtk_widget)
-//}
-
 /// @widget combo-box-text
 /// @desc A combo box allowing the user to choose between several items.
 fn build_gtk_combo_box_text(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText> {

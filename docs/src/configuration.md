@@ -129,8 +129,6 @@ As you may have noticed, we are using a couple predefined widgets here. These ar
 
 
 ### Rendering children in your widgets
-(Note that this feature is currently considered **unstable**. The API might change, and there might be bugs here. If you encounter any, please do report them.)
-
 As your configuration grows, you might want to improve the structure of you config by factoring out functionality into basic reusable widgets.
 Eww allows you to create custom wrapper widgets that can themselves take children, just like some of the built-in widgets like `box` or `button` can.
 For this, use the `children` placeholder:
@@ -154,10 +152,6 @@ You can also create more complex structure by referring to specific children wit
     (box :class "first" (children :nth 0))
     (box :class "second" (children :nth 1))))
 ```
-**NOTE**: It is currently not possible to dynamically change which child is shown.
-This means that `nth` needs to be set to a static value, and cannot refer to a variable.
-
-
 
 ## Adding dynamic content
 
