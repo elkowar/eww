@@ -1,4 +1,4 @@
-mod inheritance_map;
+mod one_to_n_elements_map;
 pub mod scope;
 pub mod scope_graph;
 

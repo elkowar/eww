@@ -86,6 +86,10 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
 
     let css_provider = gtk::CssProvider::new();
 
+
+    // TODORW
+    // TODO visible currently breaks the scope cleanup logic, as it uses unmapping which scope cleanup reacts to to remove scopes.
+    // The fix for this would be to make this use a similar mechanism as children uses instead
     let visible_expr = bargs.widget_use.attrs.attrs.get("visible").map(|x| x.value.as_simplexpr()).transpose()?;
     if let Some(visible_expr) = visible_expr {
         let visible = bargs

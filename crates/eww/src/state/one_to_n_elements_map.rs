@@ -1,16 +1,14 @@
 use anyhow::*;
 use std::collections::{HashMap, HashSet};
 
-use super::scope_graph::ScopeIndex;
-
 /// A map that represents a structure of a 1-n relationship with edges that contain data.
 #[derive(Debug)]
-pub struct OneToNElementsMap<Data> {
-    pub(super) child_to_parent: HashMap<ScopeIndex, (ScopeIndex, Data)>,
-    pub(super) parent_to_children: HashMap<ScopeIndex, HashSet<ScopeIndex>>,
+pub struct OneToNElementsMap<I, T> {
+    pub(super) child_to_parent: HashMap<I, (I, T)>,
+    pub(super) parent_to_children: HashMap<I, HashSet<I>>,
 }
 
-impl<Data> OneToNElementsMap<Data> {
+impl<I: Copy + std::hash::Hash + std::cmp::Eq + std::fmt::Debug, T> OneToNElementsMap<I, T> {
     pub fn new() -> Self {
         OneToNElementsMap { child_to_parent: HashMap::new(), parent_to_children: HashMap::new() }
     }
@@ -20,7 +18,7 @@ impl<Data> OneToNElementsMap<Data> {
         self.parent_to_children.clear()
     }
 
-    pub fn insert(&mut self, child: ScopeIndex, parent: ScopeIndex, edge: Data) -> Result<()> {
+    pub fn insert(&mut self, child: I, parent: I, edge: T) -> Result<()> {
         if self.child_to_parent.contains_key(&child) {
             bail!("this child already has a parent");
         }
@@ -29,7 +27,7 @@ impl<Data> OneToNElementsMap<Data> {
         Ok(())
     }
 
-    pub fn remove(&mut self, scope: ScopeIndex) {
+    pub fn remove(&mut self, scope: I) {
         if let Some(children) = self.parent_to_children.remove(&scope) {
             for child in &children {
                 self.child_to_parent.remove(child);
@@ -42,20 +40,20 @@ impl<Data> OneToNElementsMap<Data> {
         }
     }
 
-    pub fn get_parent_of(&self, index: ScopeIndex) -> Option<ScopeIndex> {
+    pub fn get_parent_of(&self, index: I) -> Option<I> {
         self.child_to_parent.get(&index).map(|(parent, _)| *parent)
     }
 
-    pub fn get_parent_edge_mut(&mut self, index: ScopeIndex) -> Option<&mut (ScopeIndex, Data)> {
+    pub fn get_parent_edge_mut(&mut self, index: I) -> Option<&mut (I, T)> {
         self.child_to_parent.get_mut(&index)
     }
 
-    pub fn get_children_of(&self, index: ScopeIndex) -> HashSet<ScopeIndex> {
+    pub fn get_children_of(&self, index: I) -> HashSet<I> {
         self.parent_to_children.get(&index).cloned().unwrap_or_default()
     }
 
     /// Return the children and edges to those children of a given scope
-    pub fn child_scope_edges(&self, index: ScopeIndex) -> Vec<(ScopeIndex, &Data)> {
+    pub fn get_children_edges(&self, index: I) -> Vec<(I, &T)> {
         let mut result = Vec::new();
         if let Some(children) = self.parent_to_children.get(&index) {
             for child_scope in children {
