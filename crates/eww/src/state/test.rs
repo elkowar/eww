@@ -72,7 +72,6 @@ pub fn test_delete_scope() {
     scope_graph.handle_scope_graph_event(ScopeGraphEvent::RemoveScope(widget_bar_scope));
 
     scope_graph.validate().unwrap();
-    dbg!(&scope_graph);
 
     println!("{}", scope_graph.visualize());
 
