@@ -86,7 +86,8 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
 
     let css_provider = gtk::CssProvider::new();
 
-    if let Some(visible_expr) = bargs.widget_use.attrs.ast_optional("visible")? {
+    let visible_expr = bargs.widget_use.attrs.attrs.get("visible").map(|x| x.value.as_simplexpr()).transpose()?;
+    if let Some(visible_expr) = visible_expr {
         let visible = bargs
             .scope_graph
             .evaluate_simplexpr_in_scope(bargs.calling_scope, &visible_expr)?
@@ -135,7 +136,6 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
         },
         // @prop visible - visibility of the widget
         prop(visible: as_bool = true) {
-            // TODO how do i call this only after the widget has been mapped? this is actually an issue,....
             if visible { gtk_widget.show(); } else { gtk_widget.hide(); }
         },
         // @prop style - inline css style applied to the widget

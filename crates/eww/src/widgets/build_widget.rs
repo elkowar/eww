@@ -3,7 +3,7 @@ use codespan_reporting::diagnostic::Severity;
 use eww_shared_util::AttrName;
 use gdk::prelude::Cast;
 use gtk::{
-    prelude::{ContainerExt, WidgetExt},
+    prelude::{ContainerExt, WidgetExt, WidgetExtManual},
     Orientation,
 };
 use itertools::Itertools;
@@ -78,8 +78,7 @@ pub fn build_gtk_widget(
 
         let scope_graph_sender = graph.event_sender.clone();
 
-        // TODORW figure out if this fully works, and if not, why not
-        gtk_widget.connect_destroy(move |_| {
+        gtk_widget.connect_unmap(move |_| {
             let _ = scope_graph_sender.send(ScopeGraphEvent::RemoveScope(new_scope_index));
         });
         Ok(gtk_widget)
@@ -184,7 +183,7 @@ fn build_gtk_children(
     if let Some(nth) = widget_use.attrs.ast_optional::<SimplExpr>("nth")? {
         // This should be a custom gtk::Bin subclass,..
         let child_container = gtk::Box::new(Orientation::Horizontal, 0);
-        gtk_container.set_child(Some(&child_container));
+        gtk_container.add(&child_container);
 
         tree.register_listener(
             calling_scope,
