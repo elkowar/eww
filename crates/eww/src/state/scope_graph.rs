@@ -9,7 +9,7 @@ use simplexpr::{dynval::DynVal, SimplExpr};
 use tokio::sync::mpsc::UnboundedSender;
 
 use super::{
-    inheritance_map::ScopeInheritanceMap,
+    inheritance_map::OneToNElementsMap,
     scope::{Listener, Scope},
 };
 
@@ -171,7 +171,11 @@ impl ScopeGraph {
         for (attr_name, expression) in attributes {
             let expression_var_refs = expression.collect_var_refs();
             if !expression_var_refs.is_empty() {
-                self.graph.add_provides_attr_edge(calling_scope, new_scope_index, ProvidesAttrEdge { attr_name, expression });
+                self.graph.register_scope_provides_attr(
+                    calling_scope,
+                    new_scope_index,
+                    ProvidesAttrEdge { attr_name, expression },
+                );
                 for used_variable in expression_var_refs {
                     self.register_scope_referencing_variable(calling_scope, used_variable)?;
                 }
@@ -240,7 +244,7 @@ impl ScopeGraph {
         // Update scopes that reference the changed variable in their attribute expressions.
         // TODORW very much not sure if this actually belongs here or not, lol
         let edges: Vec<(ScopeIndex, ProvidesAttrEdge)> =
-            self.graph.scopes_getting_attr_using(scope_index, updated_var).into_iter().map(|(a, b)| (*a, b.clone())).collect();
+            self.graph.scopes_getting_attr_using(scope_index, updated_var).into_iter().map(|(a, b)| (a, b.clone())).collect();
         for (referencing_scope, edge) in edges {
             let updated_attr_value = self.evaluate_simplexpr_in_scope(scope_index, &edge.expression)?;
             self.update_value(referencing_scope, edge.attr_name.to_var_name_ref(), updated_attr_value)?;
@@ -286,10 +290,8 @@ impl ScopeGraph {
     pub fn variables_used_in_self_or_descendants_of(&self, index: ScopeIndex) -> HashSet<VarName> {
         if let Some(scope) = self.scope_at(index) {
             let mut variables: HashSet<VarName> = scope.listeners.keys().map(|x| x.clone()).collect();
-            if let Some(descendants) = self.graph.descendants.get(&index) {
-                for descendant in descendants {
-                    variables.extend(self.variables_used_in_self_or_descendants_of(*descendant).into_iter());
-                }
+            for (descendant, _) in self.graph.hierarchy_edges.child_scope_edges(index) {
+                variables.extend(self.variables_used_in_self_or_descendants_of(descendant).into_iter());
             }
             variables
         } else {
@@ -314,16 +316,8 @@ impl ScopeGraph {
 struct ScopeGraphInternal {
     last_index: ScopeIndex,
     scopes: HashMap<ScopeIndex, Scope>,
-    /// K: calling scope
-    /// V: map of scopes that are getting attributes form that scope to a list of edges with attributes.
-    /// TODORW it should be possible to combine this with the descendants, as all provides_attr_edges are also gonna go to descendants. do that maybe.
-    provides_attr_edges: HashMap<ScopeIndex, HashMap<ScopeIndex, Vec<ProvidesAttrEdge>>>,
-    inheritance_edges: ScopeInheritanceMap,
-
-    // TODO there is no single source of truth for the ancestor value currently, as it's stored both in the scope and graph.
-    /// map that maps ancestors to their descendants. Descendants are those scopes that are called from / shown within another scope
-    /// i.e. they would get removed if the ancestor scope would get removed.
-    descendants: HashMap<ScopeIndex, HashSet<ScopeIndex>>,
+    hierarchy_edges: OneToNElementsMap<Vec<ProvidesAttrEdge>>,
+    inheritance_edges: OneToNElementsMap<InheritsEdge>,
 }
 
 impl ScopeGraphInternal {
@@ -331,23 +325,21 @@ impl ScopeGraphInternal {
         Self {
             last_index: ScopeIndex(0),
             scopes: HashMap::new(),
-            inheritance_edges: ScopeInheritanceMap::new(),
-            provides_attr_edges: HashMap::new(),
-            descendants: HashMap::new(),
+            inheritance_edges: OneToNElementsMap::new(),
+            hierarchy_edges: OneToNElementsMap::new(),
         }
     }
 
     fn clear(&mut self) {
         self.scopes.clear();
-        self.provides_attr_edges.clear();
         self.inheritance_edges.clear();
-        self.descendants.clear();
+        self.hierarchy_edges.clear();
     }
 
     fn add_scope(&mut self, scope: Scope) -> ScopeIndex {
         let idx = self.last_index;
         if let Some(ancestor) = scope.ancestor {
-            self.descendants.entry(ancestor).or_default().insert(idx);
+            let _ = self.hierarchy_edges.insert(idx, ancestor, Vec::new());
         }
         self.scopes.insert(idx, scope);
         self.last_index.advance();
@@ -355,30 +347,30 @@ impl ScopeGraphInternal {
     }
 
     fn remove_scope(&mut self, index: ScopeIndex) {
-        if let Some(scope) = self.scopes.remove(&index) {
-            if let Some(descendants_of_ancestor) = scope.ancestor.and_then(|ancestor| self.descendants.get_mut(&ancestor)) {
-                descendants_of_ancestor.remove(&index);
-            }
-        }
-        self.inheritance_edges.remove(index);
-        if let Some(descendants) = self.descendants.remove(&index) {
+        self.scopes.remove(&index);
+        if let Some(descendants) = self.hierarchy_edges.parent_to_children.get(&index).cloned() {
             for descendant in descendants {
                 // TODO should this actually yeet all nested scopes?
                 self.remove_scope(descendant);
             }
         }
-        for edge in self.provides_attr_edges.values_mut() {
-            edge.remove(&index);
-        }
-        self.provides_attr_edges.remove(&index);
+        self.hierarchy_edges.remove(index);
+        self.inheritance_edges.remove(index);
     }
 
     fn add_inherits_edge(&mut self, a: ScopeIndex, b: ScopeIndex, edge: InheritsEdge) {
         self.inheritance_edges.insert(a, b, edge).unwrap();
     }
 
-    fn add_provides_attr_edge(&mut self, a: ScopeIndex, b: ScopeIndex, edge: ProvidesAttrEdge) {
-        self.provides_attr_edges.entry(a).or_default().entry(b).or_default().push(edge);
+    fn register_scope_provides_attr(&mut self, a: ScopeIndex, b: ScopeIndex, edge: ProvidesAttrEdge) {
+        if let Some((parent_scope, edges)) = self.hierarchy_edges.get_parent_edge_mut(b) {
+            assert_eq!(*parent_scope, a, "Hierarchy map had a different parent for a given scope than what was given here");
+            edges.push(edge);
+        } else {
+            log::error!(
+                "Tried to register a provided attribute edge between two scopes that are not connected in the hierarchy map"
+            );
+        }
     }
 
     fn scope_at(&self, index: ScopeIndex) -> Option<&Scope> {
@@ -403,19 +395,13 @@ impl ScopeGraphInternal {
     }
 
     /// List the scopes that are provided some attribute referencing [var_name] by the given scope [index].
-    fn scopes_getting_attr_using(&self, index: ScopeIndex, var_name: &VarName) -> Vec<(&ScopeIndex, &ProvidesAttrEdge)> {
-        // this might need to include child scopes?
-        // TODORW this might be th part thats broken rn, specifically during cleanup :thonk:
-        let edges = if let Some(edge_mappings) = self.provides_attr_edges.get(&index) {
-            edge_mappings
-                .iter()
-                .flat_map(|(k, v)| v.into_iter().map(move |edge| (k, edge)))
-                .filter(|(_, edge)| edge.expression.references_var(&var_name))
-                .collect()
-        } else {
-            Vec::new()
-        };
-        edges
+    fn scopes_getting_attr_using(&self, index: ScopeIndex, var_name: &VarName) -> Vec<(ScopeIndex, &ProvidesAttrEdge)> {
+        let edge_mappings = self.hierarchy_edges.child_scope_edges(index);
+        edge_mappings
+            .iter()
+            .flat_map(|(k, v)| v.into_iter().map(move |edge| (k.clone(), edge)))
+            .filter(|(_, edge)| edge.expression.references_var(&var_name))
+            .collect()
     }
 
     fn add_reference_to_inherits_edge(
@@ -445,13 +431,29 @@ impl ScopeGraphInternal {
     }
 
     pub fn validate(&self) -> Result<()> {
-        for (scope, edges) in &self.provides_attr_edges {
-            if !self.scopes.contains_key(&scope) {
-                bail!("provides_attr_edges keys lists scope that is not in graph");
+        for (child_scope, (parent_scope, _edge)) in &self.hierarchy_edges.child_to_parent {
+            if !self.scopes.contains_key(&child_scope) {
+                bail!("hierarchy_edges lists key that is not in graph");
             }
-            for (scope, _edges) in edges {
-                if !self.scopes.contains_key(&scope) {
-                    bail!("provides_attr_edges targets lists scope that is not in graph");
+            if !self.scopes.contains_key(&parent_scope) {
+                bail!("hierarchy_edges values lists scope that is not in graph");
+            }
+        }
+
+        for (parent_scope, child_scopes) in &self.hierarchy_edges.parent_to_children {
+            if !self.scopes.contains_key(&parent_scope) {
+                bail!("hierarchy_edges lists key that is not in graph");
+            }
+            for child_scope in child_scopes {
+                if self
+                    .hierarchy_edges
+                    .child_to_parent
+                    .get(child_scope)
+                    .context("found edge in child scopes that was not reflected in hierarchy_edges")?
+                    .0
+                    != *parent_scope
+                {
+                    bail!("Non-matching mapping in child_scopes vs. hierarchy_edges");
                 }
             }
         }
@@ -516,16 +518,14 @@ impl ScopeGraphInternal {
             }
         }
 
-        for (left, edges) in &self.provides_attr_edges {
-            for (right, edges) in edges.iter() {
-                for edge in edges {
-                    output.push_str(&format!(
-                        "\"{:?}\" -> \"{:?}\" [color = \"red\", label = \"{}\"]\n",
-                        left,
-                        right,
-                        format!(":{} `{:?}`", edge.attr_name, edge.expression).replace("\"", "'")
-                    ));
-                }
+        for (child, (parent, edges)) in &self.hierarchy_edges.child_to_parent {
+            for edge in edges {
+                output.push_str(&format!(
+                    "\"{:?}\" -> \"{:?}\" [color = \"red\", label = \"{}\"]\n",
+                    parent,
+                    child,
+                    format!(":{} `{:?}`", edge.attr_name, edge.expression).replace("\"", "'")
+                ));
             }
         }
         for (child, (parent, edge)) in &self.inheritance_edges.child_to_parent {
