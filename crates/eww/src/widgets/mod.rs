@@ -3,6 +3,7 @@ use std::process::Command;
 pub mod build_widget;
 pub mod circular_progressbar;
 pub mod widget_definitions;
+pub mod def_widget_macro;
 
 const CMD_STRING_PLACEHODLER: &str = "{}";
 
