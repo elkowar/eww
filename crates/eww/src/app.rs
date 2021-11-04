@@ -4,7 +4,7 @@ use crate::{
     display_backend, error_handling_ctx,
     gtk::prelude::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt},
     script_var_handler::ScriptVarHandlerHandle,
-    state::scope_graph::{ScopeGraph, ScopeIndex},
+    state::scope_graph::{ScopeGraph, ScopeGraphEvent, ScopeIndex},
     EwwPaths, *,
 };
 use eww_shared_util::VarName;
@@ -328,17 +328,19 @@ impl App {
             let eww_window = initialize_window(monitor_geometry, root_widget, window_def, window_scope)?;
 
             // initialize script var handlers for variables that where not used before opening this window.
-            // TODO somehow make this less shit
-            // TODORW
             // TODO maybe this could be handled by having a track_newly_used_variables function in the scope tree?
-            // TODO: Only the newly referenced vars should be started. This isnt' a big deal, but it's less performant than it could be
             for used_var in self.scope_graph.borrow().variables_used_in_self_or_descendants_of(eww_window.scope_index) {
                 if let Ok(script_var) = dbg!(self.eww_config.get_script_var(&used_var)) {
                     self.script_var_handler.add(script_var.clone());
                 }
             }
 
-            // TODORW connect to destroy of eww_window.gtk_window and clean up window_scope
+            eww_window.gtk_window.connect_destroy({
+                let scope_graph_sender = self.scope_graph.borrow().event_sender.clone();
+                move |_| {
+                    let _ = scope_graph_sender.send(ScopeGraphEvent::RemoveScope(eww_window.scope_index));
+                }
+            });
             self.open_windows.insert(window_name.clone(), eww_window);
         };
 
