@@ -13,10 +13,6 @@ use super::{
     scope::{Listener, Scope},
 };
 
-// TODO concepts and verification
-// can a scope ever reference / inherit scopes that are not in their ancestors / themselves?
-// If not, that should be at least documented as an invariant, and best case enforced and made use of.
-
 #[derive(Hash, Eq, PartialEq, Copy, Clone)]
 pub struct ScopeIndex(pub u32);
 
@@ -51,18 +47,33 @@ pub enum ScopeGraphEvent {
     RemoveScope(ScopeIndex),
 }
 
-/// A graph structure of scopes that inherit from each other and provide attributes to other scopes.
+/// A graph structure of scopes where each scope may inherit from another scope,
+/// and can provide attributes to arbitrarily many descendant scopes.
+///
+/// ## Some terminology
+/// **Child / Parent**: Child scopes are scopes that _inherit_ from their parent scope.
+/// This means that they have access to all the variables defined in that scope as well.
+/// The variables a child references from it's parent are listed in the [InheritEdge].
+/// In most cases, scopes inherit from the global scope.
+/// If a inherits from b, b is called a parent scope of a.
+///
+/// **Descendant / Ancestor**: Descendants of a scope are the scopes that are used
+/// _within_ that ancestor scope. This means that a descendant scope's widgets will aways be
+/// used as children of the ancestors widgets.
+/// Any scope can have 0 or 1 ancestor, and any arbitrary amount of descendants.
+/// An ancestor scope can provide attributes to it's descendants, which will be
+/// listed in the respective [ProvidesAttrEdge]s.
+///
 /// Invariants:
 /// - every scope inherits from exactly 0 or 1 scopes.
-/// - any scope may provide 0-n attributes to 0-n scopes.
-/// - Inheritance is transitive
+/// - any scope may provide 0-n attributes to 0-n descendants.
+/// - Inheritance is transitive - if a is child of b, and b is child of c, a has access to variables from c.
 /// - There must not be inheritance loops
-///
-/// If a inherits from b, b is called "parent scope" of a
 #[derive(Debug)]
 pub struct ScopeGraph {
     graph: ScopeGraphInternal,
     pub root_index: ScopeIndex,
+    // TODO this should be factored out, it doesn't really belong into this module / struct.
     pub event_sender: UnboundedSender<ScopeGraphEvent>,
 }
 
@@ -146,7 +157,6 @@ impl ScopeGraph {
         calling_scope: ScopeIndex,
         attributes: HashMap<AttrName, SimplExpr>,
     ) -> Result<ScopeIndex> {
-        // TODO this needs a lot of optimization
         let mut scope_variables = HashMap::new();
 
         // First get the current values. If nothing here fails, we know that everything is in scope.
@@ -184,16 +194,6 @@ impl ScopeGraph {
         Ok(new_scope_index)
     }
 
-    /// Search through all available scopes for a scope that satisfies the given condition
-    pub fn find_available_scope_where(&self, scope_index: ScopeIndex, f: impl Fn(&Scope) -> bool) -> Option<ScopeIndex> {
-        let content = self.graph.scope_at(scope_index)?;
-        if f(content) {
-            Some(scope_index)
-        } else {
-            self.find_available_scope_where(self.graph.parent_scope_of(scope_index)?, f)
-        }
-    }
-
     /// Register a listener. This listener will get called when any of the required variables change.
     /// This should be used to update the gtk widgets that are in a scope.
     /// This also calls the listener initially.
@@ -219,7 +219,7 @@ impl ScopeGraph {
         if !self.graph.scope_at(scope_index).context("scope not in graph")?.data.contains_key(&var_name) {
             let parent_scope =
                 self.graph.parent_scope_of(scope_index).with_context(|| format!("Variable {} not in scope", var_name))?;
-            self.graph.add_reference_to_inherits_edge(scope_index, parent_scope, var_name.clone())?;
+            self.graph.add_reference_to_inherits_edge(scope_index, var_name.clone())?;
             self.register_scope_referencing_variable(parent_scope, var_name)?;
         }
         Ok(())
@@ -274,7 +274,12 @@ impl ScopeGraph {
 
     /// Find the closest available scope that contains variable with the given name.
     pub fn find_scope_with_variable(&self, index: ScopeIndex, var_name: &VarName) -> Option<ScopeIndex> {
-        self.find_available_scope_where(index, |scope| scope.data.contains_key(var_name))
+        let scope = self.graph.scope_at(index)?;
+        if scope.data.contains_key(var_name) {
+            Some(index)
+        } else {
+            self.find_scope_with_variable(self.graph.parent_scope_of(index)?, var_name)
+        }
     }
 
     /// Find the value of a variable in the closest available scope that contains a variable with that name.
@@ -289,7 +294,7 @@ impl ScopeGraph {
     pub fn variables_used_in_self_or_descendants_of(&self, index: ScopeIndex) -> HashSet<VarName> {
         if let Some(scope) = self.scope_at(index) {
             let mut variables: HashSet<VarName> = scope.listeners.keys().map(|x| x.clone()).collect();
-            for (descendant, _) in self.graph.hierarchy_edges.child_scope_edges(index) {
+            for descendant in self.graph.hierarchy_edges.get_children_of(index) {
                 variables.extend(self.variables_used_in_self_or_descendants_of(descendant).into_iter());
             }
             variables
@@ -311,11 +316,18 @@ impl ScopeGraph {
             .collect::<Result<_>>()
     }
 }
+
+/// The internal graph representation of the [`ScopeGraph`].
+/// Unlike the public ScopeGraph, this may temporarily be in an inconsistent state while changes are being made.
 #[derive(Debug)]
 struct ScopeGraphInternal {
     last_index: ScopeIndex,
     scopes: HashMap<ScopeIndex, Scope>,
+
+    /// Edges from ancestors to descendants
     hierarchy_edges: OneToNElementsMap<Vec<ProvidesAttrEdge>>,
+
+    /// Edges from parents to children.
     inheritance_edges: OneToNElementsMap<InheritsEdge>,
 }
 
@@ -349,7 +361,6 @@ impl ScopeGraphInternal {
         self.scopes.remove(&index);
         if let Some(descendants) = self.hierarchy_edges.parent_to_children.get(&index).cloned() {
             for descendant in descendants {
-                // TODO should this actually yeet all nested scopes?
                 self.remove_scope(descendant);
             }
         }
@@ -361,6 +372,7 @@ impl ScopeGraphInternal {
         self.inheritance_edges.insert(a, b, edge).unwrap();
     }
 
+    /// Register that a given scope [a] provides an attribute to it's descendant [b].
     fn register_scope_provides_attr(&mut self, a: ScopeIndex, b: ScopeIndex, edge: ProvidesAttrEdge) {
         if let Some((parent_scope, edges)) = self.hierarchy_edges.get_parent_edge_mut(b) {
             assert_eq!(*parent_scope, a, "Hierarchy map had a different parent for a given scope than what was given here");
@@ -380,6 +392,7 @@ impl ScopeGraphInternal {
         self.scopes.get_mut(&index)
     }
 
+    /// List all child scopes that reference a given variable directly (-> the variable is in the [InheritsEdge::references])
     fn child_scopes_referencing(&self, index: ScopeIndex, var_name: &VarName) -> Vec<ScopeIndex> {
         self.inheritance_edges
             .child_scope_edges(index)
@@ -403,29 +416,14 @@ impl ScopeGraphInternal {
             .collect()
     }
 
-    fn add_reference_to_inherits_edge(
-        &mut self,
-        child_scope: ScopeIndex,
-        parent_scope: ScopeIndex,
-        var_name: VarName,
-    ) -> Result<()> {
-        let (endpoint_parent, edge) = self.inheritance_edges.get_parent_edge_mut(child_scope).with_context(|| {
-            format!(
-                "Given scope {:?} does not have any parent scope, but is assumed to have parent {:?}",
-                child_scope, parent_scope
-            )
-        })?;
-        if *endpoint_parent != parent_scope {
-            bail!(
-                "Given scope {:?} does not actually inherit from the given parent scope {:?}, but from {:?}",
-                child_scope,
-                parent_scope,
-                endpoint_parent
-            );
-        }
-
+    /// Register that a given scope references a variable from it's direct parent scope.
+    /// If the given scope does not have a parent, this will return an `Err`.
+    fn add_reference_to_inherits_edge(&mut self, child_scope: ScopeIndex, var_name: VarName) -> Result<()> {
+        let (_, edge) = self
+            .inheritance_edges
+            .get_parent_edge_mut(child_scope)
+            .with_context(|| format!("Given scope {:?} does not have any parent scope", child_scope))?;
         edge.references.insert(var_name);
-
         Ok(())
     }
 
@@ -438,24 +436,6 @@ impl ScopeGraphInternal {
                 bail!("hierarchy_edges values lists scope that is not in graph");
             }
         }
-
-        for (parent_scope, child_scopes) in &self.hierarchy_edges.parent_to_children {
-            if !self.scopes.contains_key(&parent_scope) {
-                bail!("hierarchy_edges lists key that is not in graph");
-            }
-            for child_scope in child_scopes {
-                if self
-                    .hierarchy_edges
-                    .child_to_parent
-                    .get(child_scope)
-                    .context("found edge in child scopes that was not reflected in hierarchy_edges")?
-                    .0
-                    != *parent_scope
-                {
-                    bail!("Non-matching mapping in child_scopes vs. hierarchy_edges");
-                }
-            }
-        }
         for (child_scope, (parent_scope, _edge)) in &self.inheritance_edges.child_to_parent {
             if !self.scopes.contains_key(&child_scope) {
                 bail!("inherits_edges lists key that is not in graph");
@@ -465,33 +445,19 @@ impl ScopeGraphInternal {
             }
         }
 
-        for (parent_scope, child_scopes) in &self.inheritance_edges.parent_to_children {
-            if !self.scopes.contains_key(&parent_scope) {
-                bail!("inherits_edges lists key that is not in graph");
-            }
-            for child_scope in child_scopes {
-                if self
-                    .inheritance_edges
-                    .child_to_parent
-                    .get(child_scope)
-                    .context("found edge in child scopes that was not reflected in inherits_edges")?
-                    .0
-                    != *parent_scope
-                {
-                    bail!("Non-matching mapping in child_scopes vs. inherits_edges");
-                }
-            }
-        }
+        self.hierarchy_edges.validate()?;
+        self.inheritance_edges.validate()?;
+
         Ok(())
     }
 
     pub fn visualize(&self) -> String {
         let mut output = String::new();
-        output.push_str("digraph {");
+        output.push_str("digraph {\n");
 
         for (scope_index, scope) in &self.scopes {
             output.push_str(&format!(
-                "\"{:?}\"[label=\"{}\\n{}\"]\n",
+                "  \"{:?}\"[label=\"{}\\n{}\"]\n",
                 scope_index,
                 scope.name,
                 format!(
@@ -512,14 +478,14 @@ impl ScopeGraphInternal {
                 .replace("\"", "'")
             ));
             if let Some(created_by) = scope.ancestor {
-                output.push_str(&format!("\"{:?}\" -> \"{:?}\"[label=\"ancestor\"]\n", created_by, scope_index));
+                output.push_str(&format!("  \"{:?}\" -> \"{:?}\"[label=\"ancestor\"]\n", created_by, scope_index));
             }
         }
 
         for (child, (parent, edges)) in &self.hierarchy_edges.child_to_parent {
             for edge in edges {
                 output.push_str(&format!(
-                    "\"{:?}\" -> \"{:?}\" [color = \"red\", label = \"{}\"]\n",
+                    "  \"{:?}\" -> \"{:?}\" [color = \"red\", label = \"{}\"]\n",
                     parent,
                     child,
                     format!(":{} `{:?}`", edge.attr_name, edge.expression).replace("\"", "'")
@@ -528,7 +494,7 @@ impl ScopeGraphInternal {
         }
         for (child, (parent, edge)) in &self.inheritance_edges.child_to_parent {
             output.push_str(&format!(
-                "\"{:?}\" -> \"{:?}\" [color = \"blue\", label = \"{}\"]\n",
+                "  \"{:?}\" -> \"{:?}\" [color = \"blue\", label = \"{}\"]\n",
                 child,
                 parent,
                 format!("inherits({:?})", edge.references).replace("\"", "'")

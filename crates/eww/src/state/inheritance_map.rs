@@ -50,6 +50,10 @@ impl<Data> OneToNElementsMap<Data> {
         self.child_to_parent.get_mut(&index)
     }
 
+    pub fn get_children_of(&self, index: ScopeIndex) -> HashSet<ScopeIndex> {
+        self.parent_to_children.get(&index).cloned().unwrap_or_default()
+    }
+
     /// Return the children and edges to those children of a given scope
     pub fn child_scope_edges(&self, index: ScopeIndex) -> Vec<(ScopeIndex, &Data)> {
         let mut result = Vec::new();
@@ -60,5 +64,26 @@ impl<Data> OneToNElementsMap<Data> {
             }
         }
         result
+    }
+
+    pub fn validate(&self) -> Result<()> {
+        for (parent, children) in &self.parent_to_children {
+            for child in children {
+                if let Some((parent_2, _)) = self.child_to_parent.get(child) {
+                    if parent_2 != parent {
+                        bail!(
+                            "parent_to_child stored mapping from {:?} to {:?}, but child_to_parent contained mapping to {:?} \
+                             instead",
+                            parent,
+                            child,
+                            parent_2
+                        );
+                    }
+                } else {
+                    bail!("parent_to_child stored mapping from {:?} to {:?}, which was not found in child_to_parent");
+                }
+            }
+        }
+        Ok(())
     }
 }
