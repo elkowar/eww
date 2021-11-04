@@ -310,6 +310,7 @@ struct ScopeGraphInternal {
     scopes: HashMap<ScopeIndex, Scope>,
     /// K: calling scope
     /// V: map of scopes that are getting attributes form that scope to a list of edges with attributes.
+    /// TODORW it should be possible to combine this with the descendants, as all provides_attr_edges are also gonna go to descendants. do that maybe.
     provides_attr_edges: HashMap<ScopeIndex, HashMap<ScopeIndex, Vec<ProvidesAttrEdge>>>,
     inheritance_edges: ScopeInheritanceMap,
 

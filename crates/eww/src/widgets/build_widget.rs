@@ -7,7 +7,7 @@ use gtk::{
     Orientation,
 };
 use itertools::Itertools;
-use simplexpr::SimplExpr;
+use simplexpr::{SimplExpr};
 use std::{collections::HashMap, rc::Rc};
 use yuck::{
     config::{widget_definition::WidgetDefinition, widget_use::WidgetUse},
@@ -100,16 +100,26 @@ pub fn build_gtk_widget(
     graph: &mut ScopeGraph,
     widget_defs: Rc<HashMap<String, WidgetDefinition>>,
     calling_scope: ScopeIndex,
-    widget_use: WidgetUse,
+    mut widget_use: WidgetUse,
     custom_widget_invocation: Option<Rc<CustomWidgetInvocation>>,
 ) -> Result<gtk::Widget> {
     if let Some(custom_widget) = widget_defs.clone().get(&widget_use.name) {
-        let widget_use_attributes: HashMap<_, _> = widget_use
-            .attrs
-            .attrs
+        let widget_use_attributes = custom_widget
+            .expected_args
             .iter()
-            .map(|(name, value)| Ok((name.clone(), value.value.as_simplexpr()?)))
-            .collect::<Result<_>>()?;
+            .map(|spec| {
+                let expr = if spec.optional {
+                    widget_use
+                        .attrs
+                        .ast_optional::<SimplExpr>(&spec.name.0)?
+                        .unwrap_or_else(|| SimplExpr::literal(spec.span, "".to_string()))
+                } else {
+                    widget_use.attrs.ast_required::<SimplExpr>(&spec.name.0)?
+                };
+                Ok((spec.name.clone(), expr))
+            })
+            .collect::<Result<HashMap<_, _>>>()?;
+
         let root_index = graph.root_index.clone();
         let new_scope_index =
             graph.register_new_scope(widget_use.name, Some(root_index), calling_scope, widget_use_attributes)?;
