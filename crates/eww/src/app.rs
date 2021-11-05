@@ -198,7 +198,8 @@ impl App {
                     sender.send_success(output)?
                 }
                 DaemonCommand::GetVar { name, sender } => {
-                    let vars = self.eww_state.get_variables();
+                    let scope_graph = &*self.scope_graph.borrow();
+                    let vars = &scope_graph.scope_at(scope_graph.root_index).expect("No root scope in graph").data;
                     match vars.get(name.as_str()) {
                         Some(x) => sender.send_success(x.to_string())?,
                         None => sender.send_failure(format!("Variable not found \"{}\"", name))?,
