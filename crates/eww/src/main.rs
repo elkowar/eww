@@ -13,7 +13,7 @@ extern crate gtk;
 extern crate gtk_layer_shell as gtk_layer_shell;
 
 use anyhow::*;
-use daemon_response::DaemonResponseReceiver;
+use daemon_response::{DaemonResponse, DaemonResponseReceiver};
 use opts::ActionWithServer;
 use std::{
     os::unix::net,
@@ -145,7 +145,13 @@ fn handle_server_command(paths: &EwwPaths, action: &ActionWithServer, connect_at
     log::debug!("Connected to Eww server ({}).", &paths.get_ipc_socket_file().display());
     let response = client::do_server_call(&mut stream, action).context("Error while forwarding command to server")?;
     if let Some(response) = response {
-        println!("{}", response);
+        match response {
+            DaemonResponse::Success(x) => println!("{}", x),
+            DaemonResponse::Failure(x) => {
+                eprintln!("{}", x);
+                bail!("Error, server command failed");
+            }
+        }
     }
     Ok(())
 }
