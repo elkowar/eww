@@ -8,6 +8,8 @@ use eww_shared_util::{AttrName, VarName};
 use simplexpr::{dynval::DynVal, SimplExpr};
 use tokio::sync::mpsc::UnboundedSender;
 
+use crate::error_handling_ctx;
+
 use super::scope::{Listener, Scope};
 
 #[derive(Hash, Eq, PartialEq, Copy, Clone)]
@@ -32,7 +34,7 @@ pub enum ScopeGraphEvent {
 /// and can provide attributes to arbitrarily many descendant scopes.
 ///
 /// ## Some terminology
-/// **Subscope /Superscope**: Subscopes are scopes that _inherit_ from their superscope.
+/// **Subscope / Superscope**: Subscopes are scopes that _inherit_ from their superscope.
 /// This means that they have access to all the variables defined in that scope as well.
 /// The variables a subscope references from it's superscope are listed in the [InheritEdge].
 /// In most cases, scopes inherit from the global scope.
@@ -48,7 +50,7 @@ pub enum ScopeGraphEvent {
 /// - every scope inherits from exactly 0 or 1 scopes.
 /// - any scope may provide 0-n attributes to 0-n descendants.
 /// - Inheritance is transitive - if a is subscope of b, and b is subscope of c, a has access to variables from c.
-/// - There must not be inheritanci loops
+/// - There must not be inheritance loops
 #[derive(Debug)]
 pub struct ScopeGraph {
     graph: internal::ScopeGraphInternal,
@@ -191,8 +193,16 @@ impl ScopeGraph {
             scope.listeners.entry(required_var.clone()).or_default().push(listener.clone());
         }
 
-        let required_variables = self.lookup_variables_in_scope(scope_index, &listener.needed_variables)?;
-        (*listener.f)(self, required_variables)?;
+        match self.lookup_variables_in_scope(scope_index, &listener.needed_variables) {
+            Ok(required_variables) => {
+                if let Err(err) = (*listener.f)(self, required_variables).context("Error while updating UI after state change") {
+                    error_handling_ctx::print_error(err);
+                }
+            }
+            Err(err) => {
+                error_handling_ctx::print_error(err);
+            }
+        }
 
         #[cfg(debug_assertions)]
         self.validate()?;
