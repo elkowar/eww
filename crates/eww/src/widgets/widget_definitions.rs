@@ -125,9 +125,13 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
         // @prop hexpand - should this widget expand horizontally. Default: false.
         prop(hexpand: as_bool = false) { gtk_widget.set_hexpand(hexpand) },
         // @prop width - width of this element. note that this can not restrict the size if the contents stretch it
-        prop(width: as_f64) { gtk_widget.set_size_request(width as i32, gtk_widget.allocated_height()) },
         // @prop height - height of this element. note that this can not restrict the size if the contents stretch it
-        prop(height: as_f64) { gtk_widget.set_size_request(gtk_widget.allocated_width(), height as i32) },
+        prop(width: as_f64?, height: as_f64?) {
+            gtk_widget.set_size_request(
+                width.map(|x| x as i32).unwrap_or(gtk_widget.allocated_width()),
+                height.map(|x| x as i32).unwrap_or(gtk_widget.allocated_height())
+            );
+        },
         // @prop active - If this widget can be interacted with
         prop(active: as_bool = true) { gtk_widget.set_sensitive(active) },
         // @prop tooltip - tooltip text (on hover)

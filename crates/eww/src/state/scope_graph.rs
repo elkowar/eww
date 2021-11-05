@@ -49,9 +49,10 @@ pub enum ScopeGraphEvent {
 /// Invariants:
 /// - every scope inherits from exactly 0 or 1 scopes.
 /// - any scope may provide 0-n attributes to 0-n descendants.
-/// - Inheritance is transitive - if a is subscope of b, and b is subscope of c, a has access to variables from c.
 /// - There must not be inheritance loops
-/// - if A is subscope of B, and B is subscope of C, and A references a variable "foo" from C, then this reference
+/// - Inheritance is transitive - if a is subscope of b, and b is subscope of c, a has access to variables from c.
+/// - In case of transitive inheritance, all steps need to explicitly store the referenced variables. This means that
+///   if A is subscope of B, and B is subscope of C, and A references a variable "foo" from C, then this reference
 ///   needs to be stored in both the inheritance connection A -> B and B -> C
 #[derive(Debug)]
 pub struct ScopeGraph {
