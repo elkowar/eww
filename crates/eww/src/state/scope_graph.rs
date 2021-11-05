@@ -51,6 +51,8 @@ pub enum ScopeGraphEvent {
 /// - any scope may provide 0-n attributes to 0-n descendants.
 /// - Inheritance is transitive - if a is subscope of b, and b is subscope of c, a has access to variables from c.
 /// - There must not be inheritance loops
+/// - if A is subscope of B, and B is subscope of C, and A references a variable "foo" from C, then this reference
+///   needs to be stored in both the inheritance connection A -> B and B -> C
 #[derive(Debug)]
 pub struct ScopeGraph {
     graph: internal::ScopeGraphInternal,
@@ -299,11 +301,10 @@ impl ScopeGraph {
     pub fn variables_used_in_self_or_subscopes_of(&self, index: ScopeIndex) -> HashSet<VarName> {
         if let Some(scope) = self.scope_at(index) {
             let mut variables: HashSet<VarName> = scope.listeners.keys().map(|x| x.clone()).collect();
-            for (descendant, provided_attrs) in self.graph.descendant_edges_of(index) {
+            for (_, provided_attrs) in self.graph.descendant_edges_of(index) {
                 for attr in provided_attrs {
                     variables.extend(attr.expression.collect_var_refs());
                 }
-                variables.extend(self.variables_used_in_self_or_subscopes_of(descendant));
             }
             for (_, edge) in self.graph.subscope_edges_of(index) {
                 variables.extend(edge.references.clone());
@@ -386,16 +387,8 @@ mod internal {
             idx
         }
 
-        pub fn descendants_of(&self, index: ScopeIndex) -> HashSet<ScopeIndex> {
-            self.hierarchy_relations.get_children_of(index)
-        }
-
         pub fn descendant_edges_of(&self, index: ScopeIndex) -> Vec<(ScopeIndex, &Vec<ProvidedAttr>)> {
             self.hierarchy_relations.get_children_edges_of(index)
-        }
-
-        pub fn subscopes_of(&self, index: ScopeIndex) -> HashSet<ScopeIndex> {
-            self.inheritance_relations.get_children_of(index)
         }
 
         pub fn subscope_edges_of(&self, index: ScopeIndex) -> Vec<(ScopeIndex, &Inherits)> {
@@ -481,11 +474,26 @@ mod internal {
                     bail!("hierarchy_relations values lists scope that is not in graph");
                 }
             }
-            for (child_scope, (parent_scope, _edge)) in &self.inheritance_relations.child_to_parent {
+            for (child_scope, (parent_scope_idx, edge)) in &self.inheritance_relations.child_to_parent {
                 if !self.scopes.contains_key(&child_scope) {
                     bail!("inheritance_relations lists key that is not in graph");
                 }
-                if !self.scopes.contains_key(&parent_scope) {
+                if let Some(parent_scope) = self.scopes.get(&parent_scope_idx) {
+                    // check that everything the scope references from it's parent is actually
+                    // accessible by the parent, meaning it either stores it directly or
+                    // inherits it itself
+                    for var in &edge.references {
+                        let parent_has_access_to_var = parent_scope.data.contains_key(var)
+                            || self
+                                .inheritance_relations
+                                .child_to_parent
+                                .get(&parent_scope_idx)
+                                .map_or(false, |(_, e)| e.references.contains(var));
+                        if !parent_has_access_to_var {
+                            bail!("scope inherited variable that parent scope doesn't have access to");
+                        }
+                    }
+                } else {
                     bail!("inheritance_relations values lists scope that is not in graph");
                 }
             }
