@@ -127,10 +127,13 @@ impl ScopeGraph {
         self.graph.scope_at(index)
     }
 
+    /// Evaluate a [SimplExpr] in a given scope. This will return `Err` if any referenced variables
+    /// are not available in the scope. If evaluation fails for other reasons (bad types, etc)
+    /// this will print a warning and return an empty string instead.
     pub fn evaluate_simplexpr_in_scope(&self, index: ScopeIndex, expr: &SimplExpr) -> Result<DynVal> {
         let needed_vars = self.lookup_variables_in_scope(index, &expr.collect_var_refs())?;
         // TODORW
-        // TODO allowing it to fail here is ugly, but it might work
+        // TODO allowing it to fail here is painfully ugly
         match expr.eval(&needed_vars) {
             Ok(value) => Ok(value),
             Err(err) => {
@@ -321,7 +324,7 @@ impl ScopeGraph {
             .map(|required_var_name| {
                 let value = self
                     .lookup_variable_in_scope(scope_index, &required_var_name)
-                    .with_context(|| format!("Variable {} not in scope", required_var_name))?;
+                    .with_context(|| format!("Variable {} neither in scope nor any superscope", required_var_name))?;
 
                 Ok((required_var_name.clone(), value.clone()))
             })
