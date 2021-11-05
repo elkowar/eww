@@ -127,6 +127,7 @@ impl ScopeGraph {
 
     pub fn evaluate_simplexpr_in_scope(&self, index: ScopeIndex, expr: &SimplExpr) -> Result<DynVal> {
         let needed_vars = self.lookup_variables_in_scope(index, &expr.collect_var_refs())?;
+        // TODORW
         // TODO allowing it to fail here is ugly, but it might work
         match expr.eval(&needed_vars) {
             Ok(value) => Ok(value),
@@ -200,15 +201,9 @@ impl ScopeGraph {
             scope.listeners.entry(required_var.clone()).or_default().push(listener.clone());
         }
 
-        match self.lookup_variables_in_scope(scope_index, &listener.needed_variables) {
-            Ok(required_variables) => {
-                if let Err(err) = (*listener.f)(self, required_variables).context("Error while updating UI after state change") {
-                    error_handling_ctx::print_error(err);
-                }
-            }
-            Err(err) => {
-                error_handling_ctx::print_error(err);
-            }
+        let required_variables = self.lookup_variables_in_scope(scope_index, &listener.needed_variables)?;
+        if let Err(err) = (*listener.f)(self, required_variables).context("Error while updating UI after state change") {
+            error_handling_ctx::print_error(err);
         }
 
         #[cfg(debug_assertions)]
@@ -274,7 +269,9 @@ impl ScopeGraph {
         if let Some(triggered_listeners) = scope.listeners.get(updated_var) {
             for listener in triggered_listeners.clone() {
                 let required_variables = self.lookup_variables_in_scope(scope_index, &listener.needed_variables)?;
-                (*listener.f)(self, required_variables)?;
+                if let Err(err) = (*listener.f)(self, required_variables).context("Error while updating UI after state change") {
+                    error_handling_ctx::print_error(err);
+                }
             }
         }
         Ok(())
