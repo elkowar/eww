@@ -28,7 +28,7 @@ fn update_history(graph: &GraphPriv, v: (std::time::Instant, f64)) {
     let mut history = graph.history.borrow_mut();
     history.push_back(v);
     while let Some(entry) = history.front() {
-        if std::time::Instant::now().duration_since(entry.0).as_secs() > *graph.range.borrow() {
+        if std::time::Instant::now().duration_since(entry.0).as_millis() as u64 > *graph.range.borrow() {
             history.pop_front();
         }
         else {
@@ -130,7 +130,7 @@ impl WidgetImpl for GraphPriv {
             };
 
             for (t, v) in history.iter() {
-                let t = std::time::Instant::now().duration_since(*t).as_secs();
+                let t = std::time::Instant::now().duration_since(*t).as_millis();
                 let x = width * (1.0 - (t as f64 / range as f64));
                 let y = height * (1.0 - (v / 100.0));
                 cr.line_to(x, y);
