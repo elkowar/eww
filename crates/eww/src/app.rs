@@ -324,7 +324,7 @@ impl App {
 
             // initialize script var handlers for variables that where not used before opening this window.
             // TODO maybe this could be handled by having a track_newly_used_variables function in the scope tree?
-            for used_var in self.scope_graph.borrow().variables_used_in_self_or_descendants_of(eww_window.scope_index) {
+            for used_var in self.scope_graph.borrow().variables_used_in_self_or_subscopes_of(eww_window.scope_index) {
                 if let Ok(script_var) = self.eww_config.get_script_var(&used_var) {
                     self.script_var_handler.add(script_var.clone());
                 }

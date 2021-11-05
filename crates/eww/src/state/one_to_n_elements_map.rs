@@ -53,7 +53,7 @@ impl<I: Copy + std::hash::Hash + std::cmp::Eq + std::fmt::Debug, T> OneToNElemen
     }
 
     /// Return the children and edges to those children of a given scope
-    pub fn get_children_edges(&self, index: I) -> Vec<(I, &T)> {
+    pub fn get_children_edges_of(&self, index: I) -> Vec<(I, &T)> {
         let mut result = Vec::new();
         if let Some(children) = self.parent_to_children.get(&index) {
             for child_scope in children {
