@@ -52,7 +52,6 @@ pub(super) fn widget_use_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::W
         "combo-box-text" => build_gtk_combo_box_text(bargs)?.upcast(),
         "checkbox" => build_gtk_checkbox(bargs)?.upcast(),
         "revealer" => build_gtk_revealer(bargs)?.upcast(),
-        //"if-else" => build_if_else(bargs)?.upcast(),
         _ => {
             return Err(AstError::ValidationError(ValidationError::UnknownWidget(
                 bargs.widget_use.name_span,
@@ -86,26 +85,21 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
 
     let css_provider = gtk::CssProvider::new();
 
-    // TODORW
-    // TODO visible currently breaks the scope cleanup logic, as it uses unmapping which scope cleanup reacts to to remove scopes.
-    // The fix for this would be to make this use a similar mechanism as children uses instead
-    let visible_expr = bargs.widget_use.attrs.attrs.get("visible").map(|x| x.value.as_simplexpr()).transpose()?;
-    if let Some(visible_expr) = visible_expr {
-        let visible = bargs.scope_graph.evaluate_simplexpr_in_scope(bargs.calling_scope, &visible_expr)?.as_bool();
-        match visible {
-            Ok(visible) => {
-                connect_first_map(gtk_widget, move |w| {
-                    if visible {
-                        w.show();
-                    } else {
-                        w.hide();
-                    }
-                });
-            }
-            Err(err) => {
-                error_handling_ctx::print_error(anyhow!(err));
-            }
+    let visible_result: Result<_> = try {
+        let visible_expr = bargs.widget_use.attrs.attrs.get("visible").map(|x| x.value.as_simplexpr()).transpose()?;
+        if let Some(visible_expr) = visible_expr {
+            let visible = bargs.scope_graph.evaluate_simplexpr_in_scope(bargs.calling_scope, &visible_expr)?.as_bool()?;
+            connect_first_map(gtk_widget, move |w| {
+                if visible {
+                    w.show();
+                } else {
+                    w.hide();
+                }
+            });
         }
+    };
+    if let Err(err) = visible_result {
+        error_handling_ctx::print_error(err);
     }
 
     def_widget!(bargs, _g, gtk_widget, {
