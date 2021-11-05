@@ -114,14 +114,18 @@ fn build_builtin_gtk_widget(
     let gtk_widget = widget_definitions::widget_use_to_gtk_widget(&mut bargs)?;
 
     if let Some(gtk_container) = gtk_widget.dynamic_cast_ref::<gtk::Container>() {
-        populate_widget_children(
-            bargs.scope_graph,
-            bargs.widget_defs.clone(),
-            calling_scope,
-            gtk_container,
-            bargs.widget_use.children.clone(),
-            bargs.custom_widget_invocation.clone(),
-        )?;
+        // Only populate children if there haven't been any children added anywhere else
+        // TODO this is somewhat hacky
+        if gtk_container.children().len() == 0 {
+            populate_widget_children(
+                bargs.scope_graph,
+                bargs.widget_defs.clone(),
+                calling_scope,
+                gtk_container,
+                bargs.widget_use.children.clone(),
+                bargs.custom_widget_invocation.clone(),
+            )?;
+        }
     }
 
     if let Some(w) = gtk_widget.dynamic_cast_ref() {
