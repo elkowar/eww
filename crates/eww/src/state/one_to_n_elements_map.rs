@@ -48,6 +48,7 @@ impl<I: Copy + std::hash::Hash + std::cmp::Eq + std::fmt::Debug, T> OneToNElemen
         self.child_to_parent.get_mut(&index)
     }
 
+    #[allow(unused)]
     pub fn get_children_of(&self, index: I) -> HashSet<I> {
         self.parent_to_children.get(&index).cloned().unwrap_or_default()
     }
