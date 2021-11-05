@@ -127,7 +127,14 @@ impl ScopeGraph {
 
     pub fn evaluate_simplexpr_in_scope(&self, index: ScopeIndex, expr: &SimplExpr) -> Result<DynVal> {
         let needed_vars = self.lookup_variables_in_scope(index, &expr.collect_var_refs())?;
-        Ok(expr.eval(&needed_vars)?)
+        // TODO allowing it to fail here is ugly, but it might work
+        match expr.eval(&needed_vars) {
+            Ok(value) => Ok(value),
+            Err(err) => {
+                error_handling_ctx::print_error(anyhow!(err));
+                Ok(DynVal::from(""))
+            }
+        }
     }
 
     /// Register a new scope in the graph.
@@ -243,8 +250,11 @@ impl ScopeGraph {
         let edges: Vec<(ScopeIndex, internal::ProvidedAttr)> =
             self.graph.scopes_getting_attr_using(scope_index, updated_var).into_iter().map(|(a, b)| (a, b.clone())).collect();
         for (referencing_scope, edge) in edges {
-            let updated_attr_value = self.evaluate_simplexpr_in_scope(scope_index, &edge.expression)?;
-            self.update_value(referencing_scope, edge.attr_name.to_var_name_ref(), updated_attr_value)?;
+            if let Err(err) = self.evaluate_simplexpr_in_scope(scope_index, &edge.expression).and_then(|updated_attr_value| {
+                self.update_value(referencing_scope, edge.attr_name.to_var_name_ref(), updated_attr_value)
+            }) {
+                error_handling_ctx::print_error(err);
+            }
         }
 
         // Trigger the listeners from this scope
