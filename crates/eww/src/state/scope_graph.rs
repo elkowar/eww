@@ -55,7 +55,7 @@ pub enum ScopeGraphEvent {
 ///   needs to be stored in both the inheritance connection A -> B and B -> C
 #[derive(Debug)]
 pub struct ScopeGraph {
-    graph: internal::ScopeGraphInternal,
+    pub(self) graph: internal::ScopeGraphInternal,
     pub root_index: ScopeIndex,
     // TODO this should be factored out, it doesn't really belong into this module / struct.
     pub event_sender: UnboundedSender<ScopeGraphEvent>,
@@ -355,10 +355,10 @@ mod internal {
         scopes: HashMap<ScopeIndex, Scope>,
 
         /// Edges from ancestors to descendants
-        hierarchy_relations: OneToNElementsMap<ScopeIndex, Vec<ProvidedAttr>>,
+        pub(super) hierarchy_relations: OneToNElementsMap<ScopeIndex, Vec<ProvidedAttr>>,
 
         /// Edges from superscopes to subscopes.
-        inheritance_relations: OneToNElementsMap<ScopeIndex, Inherits>,
+        pub(super) inheritance_relations: OneToNElementsMap<ScopeIndex, Inherits>,
     }
 
     impl ScopeGraphInternal {
@@ -557,5 +557,50 @@ mod internal {
             output.push_str("}");
             output
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use maplit::hashmap;
+
+    use super::*;
+
+    #[test]
+    fn test_nested_inheritance() {
+        let globals = hashmap! {
+            VarName("global".to_string()) => DynVal::from("hi"),
+        };
+
+        let (send, _recv) = tokio::sync::mpsc::unbounded_channel();
+
+        let mut scope_graph = ScopeGraph::from_global_vars(globals, send);
+
+        let widget_1_scope = scope_graph
+            .register_new_scope("1".to_string(), Some(scope_graph.root_index), scope_graph.root_index, hashmap! {})
+            .unwrap();
+        let widget_2_scope =
+            scope_graph.register_new_scope("2".to_string(), Some(widget_1_scope), widget_1_scope, hashmap! {}).unwrap();
+
+        scope_graph.register_scope_referencing_variable(widget_2_scope, VarName("global".to_string())).unwrap();
+        assert!(scope_graph
+            .graph
+            .inheritance_relations
+            .child_to_parent
+            .get(&widget_2_scope)
+            .unwrap()
+            .1
+            .references
+            .contains("global"));
+
+        assert!(scope_graph
+            .graph
+            .inheritance_relations
+            .child_to_parent
+            .get(&widget_1_scope)
+            .unwrap()
+            .1
+            .references
+            .contains("global"));
     }
 }

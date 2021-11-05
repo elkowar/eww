@@ -1,8 +1,8 @@
+use super::scope::Listener;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
 };
-use super::scope::Listener;
 
 use eww_shared_util::{AttrName, Span, VarName};
 use maplit::hashmap;
@@ -39,7 +39,7 @@ macro_rules! make_listener {
 #[test]
 pub fn test_delete_scope() {
     let globals = hashmap! {
-     VarName("global_1".to_string()) => DynVal::from("hi"),
+        VarName("global_1".to_string()) => DynVal::from("hi"),
     };
 
     let (send, _recv) = tokio::sync::mpsc::unbounded_channel();
@@ -70,16 +70,12 @@ pub fn test_delete_scope() {
     scope_graph.validate().unwrap();
 
     scope_graph.handle_scope_graph_event(ScopeGraphEvent::RemoveScope(widget_bar_scope));
-
     scope_graph.validate().unwrap();
-
-    println!("{}", scope_graph.visualize());
-
-    panic!();
+    assert!(scope_graph.scope_at(widget_bar_scope).is_none());
 }
 
 #[test]
-fn test_stuff() {
+fn test_state_updates() {
     let globals = hashmap! {
      VarName("global_1".to_string()) => DynVal::from("hi"),
      VarName("global_2".to_string()) => DynVal::from("hey"),
