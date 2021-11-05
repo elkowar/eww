@@ -2,10 +2,7 @@ use anyhow::*;
 use codespan_reporting::diagnostic::Severity;
 use eww_shared_util::AttrName;
 use gdk::prelude::Cast;
-use gtk::{
-    prelude::{ContainerExt, WidgetExt},
-    Orientation,
-};
+use gtk::{Orientation, prelude::{ContainerExt, WidgetExt, WidgetExtManual}};
 use itertools::Itertools;
 use simplexpr::SimplExpr;
 use std::{collections::HashMap, rc::Rc};
@@ -78,7 +75,7 @@ pub fn build_gtk_widget(
 
         let scope_graph_sender = graph.event_sender.clone();
 
-        gtk_widget.connect_unmap(move |_| {
+        gtk_widget.connect_destroy(move |_| {
             let _ = scope_graph_sender.send(ScopeGraphEvent::RemoveScope(new_scope_index));
         });
         Ok(gtk_widget)
@@ -160,7 +157,14 @@ fn populate_widget_children(
     for child in widget_use_children {
         if child.name == "children" {
             let custom_widget_invocation = custom_widget_invocation.clone().context("Not in a custom widget invocation")?;
-            build_gtk_children(tree, widget_defs.clone(), calling_scope, child, gtk_container, custom_widget_invocation)?;
+            build_children_special_widget(
+                tree,
+                widget_defs.clone(),
+                calling_scope,
+                child,
+                gtk_container,
+                custom_widget_invocation,
+            )?;
         } else {
             let child_widget =
                 build_gtk_widget(tree, widget_defs.clone(), calling_scope, child, custom_widget_invocation.clone())?;
@@ -174,7 +178,7 @@ fn populate_widget_children(
 /// This widget expands to multiple other widgets, thus we require the [gtk_container] we should expand the widgets into.
 /// The [custom_widget_invocation] will be used here to evaluate the provided children in their
 /// original scope and expand them into the given container.
-fn build_gtk_children(
+fn build_children_special_widget(
     tree: &mut ScopeGraph,
     widget_defs: Rc<HashMap<String, WidgetDefinition>>,
     calling_scope: ScopeIndex,
@@ -210,7 +214,8 @@ fn build_gtk_children(
                             None,
                         )?;
                         for old_child in child_container.children() {
-                            child_container.remove(&old_child);
+                            unsafe { old_child.destroy(); }
+                            //child_container.remove(&old_child);
                         }
                         child_container.set_child(Some(&new_child_widget));
                         new_child_widget.show();
