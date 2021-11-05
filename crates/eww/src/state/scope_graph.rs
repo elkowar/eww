@@ -112,7 +112,7 @@ impl ScopeGraph {
     }
 
     pub fn currently_used_globals(&self) -> HashSet<VarName> {
-        self.variables_used_in_self_or_descendants_of(self.root_index)
+        self.variables_used_in_self_or_subscopes_of(self.root_index)
     }
 
     pub fn currently_unused_globals(&self) -> HashSet<VarName> {
@@ -296,11 +296,17 @@ impl ScopeGraph {
 
     /// Get all variables that are used in the given scope or in any descendants of that scope.
     /// If called with an index not in the tree, will return an empty set of variables.
-    pub fn variables_used_in_self_or_descendants_of(&self, index: ScopeIndex) -> HashSet<VarName> {
+    pub fn variables_used_in_self_or_subscopes_of(&self, index: ScopeIndex) -> HashSet<VarName> {
         if let Some(scope) = self.scope_at(index) {
             let mut variables: HashSet<VarName> = scope.listeners.keys().map(|x| x.clone()).collect();
-            for descendant in self.graph.descendants_of(index) {
-                variables.extend(self.variables_used_in_self_or_descendants_of(descendant).into_iter());
+            for (descendant, provided_attrs) in self.graph.descendant_edges_of(index) {
+                for attr in provided_attrs {
+                    variables.extend(attr.expression.collect_var_refs());
+                }
+                variables.extend(self.variables_used_in_self_or_subscopes_of(descendant));
+            }
+            for (_, edge) in self.graph.subscope_edges_of(index) {
+                variables.extend(edge.references.clone());
             }
             variables
         } else {
@@ -384,6 +390,18 @@ mod internal {
             self.hierarchy_relations.get_children_of(index)
         }
 
+        pub fn descendant_edges_of(&self, index: ScopeIndex) -> Vec<(ScopeIndex, &Vec<ProvidedAttr>)> {
+            self.hierarchy_relations.get_children_edges_of(index)
+        }
+
+        pub fn subscopes_of(&self, index: ScopeIndex) -> HashSet<ScopeIndex> {
+            self.inheritance_relations.get_children_of(index)
+        }
+
+        pub fn subscope_edges_of(&self, index: ScopeIndex) -> Vec<(ScopeIndex, &Inherits)> {
+            self.inheritance_relations.get_children_edges_of(index)
+        }
+
         pub fn remove_scope(&mut self, index: ScopeIndex) {
             self.scopes.remove(&index);
             if let Some(descendants) = self.hierarchy_relations.parent_to_children.get(&index).cloned() {
@@ -422,7 +440,7 @@ mod internal {
         /// List all subscopes that reference a given variable directly (-> the variable is in the [Inherits::references])
         pub fn subscopes_referencing(&self, index: ScopeIndex, var_name: &VarName) -> Vec<ScopeIndex> {
             self.inheritance_relations
-                .get_children_edges(index)
+                .get_children_edges_of(index)
                 .iter()
                 .filter(|(_, edge)| edge.references.contains(var_name))
                 .map(|(scope, _)| *scope)
@@ -435,7 +453,7 @@ mod internal {
 
         /// List the scopes that are provided some attribute referencing [var_name] by the given scope [index].
         pub fn scopes_getting_attr_using(&self, index: ScopeIndex, var_name: &VarName) -> Vec<(ScopeIndex, &ProvidedAttr)> {
-            let edge_mappings = self.hierarchy_relations.get_children_edges(index);
+            let edge_mappings = self.hierarchy_relations.get_children_edges_of(index);
             edge_mappings
                 .iter()
                 .flat_map(|(k, v)| v.into_iter().map(move |edge| (k.clone(), edge)))
