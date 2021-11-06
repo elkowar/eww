@@ -437,14 +437,14 @@ fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
     let gtk_widget = gtk::Image::new();
     def_widget!(bargs, _g, gtk_widget, {
         // @prop path - path to the image file
-        // @prop width - width of the image
-        // @prop height - height of the image
-        prop(path: as_string, width: as_i32 = 10000, height: as_i32 = 10000) {
+        // @prop image-width - width of the image
+        // @prop image-height - height of the image
+        prop(path: as_string, image_width: as_i32 = -1, image_height: as_i32 = -1) {
             if path.ends_with(".gif") {
                 let pixbuf_animation = gtk::gdk_pixbuf::PixbufAnimation::from_file(std::path::PathBuf::from(path))?;
                 gtk_widget.set_from_animation(&pixbuf_animation);
             } else {
-                let pixbuf = gtk::gdk_pixbuf::Pixbuf::from_file_at_size(std::path::PathBuf::from(path), width, height)?;
+                let pixbuf = gtk::gdk_pixbuf::Pixbuf::from_file_at_size(std::path::PathBuf::from(path), image_width, image_height)?;
                 gtk_widget.set_from_pixbuf(Some(&pixbuf));
             }
         }
