@@ -6,6 +6,7 @@ using yuck, you declare the structure and content of your widgets, the geometry,
 as well as any state and data that will be used in your widgets.
 Yuck is based around S-expressions, which you may know from lisp-like languages.
 If you're using vim, you can make use of [yuck.vim](https://github.com/elkowar/yuck.vim) for editor support.
+If you're using VSCode, you can get syntax highlighting and formatting from [yuck-vscode](https://marketplace.visualstudio.com/items?itemName=eww-yuck.yuck).
 It is also recommended to use [parinfer](https://shaunlebron.github.io/parinfer/),
 which makes working with s-expressions delightfully easy!
 
