@@ -195,25 +195,33 @@ impl ScopeGraph {
     }
 
     /// Register a listener. This listener will get called when any of the required variables change.
+    /// If there are no required_variables in the listener, nothing gets registered, but the listener
+    /// gets called once.
     /// This should be used to update the gtk widgets that are in a scope.
     /// This also calls the listener initially.
     pub fn register_listener(&mut self, scope_index: ScopeIndex, listener: Listener) -> Result<()> {
-        for required_var in &listener.needed_variables {
-            self.register_scope_referencing_variable(scope_index, required_var.clone())?;
-        }
-        let scope = self.graph.scope_at_mut(scope_index).context("Scope not in graph")?;
-        let listener = Rc::new(listener);
-        for required_var in &listener.needed_variables {
-            scope.listeners.entry(required_var.clone()).or_default().push(listener.clone());
-        }
+        if listener.needed_variables.is_empty() {
+            if let Err(err) = (*listener.f)(self, HashMap::new()).context("Error while updating UI after state change") {
+                error_handling_ctx::print_error(err);
+            }
+        } else {
+            for required_var in &listener.needed_variables {
+                self.register_scope_referencing_variable(scope_index, required_var.clone())?;
+            }
+            let scope = self.graph.scope_at_mut(scope_index).context("Scope not in graph")?;
+            let listener = Rc::new(listener);
+            for required_var in &listener.needed_variables {
+                scope.listeners.entry(required_var.clone()).or_default().push(listener.clone());
+            }
 
-        let required_variables = self.lookup_variables_in_scope(scope_index, &listener.needed_variables)?;
-        if let Err(err) = (*listener.f)(self, required_variables).context("Error while updating UI after state change") {
-            error_handling_ctx::print_error(err);
-        }
+            let required_variables = self.lookup_variables_in_scope(scope_index, &listener.needed_variables)?;
+            if let Err(err) = (*listener.f)(self, required_variables).context("Error while updating UI after state change") {
+                error_handling_ctx::print_error(err);
+            }
 
-        #[cfg(debug_assertions)]
-        self.validate()?;
+            #[cfg(debug_assertions)]
+            self.validate()?;
+        }
 
         Ok(())
     }
