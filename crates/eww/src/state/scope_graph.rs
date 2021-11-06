@@ -321,6 +321,21 @@ impl ScopeGraph {
             for (_, edge) in self.graph.subscope_edges_of(index) {
                 variables.extend(edge.references.clone());
             }
+
+            // get all the variables that the current scope references from it's superscope
+            if let Some((_, edge)) = self.graph.superscope_edge_of(index) {
+                variables.extend(edge.references.clone())
+            }
+
+            // look through all descendants of this scope
+            for (descendant, _) in self.graph.descendant_edges_of(index) {
+                let used_in_descendant = self.variables_used_in_self_or_subscopes_of(descendant);
+
+                // only include those variables that are not shadowed by the descendant itself
+                let descendant_scope = self.scope_at(descendant).unwrap();
+                variables.extend(used_in_descendant.difference(&descendant_scope.data.keys().cloned().collect()).cloned());
+            }
+
             variables
         } else {
             HashSet::new()
@@ -405,6 +420,10 @@ mod internal {
 
         pub fn subscope_edges_of(&self, index: ScopeIndex) -> Vec<(ScopeIndex, &Inherits)> {
             self.inheritance_relations.get_children_edges_of(index)
+        }
+
+        pub fn superscope_edge_of(&self, index: ScopeIndex) -> Option<&(ScopeIndex, Inherits)> {
+            self.inheritance_relations.get_parent_edge_of(index)
         }
 
         pub fn remove_scope(&mut self, index: ScopeIndex) {
@@ -587,33 +606,15 @@ mod test {
         let (send, _recv) = tokio::sync::mpsc::unbounded_channel();
 
         let mut scope_graph = ScopeGraph::from_global_vars(globals, send);
+        let root_scope = scope_graph.root_index;
 
-        let widget_1_scope = scope_graph
-            .register_new_scope("1".to_string(), Some(scope_graph.root_index), scope_graph.root_index, hashmap! {})
-            .unwrap();
-        let widget_2_scope =
-            scope_graph.register_new_scope("2".to_string(), Some(widget_1_scope), widget_1_scope, hashmap! {}).unwrap();
+        let widget1_scope = scope_graph.register_new_scope("1".into(), Some(root_scope), root_scope, hashmap! {}).unwrap();
+        let widget2_scope = scope_graph.register_new_scope("2".into(), Some(widget1_scope), widget1_scope, hashmap! {}).unwrap();
+        scope_graph.register_scope_referencing_variable(widget2_scope, VarName("global".to_string())).unwrap();
 
-        scope_graph.register_scope_referencing_variable(widget_2_scope, VarName("global".to_string())).unwrap();
-        assert!(scope_graph
-            .graph
-            .inheritance_relations
-            .child_to_parent
-            .get(&widget_2_scope)
-            .unwrap()
-            .1
-            .references
-            .contains("global"));
-
-        assert!(scope_graph
-            .graph
-            .inheritance_relations
-            .child_to_parent
-            .get(&widget_1_scope)
-            .unwrap()
-            .1
-            .references
-            .contains("global"));
+        let inheritance_child_to_parent = scope_graph.graph.inheritance_relations.child_to_parent;
+        assert!(inheritance_child_to_parent.get(&widget2_scope).unwrap().1.references.contains("global"));
+        assert!(inheritance_child_to_parent.get(&widget1_scope).unwrap().1.references.contains("global"));
     }
 
     #[test]
@@ -646,30 +647,78 @@ mod test {
         assert_eq!(scope_graph.lookup_variable_in_scope(widget_no_parent_scope, &VarName("global".to_string())), None);
     }
 
+    /// tests the following graph structure:
+    /// ```
+    ///              ┌───────────────────────────────────────────────────┐
+    ///              │                      widget2                      │
+    ///              │          data: [('shadowed_var', 'hi')]           │ ──────────────────┐
+    ///              └───────────────────────────────────────────────────┘                   │
+    ///                ▲                                                                     │
+    ///                │ ancestor                                                            │
+    ///                │                                                                     │
+    ///              ┌───────────────────────────────────────────────────┐                   │
+    ///              │                      window                       │                   │
+    ///   ┌────────▶ │                     data: []                      │ ─┐                │
+    ///   │          └───────────────────────────────────────────────────┘  │                │
+    ///   │            │                                                    │                │
+    ///   │            │ ancestor                                           │                │
+    ///   │            ▼                                                    │                │
+    ///   │          ┌───────────────────────────────────────────────────┐  │                │
+    ///   │          │                      widget                       │  │                │
+    ///   │ ancestor │                     data: []                      │  │ inherits({})   │
+    ///   │          └───────────────────────────────────────────────────┘  │                │
+    ///   │            │                                                    │                │
+    ///   │            │ inherits({'the_var'})                              │                │
+    ///   │            ▼                                                    │                │
+    ///   │          ┌───────────────────────────────────────────────────┐  │                │
+    ///   │          │                      global                       │  │                │
+    ///   └───────── │ data: [('shadowed_var', 'hi'), ('the_var', 'hi')] │ ◀┘                │
+    ///              └───────────────────────────────────────────────────┘                   │
+    ///                ▲                                                   inherits({})      │
+    ///                └─────────────────────────────────────────────────────────────────────┘
+    /// ```
     #[test]
-    fn test_currently_used_globals() {
+    fn test_variables_used_in_self_or_subscopes_of() {
         let globals = hashmap! {
-            VarName("global".to_string()) => DynVal::from("hi"),
-            VarName("global2".to_string()) => DynVal::from("hi"),
-            VarName("global3".to_string()) => DynVal::from("hi"),
+            VarName("the_var".to_string()) => DynVal::from("hi"),
+            VarName("shadowed_var".to_string()) => DynVal::from("hi"),
         };
 
         let (send, _recv) = tokio::sync::mpsc::unbounded_channel();
 
         let mut scope_graph = ScopeGraph::from_global_vars(globals, send);
 
-        let widget_1_scope = scope_graph
-            .register_new_scope("1".to_string(), Some(scope_graph.root_index), scope_graph.root_index, hashmap! {})
+        let window_scope = scope_graph
+            .register_new_scope("window".to_string(), Some(scope_graph.root_index), scope_graph.root_index, hashmap! {})
             .unwrap();
-        let widget_2_scope =
-            scope_graph.register_new_scope("2".to_string(), Some(widget_1_scope), widget_1_scope, hashmap! {}).unwrap();
+        let widget_scope = scope_graph
+            .register_new_scope("widget".to_string(), Some(scope_graph.root_index), window_scope, hashmap! {})
+            .unwrap();
+        let _widget_with_local_var_scope = scope_graph
+            .register_new_scope(
+                "widget2".to_string(),
+                Some(scope_graph.root_index),
+                window_scope,
+                hashmap! { AttrName("shadowed_var".to_string()) => SimplExpr::synth_literal("hi") },
+            )
+            .unwrap();
 
-        scope_graph.register_scope_referencing_variable(widget_1_scope, VarName("global".to_string())).unwrap();
-        scope_graph.register_scope_referencing_variable(widget_2_scope, VarName("global2".to_string())).unwrap();
+        scope_graph.register_scope_referencing_variable(widget_scope, VarName("the_var".to_string())).unwrap();
 
         assert_eq!(
-            scope_graph.currently_used_globals(),
-            hashset![VarName("global".to_string()), VarName("global2".to_string()),]
+            scope_graph.variables_used_in_self_or_subscopes_of(scope_graph.root_index),
+            hashset![VarName("the_var".to_string())],
+            "Wrong variables assumed to be used by global"
+        );
+        assert_eq!(
+            scope_graph.variables_used_in_self_or_subscopes_of(window_scope),
+            hashset![VarName("the_var".to_string())],
+            "Wrong variables assumed to be used by window"
+        );
+        assert_eq!(
+            scope_graph.variables_used_in_self_or_subscopes_of(widget_scope),
+            hashset![VarName("the_var".to_string())],
+            "Wrong variables assumed to be used by widget"
         );
     }
 }

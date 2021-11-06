@@ -44,6 +44,10 @@ impl<I: Copy + std::hash::Hash + std::cmp::Eq + std::fmt::Debug, T> OneToNElemen
         self.child_to_parent.get(&index).map(|(parent, _)| *parent)
     }
 
+    pub fn get_parent_edge_of(&self, index: I) -> Option<&(I, T)> {
+        self.child_to_parent.get(&index)
+    }
+
     pub fn get_parent_edge_mut(&mut self, index: I) -> Option<&mut (I, T)> {
         self.child_to_parent.get_mut(&index)
     }

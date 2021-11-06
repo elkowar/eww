@@ -2,7 +2,6 @@ pub use platform::*;
 
 #[cfg(not(any(feature = "x11", feature = "wayland")))]
 mod platform {
-    use crate::config::WindowDefinition;
     use yuck::config::window_definition::{WindowDefinition, WindowStacking};
 
     pub fn initialize_window(_window_def: &WindowDefinition, _monitor: gdk::Rectangle) -> Option<gtk::Window> {
