@@ -77,12 +77,12 @@ impl SimplExpr {
         Self::Literal(DynVal(s, span))
     }
 
-    /// Construct a synthetic simplexpr from a literal string, without adding any relevant span information (uses [DUMMY_SPAN])
+    /// Construct a synthetic simplexpr from a literal string, without adding any relevant span information (uses [`Span::DUMMY`])
     pub fn synth_string(s: String) -> Self {
         Self::Literal(DynVal(s, Span::DUMMY))
     }
 
-    /// Construct a synthetic simplexpr from a literal dynval, without adding any relevant span information (uses [DUMMY_SPAN])
+    /// Construct a synthetic simplexpr from a literal dynval, without adding any relevant span information (uses [`Span::DUMMY`])
     pub fn synth_literal<T: Into<DynVal>>(s: T) -> Self {
         Self::Literal(s.into())
     }

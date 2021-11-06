@@ -19,7 +19,7 @@ pub struct Scope {
 }
 
 impl Scope {
-    /// Initializes a scope **incompletely**. The [`node_index`] is not set correctly, and needs to be
+    /// Initializes a scope **incompletely**. The [`Self::node_index`] is not set correctly, and needs to be
     /// set to the index of the node in the scope graph that connects to this scope.
     pub(super) fn new(name: String, created_by: Option<ScopeIndex>, data: HashMap<VarName, DynVal>) -> Self {
         Self { name, ancestor: created_by, data, listeners: HashMap::new(), node_index: ScopeIndex(0) }
