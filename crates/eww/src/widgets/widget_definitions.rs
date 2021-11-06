@@ -126,10 +126,10 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
         prop(hexpand: as_bool = false) { gtk_widget.set_hexpand(hexpand) },
         // @prop width - width of this element. note that this can not restrict the size if the contents stretch it
         // @prop height - height of this element. note that this can not restrict the size if the contents stretch it
-        prop(width: as_f64?, height: as_f64?) {
+        prop(width: as_i32?, height: as_i32?) {
             gtk_widget.set_size_request(
-                width.map(|x| x as i32).unwrap_or(gtk_widget.allocated_width()),
-                height.map(|x| x as i32).unwrap_or(gtk_widget.allocated_height())
+                width.unwrap_or_else(|| gtk_widget.allocated_width()),
+                height.unwrap_or_else(|| gtk_widget.allocated_height())
             );
         },
         // @prop active - If this widget can be interacted with
