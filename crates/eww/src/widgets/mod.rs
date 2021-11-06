@@ -8,7 +8,7 @@ pub mod def_widget_macro;
 const CMD_STRING_PLACEHODLER: &str = "{}";
 
 /// Run a command that was provided as an attribute. This command may use a
-/// placeholder ('{}') which will be replaced by the value provided as [`arg`]
+/// placeholder ('{}') which will be replaced by the value provided as `arg`
 pub(self) fn run_command<T: 'static + std::fmt::Display + Send + Sync>(timeout: std::time::Duration, cmd: &str, arg: T) {
     use wait_timeout::ChildExt;
     let cmd = cmd.to_string();

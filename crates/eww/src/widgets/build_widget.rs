@@ -85,8 +85,7 @@ pub fn build_gtk_widget(
 }
 
 /// build a [`gtk::Widget`] out of a [`WidgetUse`] that uses a
-/// **builtin widget**. User defined widgets are handled by
-/// [widget_use_to_gtk_widget].
+/// **builtin widget**. User defined widgets are handled by [`widget_definitions::widget_use_to_gtk_widget`].
 ///
 /// Also registers all the necessary scopes in the scope graph
 ///
@@ -144,8 +143,8 @@ fn build_builtin_gtk_widget(
     Ok(gtk_widget)
 }
 
-/// If a [gtk widget](gtk_container) can take children (→ it is a `gtk::Container`) we need to add the provided [widget_use_children]
-/// into that container. Those children might be uses of the special `children`-[widget_use], which will get expanded here, too.
+/// If a gtk widget can take children (→ it is a [`gtk::Container`]) we need to add the provided `widget_use_children`
+/// into that container. Those children might be uses of the special `children`-[`WidgetUse`], which will get expanded here, too.
 fn populate_widget_children(
     tree: &mut ScopeGraph,
     widget_defs: Rc<HashMap<String, WidgetDefinition>>,
@@ -174,9 +173,9 @@ fn populate_widget_children(
     Ok(())
 }
 
-/// Handle an invocation of the special `children` [widget_use].
-/// This widget expands to multiple other widgets, thus we require the [gtk_container] we should expand the widgets into.
-/// The [custom_widget_invocation] will be used here to evaluate the provided children in their
+/// Handle an invocation of the special `children` [`WidgetUse`].
+/// This widget expands to multiple other widgets, thus we require the `gtk_container` we should expand the widgets into.
+/// The `custom_widget_invocation` will be used here to evaluate the provided children in their
 /// original scope and expand them into the given container.
 fn build_children_special_widget(
     tree: &mut ScopeGraph,
@@ -240,6 +239,6 @@ fn build_children_special_widget(
 pub struct CustomWidgetInvocation {
     /// The scope the custom widget was invoked in
     scope: ScopeIndex,
-    /// The children the custom widget was given. These should be evaluated in [scope]
+    /// The children the custom widget was given. These should be evaluated in [`Self::scope`]
     children: Vec<WidgetUse>,
 }

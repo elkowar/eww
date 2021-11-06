@@ -36,7 +36,7 @@ pub enum ScopeGraphEvent {
 /// ## Some terminology
 /// **Subscope / Superscope**: Subscopes are scopes that _inherit_ from their superscope.
 /// This means that they have access to all the variables defined in that scope as well.
-/// The variables a subscope references from it's superscope are listed in the [InheritEdge].
+/// The variables a subscope references from it's superscope are listed in the [`internal::Inherits`].
 /// In most cases, scopes inherit from the global scope.
 ///
 /// **Descendant / Ancestor**: Descendants of a scope are the scopes that are used
@@ -44,7 +44,7 @@ pub enum ScopeGraphEvent {
 /// used as children of the ancestors widgets.
 /// Any scope can have 0 or 1 ancestor, and any arbitrary amount of descendants.
 /// An ancestor scope can provide attributes to it's descendants, which will be
-/// listed in the respective [ProvidedAttr]s.
+/// listed in the respective [`internal::ProvidedAttr`]s.
 ///
 /// Invariants:
 /// - every scope inherits from exactly 0 or 1 scopes.
@@ -145,7 +145,7 @@ impl ScopeGraph {
     }
 
     /// Register a new scope in the graph.
-    /// This will look up and resolve variable references in attributes to set up the correct [ScopeTreeEdge::ProvidesAttribute] relationships.
+    /// This will look up and resolve variable references in attributes to set up the correct [`internal::ProvidedAttr`] relationships.
     pub fn register_new_scope(
         &mut self,
         name: String,
@@ -277,7 +277,7 @@ impl ScopeGraph {
         Ok(())
     }
 
-    /// Call all of the listeners in a given [scope_index] that are affected by a change to the [updated_var].
+    /// Call all of the listeners in a given `scope_index` that are affected by a change to the `updated_var`.
     fn call_listeners_in_scope(&mut self, scope_index: ScopeIndex, updated_var: &VarName) -> Result<()> {
         let scope = self.graph.scope_at(scope_index).context("Scope not in graph")?;
         if let Some(triggered_listeners) = scope.listeners.get(updated_var) {
@@ -359,7 +359,7 @@ impl ScopeGraph {
 mod internal {
     use super::{super::one_to_n_elements_map::OneToNElementsMap, *};
 
-    /// a --provides attribute [attr_name] calculated via [`expression`] to--> b
+    /// a --provides attribute [`Self::attr_name`] calculated via [`Self::expression`] to--> b
     #[derive(Debug, Eq, PartialEq, Clone)]
     pub struct ProvidedAttr {
         pub attr_name: AttrName,
@@ -441,7 +441,7 @@ mod internal {
             self.inheritance_relations.insert(a, b, Inherits { references: HashSet::new() }).unwrap();
         }
 
-        /// Register that a given scope [a] provides an attribute to it's descendant [b].
+        /// Register that a given scope `a` provides an attribute to it's descendant `b`.
         pub fn register_scope_provides_attr(&mut self, a: ScopeIndex, b: ScopeIndex, edge: ProvidedAttr) {
             if let Some((superscope, edges)) = self.hierarchy_relations.get_parent_edge_mut(b) {
                 assert_eq!(*superscope, a, "Hierarchy map had a different superscope for a given scope than what was given here");
@@ -475,7 +475,7 @@ mod internal {
             self.inheritance_relations.get_parent_of(index)
         }
 
-        /// List the scopes that are provided some attribute referencing [var_name] by the given scope [index].
+        /// List the scopes that are provided some attribute referencing `var_name` by the given scope `index`.
         pub fn scopes_getting_attr_using(&self, index: ScopeIndex, var_name: &VarName) -> Vec<(ScopeIndex, &ProvidedAttr)> {
             let edge_mappings = self.hierarchy_relations.get_children_edges_of(index);
             edge_mappings
