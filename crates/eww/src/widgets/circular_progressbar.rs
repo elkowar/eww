@@ -63,10 +63,6 @@ impl ObjectImpl for CircProgPriv {
         PROPERTIES.as_ref()
     }
 
-    //    fn constructed(&self, obj: &Self::Type) {
-    //        self.parent_constructed(obj);
-    //    }
-
     fn set_property(&self, obj: &Self::Type, _id: usize, value: &glib::Value, pspec: &glib::ParamSpec) {
         match pspec.name() {
             "value" => {
@@ -82,7 +78,6 @@ impl ObjectImpl for CircProgPriv {
             "clockwise" => {
                 self.clockwise.replace(value.get().unwrap());
             }
-
             x => panic!("Tried to set inexistant property of CircProg: {}", x,),
         }
     }
@@ -117,6 +112,7 @@ impl ContainerImpl for CircProgPriv {
         self.content.replace(Some(widget.clone()));
     }
 }
+
 impl BinImpl for CircProgPriv {}
 impl WidgetImpl for CircProgPriv {
     // https://sourcegraph.com/github.com/GNOME/fractal/-/blob/fractal-gtk/src/widgets/clip_container.rs?L119 ???
@@ -132,7 +128,7 @@ impl WidgetImpl for CircProgPriv {
         let clockwise = *self.clockwise.borrow() as bool;
 
         let res: Result<()> = try {
-            let ring_color: gdk::RGBA = styles.color(gtk::StateFlags::NORMAL);
+            let fg_color: gdk::RGBA = styles.color(gtk::StateFlags::NORMAL);
             let bg_color: gdk::RGBA = styles.style_property_for_state("background-color", gtk::StateFlags::NORMAL).get()?;
             let outer_ring =  f64::min(width, height) / 2.0;
             let inner_ring =  (f64::min(width, height) / 2.0) - thickness;
@@ -151,20 +147,28 @@ impl WidgetImpl for CircProgPriv {
             cr.rotate(perc_to_rad(start_at as f64));
             cr.translate(-c.0, -c.1);
 
-            // Center circle
-            cr.arc(c.0, c.1, inner_ring+1.0, 0.0, perc_to_rad(100.0));
+            //// Center circle
+            //cr.arc(c.0, c.1, inner_ring+1.0, 0.0, perc_to_rad(100.0));
+            //cr.set_source_rgba(bg_color.red, bg_color.green, bg_color.blue, bg_color.alpha);
+            //cr.fill()?;
+
+            // Background Ring
+            cr.move_to(c.0, c.1);
+            cr.arc(c.0, c.1, outer_ring, 0.0, perc_to_rad(100.0));
             cr.set_source_rgba(bg_color.red, bg_color.green, bg_color.blue, bg_color.alpha);
+            cr.move_to(c.0, c.1);
+            cr.arc(c.0, c.1, inner_ring, 0.0, perc_to_rad(100.0));
+            cr.set_fill_rule(cairo::FillRule::EvenOdd); // Substract one circle from the other
             cr.fill()?;
 
-            // Ring
+            // Foreground Ring
             cr.move_to(c.0, c.1);
             cr.arc(c.0, c.1, outer_ring, start_angle, end_angle);
-            cr.set_source_rgba(ring_color.red, ring_color.green, ring_color.blue, ring_color.alpha);
+            cr.set_source_rgba(fg_color.red, fg_color.green, fg_color.blue, fg_color.alpha);
             cr.move_to(c.0, c.1);
             cr.arc(c.0, c.1, inner_ring, start_angle, end_angle);
             cr.set_fill_rule(cairo::FillRule::EvenOdd); // Substract one circle from the other
             cr.fill()?;
-
             cr.restore()?;
         };
 
@@ -177,15 +181,6 @@ impl WidgetImpl for CircProgPriv {
         }
         gtk::Inhibit(false)
     }
-
-    // fn get_request_mode(&self, widget: &gtk::Widget) -> gtk::SizeRequestMode {
-    //    self.parent_get_request_mode(widget)
-    //}
-
-    // fn size_allocate(&self, widget: &gtk::Widget, allocation: &gdk::Rectat) {
-    //    self.parent_size_allocate(widget, allocation);
-    //    widget.downcast_ref::<gtk::Bin>().unwrap().size_allocate(allocation)
-    //}
 }
 
 fn perc_to_rad(n: f64) -> f64 {
