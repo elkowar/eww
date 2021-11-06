@@ -86,3 +86,51 @@ impl<I: Copy + std::hash::Hash + std::cmp::Eq + std::fmt::Debug, T> OneToNElemen
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    pub fn test_add_scope() {
+        let mut map = OneToNElementsMap::new();
+        map.insert(1, 2, "a".to_string()).unwrap();
+        map.insert(2, 3, "b".to_string()).unwrap();
+        map.insert(3, 4, "c".to_string()).unwrap();
+        map.insert(5, 4, "d".to_string()).unwrap();
+
+        assert_eq!(map.get_parent_of(1), Some(2));
+        assert_eq!(map.get_parent_of(2), Some(3));
+        assert_eq!(map.get_parent_of(3), Some(4));
+        assert_eq!(map.get_parent_of(4), None);
+        assert_eq!(map.get_parent_of(5), Some(4));
+
+
+        assert_eq!(map.get_children_of(4), HashSet::from_iter(vec![3, 5]));
+        assert_eq!(map.get_children_of(3), HashSet::from_iter(vec![2]));
+        assert_eq!(map.get_children_of(2), HashSet::from_iter(vec![1]));
+        assert_eq!(map.get_children_of(1), HashSet::new());
+    }
+
+    #[test]
+    pub fn test_remove_scope() {
+        let mut map = OneToNElementsMap::new();
+        map.insert(1, 2, "a".to_string()).unwrap();
+        map.insert(2, 3, "b".to_string()).unwrap();
+        map.insert(3, 4, "c".to_string()).unwrap();
+        map.insert(5, 4, "d".to_string()).unwrap();
+
+        map.remove(4);
+
+        assert_eq!(map.get_parent_of(1), Some(2));
+        assert_eq!(map.get_parent_of(2), Some(3));
+        assert_eq!(map.get_parent_of(3), None);
+        assert_eq!(map.get_parent_of(4), None);
+        assert_eq!(map.get_parent_of(5), None);
+
+        assert_eq!(map.get_children_of(3), HashSet::from_iter(vec![2]));
+        assert_eq!(map.get_children_of(2), HashSet::from_iter(vec![1]));
+        assert_eq!(map.get_children_of(1), HashSet::new());
+
+    }
+}
