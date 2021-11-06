@@ -41,7 +41,6 @@ Additionally, a couple _amazing_ people have started to work on an
 ![Nordic](https://raw.githubusercontent.com/adi1090x/widgets/main/previews/nordic.png)
 
 * [i3 Bar replacement by owenrumney](https://github.com/owenrumney/eww-bar)
-
 ![Top bar](https://raw.githubusercontent.com/owenrumney/eww-bar/master/.github/topbar.gif)
 ![Bottom bar](https://raw.githubusercontent.com/owenrumney/eww-bar/master/.github/bottombar.gif)
 
