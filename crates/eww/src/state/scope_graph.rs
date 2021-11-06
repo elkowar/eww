@@ -574,7 +574,7 @@ mod internal {
 
 #[cfg(test)]
 mod test {
-    use maplit::hashmap;
+    use maplit::{hashmap, hashset};
 
     use super::*;
 
@@ -614,5 +614,62 @@ mod test {
             .1
             .references
             .contains("global"));
+    }
+
+    #[test]
+    fn test_lookup_variable_in_scope() {
+        let globals = hashmap! {
+            VarName("global".to_string()) => DynVal::from("hi"),
+        };
+
+        let (send, _recv) = tokio::sync::mpsc::unbounded_channel();
+
+        let mut scope_graph = ScopeGraph::from_global_vars(globals, send);
+
+        let widget_1_scope = scope_graph
+            .register_new_scope("1".to_string(), Some(scope_graph.root_index), scope_graph.root_index, hashmap! {})
+            .unwrap();
+        let widget_2_scope =
+            scope_graph.register_new_scope("2".to_string(), Some(widget_1_scope), widget_1_scope, hashmap! {}).unwrap();
+        let widget_no_parent_scope = scope_graph.register_new_scope("2".to_string(), None, widget_1_scope, hashmap! {}).unwrap();
+
+        scope_graph.register_scope_referencing_variable(widget_2_scope, VarName("global".to_string())).unwrap();
+
+        assert_eq!(
+            scope_graph.lookup_variable_in_scope(widget_2_scope, &VarName("global".to_string())).unwrap(),
+            &DynVal::from("hi")
+        );
+        assert_eq!(
+            scope_graph.lookup_variable_in_scope(widget_1_scope, &VarName("global".to_string())).unwrap(),
+            &DynVal::from("hi")
+        );
+        assert_eq!(scope_graph.lookup_variable_in_scope(widget_no_parent_scope, &VarName("global".to_string())), None);
+    }
+
+    #[test]
+    fn test_currently_used_globals() {
+        let globals = hashmap! {
+            VarName("global".to_string()) => DynVal::from("hi"),
+            VarName("global2".to_string()) => DynVal::from("hi"),
+            VarName("global3".to_string()) => DynVal::from("hi"),
+        };
+
+        let (send, _recv) = tokio::sync::mpsc::unbounded_channel();
+
+        let mut scope_graph = ScopeGraph::from_global_vars(globals, send);
+
+        let widget_1_scope = scope_graph
+            .register_new_scope("1".to_string(), Some(scope_graph.root_index), scope_graph.root_index, hashmap! {})
+            .unwrap();
+        let widget_2_scope =
+            scope_graph.register_new_scope("2".to_string(), Some(widget_1_scope), widget_1_scope, hashmap! {}).unwrap();
+
+        scope_graph.register_scope_referencing_variable(widget_1_scope, VarName("global".to_string())).unwrap();
+        scope_graph.register_scope_referencing_variable(widget_2_scope, VarName("global2".to_string())).unwrap();
+
+        assert_eq!(
+            scope_graph.currently_used_globals(),
+            hashset![VarName("global".to_string()), VarName("global2".to_string()),]
+        );
     }
 }
