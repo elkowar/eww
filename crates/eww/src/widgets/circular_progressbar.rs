@@ -114,7 +114,7 @@ impl ObjectSubclass for CircProgPriv {
 
 impl CircProg {
     pub fn new() -> Self {
-        glib::Object::new::<Self>(&[]).expect("Failed to create MyAwesome Widget")
+        glib::Object::new::<Self>(&[]).expect("Failed to create CircularProgress Widget")
     }
 }
 impl ContainerImpl for CircProgPriv {
