@@ -721,7 +721,7 @@ fn build_graph(bargs: &mut BuilderArgs) -> Result<super::graph::Graph> {
     resolve_block!(bargs, w, {
         // @prop value - the value, between 0 - 100
         prop(value: as_f64) { w.set_property("value", &value)?; },
-        // @prop thickness - the thickness of the circle
+        // @prop thickness - the thickness of the line
         prop(thickness: as_f64) { w.set_property("thickness", &thickness)?; },
         // @prop range - the range of time to show
         prop(range: as_duration) { w.set_property("range", &(range.as_millis() as u64))?; },
