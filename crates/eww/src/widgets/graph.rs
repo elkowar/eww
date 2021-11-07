@@ -1,7 +1,7 @@
 use std::{cell::RefCell, collections::VecDeque};
 // https://www.figuiere.net/technotes/notes/tn002/
 // https://github.com/gtk-rs/examples/blob/master/src/bin/listbox_model.rs
-use anyhow::Result;
+use anyhow::{anyhow, bail, Result};
 use glib::{object_subclass, wrapper};
 use gtk::{prelude::*, subclass::prelude::*};
 use simplexpr::dynval::DynVal;
@@ -19,6 +19,7 @@ wrapper! {
 pub struct GraphPriv {
     value: RefCell<f64>,
     thickness: RefCell<f64>,
+    join: RefCell<String>,
     range: RefCell<u64>,
     history: RefCell<VecDeque<(std::time::Instant, f64)>>,
     content: RefCell<Option<gtk::Widget>>,
@@ -30,9 +31,8 @@ fn update_history(graph: &GraphPriv, v: (std::time::Instant, f64)) {
     while let Some(entry) = history.front() {
         if std::time::Instant::now().duration_since(entry.0).as_millis() as u64 > *graph.range.borrow() {
             history.pop_front();
-        }
-        else {
-            break
+        } else {
+            break;
         }
     }
 }
@@ -44,8 +44,17 @@ impl ObjectImpl for GraphPriv {
         static PROPERTIES: Lazy<Vec<glib::ParamSpec>> = Lazy::new(|| {
             vec![
                 glib::ParamSpec::new_double("value", "Value", "The value", 0f64, 100f64, 0f64, glib::ParamFlags::READWRITE),
-                glib::ParamSpec::new_double("thickness", "Thickness", "The Thickness", 0f64, 100f64, 0f64, glib::ParamFlags::READWRITE),
+                glib::ParamSpec::new_double(
+                    "thickness",
+                    "Thickness",
+                    "The Thickness",
+                    0f64,
+                    100f64,
+                    0f64,
+                    glib::ParamFlags::READWRITE,
+                ),
                 glib::ParamSpec::new_uint64("range", "Range", "The Range", 0u64, u64::MAX, 10u64, glib::ParamFlags::READWRITE),
+                glib::ParamSpec::new_string("join", "Join", "The Join", Some("miter"), glib::ParamFlags::READWRITE),
             ]
         });
 
@@ -69,8 +78,10 @@ impl ObjectImpl for GraphPriv {
             "range" => {
                 self.range.replace(value.get().unwrap());
             }
-
-            x => panic!("Tried to set inexistant property of G()raph: {}", x,),
+            "join" => {
+                self.join.replace(value.get().unwrap());
+            }
+            x => panic!("Tried to set inexistant property of Graph: {}", x,),
         }
     }
 
@@ -79,6 +90,7 @@ impl ObjectImpl for GraphPriv {
             "value" => self.value.borrow().to_value(),
             "thickness" => self.thickness.borrow().to_value(),
             "range" => self.range.borrow().to_value(),
+            "join" => self.join.borrow().to_value(),
             x => panic!("Tried to access inexistant property of Graph: {}", x,),
         }
     }
@@ -94,7 +106,7 @@ impl ObjectSubclass for GraphPriv {
 
 impl Graph {
     pub fn new() -> Self {
-        glib::Object::new::<Self>(&[]).expect("Failed to create MyAwesome Widget")
+        glib::Object::new::<Self>(&[]).expect("Failed to create Graph Widget")
     }
 }
 
@@ -111,11 +123,10 @@ impl WidgetImpl for GraphPriv {
     // https://stackoverflow.com/questions/50283367/drawingarea-fill-area-outside-a-region
     fn draw(&self, widget: &Self::Type, cr: &cairo::Context) -> Inhibit {
         let styles = widget.style_context();
-
         let width = widget.allocated_width() as f64;
         let height = widget.allocated_height() as f64;
-
         let thickness = *self.thickness.borrow();
+        let join = &*self.join.borrow();
         let history = &*self.history.borrow();
         let range = *self.range.borrow();
 
@@ -124,9 +135,25 @@ impl WidgetImpl for GraphPriv {
 
             cr.save()?;
 
+            match join.as_str() {
+                "miter" => {
+                    cr.set_line_cap(cairo::LineCap::Butt);
+                    cr.set_line_join(cairo::LineJoin::Miter);
+                }
+                "bevel" => {
+                    cr.set_line_cap(cairo::LineCap::Square);
+                    cr.set_line_join(cairo::LineJoin::Bevel);
+                }
+                "round" => {
+                    cr.set_line_cap(cairo::LineCap::Round);
+                    cr.set_line_join(cairo::LineJoin::Round);
+                }
+                _ => Err(anyhow!("Error, the value: {} for atribute join is not valid", join))?,
+            };
+
             if let Some(v) = history.front() {
-                let y = height * (1.0 - (v.1  / 100.0));
-                //cr.move_to(width, y);
+                let y = height * (1.0 - (v.1 / 100.0));
+                // cr.move_to(width, y);
             };
 
             for (t, v) in history.iter() {
@@ -137,10 +164,8 @@ impl WidgetImpl for GraphPriv {
             }
 
             cr.set_line_width(thickness);
-
             cr.set_source_rgba(color.red, color.green, color.blue, color.alpha);
             cr.stroke()?;
-
 
             cr.restore()?;
         };
@@ -155,5 +180,3 @@ impl WidgetImpl for GraphPriv {
         gtk::Inhibit(false)
     }
 }
-
-
