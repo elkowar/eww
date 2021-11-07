@@ -40,8 +40,9 @@ macro_rules! def_widget {
                             crate::state::scope::Listener {
                             needed_variables: required_vars,
                             f: Box::new({
-                                let $gtk_widget = $gtk_widget.clone();
+                                let $gtk_widget = gdk::glib::clone::Downgrade::downgrade(&$gtk_widget);
                                 move |$scope_graph, values| {
+                                    let $gtk_widget = gdk::glib::clone::Upgrade::upgrade(&$gtk_widget).unwrap();
                                     // values is a map of all the variables that are required to evaluate the
                                     // attributes expression.
 
