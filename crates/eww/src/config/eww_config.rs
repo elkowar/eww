@@ -12,7 +12,7 @@ use crate::error_handling_ctx;
 
 use super::script_var;
 
-/// Load an [EwwConfig] from a given file, resetting and applying the global YuckFiles object in [crate::error_handling_ctx].
+/// Load an [EwwConfig] from a given file, resetting and applying the global YuckFiles object in [`crate::error_handling_ctx`].
 pub fn read_from_file(path: impl AsRef<Path>) -> Result<EwwConfig> {
     error_handling_ctx::clear_files();
     EwwConfig::read_from_file(&mut error_handling_ctx::YUCK_FILES.write().unwrap(), path)
