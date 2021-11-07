@@ -12,8 +12,6 @@ wrapper! {
     @extends gtk::Bin, gtk::Container, gtk::Widget;
 }
 
-// wrapper! { pub struct CircProg(ObjectSubclass<CircProgPriv>) @extends gtk::Box, gtk::Container, gtk::Widget; }
-
 pub struct CircProgPriv {
     start_at: RefCell<f32>,
     value: RefCell<f32>,
