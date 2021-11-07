@@ -7,10 +7,11 @@ use gtk::{prelude::*, subclass::prelude::*};
 
 use crate::error_handling_ctx;
 
+// This widget shouldn't be a Bin/Container but I've not been
+//  able to subclass just a gtk::Widget
 wrapper! {
     pub struct Graph(ObjectSubclass<GraphPriv>)
-    @extends gtk::Bin, gtk::Container, gtk::Widget;
-}
+    @extends gtk::Bin, gtk::Container, gtk::Widget; }
 
 pub struct GraphPriv {
     value: RefCell<f64>,
