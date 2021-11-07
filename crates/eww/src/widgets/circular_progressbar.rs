@@ -14,14 +14,25 @@ wrapper! {
 
 // wrapper! { pub struct CircProg(ObjectSubclass<CircProgPriv>) @extends gtk::Box, gtk::Container, gtk::Widget; }
 
-#[derive(Default)]
 pub struct CircProgPriv {
     start_at: RefCell<f32>,
     value: RefCell<f32>,
     thickness: RefCell<f32>,
     clockwise: RefCell<bool>,
-
     content: RefCell<Option<gtk::Widget>>,
+}
+
+// This should match the default values from the ParamSpecs
+impl Default for CircProgPriv {
+    fn default() -> Self {
+        CircProgPriv {
+            start_at: RefCell::new(0.0),
+            value: RefCell::new(0.0),
+            thickness: RefCell::new(1.0),
+            clockwise: RefCell::new(true),
+            content: RefCell::new(None),
+        }
+    }
 }
 
 impl ObjectImpl for CircProgPriv {
@@ -37,7 +48,7 @@ impl ObjectImpl for CircProgPriv {
                     "Thickness",
                     0f32,
                     100f32,
-                    0f32,
+                    1f32,
                     glib::ParamFlags::READWRITE,
                 ),
                 glib::ParamSpec::new_float(
