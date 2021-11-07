@@ -1,10 +1,9 @@
 use std::{cell::RefCell, collections::VecDeque};
 // https://www.figuiere.net/technotes/notes/tn002/
 // https://github.com/gtk-rs/examples/blob/master/src/bin/listbox_model.rs
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, Result};
 use glib::{object_subclass, wrapper};
 use gtk::{prelude::*, subclass::prelude::*};
-use simplexpr::dynval::DynVal;
 
 use crate::error_handling_ctx;
 
@@ -13,9 +12,6 @@ wrapper! {
     @extends gtk::Bin, gtk::Container, gtk::Widget;
 }
 
-// wrapper! { pub struct Graph(ObjectSubclass<GraphPriv>) @extends gtk::Box, gtk::Container, gtk::Widget; }
-
-#[derive(Default)]
 pub struct GraphPriv {
     value: RefCell<f64>,
     thickness: RefCell<f64>,
@@ -23,6 +19,19 @@ pub struct GraphPriv {
     range: RefCell<u64>,
     history: RefCell<VecDeque<(std::time::Instant, f64)>>,
     content: RefCell<Option<gtk::Widget>>,
+}
+
+impl Default for GraphPriv {
+    fn default() -> Self {
+        Self {
+            value: RefCell::new(0.0),
+            thickness: RefCell::new(1.0),
+            join: RefCell::new("miter".to_string()),
+            range: RefCell::new(10),
+            history: RefCell::new(VecDeque::new()),
+            content: RefCell::new(None),
+        }
+    }
 }
 
 fn update_history(graph: &GraphPriv, v: (std::time::Instant, f64)) {
@@ -50,7 +59,7 @@ impl ObjectImpl for GraphPriv {
                     "The Thickness",
                     0f64,
                     100f64,
-                    0f64,
+                    1f64,
                     glib::ParamFlags::READWRITE,
                 ),
                 glib::ParamSpec::new_uint64("range", "Range", "The Range", 0u64, u64::MAX, 10u64, glib::ParamFlags::READWRITE),
@@ -60,10 +69,6 @@ impl ObjectImpl for GraphPriv {
 
         PROPERTIES.as_ref()
     }
-
-    //    fn constructed(&self, obj: &Self::Type) {
-    //        self.parent_constructed(obj);
-    //    }
 
     fn set_property(&self, obj: &Self::Type, _id: usize, value: &glib::Value, pspec: &glib::ParamSpec) {
         match pspec.name() {
@@ -119,8 +124,6 @@ impl ContainerImpl for GraphPriv {
 
 impl BinImpl for GraphPriv {}
 impl WidgetImpl for GraphPriv {
-    // https://sourcegraph.com/github.com/GNOME/fractal/-/blob/fractal-gtk/src/widgets/clip_container.rs?L119 ???
-    // https://stackoverflow.com/questions/50283367/drawingarea-fill-area-outside-a-region
     fn draw(&self, widget: &Self::Type, cr: &cairo::Context) -> Inhibit {
         let styles = widget.style_context();
         let width = widget.allocated_width() as f64;
@@ -151,10 +154,10 @@ impl WidgetImpl for GraphPriv {
                 _ => Err(anyhow!("Error, the value: {} for atribute join is not valid", join))?,
             };
 
-            if let Some(v) = history.front() {
-                let y = height * (1.0 - (v.1 / 100.0));
-                // cr.move_to(width, y);
-            };
+            // if let Some(v) = history.front() {
+            //     let y = height * (1.0 - (v.1 / 100.0));
+            //     cr.move_to(width, y);
+            // };
 
             for (t, v) in history.iter() {
                 let t = std::time::Instant::now().duration_since(*t).as_millis();
