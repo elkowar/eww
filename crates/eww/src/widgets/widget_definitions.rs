@@ -35,7 +35,7 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::Widge
         "box" => build_gtk_box(bargs)?.upcast(),
         "centerbox" => build_center_box(bargs)?.upcast(),
         "eventbox" => build_gtk_event_box(bargs)?.upcast(),
-        "circle-progress" => build_circular_progress_bar(bargs)?.upcast(),
+        "circular-progress" => build_circular_progress_bar(bargs)?.upcast(),
         "scale" => build_gtk_scale(bargs)?.upcast(),
         "progress" => build_gtk_progress(bargs)?.upcast(),
         "image" => build_gtk_image(bargs)?.upcast(),
