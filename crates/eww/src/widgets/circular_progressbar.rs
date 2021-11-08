@@ -184,15 +184,28 @@ impl WidgetImpl for CircProgPriv {
             cr.set_fill_rule(cairo::FillRule::EvenOdd); // Substract one circle from the other
             cr.fill()?;
             cr.restore()?;
+
+            // Draw the children widget clipping it to the center
+            if let Some(child) = &*self.content.borrow() {
+                cr.save()?;
+                // Center circular clip
+                cr.arc(c.0, c.1, inner_ring+1.0, 0.0, perc_to_rad(100.0));
+                cr.set_source_rgba(bg_color.red, 0.0, 0.0, bg_color.alpha);
+                cr.clip();
+
+                // Children widget
+                widget.propagate_draw(child, &cr);
+
+                cr.reset_clip();
+                cr.restore()?;
+            }
         };
+
 
         if let Err(error) = res {
             error_handling_ctx::print_error(error)
         };
 
-        if let Some(child) = &*self.content.borrow() {
-            widget.propagate_draw(child, &cr);
-        }
         gtk::Inhibit(false)
     }
 }
