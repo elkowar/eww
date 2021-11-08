@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use anyhow::{Result, anyhow};
 use glib::{object_subclass, wrapper};
-use gtk::{Requisition, prelude::*, subclass::prelude::*};
+use gtk::{prelude::*, subclass::prelude::*};
 
 use crate::error_handling_ctx;
 
