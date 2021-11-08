@@ -117,7 +117,7 @@ Now, we declare the body of our widget. We make use of a `box`, which we set a c
 
 We need this `box`, as a widget definition can only ever contain a single widget - otherwise,
 eww would not know if it should align them vertically or horizontally, how it should space them, and so on.
-Thus, we wrap multiple children in a `box.`.
+Thus, we wrap multiple children in a `box`.
 This box then contains a reference to the provided attribute `text`, as well as a button.
 In that buttons `onclick` attribute, we make refer to the provided `name` using string-interpolation syntax: `"${name}"`.
 This allows us to easily refer to any variables within strings.
