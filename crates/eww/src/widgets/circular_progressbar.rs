@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 // https://www.figuiere.net/technotes/notes/tn002/
 // https://github.com/gtk-rs/examples/blob/master/src/bin/listbox_model.rs
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use glib::{object_subclass, wrapper};
 use gtk::{prelude::*, subclass::prelude::*};
 
@@ -117,6 +117,11 @@ impl CircProg {
 }
 impl ContainerImpl for CircProgPriv {
     fn add(&self, container: &Self::Type, widget: &gtk::Widget) {
+        if let Some(content) = &*self.content.borrow() {
+            // TODO: Handle this error when populating children widgets instead
+            error_handling_ctx::print_error(anyhow!("Error, trying to add multiple children to a circular-progress widget"));
+            self.parent_remove(container, content);
+        }
         self.parent_add(container, widget);
         self.content.replace(Some(widget.clone()));
     }
