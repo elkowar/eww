@@ -141,7 +141,7 @@ impl WidgetImpl for CircProgPriv {
             let bg_color: gdk::RGBA = styles.style_property_for_state("background-color", gtk::StateFlags::NORMAL).get()?;
             let outer_ring =  f64::min(width, height) / 2.0;
             let inner_ring =  (f64::min(width, height) / 2.0) - thickness;
-            let c = (width / 2.0, height / 2.0); // Center
+            let center = (width / 2.0, height / 2.0);
             let (start_angle, end_angle) = if clockwise {
                 (0.0, perc_to_rad(value as f64))
             }
@@ -152,25 +152,25 @@ impl WidgetImpl for CircProgPriv {
             cr.save()?;
 
             // Centering
-            cr.translate(c.0, c.1);
+            cr.translate(center.0, center.1);
             cr.rotate(perc_to_rad(start_at as f64));
-            cr.translate(-c.0, -c.1);
+            cr.translate(-center.0, -center.1);
 
             // Background Ring
-            cr.move_to(c.0, c.1);
-            cr.arc(c.0, c.1, outer_ring, 0.0, perc_to_rad(100.0));
+            cr.move_to(center.0, center.1);
+            cr.arc(center.0, center.1, outer_ring, 0.0, perc_to_rad(100.0));
             cr.set_source_rgba(bg_color.red, bg_color.green, bg_color.blue, bg_color.alpha);
-            cr.move_to(c.0, c.1);
-            cr.arc(c.0, c.1, inner_ring, 0.0, perc_to_rad(100.0));
+            cr.move_to(center.0, center.1);
+            cr.arc(center.0, center.1, inner_ring, 0.0, perc_to_rad(100.0));
             cr.set_fill_rule(cairo::FillRule::EvenOdd); // Substract one circle from the other
             cr.fill()?;
 
             // Foreground Ring
-            cr.move_to(c.0, c.1);
-            cr.arc(c.0, c.1, outer_ring, start_angle, end_angle);
+            cr.move_to(center.0, center.1);
+            cr.arc(center.0, center.1, outer_ring, start_angle, end_angle);
             cr.set_source_rgba(fg_color.red, fg_color.green, fg_color.blue, fg_color.alpha);
-            cr.move_to(c.0, c.1);
-            cr.arc(c.0, c.1, inner_ring, start_angle, end_angle);
+            cr.move_to(center.0, center.1);
+            cr.arc(center.0, center.1, inner_ring, start_angle, end_angle);
             cr.set_fill_rule(cairo::FillRule::EvenOdd); // Substract one circle from the other
             cr.fill()?;
             cr.restore()?;
@@ -179,7 +179,7 @@ impl WidgetImpl for CircProgPriv {
             if let Some(child) = &*self.content.borrow() {
                 cr.save()?;
                 // Center circular clip
-                cr.arc(c.0, c.1, inner_ring+1.0, 0.0, perc_to_rad(100.0));
+                cr.arc(center.0, center.1, inner_ring+1.0, 0.0, perc_to_rad(100.0));
                 cr.set_source_rgba(bg_color.red, 0.0, 0.0, bg_color.alpha);
                 cr.clip();
 
