@@ -14,12 +14,20 @@ interface Widget {
 
 function parseMagicVariables(data: string) {
     const pattern = /^.*\/\/\s*@desc\s*(\w+)\s*-\s*(.*)$/gm;
+    const prop_pattern = /^.*\/\/\s+@prop +\s*(.*)$/gm;
+    let properties = [...data.matchAll(prop_pattern)]
     let output = [];
+    let i = 0;
     for (const [_, name, desc] of data.matchAll(pattern)) {
         output.push(
 `### \`${name}\`
 ${desc.replaceAll("\\n", "\n\n")}
+#### Structure
+\`\`\`
+${properties[i][1]}
+\`\`\`
 `);
+        i = i + 1
     }
     return output.join("\n");
 }
