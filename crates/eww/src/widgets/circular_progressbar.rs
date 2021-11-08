@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use anyhow::{Result, anyhow};
 use glib::{object_subclass, wrapper};
-use gtk::{prelude::*, subclass::prelude::*};
+use gtk::{Requisition, prelude::*, subclass::prelude::*};
 
 use crate::error_handling_ctx;
 
@@ -112,6 +112,7 @@ impl CircProg {
         glib::Object::new::<Self>(&[]).expect("Failed to create CircularProgress Widget")
     }
 }
+
 impl ContainerImpl for CircProgPriv {
     fn add(&self, container: &Self::Type, widget: &gtk::Widget) {
         if let Some(content) = &*self.content.borrow() {
@@ -124,8 +125,26 @@ impl ContainerImpl for CircProgPriv {
     }
 }
 
+
 impl BinImpl for CircProgPriv {}
 impl WidgetImpl for CircProgPriv {
+    // We overwrite preferred_* so that overflowing content from the children gets cropped
+    fn preferred_width(&self, _widget: &Self::Type) -> (i32, i32) {
+        (0,0)
+    }
+
+    fn preferred_width_for_height(&self, _widget: &Self::Type, _height: i32) -> (i32, i32) {
+        (0,0)
+    }
+
+    fn preferred_height(&self, _widget: &Self::Type) -> (i32, i32) {
+        (0,0)
+    }
+
+    fn preferred_height_for_width(&self, _widget: &Self::Type, _width: i32) -> (i32, i32) {
+        (0,0)
+    }
+
     fn draw(&self, widget: &Self::Type, cr: &cairo::Context) -> Inhibit {
         let styles = widget.style_context();
         let value = *self.value.borrow();
