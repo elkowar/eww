@@ -1,6 +1,4 @@
 use std::cell::RefCell;
-// https://www.figuiere.net/technotes/notes/tn002/
-// https://github.com/gtk-rs/examples/blob/master/src/bin/listbox_model.rs
 use anyhow::{Result, anyhow};
 use glib::{object_subclass, wrapper};
 use gtk::{prelude::*, subclass::prelude::*};
@@ -34,7 +32,6 @@ impl Default for CircProgPriv {
 }
 
 impl ObjectImpl for CircProgPriv {
-    // glib_object_impl!();
     fn properties() -> &'static [glib::ParamSpec] {
         use once_cell::sync::Lazy;
         static PROPERTIES: Lazy<Vec<glib::ParamSpec>> = Lazy::new(|| {
@@ -129,8 +126,6 @@ impl ContainerImpl for CircProgPriv {
 
 impl BinImpl for CircProgPriv {}
 impl WidgetImpl for CircProgPriv {
-    // https://sourcegraph.com/github.com/GNOME/fractal/-/blob/fractal-gtk/src/widgets/clip_container.rs?L119 ???
-    // https://stackoverflow.com/questions/50283367/drawingarea-fill-area-outside-a-region
     fn draw(&self, widget: &Self::Type, cr: &cairo::Context) -> Inhibit {
         let styles = widget.style_context();
         let value = *self.value.borrow();
@@ -160,11 +155,6 @@ impl WidgetImpl for CircProgPriv {
             cr.translate(c.0, c.1);
             cr.rotate(perc_to_rad(start_at as f64));
             cr.translate(-c.0, -c.1);
-
-            //// Center circle
-            //cr.arc(c.0, c.1, inner_ring+1.0, 0.0, perc_to_rad(100.0));
-            //cr.set_source_rgba(bg_color.red, bg_color.green, bg_color.blue, bg_color.alpha);
-            //cr.fill()?;
 
             // Background Ring
             cr.move_to(c.0, c.1);
