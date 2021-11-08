@@ -129,20 +129,51 @@ impl ContainerImpl for CircProgPriv {
 impl BinImpl for CircProgPriv {}
 impl WidgetImpl for CircProgPriv {
     // We overwrite preferred_* so that overflowing content from the children gets cropped
+    // Returning just (0,0) kind of works, however, the widget might get shrunk into nothingness
+    // in certain conditions, like, for example, having a large enough margin in its parent
+    // container
     fn preferred_width(&self, _widget: &Self::Type) -> (i32, i32) {
-        (0,0)
+        if let Some(child) = &*self.content.borrow() {
+            let min = i32::min(child.preferred_width().0, child.preferred_height().0);
+            let natural = i32::min(child.preferred_width().1, child.preferred_height().1);
+            (min, natural)
+        }
+        else {
+            (0,0)
+        }
     }
 
     fn preferred_width_for_height(&self, _widget: &Self::Type, _height: i32) -> (i32, i32) {
-        (0,0)
+        if let Some(child) = &*self.content.borrow() {
+            let min = i32::min(child.preferred_width().0, child.preferred_height().0);
+            let natural = i32::min(child.preferred_width().1, child.preferred_height().1);
+            (min, natural)
+        }
+        else {
+            (0,0)
+        }
     }
 
     fn preferred_height(&self, _widget: &Self::Type) -> (i32, i32) {
-        (0,0)
+        if let Some(child) = &*self.content.borrow() {
+            let min = i32::min(child.preferred_width().0, child.preferred_height().0);
+            let natural = i32::min(child.preferred_width().1, child.preferred_height().1);
+            (min, natural)
+        }
+        else {
+            (0,0)
+        }
     }
 
     fn preferred_height_for_width(&self, _widget: &Self::Type, _width: i32) -> (i32, i32) {
-        (0,0)
+        if let Some(child) = &*self.content.borrow() {
+            let min = i32::min(child.preferred_width().0, child.preferred_height().0);
+            let natural = i32::min(child.preferred_width().1, child.preferred_height().1);
+            (min, natural)
+        }
+        else {
+            (0,0)
+        }
     }
 
     fn draw(&self, widget: &Self::Type, cr: &cairo::Context) -> Inhibit {
@@ -151,16 +182,23 @@ impl WidgetImpl for CircProgPriv {
         let start_at = *self.start_at.borrow() as f64;
 
         let thickness = *self.thickness.borrow() as f64;
-        let width = widget.allocated_width() as f64;
-        let height = widget.allocated_height() as f64;
         let clockwise = *self.clockwise.borrow() as bool;
 
+        // TODO: This works, but if margin is sufficiently large, it consumes the cairo drawing
+        let margin = styles.margin(gtk::StateFlags::NORMAL);
+        let total_width = widget.allocated_width() as f64;
+        let total_height = widget.allocated_height() as f64;
+        let circle_width = total_width - margin.left as f64 - margin.right as f64;
+        let circle_height = total_height as f64 - margin.top as f64 - margin.bottom as f64;
+
+
         let res: Result<()> = try {
+            // Padding is not supported
             let fg_color: gdk::RGBA = styles.color(gtk::StateFlags::NORMAL);
             let bg_color: gdk::RGBA = styles.style_property_for_state("background-color", gtk::StateFlags::NORMAL).get()?;
-            let outer_ring =  f64::min(width, height) / 2.0;
-            let inner_ring =  (f64::min(width, height) / 2.0) - thickness;
-            let center = (width / 2.0, height / 2.0);
+            let center = (total_width / 2.0, total_height / 2.0);
+            let outer_ring =  f64::min(circle_width, circle_height) / 2.0;
+            let inner_ring =  (f64::min(circle_width, circle_height) / 2.0) - thickness;
             let (start_angle, end_angle) = if clockwise {
                 (0.0, perc_to_rad(value as f64))
             }
