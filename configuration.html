@@ -253,7 +253,7 @@ The <code>name</code> attribute <em>must</em> be provided.</p>
 <p>Now, we declare the body of our widget. We make use of a <code>box</code>, which we set a couple attributes of.</p>
 <p>We need this <code>box</code>, as a widget definition can only ever contain a single widget - otherwise,
 eww would not know if it should align them vertically or horizontally, how it should space them, and so on.
-Thus, we wrap multiple children in a <code>box.</code>.
+Thus, we wrap multiple children in a <code>box</code>.
 This box then contains a reference to the provided attribute <code>text</code>, as well as a button.
 In that buttons <code>onclick</code> attribute, we make refer to the provided <code>name</code> using string-interpolation syntax: <code>&quot;${name}&quot;</code>.
 This allows us to easily refer to any variables within strings.
