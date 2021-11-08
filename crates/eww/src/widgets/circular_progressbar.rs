@@ -178,6 +178,7 @@ impl WidgetImpl for CircProgPriv {
             // Draw the children widget clipping it to the center
             if let Some(child) = &*self.content.borrow() {
                 cr.save()?;
+
                 // Center circular clip
                 cr.arc(center.0, center.1, inner_ring+1.0, 0.0, perc_to_rad(100.0));
                 cr.set_source_rgba(bg_color.red, 0.0, 0.0, bg_color.alpha);
@@ -190,7 +191,6 @@ impl WidgetImpl for CircProgPriv {
                 cr.restore()?;
             }
         };
-
 
         if let Err(error) = res {
             error_handling_ctx::print_error(error)
