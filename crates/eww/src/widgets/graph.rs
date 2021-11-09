@@ -127,15 +127,24 @@ impl WidgetImpl for GraphPriv {
     fn draw(&self, widget: &Self::Type, cr: &cairo::Context) -> Inhibit {
         let res: Result<()> = try {
             let styles = widget.style_context();
-            let width = widget.allocated_width() as f64;
-            let height = widget.allocated_height() as f64;
             let thickness = *self.thickness.borrow();
             let join = &*self.join.borrow();
             let history = &*self.history.borrow();
             let range = *self.range.borrow();
             let color: gdk::RGBA = styles.color(gtk::StateFlags::NORMAL);
+            let bg_color: gdk::RGBA = styles.style_property_for_state("background-color", gtk::StateFlags::NORMAL).get()?;
+
+            let margin = styles.margin(gtk::StateFlags::NORMAL);
+            let width = widget.allocated_width() as f64 - margin.left as f64 - margin.right as f64;
+            let height = widget.allocated_height() as f64 - margin.top as f64 - margin.bottom as f64;
 
             cr.save()?;
+
+            cr.set_source_rgba(bg_color.red, bg_color.green, bg_color.blue, bg_color.alpha);
+            cr.rectangle(0.0 + margin.left as f64, 0.0 + margin.top as f64, width, height);
+
+            cr.fill()?;
+            dbg!(width, height);
 
             match join.as_str() {
                 "miter" => {
@@ -157,7 +166,7 @@ impl WidgetImpl for GraphPriv {
                 let t = std::time::Instant::now().duration_since(*t).as_millis();
                 let x = width * (1.0 - (t as f64 / range as f64));
                 let y = height * (1.0 - (v / 100.0));
-                cr.line_to(x, y);
+                cr.line_to(x + margin.left as f64, y + margin.top as f64);
             }
 
             cr.set_line_width(thickness);
