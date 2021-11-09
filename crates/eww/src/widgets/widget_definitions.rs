@@ -1,13 +1,12 @@
 #![allow(clippy::option_map_unit_fn)]
-use super::{run_command, BuilderArgs};
+use super::{circular_progressbar::*, run_command, BuilderArgs};
 use crate::{
     enum_parse, error::DiagError, error_handling_ctx, eww_state, resolve_block, util::list_difference, widgets::widget_node,
 };
 use anyhow::*;
 use codespan_reporting::diagnostic::Severity;
 use gdk::NotifyType;
-use glib;
-use gtk::{self, prelude::*};
+use gtk::{self, glib, prelude::*};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use std::{
@@ -36,6 +35,7 @@ pub(super) fn widget_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::Widge
         "box" => build_gtk_box(bargs)?.upcast(),
         "centerbox" => build_center_box(bargs)?.upcast(),
         "eventbox" => build_gtk_event_box(bargs)?.upcast(),
+        "circular-progress" => build_circular_progress_bar(bargs)?.upcast(),
         "scale" => build_gtk_scale(bargs)?.upcast(),
         "progress" => build_gtk_progress(bargs)?.upcast(),
         "image" => build_gtk_image(bargs)?.upcast(),
@@ -749,6 +749,21 @@ fn build_gtk_calendar(bargs: &mut BuilderArgs) -> Result<gtk::Calendar> {
     });
 
     Ok(gtk_widget)
+}
+
+fn build_circular_progress_bar(bargs: &mut BuilderArgs) -> Result<CircProg> {
+    let w = CircProg::new();
+    resolve_block!(bargs, w, {
+        // @prop value - the value, between 0 - 100
+        prop(value: as_f64) { w.set_property("value", value)?; },
+        // @prop start-angle - the angle that the circle should start at
+        prop(start_at: as_f64) { w.set_property("start-at", start_at)?; },
+        // @prop thickness - the thickness of the circle
+        prop(thickness: as_f64) { w.set_property("thickness", thickness)?; },
+        // @prop clockwise - wether the progress bar spins clockwise or counter clockwise
+        prop(clockwise: as_bool) { w.set_property("clockwise", &clockwise)?; },
+    });
+    Ok(w)
 }
 
 /// @var orientation - "vertical", "v", "horizontal", "h"

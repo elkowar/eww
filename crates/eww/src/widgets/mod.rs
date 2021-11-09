@@ -10,6 +10,7 @@ use yuck::{config::widget_definition::WidgetDefinition, gen_diagnostic};
 use std::process::Command;
 use widget_definitions::*;
 
+pub mod circular_progressbar;
 pub mod widget_definitions;
 pub mod widget_node;
 
@@ -131,13 +132,16 @@ macro_rules! resolve_block {
                 $args.eww_state.resolve(
                     $args.window_name,
                     attr_map,
-                    ::glib::clone!(@strong $gtk_widget => move |attrs| {
-                        $(
-                            let $attr_name = attrs.get( ::std::stringify!($attr_name) ).context("something went terribly wrong....")?.$typecast_func()?;
-                        )*
-                        $code
-                        Ok(())
-                    })
+                    {
+                        let $gtk_widget = $gtk_widget.clone();
+                        move |attrs| {
+                            $(
+                                let $attr_name = attrs.get( ::std::stringify!($attr_name) ).context("something went terribly wrong....")?.$typecast_func()?;
+                            )*
+                            $code
+                            Ok(())
+                        }
+                    }
                 );
             }
         })+
