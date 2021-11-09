@@ -123,19 +123,18 @@ impl WidgetImpl for CircProgPriv {
     // We overwrite preferred_* so that overflowing content from the children gets cropped
     //  We return min(child_width, child_height)
     fn preferred_width(&self, widget: &Self::Type) -> (i32, i32) {
-        if let Some(child) = &*self.content.borrow() {
-            let styles = widget.style_context();
-            let margin = styles.margin(gtk::StateFlags::NORMAL);
+        let styles = widget.style_context();
+        let margin = styles.margin(gtk::StateFlags::NORMAL);
 
+        if let Some(child) = &*self.content.borrow() {
             let child_preferred_width = child.preferred_width();
             let child_preferred_height = child.preferred_height();
             let min_child = i32::min(child_preferred_width.0, child_preferred_height.0);
             let natural_child = i32::min(child_preferred_width.1, child_preferred_height.1);
-
             (min_child + margin.right as i32 + margin.left as i32, natural_child + margin.right as i32 + margin.left as i32)
         } else {
-            let min_empty_size = 2 * *self.thickness.borrow() as i32;
-            (min_empty_size, min_empty_size)
+            let empty_width = (2 * *self.thickness.borrow() as i32) + margin.right as i32 + margin.left as i32;
+            (empty_width , empty_width)
         }
     }
 
@@ -144,19 +143,18 @@ impl WidgetImpl for CircProgPriv {
     }
 
     fn preferred_height(&self, widget: &Self::Type) -> (i32, i32) {
-        if let Some(child) = &*self.content.borrow() {
-            let styles = widget.style_context();
-            let margin = styles.margin(gtk::StateFlags::NORMAL);
+        let styles = widget.style_context();
+        let margin = styles.margin(gtk::StateFlags::NORMAL);
 
+        if let Some(child) = &*self.content.borrow() {
             let child_preferred_width = child.preferred_width();
             let child_preferred_height = child.preferred_height();
             let min_child = i32::min(child_preferred_width.0, child_preferred_height.0);
             let natural_child = i32::min(child_preferred_width.1, child_preferred_height.1);
-
             (min_child + margin.bottom as i32 + margin.top as i32, natural_child + margin.bottom as i32 + margin.top as i32)
         } else {
-            let min_empty_size = 2 * *self.thickness.borrow() as i32;
-            (min_empty_size, min_empty_size)
+            let empty_height = (2 * *self.thickness.borrow() as i32) + margin.right as i32 + margin.left as i32;
+            (empty_height, empty_height)
         }
     }
 
