@@ -98,6 +98,10 @@ impl ObjectSubclass for CircProgPriv {
     type Type = CircProg;
 
     const NAME: &'static str = "CircProg";
+
+    fn class_init(klass: &mut Self::Class) {
+        klass.set_css_name("circular-progress");
+    }
 }
 
 impl CircProg {
@@ -118,6 +122,14 @@ impl ContainerImpl for CircProgPriv {
     }
 }
 
+fn calc_widget_lowest_preferred_dimension(widget: &gtk::Widget) -> (i32, i32) {
+    let preferred_width = widget.preferred_width();
+    let preferred_height = widget.preferred_height();
+    let min_lowest = i32::min(preferred_width.0, preferred_height.0);
+    let natural_lowest = i32::min(preferred_width.1, preferred_height.1);
+    (min_lowest, natural_lowest)
+}
+
 impl BinImpl for CircProgPriv {}
 impl WidgetImpl for CircProgPriv {
     // We overwrite preferred_* so that overflowing content from the children gets cropped
@@ -127,14 +139,11 @@ impl WidgetImpl for CircProgPriv {
         let margin = styles.margin(gtk::StateFlags::NORMAL);
 
         if let Some(child) = &*self.content.borrow() {
-            let child_preferred_width = child.preferred_width();
-            let child_preferred_height = child.preferred_height();
-            let min_child = i32::min(child_preferred_width.0, child_preferred_height.0);
-            let natural_child = i32::min(child_preferred_width.1, child_preferred_height.1);
+            let (min_child, natural_child) = calc_widget_lowest_preferred_dimension(child);
             (min_child + margin.right as i32 + margin.left as i32, natural_child + margin.right as i32 + margin.left as i32)
         } else {
             let empty_width = (2 * *self.thickness.borrow() as i32) + margin.right as i32 + margin.left as i32;
-            (empty_width , empty_width)
+            (empty_width, empty_width)
         }
     }
 
@@ -147,10 +156,7 @@ impl WidgetImpl for CircProgPriv {
         let margin = styles.margin(gtk::StateFlags::NORMAL);
 
         if let Some(child) = &*self.content.borrow() {
-            let child_preferred_width = child.preferred_width();
-            let child_preferred_height = child.preferred_height();
-            let min_child = i32::min(child_preferred_width.0, child_preferred_height.0);
-            let natural_child = i32::min(child_preferred_width.1, child_preferred_height.1);
+            let (min_child, natural_child) = calc_widget_lowest_preferred_dimension(child);
             (min_child + margin.bottom as i32 + margin.top as i32, natural_child + margin.bottom as i32 + margin.top as i32)
         } else {
             let empty_height = (2 * *self.thickness.borrow() as i32) + margin.right as i32 + margin.left as i32;
