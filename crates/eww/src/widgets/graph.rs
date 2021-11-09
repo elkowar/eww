@@ -48,7 +48,6 @@ fn update_history(graph: &GraphPriv, v: (std::time::Instant, f64)) {
 }
 
 impl ObjectImpl for GraphPriv {
-    // glib_object_impl!();
     fn properties() -> &'static [glib::ParamSpec] {
         use once_cell::sync::Lazy;
         static PROPERTIES: Lazy<Vec<glib::ParamSpec>> = Lazy::new(|| {
@@ -117,24 +116,22 @@ impl Graph {
 }
 
 impl ContainerImpl for GraphPriv {
-    fn add(&self, container: &Self::Type, widget: &gtk::Widget) {
-        self.parent_add(container, widget);
-        self.content.replace(Some(widget.clone()));
+    fn add(&self, _container: &Self::Type, _widget: &gtk::Widget) {
+        error_handling_ctx::print_error(anyhow!("Error, Graph widget shoudln't have any children"));
     }
 }
 
 impl BinImpl for GraphPriv {}
 impl WidgetImpl for GraphPriv {
     fn draw(&self, widget: &Self::Type, cr: &cairo::Context) -> Inhibit {
-        let styles = widget.style_context();
-        let width = widget.allocated_width() as f64;
-        let height = widget.allocated_height() as f64;
-        let thickness = *self.thickness.borrow();
-        let join = &*self.join.borrow();
-        let history = &*self.history.borrow();
-        let range = *self.range.borrow();
-
         let res: Result<()> = try {
+            let styles = widget.style_context();
+            let width = widget.allocated_width() as f64;
+            let height = widget.allocated_height() as f64;
+            let thickness = *self.thickness.borrow();
+            let join = &*self.join.borrow();
+            let history = &*self.history.borrow();
+            let range = *self.range.borrow();
             let color: gdk::RGBA = styles.color(gtk::StateFlags::NORMAL);
 
             cr.save()?;
@@ -154,11 +151,6 @@ impl WidgetImpl for GraphPriv {
                 }
                 _ => Err(anyhow!("Error, the value: {} for atribute join is not valid", join))?,
             };
-
-            // if let Some(v) = history.front() {
-            //     let y = height * (1.0 - (v.1 / 100.0));
-            //     cr.move_to(width, y);
-            // };
 
             for (t, v) in history.iter() {
                 let t = std::time::Instant::now().duration_since(*t).as_millis();
