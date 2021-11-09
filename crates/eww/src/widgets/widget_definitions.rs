@@ -755,13 +755,13 @@ fn build_circular_progress_bar(bargs: &mut BuilderArgs) -> Result<CircProg> {
     let w = CircProg::new();
     resolve_block!(bargs, w, {
         // @prop value - the value, between 0 - 100
-        prop(value: as_f64) { w.set_property("value", &(value as f32))?; },
+        prop(value: as_f64) { w.set_property("value", value)?; },
         // @prop start-angle - the angle that the circle should start at
-        prop(start_at: as_f64) { w.set_property("start-at", &(start_at as f32))?; },
+        prop(start_at: as_f64) { w.set_property("start-at", start_at)?; },
         // @prop thickness - the thickness of the circle
-        prop(thickness: as_f64) { w.set_property("thickness", &(thickness as f32))?; },
+        prop(thickness: as_f64) { w.set_property("thickness", thickness)?; },
         // @prop clockwise - wether the progress bar spins clockwise or counter clockwise
-        prop(clockwise: as_bool) { w.set_property("clockwise", &(clockwise as bool))?; },
+        prop(clockwise: as_bool) { w.set_property("clockwise", &clockwise)?; },
     });
     Ok(w)
 }

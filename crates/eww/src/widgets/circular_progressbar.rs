@@ -1,7 +1,7 @@
-use std::cell::RefCell;
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use glib::{object_subclass, wrapper};
 use gtk::{prelude::*, subclass::prelude::*};
+use std::cell::RefCell;
 
 use crate::error_handling_ctx;
 
@@ -11,9 +11,9 @@ wrapper! {
 }
 
 pub struct CircProgPriv {
-    start_at: RefCell<f32>,
-    value: RefCell<f32>,
-    thickness: RefCell<f32>,
+    start_at: RefCell<f64>,
+    value: RefCell<f64>,
+    thickness: RefCell<f64>,
     clockwise: RefCell<bool>,
     content: RefCell<Option<gtk::Widget>>,
 }
@@ -36,33 +36,26 @@ impl ObjectImpl for CircProgPriv {
         use once_cell::sync::Lazy;
         static PROPERTIES: Lazy<Vec<glib::ParamSpec>> = Lazy::new(|| {
             vec![
-                glib::ParamSpec::new_float("value", "Value", "The value", 0f32, 100f32, 0f32, glib::ParamFlags::READWRITE),
-                glib::ParamSpec::new_float(
+                glib::ParamSpec::new_double("value", "Value", "The value", 0f64, 100f64, 0f64, glib::ParamFlags::READWRITE),
+                glib::ParamSpec::new_double(
                     "thickness",
                     "Thickness",
                     "Thickness",
-                    0f32,
-                    100f32,
-                    1f32,
+                    0f64,
+                    100f64,
+                    1f64,
                     glib::ParamFlags::READWRITE,
                 ),
-                glib::ParamSpec::new_float(
+                glib::ParamSpec::new_double(
                     "start-at",
                     "Starting at",
                     "Starting at",
-                    0f32,
-                    100f32,
-                    0f32,
+                    0f64,
+                    100f64,
+                    0f64,
                     glib::ParamFlags::READWRITE,
                 ),
-               glib::ParamSpec::new_boolean(
-                    "clockwise",
-                    "Clockwise",
-                    "Clockwise",
-                    true,
-                    glib::ParamFlags::READWRITE,
-                ),
-
+                glib::ParamSpec::new_boolean("clockwise", "Clockwise", "Clockwise", true, glib::ParamFlags::READWRITE),
             ]
         });
 
@@ -125,92 +118,81 @@ impl ContainerImpl for CircProgPriv {
     }
 }
 
-
 impl BinImpl for CircProgPriv {}
 impl WidgetImpl for CircProgPriv {
     // We overwrite preferred_* so that overflowing content from the children gets cropped
-    // Returning just (0,0) kind of works, however, the widget might get shrunk into nothingness
-    // in certain conditions, like, for example, having a large enough margin in its parent
-    // container
-    fn preferred_width(&self, _widget: &Self::Type) -> (i32, i32) {
+    //  We return min(child_width, child_height)
+    fn preferred_width(&self, widget: &Self::Type) -> (i32, i32) {
         if let Some(child) = &*self.content.borrow() {
-            let min = i32::min(child.preferred_width().0, child.preferred_height().0);
-            let natural = i32::min(child.preferred_width().1, child.preferred_height().1);
-            (min, natural)
-        }
-        else {
-            (0,0)
+            let styles = widget.style_context();
+            let margin = styles.margin(gtk::StateFlags::NORMAL);
+
+            let child_preferred_width = child.preferred_width();
+            let child_preferred_height = child.preferred_height();
+            let min_child = i32::min(child_preferred_width.0, child_preferred_height.0);
+            let natural_child = i32::min(child_preferred_width.1, child_preferred_height.1);
+
+            (min_child + margin.right as i32 + margin.left as i32, natural_child + margin.right as i32 + margin.left as i32)
+        } else {
+            let min_empty_size = 2 * *self.thickness.borrow() as i32;
+            (min_empty_size, min_empty_size)
         }
     }
 
-    fn preferred_width_for_height(&self, _widget: &Self::Type, _height: i32) -> (i32, i32) {
+    fn preferred_width_for_height(&self, widget: &Self::Type, _height: i32) -> (i32, i32) {
+        self.preferred_width(widget)
+    }
+
+    fn preferred_height(&self, widget: &Self::Type) -> (i32, i32) {
         if let Some(child) = &*self.content.borrow() {
-            let min = i32::min(child.preferred_width().0, child.preferred_height().0);
-            let natural = i32::min(child.preferred_width().1, child.preferred_height().1);
-            (min, natural)
-        }
-        else {
-            (0,0)
+            let styles = widget.style_context();
+            let margin = styles.margin(gtk::StateFlags::NORMAL);
+
+            let child_preferred_width = child.preferred_width();
+            let child_preferred_height = child.preferred_height();
+            let min_child = i32::min(child_preferred_width.0, child_preferred_height.0);
+            let natural_child = i32::min(child_preferred_width.1, child_preferred_height.1);
+
+            (min_child + margin.bottom as i32 + margin.top as i32, natural_child + margin.bottom as i32 + margin.top as i32)
+        } else {
+            let min_empty_size = 2 * *self.thickness.borrow() as i32;
+            (min_empty_size, min_empty_size)
         }
     }
 
-    fn preferred_height(&self, _widget: &Self::Type) -> (i32, i32) {
-        if let Some(child) = &*self.content.borrow() {
-            let min = i32::min(child.preferred_width().0, child.preferred_height().0);
-            let natural = i32::min(child.preferred_width().1, child.preferred_height().1);
-            (min, natural)
-        }
-        else {
-            (0,0)
-        }
-    }
-
-    fn preferred_height_for_width(&self, _widget: &Self::Type, _width: i32) -> (i32, i32) {
-        if let Some(child) = &*self.content.borrow() {
-            let min = i32::min(child.preferred_width().0, child.preferred_height().0);
-            let natural = i32::min(child.preferred_width().1, child.preferred_height().1);
-            (min, natural)
-        }
-        else {
-            (0,0)
-        }
+    fn preferred_height_for_width(&self, widget: &Self::Type, _width: i32) -> (i32, i32) {
+        self.preferred_height(widget)
     }
 
     fn draw(&self, widget: &Self::Type, cr: &cairo::Context) -> Inhibit {
-        let styles = widget.style_context();
-        let value = *self.value.borrow();
-        let start_at = *self.start_at.borrow() as f64;
-
-        let thickness = *self.thickness.borrow() as f64;
-        let clockwise = *self.clockwise.borrow() as bool;
-
-        // TODO: This works, but if margin is sufficiently large, it consumes the cairo drawing
-        let margin = styles.margin(gtk::StateFlags::NORMAL);
-        let total_width = widget.allocated_width() as f64;
-        let total_height = widget.allocated_height() as f64;
-        let circle_width = total_width - margin.left as f64 - margin.right as f64;
-        let circle_height = total_height as f64 - margin.top as f64 - margin.bottom as f64;
-
-
         let res: Result<()> = try {
-            // Padding is not supported
+            let value = *self.value.borrow();
+            let start_at = *self.start_at.borrow() as f64;
+            let thickness = *self.thickness.borrow() as f64;
+            let clockwise = *self.clockwise.borrow() as bool;
+
+            let styles = widget.style_context();
+            let margin = styles.margin(gtk::StateFlags::NORMAL);
+            // Padding is not supported yet
             let fg_color: gdk::RGBA = styles.color(gtk::StateFlags::NORMAL);
             let bg_color: gdk::RGBA = styles.style_property_for_state("background-color", gtk::StateFlags::NORMAL).get()?;
+            let (start_angle, end_angle) =
+                if clockwise { (0.0, perc_to_rad(value as f64)) } else { (perc_to_rad(100.0 - value as f64), 0.0) };
+
+            let total_width = widget.allocated_width() as f64;
+            let total_height = widget.allocated_height() as f64;
             let center = (total_width / 2.0, total_height / 2.0);
-            let outer_ring =  f64::min(circle_width, circle_height) / 2.0;
-            let inner_ring =  (f64::min(circle_width, circle_height) / 2.0) - thickness;
-            let (start_angle, end_angle) = if clockwise {
-                (0.0, perc_to_rad(value as f64))
-            }
-            else {
-                (perc_to_rad(100.0 - value as f64), 0.0)
-            };
+
+            let circle_width = total_width - margin.left as f64 - margin.right as f64;
+            let circle_height = total_height as f64 - margin.top as f64 - margin.bottom as f64;
+            let outer_ring = f64::min(circle_width, circle_height) / 2.0;
+            let inner_ring = (f64::min(circle_width, circle_height) / 2.0) - thickness;
 
             cr.save()?;
 
             // Centering
             cr.translate(center.0, center.1);
-            cr.rotate(perc_to_rad(start_at as f64));
+            cr.rotate(perc_to_rad(start_at));
             cr.translate(-center.0, -center.1);
 
             // Background Ring
@@ -232,12 +214,12 @@ impl WidgetImpl for CircProgPriv {
             cr.fill()?;
             cr.restore()?;
 
-            // Draw the children widget clipping it to the center
+            // Draw the children widget, clipping it to the inside
             if let Some(child) = &*self.content.borrow() {
                 cr.save()?;
 
                 // Center circular clip
-                cr.arc(center.0, center.1, inner_ring+1.0, 0.0, perc_to_rad(100.0));
+                cr.arc(center.0, center.1, inner_ring + 1.0, 0.0, perc_to_rad(100.0));
                 cr.set_source_rgba(bg_color.red, 0.0, 0.0, bg_color.alpha);
                 cr.clip();
 
