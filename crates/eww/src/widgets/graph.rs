@@ -11,7 +11,8 @@ use crate::error_handling_ctx;
 //  able to subclass just a gtk::Widget
 wrapper! {
     pub struct Graph(ObjectSubclass<GraphPriv>)
-    @extends gtk::Bin, gtk::Container, gtk::Widget; }
+    @extends gtk::Bin, gtk::Container, gtk::Widget;
+}
 
 pub struct GraphPriv {
     value: RefCell<f64>,
