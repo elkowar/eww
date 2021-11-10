@@ -751,6 +751,8 @@ fn build_gtk_calendar(bargs: &mut BuilderArgs) -> Result<gtk::Calendar> {
     Ok(gtk_widget)
 }
 
+/// @widget circular-progress
+/// @desc A widget that displays a circular progress bar
 fn build_circular_progress_bar(bargs: &mut BuilderArgs) -> Result<CircProg> {
     let w = CircProg::new();
     resolve_block!(bargs, w, {
