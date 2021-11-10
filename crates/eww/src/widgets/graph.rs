@@ -108,6 +108,10 @@ impl ObjectSubclass for GraphPriv {
     type Type = Graph;
 
     const NAME: &'static str = "Graph";
+
+    fn class_init(klass: &mut Self::Class) {
+        klass.set_css_name("graph");
+    }
 }
 
 impl Graph {
@@ -124,6 +128,24 @@ impl ContainerImpl for GraphPriv {
 
 impl BinImpl for GraphPriv {}
 impl WidgetImpl for GraphPriv {
+    fn preferred_width(&self, _widget: &Self::Type) -> (i32, i32) {
+        let thickness = *self.thickness.borrow() as i32;
+        (thickness, thickness)
+    }
+
+    fn preferred_width_for_height(&self, _widget: &Self::Type, height: i32) -> (i32, i32) {
+        (height, height)
+    }
+
+    fn preferred_height(&self, _widget: &Self::Type) -> (i32, i32) {
+        let thickness = *self.thickness.borrow() as i32;
+        (thickness, thickness)
+    }
+
+    fn preferred_height_for_width(&self, _widget: &Self::Type, width: i32) -> (i32, i32) {
+        (width, width)
+    }
+
     fn draw(&self, widget: &Self::Type, cr: &cairo::Context) -> Inhibit {
         let res: Result<()> = try {
             let styles = widget.style_context();
@@ -140,12 +162,11 @@ impl WidgetImpl for GraphPriv {
 
             cr.save()?;
 
-            cr.set_source_rgba(bg_color.red, bg_color.green, bg_color.blue, bg_color.alpha);
+            // Prevent the line from overflowing over the margin in the sides
             cr.rectangle(0.0 + margin.left as f64, 0.0 + margin.top as f64, width, height);
+            cr.clip();
 
-            cr.fill()?;
-            dbg!(width, height);
-
+            // Line join
             match join.as_str() {
                 "miter" => {
                     cr.set_line_cap(cairo::LineCap::Butt);
@@ -162,17 +183,42 @@ impl WidgetImpl for GraphPriv {
                 _ => Err(anyhow!("Error, the value: {} for atribute join is not valid", join))?,
             };
 
-            for (t, v) in history.iter() {
-                let t = std::time::Instant::now().duration_since(*t).as_millis();
-                let x = width * (1.0 - (t as f64 / range as f64));
-                let y = height * (1.0 - (v / 100.0));
-                cr.line_to(x + margin.left as f64, y + margin.top as f64);
+            // Calculate points once
+            let points = history
+                .iter()
+                .map(|(t, v)| {
+                    let t = std::time::Instant::now().duration_since(*t).as_millis();
+                    let x = width * (1.0 - (t as f64 / range as f64));
+                    let y = height * (1.0 - (v / 100.0));
+                    (x + margin.left as f64, y + margin.top as f64)
+                })
+                .collect::<Vec<(f64, f64)>>();
+
+            // Background (separate, to avoid lines in the bottom / sides)
+            if bg_color.alpha > 0.0 {
+                if let Some(first_point) = points.first() {
+                    cr.line_to(first_point.0, height + margin.bottom as f64);
+                }
+                for (x, y) in points.iter() {
+                    cr.line_to(*x, *y);
+                }
+
+                cr.line_to(width + margin.right as f64, height + margin.bottom as f64);
+                cr.set_source_rgba(bg_color.red, bg_color.green, bg_color.blue, bg_color.alpha);
+                cr.fill()?;
             }
 
-            cr.set_line_width(thickness);
-            cr.set_source_rgba(color.red, color.green, color.blue, color.alpha);
-            cr.stroke()?;
+            // Line
+            if color.alpha > 0.0 && thickness > 0.0 {
+                for (x, y) in points.iter() {
+                    cr.line_to(*x, *y);
+                }
+                cr.set_line_width(thickness);
+                cr.set_source_rgba(color.red, color.green, color.blue, color.alpha);
+                cr.stroke()?;
+            }
 
+            cr.reset_clip();
             cr.restore()?;
         };
 
@@ -180,9 +226,6 @@ impl WidgetImpl for GraphPriv {
             error_handling_ctx::print_error(error)
         };
 
-        if let Some(child) = &*self.content.borrow() {
-            widget.propagate_draw(child, &cr);
-        }
         gtk::Inhibit(false)
     }
 }
