@@ -1,16 +1,20 @@
 use anyhow::*;
 use codespan_reporting::diagnostic::Severity;
-use eww_shared_util::AttrName;
+use eww_shared_util::{AttrName, Spanned};
 use gdk::prelude::Cast;
 use gtk::{
     prelude::{BoxExt, ContainerExt, WidgetExt, WidgetExtManual},
     Orientation,
 };
 use itertools::Itertools;
-use simplexpr::SimplExpr;
-use std::{collections::HashMap, rc::Rc};
+use maplit::hashmap;
+use simplexpr::{dynval::DynVal, SimplExpr};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 use yuck::{
-    config::{widget_definition::WidgetDefinition, widget_use::WidgetUse},
+    config::{
+        widget_definition::WidgetDefinition,
+        widget_use::{BasicWidgetUse, ChildrenWidgetUse, LoopWidgetUse, WidgetUse},
+    },
     gen_diagnostic,
 };
 
@@ -28,7 +32,7 @@ use super::widget_definitions::{resolve_orientable_attrs, resolve_range_attrs, r
 
 pub struct BuilderArgs<'a> {
     pub calling_scope: ScopeIndex,
-    pub widget_use: WidgetUse,
+    pub widget_use: BasicWidgetUse,
     pub scope_graph: &'a mut ScopeGraph,
     pub unhandled_attrs: Vec<AttrName>,
     pub widget_defs: Rc<HashMap<String, WidgetDefinition>>,
@@ -45,7 +49,26 @@ pub fn build_gtk_widget(
     graph: &mut ScopeGraph,
     widget_defs: Rc<HashMap<String, WidgetDefinition>>,
     calling_scope: ScopeIndex,
-    mut widget_use: WidgetUse,
+    widget_use: WidgetUse,
+    custom_widget_invocation: Option<Rc<CustomWidgetInvocation>>,
+) -> Result<gtk::Widget> {
+    match widget_use {
+        WidgetUse::Basic(widget_use) => {
+            build_basic_gtk_widget(graph, widget_defs, calling_scope, widget_use, custom_widget_invocation)
+        }
+        WidgetUse::Loop(_) | WidgetUse::Children(_) => Err(anyhow!(DiagError::new(gen_diagnostic! {
+            msg = "This widget can only be used as a child of some container widget such as box",
+            label = widget_use.span(),
+            note = "Hint: try wrapping this in a `box`"
+        }))),
+    }
+}
+
+fn build_basic_gtk_widget(
+    graph: &mut ScopeGraph,
+    widget_defs: Rc<HashMap<String, WidgetDefinition>>,
+    calling_scope: ScopeIndex,
+    mut widget_use: BasicWidgetUse,
     custom_widget_invocation: Option<Rc<CustomWidgetInvocation>>,
 ) -> Result<gtk::Widget> {
     if let Some(custom_widget) = widget_defs.clone().get(&widget_use.name) {
@@ -100,7 +123,7 @@ fn build_builtin_gtk_widget(
     graph: &mut ScopeGraph,
     widget_defs: Rc<HashMap<String, WidgetDefinition>>,
     calling_scope: ScopeIndex,
-    widget_use: WidgetUse,
+    widget_use: BasicWidgetUse,
     custom_widget_invocation: Option<Rc<CustomWidgetInvocation>>,
 ) -> Result<gtk::Widget> {
     let mut bargs = BuilderArgs {
@@ -160,23 +183,91 @@ fn populate_widget_children(
     custom_widget_invocation: Option<Rc<CustomWidgetInvocation>>,
 ) -> Result<()> {
     for child in widget_use_children {
-        if child.name == "children" {
-            let custom_widget_invocation = custom_widget_invocation.clone().context("Not in a custom widget invocation")?;
-            build_children_special_widget(
-                tree,
-                widget_defs.clone(),
-                calling_scope,
-                child,
-                gtk_container,
-                custom_widget_invocation,
-            )?;
-        } else {
-            let child_widget =
-                build_gtk_widget(tree, widget_defs.clone(), calling_scope, child, custom_widget_invocation.clone())?;
-            gtk_container.add(&child_widget);
+        match child {
+            WidgetUse::Children(child) => {
+                build_children_special_widget(
+                    tree,
+                    widget_defs.clone(),
+                    calling_scope,
+                    child,
+                    gtk_container,
+                    custom_widget_invocation.clone().context("Not in a custom widget invocation")?,
+                )?;
+            }
+            WidgetUse::Loop(child) => {
+                build_loop_special_widget(
+                    tree,
+                    widget_defs.clone(),
+                    calling_scope,
+                    child,
+                    gtk_container,
+                    custom_widget_invocation.clone(),
+                )?;
+            }
+            _ => {
+                let child_widget =
+                    build_gtk_widget(tree, widget_defs.clone(), calling_scope, child, custom_widget_invocation.clone())?;
+                gtk_container.add(&child_widget);
+            }
         }
     }
     Ok(())
+}
+
+fn build_loop_special_widget(
+    tree: &mut ScopeGraph,
+    widget_defs: Rc<HashMap<String, WidgetDefinition>>,
+    calling_scope: ScopeIndex,
+    widget_use: LoopWidgetUse,
+    gtk_container: &gtk::Container,
+    custom_widget_invocation: Option<Rc<CustomWidgetInvocation>>,
+) -> Result<()> {
+    tree.register_listener(
+        calling_scope,
+        Listener {
+            needed_variables: widget_use.elements_expr.collect_var_refs(),
+            f: Box::new({
+                let custom_widget_invocation = custom_widget_invocation.clone();
+                let widget_defs = widget_defs.clone();
+                let elements_expr = widget_use.elements_expr.clone();
+                let elements_expr_span = widget_use.elements_expr_span.clone();
+                let element_name = widget_use.element_name.clone();
+                let body: WidgetUse = widget_use.body.as_ref().clone();
+                let created_children = Rc::new(RefCell::new(Vec::<gtk::Widget>::new()));
+                let gtk_container = gtk_container.clone();
+                move |tree, values| {
+                    let elements_value = elements_expr
+                        .eval(&values)?
+                        .as_json_value()?
+                        .as_array()
+                        .context("Not an array value")?
+                        .into_iter()
+                        .map(DynVal::from)
+                        .collect_vec();
+                    let mut created_children = created_children.borrow_mut();
+                    for old_child in created_children.drain(..) {
+                        unsafe { old_child.destroy() };
+                    }
+                    for element in elements_value {
+                        let scope = tree.register_new_scope(
+                            format!("for {} = {}", element_name.0, element),
+                            Some(calling_scope),
+                            calling_scope,
+                            hashmap! {
+                                element_name.clone().into() => SimplExpr::Literal(DynVal(element.0, elements_expr_span))
+                            },
+                        )?;
+                        let new_child_widget =
+                            build_gtk_widget(tree, widget_defs.clone(), scope, body.clone(), custom_widget_invocation.clone())?;
+                        gtk_container.add(&new_child_widget);
+                        created_children.push(new_child_widget);
+                    }
+
+                    Ok(())
+                }
+            }),
+        },
+    )
 }
 
 /// Handle an invocation of the special `children` [`WidgetUse`].
@@ -187,13 +278,12 @@ fn build_children_special_widget(
     tree: &mut ScopeGraph,
     widget_defs: Rc<HashMap<String, WidgetDefinition>>,
     calling_scope: ScopeIndex,
-    mut widget_use: WidgetUse,
+    widget_use: ChildrenWidgetUse,
     gtk_container: &gtk::Container,
     custom_widget_invocation: Rc<CustomWidgetInvocation>,
 ) -> Result<()> {
-    assert_eq!(&widget_use.name, "children");
-
-    if let Some(nth) = widget_use.attrs.ast_optional::<SimplExpr>("nth")? {
+    if let Some(nth) = widget_use.nth_expr {
+        // TODORW this might not be necessary, if I can keep a copy of the widget I can destroy it directly, no need to go through the container.
         // This should be a custom gtk::Bin subclass,..
         let child_container = gtk::Box::new(Orientation::Horizontal, 0);
         child_container.set_homogeneous(true);
@@ -252,7 +342,7 @@ pub struct CustomWidgetInvocation {
 }
 
 /// Make sure that [`gtk::Bin`] widgets only get a single child.
-fn validate_container_children_count(container: &gtk::Container, widget_use: &WidgetUse) -> Result<(), DiagError> {
+fn validate_container_children_count(container: &gtk::Container, widget_use: &BasicWidgetUse) -> Result<(), DiagError> {
     if container.dynamic_cast_ref::<gtk::Bin>().is_some() {
         if widget_use.children.len() > 1 {
             return Err(DiagError::new(gen_diagnostic! {

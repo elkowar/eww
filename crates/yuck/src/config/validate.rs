@@ -7,7 +7,11 @@ use crate::{
     parser::{ast::Ast, ast_iterator::AstIterator, from_ast::FromAst},
 };
 
-use super::{widget_definition::WidgetDefinition, widget_use::WidgetUse, Config};
+use super::{
+    widget_definition::WidgetDefinition,
+    widget_use::{BasicWidgetUse, WidgetUse},
+    Config,
+};
 use eww_shared_util::{AttrName, Span, Spanned, VarName};
 
 #[derive(Debug, thiserror::Error)]
@@ -71,37 +75,52 @@ pub fn validate_variables_in_widget_use(
     widget: &WidgetUse,
     is_in_definition: bool,
 ) -> Result<(), ValidationError> {
-    let matching_definition = defs.get(&widget.name);
-    if let Some(matching_def) = matching_definition {
-        let missing_arg = matching_def
-            .expected_args
-            .iter()
-            .find(|expected| !expected.optional && !widget.attrs.attrs.contains_key(&expected.name));
-        if let Some(missing_arg) = missing_arg {
-            return Err(ValidationError::MissingAttr {
-                widget_name: widget.name.clone(),
-                arg_name: missing_arg.name.clone(),
-                arg_list_span: Some(matching_def.args_span),
-                use_span: widget.attrs.span,
-            });
+    if let WidgetUse::Basic(widget) = widget {
+        let matching_definition = defs.get(&widget.name);
+        if let Some(matching_def) = matching_definition {
+            let missing_arg = matching_def
+                .expected_args
+                .iter()
+                .find(|expected| !expected.optional && !widget.attrs.attrs.contains_key(&expected.name));
+            if let Some(missing_arg) = missing_arg {
+                return Err(ValidationError::MissingAttr {
+                    widget_name: widget.name.clone(),
+                    arg_name: missing_arg.name.clone(),
+                    arg_list_span: Some(matching_def.args_span),
+                    use_span: widget.attrs.span,
+                });
+            }
         }
-    }
+        let values = widget.attrs.attrs.values();
+        let unknown_var = values.filter_map(|value| value.value.as_simplexpr().ok()).find_map(|expr: SimplExpr| {
+            let span = expr.span();
+            expr.var_refs_with_span()
+                .iter()
+                .cloned()
+                .map(|(span, var_ref)| (span, var_ref.clone()))
+                .find(|(_, var_ref)| !variables.contains(var_ref))
+        });
+        if let Some((span, var)) = unknown_var {
+            return Err(ValidationError::UnknownVariable { span, name: var, in_definition: is_in_definition });
+        }
 
-    let values = widget.attrs.attrs.values();
-    let unknown_var = values.filter_map(|value| value.value.as_simplexpr().ok()).find_map(|expr: SimplExpr| {
-        let span = expr.span();
-        expr.var_refs_with_span()
+        for child in widget.children.iter() {
+            let _ = validate_variables_in_widget_use(defs, variables, child, is_in_definition)?;
+        }
+    } else if let WidgetUse::Loop(widget) = widget {
+        let unknown_var = widget
+            .elements_expr
+            .var_refs_with_span()
             .iter()
             .cloned()
             .map(|(span, var_ref)| (span, var_ref.clone()))
-            .find(|(_, var_ref)| !variables.contains(var_ref))
-    });
-    if let Some((span, var)) = unknown_var {
-        return Err(ValidationError::UnknownVariable { span, name: var, in_definition: is_in_definition });
-    }
-
-    for child in widget.children.iter() {
-        let _ = validate_variables_in_widget_use(defs, variables, child, is_in_definition)?;
+            .find(|(_, var_ref)| var_ref != &widget.element_name && !variables.contains(var_ref));
+        if let Some((span, var)) = unknown_var {
+            return Err(ValidationError::UnknownVariable { span, name: var, in_definition: is_in_definition });
+        }
+        let mut variables = variables.clone();
+        variables.insert(widget.element_name.clone());
+        let _ = validate_variables_in_widget_use(defs, &variables, &widget.body, is_in_definition)?;
     }
 
     Ok(())
