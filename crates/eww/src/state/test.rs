@@ -4,11 +4,11 @@ use std::sync::{
     Arc,
 };
 
-use eww_shared_util::{AttrName, Span, VarName};
+use eww_shared_util::{Span, VarName};
 use maplit::hashmap;
 use simplexpr::{dynval::DynVal, SimplExpr};
 
-use crate::state::scope_graph::{ScopeGraph, ScopeGraphEvent};
+use crate::state::scope_graph::ScopeGraph;
 
 pub fn create_fn_verificator() -> (Arc<AtomicBool>, Box<dyn Fn()>) {
     let check = Arc::new(AtomicBool::new(false));
@@ -52,7 +52,7 @@ pub fn test_delete_scope() {
             Some(scope_graph.root_index),
             scope_graph.root_index,
             hashmap! {
-                AttrName("arg_1".to_string()) => SimplExpr::VarRef(Span::DUMMY, VarName("global_1".to_string())),
+                "arg_1".into() => SimplExpr::var_ref(Span::DUMMY, "global_1"),
             },
         )
         .unwrap();
@@ -62,14 +62,14 @@ pub fn test_delete_scope() {
             Some(scope_graph.root_index),
             widget_foo_scope,
             hashmap! {
-                AttrName("arg_3".to_string()) => SimplExpr::VarRef(Span::DUMMY, VarName("arg_1".to_string())),
+                "arg_3".into() => SimplExpr::var_ref(Span::DUMMY, "arg_1"),
             },
         )
         .unwrap();
 
     scope_graph.validate().unwrap();
 
-    scope_graph.handle_scope_graph_event(ScopeGraphEvent::RemoveScope(widget_bar_scope));
+    scope_graph.remove_scope(widget_bar_scope);
     scope_graph.validate().unwrap();
     assert!(scope_graph.scope_at(widget_bar_scope).is_none());
 }
@@ -77,8 +77,8 @@ pub fn test_delete_scope() {
 #[test]
 fn test_state_updates() {
     let globals = hashmap! {
-     VarName("global_1".to_string()) => DynVal::from("hi"),
-     VarName("global_2".to_string()) => DynVal::from("hey"),
+     "global_1".into() => DynVal::from("hi"),
+     "global_2".into() => DynVal::from("hey"),
     };
 
     let (send, _recv) = tokio::sync::mpsc::unbounded_channel();
@@ -91,8 +91,8 @@ fn test_state_updates() {
             Some(scope_graph.root_index),
             scope_graph.root_index,
             hashmap! {
-                AttrName("arg_1".to_string()) => SimplExpr::VarRef(Span::DUMMY, VarName("global_1".to_string())),
-                AttrName("arg_2".to_string()) => SimplExpr::synth_string("static value".to_string()),
+                "arg_1".into() => SimplExpr::var_ref(Span::DUMMY, "global_1"),
+                "arg_2".into() => SimplExpr::synth_string("static value"),
             },
         )
         .unwrap();
@@ -102,9 +102,9 @@ fn test_state_updates() {
             Some(scope_graph.root_index),
             widget_foo_scope,
             hashmap! {
-                AttrName("arg_3".to_string()) => SimplExpr::Concat(Span::DUMMY, vec![
-                    SimplExpr::VarRef(Span::DUMMY, VarName("arg_1".to_string())),
-                    SimplExpr::synth_literal("static_value".to_string()),
+                "arg_3".into() => SimplExpr::Concat(Span::DUMMY, vec![
+                    SimplExpr::var_ref(Span::DUMMY, "arg_1"),
+                    SimplExpr::synth_literal("static_value"),
                 ])
             },
         )
@@ -117,7 +117,7 @@ fn test_state_updates() {
             widget_foo_scope,
             make_listener!(@short |arg_1| {
                 println!("foo: arg_1 changed to {}", arg_1);
-                if arg_1 == &DynVal::from("pog") {
+                if arg_1 == &"pog".into() {
                     foo_f()
                 }
             }),
@@ -129,7 +129,7 @@ fn test_state_updates() {
             widget_bar_scope,
             make_listener!(@short |arg_3| {
                 println!("bar: arg_3 changed to {}", arg_3);
-                if arg_3 == &DynVal::from("pogstatic_value") {
+                if arg_3 == &"pogstatic_value".into() {
                     bar_f()
                 }
             }),
@@ -142,17 +142,17 @@ fn test_state_updates() {
             widget_bar_scope,
             make_listener!(@short |global_2| {
                 println!("bar: global_2 changed to {}", global_2);
-                if global_2 == &DynVal::from("new global 2") {
+                if global_2 == &"new global 2".into() {
                     bar_2_f()
                 }
             }),
         )
         .unwrap();
 
-    scope_graph.update_value(scope_graph.root_index, &VarName("global_1".to_string()), DynVal::from("pog")).unwrap();
+    scope_graph.update_value(scope_graph.root_index, &"global_1".into(), "pog".into()).unwrap();
     assert!(foo_verify.load(Ordering::Relaxed), "update in foo did not trigger properly");
     assert!(bar_verify.load(Ordering::Relaxed), "update in bar did not trigger properly");
 
-    scope_graph.update_value(scope_graph.root_index, &VarName("global_2".to_string()), DynVal::from("new global 2")).unwrap();
+    scope_graph.update_value(scope_graph.root_index, &"global_2".into(), "new global 2".into()).unwrap();
     assert!(bar_2_verify.load(Ordering::Relaxed), "inherited global update did not trigger properly");
 }

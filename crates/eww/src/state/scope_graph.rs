@@ -600,7 +600,7 @@ mod test {
     #[test]
     fn test_nested_inheritance() {
         let globals = hashmap! {
-            VarName("global".to_string()) => DynVal::from("hi"),
+            "global".into() => "hi".into(),
         };
 
         let (send, _recv) = tokio::sync::mpsc::unbounded_channel();
@@ -610,7 +610,7 @@ mod test {
 
         let widget1_scope = scope_graph.register_new_scope("1".into(), Some(root_scope), root_scope, hashmap! {}).unwrap();
         let widget2_scope = scope_graph.register_new_scope("2".into(), Some(widget1_scope), widget1_scope, hashmap! {}).unwrap();
-        scope_graph.register_scope_referencing_variable(widget2_scope, VarName("global".to_string())).unwrap();
+        scope_graph.register_scope_referencing_variable(widget2_scope, "global".into()).unwrap();
 
         let inheritance_child_to_parent = scope_graph.graph.inheritance_relations.child_to_parent;
         assert!(inheritance_child_to_parent.get(&widget2_scope).unwrap().1.references.contains("global"));
@@ -620,7 +620,7 @@ mod test {
     #[test]
     fn test_lookup_variable_in_scope() {
         let globals = hashmap! {
-            VarName("global".to_string()) => DynVal::from("hi"),
+            "global".into() => "hi".into(),
         };
 
         let (send, _recv) = tokio::sync::mpsc::unbounded_channel();
@@ -634,17 +634,11 @@ mod test {
             scope_graph.register_new_scope("2".to_string(), Some(widget_1_scope), widget_1_scope, hashmap! {}).unwrap();
         let widget_no_parent_scope = scope_graph.register_new_scope("2".to_string(), None, widget_1_scope, hashmap! {}).unwrap();
 
-        scope_graph.register_scope_referencing_variable(widget_2_scope, VarName("global".to_string())).unwrap();
+        scope_graph.register_scope_referencing_variable(widget_2_scope, "global".into()).unwrap();
 
-        assert_eq!(
-            scope_graph.lookup_variable_in_scope(widget_2_scope, &VarName("global".to_string())).unwrap(),
-            &DynVal::from("hi")
-        );
-        assert_eq!(
-            scope_graph.lookup_variable_in_scope(widget_1_scope, &VarName("global".to_string())).unwrap(),
-            &DynVal::from("hi")
-        );
-        assert_eq!(scope_graph.lookup_variable_in_scope(widget_no_parent_scope, &VarName("global".to_string())), None);
+        assert_eq!(scope_graph.lookup_variable_in_scope(widget_2_scope, &"global".into()).unwrap(), &"hi".into());
+        assert_eq!(scope_graph.lookup_variable_in_scope(widget_1_scope, &"global".into()).unwrap(), &"hi".into());
+        assert_eq!(scope_graph.lookup_variable_in_scope(widget_no_parent_scope, &"global".into()), None);
     }
 
     /// tests the following graph structure:
@@ -680,8 +674,8 @@ mod test {
     #[test]
     fn test_variables_used_in_self_or_subscopes_of() {
         let globals = hashmap! {
-            VarName("the_var".to_string()) => DynVal::from("hi"),
-            VarName("shadowed_var".to_string()) => DynVal::from("hi"),
+            "the_var".into() => "hi".into(),
+            "shadowed_var".into() => "hi".into(),
         };
 
         let (send, _recv) = tokio::sync::mpsc::unbounded_channel();
@@ -699,25 +693,25 @@ mod test {
                 "widget2".to_string(),
                 Some(scope_graph.root_index),
                 window_scope,
-                hashmap! { AttrName("shadowed_var".to_string()) => SimplExpr::synth_literal("hi") },
+                hashmap! { "shadowed_var".into() => SimplExpr::synth_literal("hi") },
             )
             .unwrap();
 
-        scope_graph.register_scope_referencing_variable(widget_scope, VarName("the_var".to_string())).unwrap();
+        scope_graph.register_scope_referencing_variable(widget_scope, "the_var".into()).unwrap();
 
         assert_eq!(
             scope_graph.variables_used_in_self_or_subscopes_of(scope_graph.root_index),
-            hashset![VarName("the_var".to_string())],
+            hashset!["the_var".into()],
             "Wrong variables assumed to be used by global"
         );
         assert_eq!(
             scope_graph.variables_used_in_self_or_subscopes_of(window_scope),
-            hashset![VarName("the_var".to_string())],
+            hashset!["the_var".into()],
             "Wrong variables assumed to be used by window"
         );
         assert_eq!(
             scope_graph.variables_used_in_self_or_subscopes_of(widget_scope),
-            hashset![VarName("the_var".to_string())],
+            hashset!["the_var".into()],
             "Wrong variables assumed to be used by widget"
         );
     }

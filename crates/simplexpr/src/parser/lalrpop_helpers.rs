@@ -1,6 +1,6 @@
 use eww_shared_util::Span;
 
-use crate::{dynval::DynVal, SimplExpr};
+use crate::SimplExpr;
 
 use super::lexer::{LexicalError, Sp, StrLitSegment, Token};
 
@@ -19,7 +19,7 @@ pub fn parse_stringlit(
         let (lo, seg, hi) = segs.remove(0);
         let span = Span(lo, hi, file_id);
         match seg {
-            StrLitSegment::Literal(lit) => Ok(SimplExpr::Literal(DynVal(lit, span))),
+            StrLitSegment::Literal(lit) => Ok(SimplExpr::literal(span, lit)),
             StrLitSegment::Interp(toks) => {
                 let token_stream = toks.into_iter().map(Ok);
                 parser.parse(file_id, token_stream)
@@ -32,7 +32,7 @@ pub fn parse_stringlit(
                 let span = Span(lo, hi, file_id);
                 match segment {
                     StrLitSegment::Literal(lit) if lit.is_empty() => None,
-                    StrLitSegment::Literal(lit) => Some(Ok(SimplExpr::Literal(DynVal(lit, span)))),
+                    StrLitSegment::Literal(lit) => Some(Ok(SimplExpr::literal(span, lit))),
                     StrLitSegment::Interp(toks) => {
                         let token_stream = toks.into_iter().map(Ok);
                         Some(parser.parse(file_id, token_stream))
