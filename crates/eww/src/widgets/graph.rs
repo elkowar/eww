@@ -162,8 +162,10 @@ impl WidgetImpl for GraphPriv {
 
             cr.save()?;
 
+            cr.translate(margin.left as f64, margin.top as f64);
+
             // Prevent the line from overflowing over the margin in the sides
-            cr.rectangle(0.0 + margin.left as f64, 0.0 + margin.top as f64, width, height);
+            cr.rectangle(0.0, 0.0, width, height);
             cr.clip();
 
             // Line join
@@ -190,7 +192,7 @@ impl WidgetImpl for GraphPriv {
                     let t = std::time::Instant::now().duration_since(*t).as_millis();
                     let x = width * (1.0 - (t as f64 / range as f64));
                     let y = height * (1.0 - (v / 100.0));
-                    (x + margin.left as f64, y + margin.top as f64)
+                    (x, y)
                 })
                 .collect::<Vec<(f64, f64)>>();
 
@@ -203,7 +205,7 @@ impl WidgetImpl for GraphPriv {
                     cr.line_to(*x, *y);
                 }
 
-                cr.line_to(width + margin.right as f64, height + margin.bottom as f64);
+                cr.line_to(width, height);
                 cr.set_source_rgba(bg_color.red, bg_color.green, bg_color.blue, bg_color.alpha);
                 cr.fill()?;
             }
