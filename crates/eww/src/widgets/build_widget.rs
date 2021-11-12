@@ -3,7 +3,7 @@ use codespan_reporting::diagnostic::Severity;
 use eww_shared_util::AttrName;
 use gdk::prelude::Cast;
 use gtk::{
-    prelude::{ContainerExt, WidgetExt, WidgetExtManual},
+    prelude::{BoxExt, ContainerExt, WidgetExt, WidgetExtManual},
     Orientation,
 };
 use itertools::Itertools;
@@ -196,6 +196,7 @@ fn build_children_special_widget(
     if let Some(nth) = widget_use.attrs.ast_optional::<SimplExpr>("nth")? {
         // This should be a custom gtk::Bin subclass,..
         let child_container = gtk::Box::new(Orientation::Horizontal, 0);
+        child_container.set_homogeneous(true);
         gtk_container.add(&child_container);
 
         tree.register_listener(
@@ -222,7 +223,6 @@ fn build_children_special_widget(
                             unsafe {
                                 old_child.destroy();
                             }
-                            // child_container.remove(&old_child);
                         }
                         child_container.set_child(Some(&new_child_widget));
                         new_child_widget.show();
