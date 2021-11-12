@@ -170,13 +170,17 @@ pub enum FormFormatError {
 
     #[error("Widget definition has more than one child widget")]
     WidgetDefMultipleChildren(Span),
+
+    #[error("Expected 'in' in this position, but got '{}'", .1)]
+    ExpectedInInForLoop(Span, String),
 }
 
 impl Spanned for FormFormatError {
     fn span(&self) -> Span {
         match self {
-            FormFormatError::WidgetDefArglistMissing(span) => *span,
-            FormFormatError::WidgetDefMultipleChildren(span) => *span,
+            FormFormatError::WidgetDefArglistMissing(span)
+            | FormFormatError::WidgetDefMultipleChildren(span)
+            | FormFormatError::ExpectedInInForLoop(span, _) => *span,
         }
     }
 }

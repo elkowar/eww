@@ -40,9 +40,9 @@ macro_rules! return_or_put_back {
 
 impl<I: Iterator<Item = Ast>> AstIterator<I> {
     return_or_put_back! {
-        fn expect_symbol -> AstType::Symbol, (Span, String)   = Ast::Symbol(span, x) => (span, x)
-        fn expect_list   -> AstType::List,   (Span, Vec<Ast>) = Ast::List(span, x)   => (span, x)
-        fn expect_array  -> AstType::Array,  (Span, Vec<Ast>) = Ast::Array(span, x)  => (span, x)
+        fn expect_symbol    -> AstType::Symbol,    (Span, String)    = Ast::Symbol(span, x)    => (span, x)
+        fn expect_list      -> AstType::List,      (Span, Vec<Ast>)  = Ast::List(span, x)      => (span, x)
+        fn expect_array     -> AstType::Array,     (Span, Vec<Ast>)  = Ast::Array(span, x)     => (span, x)
     }
 
     pub fn expect_literal(&mut self) -> AstResult<(Span, DynVal)> {
@@ -65,6 +65,20 @@ impl<I: Iterator<Item = Ast>> AstIterator<I> {
 
     pub fn expect_any(&mut self) -> AstResult<Ast> {
         self.next().or_missing(self.remaining_span.point_span())
+    }
+
+    pub fn expect_simplexpr(&mut self) -> AstResult<(Span, SimplExpr)> {
+        let expr_type = AstType::SimplExpr;
+        match self.expect_any()? {
+            Ast::SimplExpr(span, expr) => Ok((span, expr)),
+            Ast::Symbol(span, var) => Ok((span, SimplExpr::VarRef(span, VarName(var)))),
+            other => {
+                let span = other.span();
+                let actual_type = other.expr_type();
+                self.put_back(other);
+                Err(AstError::WrongExprType(span, expr_type, actual_type))
+            }
+        }
     }
 
     pub fn expect_done(&mut self) -> AstResult<()> {
