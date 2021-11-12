@@ -2,7 +2,10 @@ use anyhow::*;
 use codespan_reporting::diagnostic::Severity;
 use eww_shared_util::AttrName;
 use gdk::prelude::Cast;
-use gtk::{Orientation, prelude::{ContainerExt, WidgetExt, WidgetExtManual}};
+use gtk::{
+    prelude::{ContainerExt, WidgetExt, WidgetExtManual},
+    Orientation,
+};
 use itertools::Itertools;
 use simplexpr::SimplExpr;
 use std::{collections::HashMap, rc::Rc};
@@ -12,6 +15,7 @@ use yuck::{
 };
 
 use crate::{
+    error::DiagError,
     error_handling_ctx,
     state::{
         scope::Listener,
@@ -110,6 +114,8 @@ fn build_builtin_gtk_widget(
     let gtk_widget = widget_definitions::widget_use_to_gtk_widget(&mut bargs)?;
 
     if let Some(gtk_container) = gtk_widget.dynamic_cast_ref::<gtk::Container>() {
+        validate_container_children_count(gtk_container, &bargs.widget_use)?;
+
         // Only populate children if there haven't been any children added anywhere else
         // TODO this is somewhat hacky
         if gtk_container.children().len() == 0 {
@@ -213,8 +219,10 @@ fn build_children_special_widget(
                             None,
                         )?;
                         for old_child in child_container.children() {
-                            unsafe { old_child.destroy(); }
-                            //child_container.remove(&old_child);
+                            unsafe {
+                                old_child.destroy();
+                            }
+                            // child_container.remove(&old_child);
                         }
                         child_container.set_child(Some(&new_child_widget));
                         new_child_widget.show();
@@ -241,4 +249,18 @@ pub struct CustomWidgetInvocation {
     scope: ScopeIndex,
     /// The children the custom widget was given. These should be evaluated in [`Self::scope`]
     children: Vec<WidgetUse>,
+}
+
+/// Make sure that [`gtk::Bin`] widgets only get a single child.
+fn validate_container_children_count(container: &gtk::Container, widget_use: &WidgetUse) -> Result<(), DiagError> {
+    if container.dynamic_cast_ref::<gtk::Bin>().is_some() {
+        if widget_use.children.len() > 1 {
+            return Err(DiagError::new(gen_diagnostic! {
+                kind =  Severity::Error,
+                msg = format!("{} can only have one child", widget_use.name),
+                label = widget_use.children_span() => format!("Was given {} children here", widget_use.children.len())
+            }));
+        }
+    }
+    Ok(())
 }
