@@ -1,5 +1,5 @@
 #![allow(clippy::option_map_unit_fn)]
-use super::{build_widget::BuilderArgs, circular_progressbar::*, run_command};
+use super::{build_widget::BuilderArgs, circular_progressbar::*, transform::*, run_command};
 use crate::{
     def_widget, enum_parse,
     error::DiagError,
@@ -60,6 +60,7 @@ pub(super) fn widget_use_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::W
         "eventbox" => build_gtk_event_box(bargs)?.upcast(),
         "circular-progress" => build_circular_progress_bar(bargs)?.upcast(),
         "graph" => build_graph(bargs)?.upcast(),
+        "transform" => build_transform(bargs)?.upcast(),
         "scale" => build_gtk_scale(bargs)?.upcast(),
         "progress" => build_gtk_progress(bargs)?.upcast(),
         "image" => build_gtk_image(bargs)?.upcast(),
@@ -777,6 +778,26 @@ fn build_gtk_calendar(bargs: &mut BuilderArgs) -> Result<gtk::Calendar> {
     });
 
     Ok(gtk_widget)
+}
+
+/// @widget transform
+/// @desc A widget that applies transformations to its content. They are applied in the following
+/// order: rotate->translate->scale)
+fn build_transform(bargs: &mut BuilderArgs) -> Result<Transform> {
+    let w = Transform::new();
+    def_widget!(bargs, _g, w, {
+        // @prop rotation - the percentage to rotate
+        prop(rotate: as_f64) { w.set_property("rotate", rotate)?; },
+        // @prop translate-x - the amount to translate in the x direction
+        prop(translate_x: as_f64) { w.set_property("translate-x", translate_x)?; },
+        // @prop translate-y - the amount to translate in the y direction
+        prop(translate_y: as_f64) { w.set_property("translate-y", translate_y)?; },
+        // @prop scale_x - the amount to scale in the x direction
+        prop(scale_x: as_f64) { w.set_property("scale-x", scale_x)?; },
+        // @prop scale_y - the amount to scale in the y direction
+        prop(scale_y: as_f64) { w.set_property("scale-y", scale_y)?; },
+    });
+    Ok(w)
 }
 
 /// @widget circular-progress
