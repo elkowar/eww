@@ -78,13 +78,17 @@ impl SimplExpr {
     }
 
     /// Construct a synthetic simplexpr from a literal string, without adding any relevant span information (uses [`Span::DUMMY`])
-    pub fn synth_string(s: String) -> Self {
-        Self::Literal(DynVal(s, Span::DUMMY))
+    pub fn synth_string(s: impl Into<String>) -> Self {
+        Self::Literal(DynVal(s.into(), Span::DUMMY))
     }
 
     /// Construct a synthetic simplexpr from a literal dynval, without adding any relevant span information (uses [`Span::DUMMY`])
     pub fn synth_literal<T: Into<DynVal>>(s: T) -> Self {
         Self::Literal(s.into())
+    }
+
+    pub fn var_ref(span: Span, n: impl Into<VarName>) -> Self {
+        Self::VarRef(span, n.into())
     }
 
     pub fn references_var(&self, var: &VarName) -> bool {
