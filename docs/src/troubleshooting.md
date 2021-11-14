@@ -7,7 +7,7 @@ Here you will find help if something doesn't work. If the issue isn't listed her
 1. Make sure that you are compiling eww using the nightly Rust toolchain.
 2. Make sure you have all the necessary dependencies. If there are compile-errors, the compiler will tell you what you're missing.
 
-## Eww does not work on wayland
+## Eww does not work on Wayland
 
 1. Make sure you compiled eww with the `--no-default-features --features=wayland` flags.
 2. Make sure that you're not trying to use X11-specific features (these are (hopefully) explicitly specified as such in the documentation).

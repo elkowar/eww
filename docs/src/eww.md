@@ -55,7 +55,7 @@ Then build:
 cargo build --release
 ```
 **NOTE:**
-When you're on wayland, build with:
+When you're on Wayland, build with:
 ```bash
 cargo build --release --no-default-features --features=wayland
 ```
