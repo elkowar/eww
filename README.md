@@ -22,7 +22,7 @@ Additionally, a couple _amazing_ people have started to work on an
 
 ## Examples
 
-(note that some of these still make use of the old configuration syntax)
+(Note that some of these still make use of the old configuration syntax.)
 
 * A basic bar, see [examples](./examples/eww-bar)
 ![Example 1](./examples/eww-bar/eww-bar.png)
@@ -50,7 +50,7 @@ Additionally, a couple _amazing_ people have started to work on an
 
 ## Contribewwting
 
-If you want to contribute anything, like adding new widgets, features or subcommands (Including sample configs), you should definitely do so.
+If you want to contribute anything, like adding new widgets, features, or subcommands (Including sample configs), you should definitely do so.
 
 ### Steps
 1. Fork this repository
