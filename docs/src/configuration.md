@@ -65,7 +65,7 @@ You can now open your first window by running `eww open example`! Glorious!
 <br/>
 Depending on if you are using X11 or Wayland, some additional properties exist:
 
-**X11**
+#### X11
 
 |     Property | Description                                                  |
 | -----------: | ------------------------------------------------------------ |
@@ -74,7 +74,7 @@ Depending on if you are using X11 or Wayland, some additional properties exist:
 |    `reserve` | Specify how the window manager should make space for your window. This is useful for bars, which should not overlap any other windows. |
 | `windowtype` | Specify what type of window this is. This will be used by your window manager to determine how it should handle your window. Possible values: `normal`, `dock`, `toolbar`, `dialog`. Default: `dock` if `reserve` is specified, `normal` otherwise. |
 
-**Wayland**
+#### Wayland
 
 |    Property | Description                                                  |
 | ----------: | ------------------------------------------------------------ |
