@@ -2,9 +2,9 @@ pub use platform::*;
 
 #[cfg(not(any(feature = "x11", feature = "wayland")))]
 mod platform {
-    use crate::config::EwwWindowDefinition;
+    use yuck::config::window_definition::{WindowDefinition, WindowStacking};
 
-    pub fn initialize_window(_window_def: &EwwWindowDefinition, _monitor: gdk::Rectangle) -> Option<gtk::Window> {
+    pub fn initialize_window(_window_def: &WindowDefinition, _monitor: gdk::Rectangle) -> Option<gtk::Window> {
         Some(gtk::Window::new(gtk::WindowType::Toplevel))
     }
 }
@@ -13,11 +13,9 @@ mod platform {
 mod platform {
     use gdk;
     use gtk::prelude::*;
-    use yuck::config::{window_definition::WindowStacking, window_geometry::AnchorAlignment};
+    use yuck::config::{window_definition::{WindowStacking, WindowDefinition}, window_geometry::AnchorAlignment};
 
-    use crate::config::EwwWindowDefinition;
-
-    pub fn initialize_window(window_def: &EwwWindowDefinition, monitor: gdk::Rectangle) -> Option<gtk::Window> {
+    pub fn initialize_window(window_def: &WindowDefinition, monitor: gdk::Rectangle) -> Option<gtk::Window> {
         let window = gtk::Window::new(gtk::WindowType::Toplevel);
         // Initialising a layer shell surface
         gtk_layer_shell::init_for_window(&window);
@@ -104,12 +102,10 @@ mod platform {
     };
     use yuck::config::{
         backend_window_options::{Side, WindowType},
-        window_definition::WindowStacking,
+        window_definition::{WindowDefinition, WindowStacking},
     };
 
-    use crate::config::EwwWindowDefinition;
-
-    pub fn initialize_window(window_def: &EwwWindowDefinition, _monitor: gdk::Rectangle) -> Option<gtk::Window> {
+    pub fn initialize_window(window_def: &WindowDefinition, _monitor: gdk::Rectangle) -> Option<gtk::Window> {
         let window_type = if window_def.backend_options.wm_ignore { gtk::WindowType::Popup } else { gtk::WindowType::Toplevel };
         let window = gtk::Window::new(window_type);
         let wm_class_name = format!("eww-{}", window_def.name);
@@ -126,7 +122,7 @@ mod platform {
         Some(window)
     }
 
-    pub fn set_xprops(window: &gtk::Window, monitor: gdk::Rectangle, window_def: &EwwWindowDefinition) -> Result<()> {
+    pub fn set_xprops(window: &gtk::Window, monitor: gdk::Rectangle, window_def: &WindowDefinition) -> Result<()> {
         let backend = X11Backend::new()?;
         backend.set_xprops_for(window, monitor, window_def)?;
         Ok(())
@@ -150,7 +146,7 @@ mod platform {
             &self,
             window: &gtk::Window,
             monitor_rect: gdk::Rectangle,
-            window_def: &EwwWindowDefinition,
+            window_def: &WindowDefinition,
         ) -> Result<()> {
             let gdk_window = window.window().context("Couldn't get gdk window from gtk window")?;
             let win_id =

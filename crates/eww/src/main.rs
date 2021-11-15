@@ -6,6 +6,7 @@
 #![feature(result_cloned)]
 #![feature(try_blocks)]
 #![feature(nll)]
+#![allow(rustdoc::private_intra_doc_links)]
 
 extern crate gio;
 extern crate gtk;
@@ -31,12 +32,12 @@ mod daemon_response;
 pub mod display_backend;
 pub mod error;
 mod error_handling_ctx;
-pub mod eww_state;
 pub mod geometry;
 pub mod ipc_server;
 pub mod opts;
 pub mod script_var_handler;
 pub mod server;
+pub mod state;
 pub mod util;
 pub mod widgets;
 
@@ -58,49 +59,23 @@ fn main() {
             .unwrap_or_else(EwwPaths::default)
             .context("Failed to initialize eww paths")?;
 
+        let should_restart = match &opts.action {
+            opts::Action::Daemon => opts.restart,
+            opts::Action::WithServer(action) => opts.restart && action.can_start_daemon(),
+            opts::Action::ClientOnly(_) => false,
+        };
+        if should_restart {
+            let response = handle_server_command(&paths, &ActionWithServer::KillServer, 1);
+            if let Ok(Some(response)) = response {
+                handle_daemon_response(response);
+            }
+            std::thread::sleep(std::time::Duration::from_millis(200));
+        }
+
         let would_show_logs = match opts.action {
             opts::Action::ClientOnly(action) => {
                 client::handle_client_only_action(&paths, action)?;
                 false
-            }
-
-            // a running daemon is necessary for this command
-            opts::Action::WithServer(action) if action.can_start_daemon() && !opts.no_daemonize => {
-                if opts.restart {
-                    let _ = handle_server_command(&paths, &ActionWithServer::KillServer, 1);
-                    std::thread::sleep(std::time::Duration::from_millis(200));
-                }
-
-                // attempt to just send the command to a running daemon
-                if let Err(err) = handle_server_command(&paths, &action, 5) {
-                    // connecting to the daemon failed. Thus, start the daemon here!
-                    log::warn!("Failed to connect to daemon: {}", err);
-                    log::info!("Initializing eww server. ({})", paths.get_ipc_socket_file().display());
-                    let _ = std::fs::remove_file(paths.get_ipc_socket_file());
-                    if !opts.show_logs {
-                        println!("Run `{} logs` to see any errors while editing your configuration.", eww_binary_name);
-                    }
-
-                    let (command, response_recv) = action.into_daemon_command();
-                    // start the daemon and give it the command
-                    let fork_result = server::initialize_server(paths.clone(), Some(command), true)?;
-                    let is_parent = fork_result == ForkResult::Parent;
-                    if let (Some(recv), true) = (response_recv, is_parent) {
-                        listen_for_daemon_response(recv);
-                    }
-                    is_parent
-                } else {
-                    true
-                }
-            }
-            opts::Action::WithServer(ActionWithServer::KillServer) => {
-                handle_server_command(&paths, &ActionWithServer::KillServer, 1)?;
-                false
-            }
-
-            opts::Action::WithServer(action) => {
-                handle_server_command(&paths, &action, 5)?;
-                true
             }
 
             // make sure that there isn't already a Eww daemon running.
@@ -117,6 +92,45 @@ fn main() {
                 }
                 let fork_result = server::initialize_server(paths.clone(), None, !opts.no_daemonize)?;
                 opts.no_daemonize || fork_result == ForkResult::Parent
+            }
+
+            opts::Action::WithServer(ActionWithServer::KillServer) => {
+                if let Some(response) = handle_server_command(&paths, &ActionWithServer::KillServer, 1)? {
+                    handle_daemon_response(response);
+                }
+                false
+            }
+
+            // a running daemon is necessary for this command
+            opts::Action::WithServer(action) => {
+                // attempt to just send the command to a running daemon
+                match handle_server_command(&paths, &action, 5) {
+                    Ok(Some(response)) => {
+                        handle_daemon_response(response);
+                        true
+                    }
+                    Ok(None) => true,
+
+                    Err(err) if action.can_start_daemon() && !opts.no_daemonize => {
+                        // connecting to the daemon failed. Thus, start the daemon here!
+                        log::warn!("Failed to connect to daemon: {}", err);
+                        log::info!("Initializing eww server. ({})", paths.get_ipc_socket_file().display());
+                        let _ = std::fs::remove_file(paths.get_ipc_socket_file());
+                        if !opts.show_logs {
+                            println!("Run `{} logs` to see any errors while editing your configuration.", eww_binary_name);
+                        }
+
+                        let (command, response_recv) = action.into_daemon_command();
+                        // start the daemon and give it the command
+                        let fork_result = server::initialize_server(paths.clone(), Some(command), true)?;
+                        let is_parent = fork_result == ForkResult::Parent;
+                        if let (Some(recv), true) = (response_recv, is_parent) {
+                            listen_for_daemon_response(recv);
+                        }
+                        is_parent
+                    }
+                    Err(err) => Err(err)?,
+                }
             }
         };
         if would_show_logs && opts.show_logs {
@@ -139,21 +153,22 @@ fn listen_for_daemon_response(mut recv: DaemonResponseReceiver) {
     })
 }
 
-fn handle_server_command(paths: &EwwPaths, action: &ActionWithServer, connect_attempts: usize) -> Result<()> {
+/// attempt to send a command to the daemon and send it the given action repeatedly.
+fn handle_server_command(paths: &EwwPaths, action: &ActionWithServer, connect_attempts: usize) -> Result<Option<DaemonResponse>> {
     log::debug!("Trying to find server process at socket {}", paths.get_ipc_socket_file().display());
     let mut stream = attempt_connect(&paths.get_ipc_socket_file(), connect_attempts).context("Failed to connect to daemon")?;
     log::debug!("Connected to Eww server ({}).", &paths.get_ipc_socket_file().display());
-    let response = client::do_server_call(&mut stream, action).context("Error while forwarding command to server")?;
-    if let Some(response) = response {
-        match response {
-            DaemonResponse::Success(x) => println!("{}", x),
-            DaemonResponse::Failure(x) => {
-                eprintln!("{}", x);
-                bail!("Error, server command failed");
-            }
+    client::do_server_call(&mut stream, action).context("Error while forwarding command to server")
+}
+
+fn handle_daemon_response(res: DaemonResponse) {
+    match res {
+        DaemonResponse::Success(x) => println!("{}", x),
+        DaemonResponse::Failure(x) => {
+            eprintln!("{}", x);
+            std::process::exit(1);
         }
     }
-    Ok(())
 }
 
 fn attempt_connect(socket_path: impl AsRef<Path>, attempts: usize) -> Option<net::UnixStream> {

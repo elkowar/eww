@@ -63,15 +63,6 @@ pub fn anyhow_err_to_diagnostic(err: &anyhow::Error) -> Option<Diagnostic<usize>
     }
 }
 
-// pub fn print_diagnostic(diagnostic: codespan_reporting::diagnostic::Diagnostic<usize>) {
-// match stringify_diagnostic(diagnostic.clone()) {
-// Ok(diag) => {
-// eprintln!("{}", diag);
-//}
-// Err(_) => {
-// log::error!("{:?}", diagnostic);
-//}
-
 pub fn stringify_diagnostic(mut diagnostic: codespan_reporting::diagnostic::Diagnostic<usize>) -> anyhow::Result<String> {
     diagnostic.labels.drain_filter(|label| Span(label.range.start, label.range.end, label.file_id).is_dummy());
 

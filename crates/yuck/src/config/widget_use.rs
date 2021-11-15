@@ -7,7 +7,7 @@ use crate::{
     error::{AstError, AstResult},
     parser::{ast::Ast, ast_iterator::AstIterator, from_ast::FromAst},
 };
-use eww_shared_util::{AttrName, Span, VarName};
+use eww_shared_util::{AttrName, Span, Spanned, VarName};
 
 use super::attributes::Attributes;
 
@@ -42,6 +42,12 @@ impl FromAst for WidgetUse {
             let children = iter.map(WidgetUse::from_ast).collect::<AstResult<Vec<_>>>()?;
             Ok(Self { name, attrs, children, span, name_span })
         }
+    }
+}
+
+impl Spanned for WidgetUse {
+    fn span(&self) -> Span {
+        self.span
     }
 }
 

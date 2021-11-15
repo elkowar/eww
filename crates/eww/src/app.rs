@@ -1,21 +1,25 @@
 use crate::{
     config,
     daemon_response::DaemonResponseSender,
-    display_backend, error_handling_ctx, eww_state,
+    display_backend, error_handling_ctx,
     gtk::prelude::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt},
-    script_var_handler::*,
-    EwwPaths,
+    script_var_handler::ScriptVarHandlerHandle,
+    state::scope_graph::{ScopeGraph, ScopeGraphEvent, ScopeIndex},
+    EwwPaths, *,
 };
-use anyhow::*;
-use debug_stub_derive::*;
 use eww_shared_util::VarName;
 use itertools::Itertools;
 use simplexpr::dynval::DynVal;
-use std::collections::{HashMap, HashSet};
+use std::{
+    cell::RefCell,
+    collections::{HashMap, HashSet},
+    rc::Rc,
+};
 use tokio::sync::mpsc::UnboundedSender;
 use yuck::{
     config::{
         script_var_definition::ScriptVarDefinition,
+        window_definition::WindowDefinition,
         window_geometry::{AnchorPoint, WindowGeometry},
     },
     value::Coords,
@@ -58,13 +62,15 @@ pub enum DaemonCommand {
         sender: DaemonResponseSender,
     },
     PrintDebug(DaemonResponseSender),
+    PrintGraph(DaemonResponseSender),
     PrintWindows(DaemonResponseSender),
 }
 
 #[derive(Debug, Clone)]
 pub struct EwwWindow {
     pub name: String,
-    pub definition: config::EwwWindowDefinition,
+    pub definition: yuck::config::window_definition::WindowDefinition,
+    pub scope_index: ScopeIndex,
     pub gtk_window: gtk::Window,
 }
 
@@ -74,9 +80,8 @@ impl EwwWindow {
     }
 }
 
-#[derive(DebugStub)]
 pub struct App {
-    pub eww_state: eww_state::EwwState,
+    pub scope_graph: Rc<RefCell<ScopeGraph>>,
     pub eww_config: config::EwwConfig,
     pub open_windows: HashMap<String, EwwWindow>,
     /// Window names that are supposed to be open, but failed.
@@ -84,12 +89,22 @@ pub struct App {
     pub failed_windows: HashSet<String>,
     pub css_provider: gtk::CssProvider,
 
-    #[debug_stub = "ScriptVarHandler(...)"]
     pub app_evt_send: UnboundedSender<DaemonCommand>,
-    #[debug_stub = "ScriptVarHandler(...)"]
     pub script_var_handler: ScriptVarHandlerHandle,
 
     pub paths: EwwPaths,
+}
+
+impl std::fmt::Debug for App {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("App")
+            .field("scope_graph", &*self.scope_graph.borrow())
+            .field("eww_config", &self.eww_config)
+            .field("open_windows", &self.open_windows)
+            .field("failed_windows", &self.failed_windows)
+            .field("paths", &self.paths)
+            .finish()
+    }
 }
 
 impl App {
@@ -104,7 +119,7 @@ impl App {
                 }
                 DaemonCommand::UpdateVars(mappings) => {
                     for (var_name, new_value) in mappings {
-                        self.update_state(var_name, new_value);
+                        self.update_global_state(var_name, new_value);
                     }
                 }
                 DaemonCommand::ReloadConfigAndCss(sender) => {
@@ -170,18 +185,21 @@ impl App {
                     sender.respond_with_error_list(errors)?;
                 }
                 DaemonCommand::PrintState { all, sender } => {
-                    let vars = self.eww_state.get_variables().iter();
-                    let output = if all {
-                        vars.map(|(key, value)| format!("{}: {}", key, value)).join("\n")
-                    } else {
-                        vars.filter(|(x, _)| self.eww_state.referenced_vars().any(|var| x == &var))
-                            .map(|(key, value)| format!("{}: {}", key, value))
-                            .join("\n")
-                    };
+                    let scope_graph = self.scope_graph.borrow();
+                    let used_globals_names = scope_graph.currently_used_globals();
+                    let output = scope_graph
+                        .scope_at(scope_graph.root_index)
+                        .expect("No global scope in scopegraph")
+                        .data
+                        .iter()
+                        .filter(|(key, _)| all || used_globals_names.contains(*key))
+                        .map(|(key, value)| format!("{}: {}", key, value))
+                        .join("\n");
                     sender.send_success(output)?
                 }
                 DaemonCommand::GetVar { name, sender } => {
-                    let vars = self.eww_state.get_variables();
+                    let scope_graph = &*self.scope_graph.borrow();
+                    let vars = &scope_graph.scope_at(scope_graph.root_index).expect("No root scope in graph").data;
                     match vars.get(name.as_str()) {
                         Some(x) => sender.send_success(x.to_string())?,
                         None => sender.send_failure(format!("Variable not found \"{}\"", name))?,
@@ -203,6 +221,7 @@ impl App {
                     let output = format!("{:#?}", &self);
                     sender.send_success(output)?
                 }
+                DaemonCommand::PrintGraph(sender) => sender.send_success(self.scope_graph.borrow().visualize())?,
             }
         };
 
@@ -219,13 +238,20 @@ impl App {
         gtk::main_quit();
     }
 
-    fn update_state(&mut self, fieldname: VarName, value: DynVal) {
-        self.eww_state.update_variable(fieldname.clone(), value);
+    fn update_global_state(&mut self, fieldname: VarName, value: DynVal) {
+        let result = self.scope_graph.borrow_mut().update_global_value(&fieldname, value);
+        if let Err(err) = result {
+            error_handling_ctx::print_error(err);
+        }
 
         if let Ok(linked_poll_vars) = self.eww_config.get_poll_var_link(&fieldname) {
             linked_poll_vars.iter().filter_map(|name| self.eww_config.get_script_var(name).ok()).for_each(|var| {
                 if let ScriptVarDefinition::Poll(poll_var) = var {
-                    match poll_var.run_while_expr.eval(self.eww_state.get_variables()).map(|v| v.as_bool()) {
+                    let scope_graph = self.scope_graph.borrow();
+                    let run_while = scope_graph
+                        .evaluate_simplexpr_in_scope(scope_graph.root_index, &poll_var.run_while_expr)
+                        .map(|v| v.as_bool());
+                    match run_while {
                         Ok(Ok(true)) => self.script_var_handler.add(var.clone()),
                         Ok(Ok(false)) => self.script_var_handler.stop_for_variable(poll_var.name.clone()),
                         Ok(Err(err)) => error_handling_ctx::print_error(anyhow!(err)),
@@ -236,25 +262,28 @@ impl App {
         }
     }
 
-    fn close_window(&mut self, window_name: &String) -> Result<()> {
-        for unused_var in self.variables_only_used_in(window_name) {
+    fn close_window(&mut self, window_name: &str) -> Result<()> {
+        let eww_window = self
+            .open_windows
+            .remove(window_name)
+            .with_context(|| format!("Tried to close window named '{}', but no such window was open", window_name))?;
+
+        self.scope_graph.borrow_mut().remove_scope(eww_window.scope_index);
+
+        eww_window.close();
+
+        let unused_variables = self.scope_graph.borrow().currently_unused_globals();
+        for unused_var in unused_variables {
             log::debug!("stopping for {}", &unused_var);
             self.script_var_handler.stop_for_variable(unused_var.clone());
         }
-
-        self.open_windows
-            .remove(window_name)
-            .with_context(|| format!("Tried to close window named '{}', but no such window was open", window_name))?
-            .close();
-
-        self.eww_state.clear_window_state(window_name);
 
         Ok(())
     }
 
     fn open_window(
         &mut self,
-        window_name: &String,
+        window_name: &str,
         pos: Option<Coords>,
         size: Option<Coords>,
         monitor: Option<i32>,
@@ -270,24 +299,44 @@ impl App {
             let mut window_def = self.eww_config.get_window(window_name)?.clone();
             window_def.geometry = window_def.geometry.map(|x| x.override_if_given(anchor, pos, size));
 
-            let root_widget =
-                window_def.widget.render(&mut self.eww_state, window_name, self.eww_config.get_widget_definitions())?;
+            let root_index = self.scope_graph.borrow().root_index;
+
+            let window_scope = self.scope_graph.borrow_mut().register_new_scope(
+                window_name.to_string(),
+                Some(root_index),
+                root_index,
+                HashMap::new(),
+            )?;
+
+            let root_widget = crate::widgets::build_widget::build_gtk_widget(
+                &mut *self.scope_graph.borrow_mut(),
+                Rc::new(self.eww_config.get_widget_definitions().clone()),
+                window_scope,
+                window_def.widget.clone(),
+                None,
+            )?;
 
             root_widget.style_context().add_class(&window_name.to_string());
 
             let monitor_geometry = get_monitor_geometry(monitor.or(window_def.monitor_number))?;
 
-            let eww_window = initialize_window(monitor_geometry, root_widget, window_def)?;
-
-            self.open_windows.insert(window_name.clone(), eww_window);
+            let eww_window = initialize_window(monitor_geometry, root_widget, window_def, window_scope)?;
 
             // initialize script var handlers for variables that where not used before opening this window.
-            // TODO somehow make this less shit
-            for newly_used_var in
-                self.variables_only_used_in(window_name).filter_map(|var| self.eww_config.get_script_var(var).ok())
-            {
-                self.script_var_handler.add(newly_used_var.clone());
+            // TODO maybe this could be handled by having a track_newly_used_variables function in the scope tree?
+            for used_var in self.scope_graph.borrow().variables_used_in_self_or_subscopes_of(eww_window.scope_index) {
+                if let Ok(script_var) = self.eww_config.get_script_var(&used_var) {
+                    self.script_var_handler.add(script_var.clone());
+                }
             }
+
+            eww_window.gtk_window.connect_destroy({
+                let scope_graph_sender = self.scope_graph.borrow().event_sender.clone();
+                move |_| {
+                    let _ = scope_graph_sender.send(ScopeGraphEvent::RemoveScope(eww_window.scope_index));
+                }
+            });
+            self.open_windows.insert(window_name.to_string(), eww_window);
         };
 
         if let Err(err) = open_result {
@@ -300,22 +349,20 @@ impl App {
 
     /// Load the given configuration, reloading all script-vars and attempting to reopen all windows that where opened.
     pub fn load_config(&mut self, config: config::EwwConfig) -> Result<()> {
-        // TODO the reload procedure is kinda bad.
-        // It should probably instead prepare a new eww_state and everything, and then swap the instances once everything has worked.
-
         log::info!("Reloading windows");
-        // refresh script-var poll stuff
+
         self.script_var_handler.stop_all();
+        self.script_var_handler = script_var_handler::init(self.app_evt_send.clone());
 
         log::trace!("loading config: {:#?}", config);
 
         self.eww_config = config;
-        self.eww_state.clear_all_window_states();
+        self.scope_graph.borrow_mut().clear(self.eww_config.generate_initial_state()?);
 
         let window_names: Vec<String> =
             self.open_windows.keys().cloned().chain(self.failed_windows.iter().cloned()).dedup().collect();
         for window_name in &window_names {
-            self.open_window(&window_name, None, None, None, None)?;
+            self.open_window(window_name, None, None, None, None)?;
         }
         Ok(())
     }
@@ -324,36 +371,13 @@ impl App {
         self.css_provider.load_from_data(css.as_bytes())?;
         Ok(())
     }
-
-    /// Get all variable names that are currently referenced in any of the open windows.
-    pub fn get_currently_used_variables(&self) -> impl Iterator<Item = &VarName> {
-        self.open_windows.keys().flat_map(move |window_name| self.eww_state.vars_referenced_in(window_name))
-    }
-
-    /// Get all variables mapped to a list of windows they are being used in.
-    pub fn currently_used_variables<'a>(&'a self) -> HashMap<&'a VarName, Vec<&'a String>> {
-        let mut vars: HashMap<&'a VarName, Vec<_>> = HashMap::new();
-        for window_name in self.open_windows.keys() {
-            for var in self.eww_state.vars_referenced_in(window_name) {
-                vars.entry(var).and_modify(|l| l.push(window_name)).or_insert_with(|| vec![window_name]);
-            }
-        }
-        vars
-    }
-
-    /// Get all variables that are only used in the given window.
-    pub fn variables_only_used_in<'a>(&'a self, window: &'a String) -> impl Iterator<Item = &'a VarName> {
-        self.currently_used_variables()
-            .into_iter()
-            .filter(move |(_, wins)| wins.len() == 1 && wins.contains(&window))
-            .map(|(var, _)| var)
-    }
 }
 
 fn initialize_window(
     monitor_geometry: gdk::Rectangle,
     root_widget: gtk::Widget,
-    window_def: config::EwwWindowDefinition,
+    window_def: WindowDefinition,
+    window_scope: ScopeIndex,
 ) -> Result<EwwWindow> {
     let window = display_backend::initialize_window(&window_def, monitor_geometry)
         .with_context(|| format!("monitor {} is unavailable", window_def.monitor_number.unwrap()))?;
@@ -395,7 +419,7 @@ fn initialize_window(
 
     window.show_all();
 
-    Ok(EwwWindow { name: window_def.name.clone(), definition: window_def, gtk_window: window })
+    Ok(EwwWindow { name: window_def.name.clone(), definition: window_def, gtk_window: window, scope_index: window_scope })
 }
 
 /// Apply the provided window-positioning rules to the window.

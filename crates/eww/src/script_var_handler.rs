@@ -43,6 +43,7 @@ pub fn init(evt_send: UnboundedSender<DaemonCommand>) -> ScriptVarHandlerHandle 
                         }
                         ScriptVarHandlerMsg::StopAll => {
                             handler.stop_all();
+                            break;
                         }
                     },
                     else => break,

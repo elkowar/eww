@@ -1,17 +1,12 @@
 use crate::{
     app::{self, DaemonCommand},
-    config, daemon_response, error_handling_ctx,
-    eww_state::*,
-    ipc_server, script_var_handler, util, EwwPaths,
+    config, daemon_response, error_handling_ctx, ipc_server, script_var_handler,
+    state::scope_graph::ScopeGraph,
+    util, EwwPaths,
 };
 use anyhow::*;
 
-use std::{
-    collections::{HashMap, HashSet},
-    os::unix::io::AsRawFd,
-    path::Path,
-    sync::{atomic::Ordering, Arc},
-};
+use std::{cell::RefCell, collections::{HashMap, HashSet}, os::unix::io::AsRawFd, path::Path, rc::Rc, sync::{atomic::Ordering, Arc}};
 use tokio::sync::mpsc::*;
 
 pub fn initialize_server(paths: EwwPaths, action: Option<DaemonCommand>, should_daemonize: bool) -> Result<ForkResult> {
@@ -61,8 +56,13 @@ pub fn initialize_server(paths: EwwPaths, action: Option<DaemonCommand>, should_
     log::debug!("Initializing script var handler");
     let script_var_handler = script_var_handler::init(ui_send.clone());
 
+    let (scope_graph_evt_send, mut scope_graph_evt_recv) = tokio::sync::mpsc::unbounded_channel();
+
     let mut app = app::App {
-        eww_state: EwwState::from_default_vars(eww_config.generate_initial_state()?),
+        scope_graph: Rc::new(RefCell::new(ScopeGraph::from_global_vars(
+            eww_config.generate_initial_state()?,
+            scope_graph_evt_send,
+        ))),
         eww_config,
         open_windows: HashMap::new(),
         failed_windows: HashSet::new(),
@@ -88,8 +88,17 @@ pub fn initialize_server(paths: EwwPaths, action: Option<DaemonCommand>, should_
         if let Some(action) = action {
             app.handle_command(action);
         }
-        while let Some(event) = ui_recv.recv().await {
-            app.handle_command(event);
+
+        loop {
+            tokio::select! {
+                Some(scope_graph_evt) = scope_graph_evt_recv.recv() => {
+                    app.scope_graph.borrow_mut().handle_scope_graph_event(scope_graph_evt);
+                },
+                Some(ui_event) = ui_recv.recv() => {
+                    app.handle_command(ui_event);
+                }
+                else => break,
+            }
         }
     });
 

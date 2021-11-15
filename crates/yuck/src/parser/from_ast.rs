@@ -29,7 +29,7 @@ impl FromAst for String {
 }
 
 /// A trait that allows creating a type from the tail of a list-node.
-/// I.e. to parse (foo [a b] (c d)), [from_tail] would just get [a b] (c d).
+/// I.e. to parse (foo [a b] (c d)), [`FromAstElementContent::from_tail`] would just get [a b] (c d).
 pub trait FromAstElementContent: Sized {
     const ELEMENT_NAME: &'static str;
     fn from_tail<I: Iterator<Item = Ast>>(span: Span, iter: AstIterator<I>) -> AstResult<Self>;
@@ -50,7 +50,7 @@ impl<T: FromAstElementContent> FromAst for T {
 impl FromAst for SimplExpr {
     fn from_ast(e: Ast) -> AstResult<Self> {
         match e {
-            Ast::Symbol(span, x) => Ok(SimplExpr::VarRef(span, VarName(x))),
+            Ast::Symbol(span, x) => Ok(SimplExpr::var_ref(span, x)),
             Ast::SimplExpr(span, x) => Ok(x),
             _ => Err(AstError::NotAValue(e.span(), e.expr_type())),
         }
