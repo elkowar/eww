@@ -36,14 +36,19 @@ impl Default for GraphPriv {
 
 fn update_history(graph: &GraphPriv, v: (std::time::Instant, f64)) {
     let mut history = graph.history.borrow_mut();
-    history.push_back(v);
+    let mut last_value = None;
     while let Some(entry) = history.front() {
         if std::time::Instant::now().duration_since(entry.0).as_millis() as u64 > *graph.range.borrow() {
-            history.pop_front();
+            last_value = history.pop_front();
         } else {
             break;
         }
     }
+
+    if let Some(v) = last_value {
+        history.push_front(v);
+    }
+    history.push_back(v);
 }
 
 impl ObjectImpl for GraphPriv {
@@ -188,12 +193,15 @@ impl WidgetImpl for GraphPriv {
                 .iter()
                 .map(|(t, v)| {
                     let t = std::time::Instant::now().duration_since(*t).as_millis();
+
+                    // BUG: range includes a point outside the range
                     let x = width * (1.0 - (t as f64 / range as f64));
                     let y = height * (1.0 - (v / 100.0));
                     (x, y)
                 })
                 .collect::<Vec<(f64, f64)>>();
 
+            dbg!(&points);
             // Background (separate, to avoid lines in the bottom / sides)
             if bg_color.alpha > 0.0 {
                 if let Some(first_point) = points.first() {
