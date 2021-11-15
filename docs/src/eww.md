@@ -1,8 +1,8 @@
 # Eww - Widgets for everyone!
 
 Eww (ElKowar's Wacky Widgets, pronounced with sufficient amounts of disgust)
-is a widget system made in [rust](https://www.rust-lang.org/),
-which let's you create your own widgets similarly to how you can in AwesomeWM.
+is a widget system made in [Rust](https://www.rust-lang.org/),
+which lets you create your own widgets similarly to how you can in AwesomeWM.
 The key difference: It is independent of your window manager!
 
 Configured in yuck and themed using CSS, it is easy to customize and provides all the flexibility you need!
@@ -36,7 +36,7 @@ The following list of package names should work for arch linux:
 
 </details>
 
-(Note that you will most likely need the -devel variants of your distros packages to be able to compile eww.)
+(Note that you will most likely need the -devel variants of your distro's packages to be able to compile eww.)
 
 ### Building
 
@@ -50,12 +50,12 @@ git clone https://github.com/elkowar/eww
 ```bash
 cd eww
 ```
-and then to build:
+Then build:
 ```bash
 cargo build --release
 ```
 **NOTE:**
-When you're on wayland, build with:
+When you're on Wayland, build with:
 ```bash
 cargo build --release --no-default-features --features=wayland
 ```
@@ -65,11 +65,11 @@ Once you've built it you can now run it by entering:
 ```bash
 cd target/release
 ```
-and then make the Eww binary executable
+Then make the Eww binary executable:
 ```bash
 chmod +x ./eww
 ```
-and then to run it do
+Then to run it, enter:
 ```
 ./eww daemon
 ./eww open <window_name>
