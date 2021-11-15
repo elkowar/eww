@@ -170,25 +170,25 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="writing-your-eww-configuration"><a class="header" href="#writing-your-eww-configuration">Writing your eww configuration</a></h1>
-<p>(For a list of all built in widgets (i.e. <code>box</code>, <code>label</code>, <code>button</code>)  see <a href="widgets.html">Widget Documentation</a>)
+<p>(For a list of all built-in widgets (i.e. <code>box</code>, <code>label</code>, <code>button</code>),  see <a href="widgets.html">Widget Documentation</a>.)<br />
 Eww is configured using its own language called <code>yuck</code>.
-using yuck, you declare the structure and content of your widgets, the geometry, position and behavior of any windows,
+Using yuck, you declare the structure and content of your widgets, the geometry, position, and behavior of any windows,
 as well as any state and data that will be used in your widgets.
 Yuck is based around S-expressions, which you may know from lisp-like languages.
 If you're using vim, you can make use of <a href="https://github.com/elkowar/yuck.vim">yuck.vim</a> for editor support.
 If you're using VSCode, you can get syntax highlighting and formatting from <a href="https://marketplace.visualstudio.com/items?itemName=eww-yuck.yuck">yuck-vscode</a>.
 It is also recommended to use <a href="https://shaunlebron.github.io/parinfer/">parinfer</a>,
-which makes working with s-expressions delightfully easy!</p>
-<p>Additionally, any styles are defined in scss (which is mostly just slightly improved CSS syntax).
+which makes working with S-expressions delightfully easy!</p>
+<p>Additionally, any styles are defined in SCSS (which is mostly just slightly improved CSS syntax).
 While eww supports a significant portion of the CSS you know from the web,
-not everything is supported, as eww relies on GTKs own CSS engine.
+not everything is supported, as eww relies on GTK's own CSS engine.
 Notably, some animation features are unsupported,
 as well as most layout-related CSS properties such as flexbox, <code>float</code>, absolute position or <code>width</code>/<code>height</code>.</p>
 <p>To get started, you'll need to create two files: <code>eww.yuck</code> and <code>eww.scss</code>.
 These files must be placed under <code>$XDG_CONFIG_HOME/eww</code> (this is most likely <code>~/.config/eww</code>).</p>
 <p>Now that those files are created, you can start writing your first widget!</p>
 <h2 id="creating-your-first-window"><a class="header" href="#creating-your-first-window">Creating your first window</a></h2>
-<p>Firstly, you will need to create a top-level window. Here, you configure things such as the name, position, geometry and content of your window.</p>
+<p>Firstly, you will need to create a top-level window. Here, you configure things such as the name, position, geometry, and content of your window.</p>
 <p>Let's look at an example window definition:</p>
 <pre><code class="language-lisp">(defwindow example
            :monitor 0
@@ -203,28 +203,29 @@ These files must be placed under <code>$XDG_CONFIG_HOME/eww</code> (this is most
            :wm-ignore false
   &quot;example content&quot;)
 </code></pre>
-<p>Here, we are defining a window named <code>example</code>, which we then set a set of properties for. Additionally, we set the content of the window to be the text <code>&quot;example content&quot;</code>.</p>
+<p>Here, we are defining a window named <code>example</code>, which we then define a set of properties for. Additionally, we set the content of the window to be the text <code>&quot;example content&quot;</code>.</p>
 <p>You can now open your first window by running <code>eww open example</code>! Glorious!</p>
 <h3 id="defwindow-properties"><a class="header" href="#defwindow-properties"><code>defwindow</code>-properties</a></h3>
 <table><thead><tr><th align="right">Property</th><th>Description</th></tr></thead><tbody>
-<tr><td align="right"><code>monitor</code></td><td>which monitor this window should be displayed on.</td></tr>
+<tr><td align="right"><code>monitor</code></td><td>Which monitor this window should be displayed on.</td></tr>
 <tr><td align="right"><code>geometry</code></td><td>Geometry of the window.</td></tr>
 </tbody></table>
-<p><strong>Geometry-properties</strong></p>
+<p><strong><code>geometry</code>-properties</strong></p>
 <table><thead><tr><th align="right">Property</th><th>Description</th></tr></thead><tbody>
-<tr><td align="right"><code>x</code>, <code>y</code></td><td>Position of the window. Values may be provided in <code>px</code> or <code>%</code>. Will be relative to <code>anchor</code></td></tr>
+<tr><td align="right"><code>x</code>, <code>y</code></td><td>Position of the window. Values may be provided in <code>px</code> or <code>%</code>. Will be relative to <code>anchor</code>.</td></tr>
 <tr><td align="right"><code>width</code>, <code>height</code></td><td>Width and height of the window. Values may be provided in <code>px</code> or <code>%</code>.</td></tr>
-<tr><td align="right"><code>anchor</code></td><td>Anchor-point of the window. Either <code>center</code> or combinations of <code>top</code>, <code>center</code>, <code>bottom</code> and <code>left</code>, <code>center</code>, <code>right</code></td></tr>
+<tr><td align="right"><code>anchor</code></td><td>Anchor-point of the window. Either <code>center</code> or combinations of <code>top</code>, <code>center</code>, <code>bottom</code> and <code>left</code>, <code>center</code>, <code>right</code>.</td></tr>
 </tbody></table>
-<p>Depending on if you are using X11 or wayland, some additional properties exist:</p>
-<h4 id="x11"><a class="header" href="#x11">x11</a></h4>
+<br/>
+Depending on if you are using X11 or Wayland, some additional properties exist:
+<h4 id="x11"><a class="header" href="#x11">X11</a></h4>
 <table><thead><tr><th align="right">Property</th><th>Description</th></tr></thead><tbody>
 <tr><td align="right"><code>stacking</code></td><td>Where the window should appear in the stack. Possible values: <code>fg</code>, <code>bg</code>.</td></tr>
-<tr><td align="right"><code>wm-ignore</code></td><td>Whether the windowmanager should ignore this window. This is useful for dashboard-style widgets that don't need to interact with other windows at all. Note that this makes some of the other properties not have any effect. Either <code>true</code> or <code>false</code></td></tr>
-<tr><td align="right"><code>reserve</code></td><td>Specify how the window-manager should make space for your window. This is useful for bars, which should not overlap any other windows.</td></tr>
+<tr><td align="right"><code>wm-ignore</code></td><td>Whether the window manager should ignore this window. This is useful for dashboard-style widgets that don't need to interact with other windows at all. Note that this makes some of the other properties not have any effect. Either <code>true</code> or <code>false</code>.</td></tr>
+<tr><td align="right"><code>reserve</code></td><td>Specify how the window manager should make space for your window. This is useful for bars, which should not overlap any other windows.</td></tr>
 <tr><td align="right"><code>windowtype</code></td><td>Specify what type of window this is. This will be used by your window manager to determine how it should handle your window. Possible values: <code>normal</code>, <code>dock</code>, <code>toolbar</code>, <code>dialog</code>. Default: <code>dock</code> if <code>reserve</code> is specified, <code>normal</code> otherwise.</td></tr>
 </tbody></table>
-<h4 id="wayland"><a class="header" href="#wayland">wayland</a></h4>
+<h4 id="wayland"><a class="header" href="#wayland">Wayland</a></h4>
 <table><thead><tr><th align="right">Property</th><th>Description</th></tr></thead><tbody>
 <tr><td align="right"><code>stacking</code></td><td>Where the window should appear in the stack. Possible values: <code>fg</code>, <code>bg</code>, <code>overlay</code>, <code>bottom</code>.</td></tr>
 <tr><td align="right"><code>exclusive</code></td><td>Whether the compositor should reserve space for the window automatically.</td></tr>
@@ -248,21 +249,21 @@ These files must be placed under <code>$XDG_CONFIG_HOME/eww</code> (this is most
 <p>There is a lot going on here, so let's step through this.</p>
 <p>We are creating a widget named <code>greeter</code>. This widget takes two attributes, called <code>text</code> and <code>name</code>.
 The declaration <code>?text</code> specifies that the <code>text</code>-attribute is optional, and can thus be left out. In that case,
-it's value will be the empty string <code>&quot;&quot;</code>.
+its value will be the empty string <code>&quot;&quot;</code>.
 The <code>name</code> attribute <em>must</em> be provided.</p>
-<p>Now, we declare the body of our widget. We make use of a <code>box</code>, which we set a couple attributes of.</p>
+<p>Now we declare the body of our widget. We make use of a <code>box</code>, which we set a couple attributes of.</p>
 <p>We need this <code>box</code>, as a widget definition can only ever contain a single widget - otherwise,
 eww would not know if it should align them vertically or horizontally, how it should space them, and so on.
 Thus, we wrap multiple children in a <code>box</code>.
 This box then contains a reference to the provided attribute <code>text</code>, as well as a button.
-In that buttons <code>onclick</code> attribute, we make refer to the provided <code>name</code> using string-interpolation syntax: <code>&quot;${name}&quot;</code>.
+In that button's <code>onclick</code> attribute, we refer to the provided <code>name</code> using string-interpolation syntax: <code>&quot;${name}&quot;</code>.
 This allows us to easily refer to any variables within strings.
-In fact, there is a lot more you can do withing <code>${...}</code> - more on that in the chapter about the <a href="expression_language.html">expression language</a>.</p>
-<p>To then use our widget, we call it just like we would use any other built-in widget, and provide the required attributes.</p>
+In fact, there is a lot more you can do within <code>${...}</code> - more on that in the chapter about the <a href="expression_language.html">expression language</a>.</p>
+<p>To then use our widget, we call it just like we would use any other built-in widget and provide the required attributes.</p>
 <p>As you may have noticed, we are using a couple predefined widgets here. These are all listed and explained in the <a href="widgets.html">widgets chapter</a>.</p>
 <h3 id="rendering-children-in-your-widgets"><a class="header" href="#rendering-children-in-your-widgets">Rendering children in your widgets</a></h3>
 <p>(Note that this feature is currently considered <strong>unstable</strong>. The API might change, and there might be bugs here. If you encounter any, please do report them.)</p>
-<p>As your configuration grows, you might want to improve the structure of you config by factoring out functionality into basic reusable widgets.
+<p>As your configuration grows, you might want to improve the structure of your config by factoring out functionality into basic reusable widgets.
 Eww allows you to create custom wrapper widgets that can themselves take children, just like some of the built-in widgets like <code>box</code> or <code>button</code> can.
 For this, use the <code>children</code> placeholder:</p>
 <pre><code class="language-lisp">(defwidget labeled-container [name]
@@ -282,10 +283,10 @@ For this, use the <code>children</code> placeholder:</p>
     (box :class &quot;second&quot; (children :nth 1))))
 </code></pre>
 <p><strong>NOTE</strong>: It is currently not possible to dynamically change which child is shown.
-This means that <code>nth</code> needs to be set to a static value, and cannot refer to a variable.</p>
+This means that <code>nth</code> needs to be set to a static value and cannot refer to a variable.</p>
 <h2 id="adding-dynamic-content"><a class="header" href="#adding-dynamic-content">Adding dynamic content</a></h2>
 <p>Now that you feel sufficiently greeted by your bar, you may realize that showing data like the time and date might be even more useful than having a button that greets you.</p>
-<p>To implement dynamic content in your widgets you make use of <em>variables</em>.</p>
+<p>To implement dynamic content in your widgets, you make use of <em>variables</em>.</p>
 <p>These user-defined variables are globally available from all of your widgets. Whenever the variable changes, the value in the widget will update!</p>
 <p>There are four different types of variables: basic, polling, listening, and a set of builtin &quot;magic&quot; variables.</p>
 <p><strong>Basic variables (<code>defvar</code>)</strong></p>
@@ -309,8 +310,8 @@ They may also be useful to have buttons within eww change what is shown within y
 <p>A polling variable is a variable which runs a provided shell-script repeatedly, in a given interval.</p>
 <p>This may be the most commonly used type of variable.
 They are useful to access any quickly retrieved value repeatedly,
-and thus are the perfect choice for showing your time, date, as well as other bits of information such as pending package updates, weather and battery-level.</p>
-<p>You can also specify an initial-value, this should prevent eww from waiting for the result of a give command during startup, thus,
+and thus are the perfect choice for showing your time, date, as well as other bits of information such as pending package updates, weather, and battery level.</p>
+<p>You can also specify an initial-value. This should prevent eww from waiting for the result of a give command during startup, thus
 making the startup time faster.</p>
 <p><strong>Listening variables (<code>deflisten</code>)</strong></p>
 <pre><code class="language-lisp">(deflisten foo :initial &quot;whatever&quot;
@@ -321,23 +322,23 @@ A listening variable runs a script once, and reads its output continously.
 Whenever the script outputs a new line, the value will be updated to that new line.
 In the example given above, the value of <code>foo</code> will start out as <code>&quot;whatever&quot;</code>, and will change whenever a new line is appended to <code>/tmp/some_file</code>.</p>
 <p>These are particularly useful when you want to apply changes instantaneously when an operation happens if you have a script
-that can monitor some value on its own. Volume, brighness, workspaces that get added/removed at runtime,
+that can monitor some value on its own. Volume, brightness, workspaces that get added/removed at runtime,
 monitoring currently focused desktop/tag, etc. are the most common usecases of this type of variable.
 These are particularly efficient and should be preffered if possible.</p>
 <p>For example, the command <code>xprop -spy -root _NET_CURRENT_DESKTOP</code> writes the currently focused desktop whenever it changes.
 Another example usecase is monitoring the currently playing song with playerctl: <code>playerctl --follow metadata --format {{title}}</code>.</p>
 <p><strong>Built-in &quot;magic&quot; variables</strong></p>
-<p>In addition to definition your own variables, eww provides some values for you to use out of the box.
+<p>In addition to defining your own variables, eww provides some values for you to use out of the box.
 These include values such as your CPU and RAM usage.
-These mostly contain their data as JSON, which you can then use using the <a href="expression_language.html">json access syntax</a>.
+These mostly contain their data as JSON, which you can then get using the <a href="expression_language.html">json access syntax</a>.
 All available magic variables are listed <a href="magic-vars.html">here</a>.</p>
 <h2 id="dynamically-generated-widgets-with-literal"><a class="header" href="#dynamically-generated-widgets-with-literal">Dynamically generated widgets with <code>literal</code></a></h2>
 <p>In some cases, you want to not only change the text,
-value or color of a widget dynamically, but instead want to generate an entire widget structure dynamically.
+value, or color of a widget dynamically, but instead want to generate an entire widget structure dynamically.
 This is necessary if you want to display lists of things (for example notifications)
 where the amount is not necessarily known,
-or if you want to change the widget structure in some other more complex way.</p>
-<p>For this, you can make use of one of ewws most powerful features: the <code>literal</code> widget.</p>
+or if you want to change the widget structure in some other, more complex way.</p>
+<p>For this, you can make use of one of eww's most powerful features: the <code>literal</code> widget.</p>
 <pre><code class="language-lisp">(defvar variable_containing_yuck
   &quot;(box (button 'foo') (button 'bar'))&quot;)
 
@@ -353,12 +354,12 @@ Eww then reads the provided value and renders the resulting widget. Whenever it 
 <h3 id="using-include"><a class="header" href="#using-include">Using <code>include</code></a></h3>
 <pre><code class="language-lisp">(include &quot;./path/to/your/file.yuck&quot;)
 </code></pre>
-<p>A single yuck-file may import the contents of any other yuck file. For this, make use of the <code>include</code> directive.</p>
+<p>A single yuck file may import the contents of any other yuck file. For this, make use of the <code>include</code> directive.</p>
 <h3 id="using-a-separate-eww-configuration-directory"><a class="header" href="#using-a-separate-eww-configuration-directory">Using a separate eww configuration directory</a></h3>
 <p>If you want to separate different widgets even further, you can create a new eww config folder anywhere else.
 Then, you can tell eww to use that configuration directory by passing <em>every</em> command the <code>--config /path/to/your/config/dir</code> flag.
 Make sure to actually include this in all your <code>eww</code> calls, including <code>eww kill</code>, <code>eww logs</code>, etc.
-This launches a separate instance of the eww daemon, that has separate logs and state from your main eww configuration.</p>
+This launches a separate instance of the eww daemon that has separate logs and state from your main eww configuration.</p>
 
                     </main>
 

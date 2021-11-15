@@ -171,8 +171,8 @@
                     <main>
                         <h1 id="eww---widgets-for-everyone"><a class="header" href="#eww---widgets-for-everyone">Eww - Widgets for everyone!</a></h1>
 <p>Eww (ElKowar's Wacky Widgets, pronounced with sufficient amounts of disgust)
-is a widget system made in <a href="https://www.rust-lang.org/">rust</a>,
-which let's you create your own widgets similarly to how you can in AwesomeWM.
+is a widget system made in <a href="https://www.rust-lang.org/">Rust</a>,
+which lets you create your own widgets similarly to how you can in AwesomeWM.
 The key difference: It is independent of your window manager!</p>
 <p>Configured in yuck and themed using CSS, it is easy to customize and provides all the flexibility you need!</p>
 <h2 id="how-to-install-eww"><a class="header" href="#how-to-install-eww">How to install Eww</a></h2>
@@ -199,7 +199,7 @@ The following list of package names should work for arch linux:</p>
 <li>glibc</li>
 </ul>
 </details>
-<p>(Note that you will most likely need the -devel variants of your distros packages to be able to compile eww.)</p>
+<p>(Note that you will most likely need the -devel variants of your distro's packages to be able to compile eww.)</p>
 <h3 id="building"><a class="header" href="#building">Building</a></h3>
 <p>Once you have the prerequisites ready, you're ready to install and build eww.</p>
 <p>First clone the repo:</p>
@@ -207,21 +207,21 @@ The following list of package names should work for arch linux:</p>
 </code></pre>
 <pre><code class="language-bash">cd eww
 </code></pre>
-<p>and then to build:</p>
+<p>Then build:</p>
 <pre><code class="language-bash">cargo build --release
 </code></pre>
 <p><strong>NOTE:</strong>
-When you're on wayland, build with:</p>
+When you're on Wayland, build with:</p>
 <pre><code class="language-bash">cargo build --release --no-default-features --features=wayland
 </code></pre>
 <h3 id="running-eww"><a class="header" href="#running-eww">Running eww</a></h3>
 <p>Once you've built it you can now run it by entering:</p>
 <pre><code class="language-bash">cd target/release
 </code></pre>
-<p>and then make the Eww binary executable</p>
+<p>Then make the Eww binary executable:</p>
 <pre><code class="language-bash">chmod +x ./eww
 </code></pre>
-<p>and then to run it do</p>
+<p>Then to run it, enter:</p>
 <pre><code>./eww daemon
 ./eww open &lt;window_name&gt;
 </code></pre>

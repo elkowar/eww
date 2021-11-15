@@ -170,33 +170,33 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="troubleshooting"><a class="header" href="#troubleshooting">Troubleshooting</a></h1>
-<p>Here you will find help if something doesn't work, if the issue isn't listed here please <a href="https://github.com/elkowar/eww/issues">open an issue on the GitHub repo.</a></p>
+<p>Here you will find help if something doesn't work. If the issue isn't listed here, please <a href="https://github.com/elkowar/eww/issues">open an issue on the GitHub repo.</a></p>
 <h2 id="eww-does-not-compile"><a class="header" href="#eww-does-not-compile">Eww does not compile</a></h2>
 <ol>
-<li>Make sure that you are compiling eww using the nightly rust toolchain.</li>
+<li>Make sure that you are compiling eww using the nightly Rust toolchain.</li>
 <li>Make sure you have all the necessary dependencies. If there are compile-errors, the compiler will tell you what you're missing.</li>
 </ol>
-<h2 id="eww-does-not-work-on-wayland"><a class="header" href="#eww-does-not-work-on-wayland">Eww does not work on wayland</a></h2>
+<h2 id="eww-does-not-work-on-wayland"><a class="header" href="#eww-does-not-work-on-wayland">Eww does not work on Wayland</a></h2>
 <ol>
 <li>Make sure you compiled eww with the <code>--no-default-features --features=wayland</code> flags.</li>
 <li>Make sure that you're not trying to use X11-specific features (these are (hopefully) explicitly specified as such in the documentation).</li>
 </ol>
 <h2 id="my-configuration-is-not-loaded-correctly"><a class="header" href="#my-configuration-is-not-loaded-correctly">My configuration is not loaded correctly</a></h2>
 <ol>
-<li>Make sure the <code>eww.yuck</code> and <code>eww.scss</code> files are in the correct places</li>
+<li>Make sure the <code>eww.yuck</code> and <code>eww.scss</code> files are in the correct places.</li>
 <li>Sometimes, eww might fail to load your configuration as a result of a configuration error. Make sure your configuration is valid.</li>
 </ol>
 <h2 id="something-isnt-styled-correctly"><a class="header" href="#something-isnt-styled-correctly">Something isn't styled correctly!</a></h2>
 <p>Check the <a href="working_with_gtk.html#gtk-debugger">GTK-Debugger</a> to get more insight into what styles GTK is applying to which elements.</p>
 <h2 id="general-issues"><a class="header" href="#general-issues">General issues</a></h2>
-<p>You should try the following things, before opening a issue or doing more specialized troubleshooting:</p>
+<p>You should try the following things before opening an issue or doing more specialized troubleshooting:</p>
 <ul>
 <li>Kill the eww daemon by running <code>eww kill</code> and re-open your window with the <code>--debug</code>-flag to get additional log output.</li>
 <li>Now you can take a look at the logs by running <code>eww logs</code>.</li>
-<li>use <code>eww state</code>, to see the state of all variables</li>
-<li>use <code>eww debug</code>, to see the structure of your widget and other information</li>
-<li>update to the latest eww version</li>
-<li>sometimes hot reloading doesn't work. In that case, you can make use of <code>eww reload</code> manually.</li>
+<li>Use <code>eww state</code> to see the state of all variables.</li>
+<li>Use <code>eww debug</code> to see the structure of your widget and other information.</li>
+<li>Update to the latest eww version.</li>
+<li>Sometimes hot reloading doesn't work. In that case, you can make use of <code>eww reload</code> manually.</li>
 </ul>
 <p>Remember, if your issue isn't listed here, <a href="https://github.com/elkowar/eww/issues">open an issue on the GitHub repo</a>.</p>
 
