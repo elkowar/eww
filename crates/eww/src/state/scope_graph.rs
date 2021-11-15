@@ -172,6 +172,7 @@ impl ScopeGraph {
 
     /// Register a listener. This listener will get called when any of the required variables change.
     /// This should be used to update the gtk widgets that are in a scope.
+    /// This also calls the listener initially.
     pub fn register_listener(&mut self, scope_index: ScopeIndex, listener: Listener) -> Result<()> {
         for required_var in &listener.needed_variables {
             self.register_scope_referencing_variable(scope_index, required_var.clone())?;
@@ -181,6 +182,10 @@ impl ScopeGraph {
         for required_var in &listener.needed_variables {
             scope.listeners.entry(required_var.clone()).or_default().push(listener.clone());
         }
+
+        let required_variables = self.lookup_variables_in_scope(scope_index, &listener.needed_variables)?;
+        (*listener.f)(self, required_variables)?;
+
         Ok(())
     }
 

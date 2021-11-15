@@ -32,7 +32,6 @@ mod daemon_response;
 pub mod display_backend;
 pub mod error;
 mod error_handling_ctx;
-pub mod eww_state;
 pub mod geometry;
 pub mod ipc_server;
 pub mod opts;
