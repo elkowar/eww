@@ -65,7 +65,7 @@ pub fn build_gtk_widget(
             })
             .collect::<Result<HashMap<_, _>>>()?;
 
-        let root_index = graph.root_index.clone();
+        let root_index = graph.root_index;
         let new_scope_index =
             graph.register_new_scope(widget_use.name, Some(root_index), calling_scope, widget_use_attributes)?;
 
@@ -118,7 +118,7 @@ fn build_builtin_gtk_widget(
 
         // Only populate children if there haven't been any children added anywhere else
         // TODO this is somewhat hacky
-        if gtk_container.children().len() == 0 {
+        if gtk_container.children().is_empty() {
             populate_widget_children(
                 bargs.scope_graph,
                 bargs.widget_defs.clone(),
@@ -204,8 +204,6 @@ fn build_children_special_widget(
             Listener {
                 needed_variables: nth.collect_var_refs(),
                 f: Box::new({
-                    let custom_widget_invocation = custom_widget_invocation.clone();
-                    let widget_defs = widget_defs.clone();
                     move |tree, values| {
                         let nth_value = nth.eval(&values)?.as_i32()?;
                         let nth_child_widget_use = custom_widget_invocation
@@ -253,14 +251,13 @@ pub struct CustomWidgetInvocation {
 
 /// Make sure that [`gtk::Bin`] widgets only get a single child.
 fn validate_container_children_count(container: &gtk::Container, widget_use: &WidgetUse) -> Result<(), DiagError> {
-    if container.dynamic_cast_ref::<gtk::Bin>().is_some() {
-        if widget_use.children.len() > 1 {
-            return Err(DiagError::new(gen_diagnostic! {
-                kind =  Severity::Error,
-                msg = format!("{} can only have one child", widget_use.name),
-                label = widget_use.children_span() => format!("Was given {} children here", widget_use.children.len())
-            }));
-        }
+    if container.dynamic_cast_ref::<gtk::Bin>().is_some() && widget_use.children.len() > 1 {
+        Err(DiagError::new(gen_diagnostic! {
+            kind =  Severity::Error,
+            msg = format!("{} can only have one child", widget_use.name),
+            label = widget_use.children_span() => format!("Was given {} children here", widget_use.children.len())
+        }))
+    } else {
+        Ok(())
     }
-    Ok(())
 }

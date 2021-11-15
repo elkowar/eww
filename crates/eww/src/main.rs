@@ -158,7 +158,7 @@ fn handle_server_command(paths: &EwwPaths, action: &ActionWithServer, connect_at
     log::debug!("Trying to find server process at socket {}", paths.get_ipc_socket_file().display());
     let mut stream = attempt_connect(&paths.get_ipc_socket_file(), connect_attempts).context("Failed to connect to daemon")?;
     log::debug!("Connected to Eww server ({}).", &paths.get_ipc_socket_file().display());
-    Ok(client::do_server_call(&mut stream, action).context("Error while forwarding command to server")?)
+    client::do_server_call(&mut stream, action).context("Error while forwarding command to server")
 }
 
 fn handle_daemon_response(res: DaemonResponse) {

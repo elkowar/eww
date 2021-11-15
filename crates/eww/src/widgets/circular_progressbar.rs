@@ -228,7 +228,7 @@ impl WidgetImpl for CircProgPriv {
                 cr.clip();
 
                 // Children widget
-                widget.propagate_draw(child, &cr);
+                widget.propagate_draw(child, cr);
 
                 cr.reset_clip();
                 cr.restore()?;

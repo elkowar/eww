@@ -41,7 +41,7 @@ impl From<&str> for VarName {
 
 impl From<AttrName> for VarName {
     fn from(x: AttrName) -> Self {
-        VarName(x.0.clone())
+        VarName(x.0)
     }
 }
 
@@ -84,6 +84,6 @@ impl From<&str> for AttrName {
 
 impl From<VarName> for AttrName {
     fn from(x: VarName) -> Self {
-        AttrName(x.0.clone())
+        AttrName(x.0)
     }
 }

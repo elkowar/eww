@@ -4,7 +4,7 @@ use std::{collections::HashMap, rc::Rc};
 use eww_shared_util::VarName;
 use simplexpr::dynval::DynVal;
 
-use super::scope_graph::{ScopeIndex, ScopeGraph};
+use super::scope_graph::{ScopeGraph, ScopeIndex};
 
 #[derive(Debug)]
 pub struct Scope {
@@ -26,9 +26,11 @@ impl Scope {
     }
 }
 
+pub type ListenerFn = Box<dyn Fn(&mut ScopeGraph, HashMap<VarName, DynVal>) -> Result<()>>;
+
 pub struct Listener {
     pub needed_variables: Vec<VarName>,
-    pub f: Box<dyn Fn(&mut ScopeGraph, HashMap<VarName, DynVal>) -> Result<()>>,
+    pub f: ListenerFn,
 }
 impl std::fmt::Debug for Listener {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

@@ -1,5 +1,5 @@
 #![allow(clippy::option_map_unit_fn)]
-use super::{build_widget::BuilderArgs, run_command, circular_progressbar::*};
+use super::{build_widget::BuilderArgs, circular_progressbar::*, run_command};
 use crate::{
     def_widget, enum_parse, error::DiagError, error_handling_ctx, util::list_difference, widgets::build_widget::build_gtk_widget,
 };
@@ -343,7 +343,7 @@ fn build_gtk_scale(bargs: &mut BuilderArgs) -> Result<gtk::Scale> {
         // @prop marks - draw marks
         prop(marks: as_string) {
             gtk_widget.clear_marks();
-            for mark in marks.split(","){
+            for mark in marks.split(','){
                 gtk_widget.add_mark(mark.trim().parse()?, gtk::PositionType::Bottom, None)
         }},
 
@@ -664,7 +664,7 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
     let literal_file_id: Rc<RefCell<Option<usize>>> = Rc::new(RefCell::new(None));
 
     let widget_defs = bargs.widget_defs.clone();
-    let calling_scope = bargs.calling_scope.clone();
+    let calling_scope = bargs.calling_scope;
 
     def_widget!(bargs, scope_graph, gtk_widget, {
         // @prop content - inline yuck that will be rendered as a widget.

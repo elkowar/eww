@@ -72,7 +72,9 @@ impl ScopeGraph {
             listeners: HashMap::new(),
             node_index: ScopeIndex(0),
         });
-        graph.scope_at_mut(root_index).map(|scope| scope.node_index = root_index);
+        if let Some(scope) = graph.scope_at_mut(root_index) {
+            scope.node_index = root_index;
+        }
         Self { graph, root_index, event_sender }
     }
 
@@ -98,7 +100,9 @@ impl ScopeGraph {
             listeners: HashMap::new(),
             node_index: ScopeIndex(0),
         });
-        self.graph.scope_at_mut(root_index).map(|scope| scope.node_index = root_index);
+        if let Some(scope) = self.graph.scope_at_mut(root_index) {
+            scope.node_index = root_index;
+        }
         self.root_index = root_index;
     }
 
@@ -170,9 +174,9 @@ impl ScopeGraph {
         if let Some(superscope) = superscope {
             self.graph.add_inheritance_relation(new_scope_index, superscope);
         }
-        self.graph.scope_at_mut(new_scope_index).map(|scope| {
+        if let Some(scope) = self.graph.scope_at_mut(new_scope_index) {
             scope.node_index = new_scope_index;
-        });
+        }
 
         for (attr_name, expression) in attributes {
             let expression_var_refs = expression.collect_var_refs();
@@ -243,7 +247,9 @@ impl ScopeGraph {
             .find_scope_with_variable(original_scope_index, updated_var)
             .with_context(|| format!("Variable {} not scope", updated_var))?;
 
-        self.graph.scope_at_mut(scope_index).and_then(|scope| scope.data.get_mut(updated_var)).map(|entry| *entry = new_value);
+        if let Some(entry) = self.graph.scope_at_mut(scope_index).and_then(|scope| scope.data.get_mut(updated_var)) {
+            *entry = new_value;
+        }
 
         self.notify_value_changed(scope_index, updated_var)?;
 
@@ -312,7 +318,7 @@ impl ScopeGraph {
     /// If called with an index not in the tree, will return an empty set of variables.
     pub fn variables_used_in_self_or_subscopes_of(&self, index: ScopeIndex) -> HashSet<VarName> {
         if let Some(scope) = self.scope_at(index) {
-            let mut variables: HashSet<VarName> = scope.listeners.keys().map(|x| x.clone()).collect();
+            let mut variables: HashSet<VarName> = scope.listeners.keys().cloned().collect();
             for (_, provided_attrs) in self.graph.descendant_edges_of(index) {
                 for attr in provided_attrs {
                     variables.extend(attr.expression.collect_var_refs());
@@ -347,7 +353,7 @@ impl ScopeGraph {
         vars.iter()
             .map(|required_var_name| {
                 let value = self
-                    .lookup_variable_in_scope(scope_index, &required_var_name)
+                    .lookup_variable_in_scope(scope_index, required_var_name)
                     .with_context(|| format!("Variable {} neither in scope nor any superscope", required_var_name))?;
 
                 Ok((required_var_name.clone(), value.clone()))
@@ -480,8 +486,8 @@ mod internal {
             let edge_mappings = self.hierarchy_relations.get_children_edges_of(index);
             edge_mappings
                 .iter()
-                .flat_map(|(k, v)| v.into_iter().map(move |edge| (k.clone(), edge)))
-                .filter(|(_, edge)| edge.expression.references_var(&var_name))
+                .flat_map(|(k, v)| v.iter().map(move |edge| (*k, edge)))
+                .filter(|(_, edge)| edge.expression.references_var(var_name))
                 .collect()
         }
 
@@ -498,18 +504,18 @@ mod internal {
 
         pub fn validate(&self) -> Result<()> {
             for (child_scope, (parent_scope, _edge)) in &self.hierarchy_relations.child_to_parent {
-                if !self.scopes.contains_key(&child_scope) {
+                if !self.scopes.contains_key(child_scope) {
                     bail!("hierarchy_relations lists key that is not in graph");
                 }
-                if !self.scopes.contains_key(&parent_scope) {
+                if !self.scopes.contains_key(parent_scope) {
                     bail!("hierarchy_relations values lists scope that is not in graph");
                 }
             }
             for (child_scope, (parent_scope_idx, edge)) in &self.inheritance_relations.child_to_parent {
-                if !self.scopes.contains_key(&child_scope) {
+                if !self.scopes.contains_key(child_scope) {
                     bail!("inheritance_relations lists key that is not in graph");
                 }
-                if let Some(parent_scope) = self.scopes.get(&parent_scope_idx) {
+                if let Some(parent_scope) = self.scopes.get(parent_scope_idx) {
                     // check that everything the scope references from it's parent is actually
                     // accessible by the parent, meaning it either stores it directly or
                     // inherits it itself
@@ -518,7 +524,7 @@ mod internal {
                             || self
                                 .inheritance_relations
                                 .child_to_parent
-                                .get(&parent_scope_idx)
+                                .get(parent_scope_idx)
                                 .map_or(false, |(_, e)| e.references.contains(var));
                         if !parent_has_access_to_var {
                             bail!("scope inherited variable that parent scope doesn't have access to");
@@ -585,7 +591,7 @@ mod internal {
                 ));
             }
 
-            output.push_str("}");
+            output.push('}');
             output
         }
     }

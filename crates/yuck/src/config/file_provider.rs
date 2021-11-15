@@ -56,7 +56,7 @@ impl YuckFile {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct YuckFiles {
     files: HashMap<usize, YuckFile>,
     latest_id: usize,
@@ -64,7 +64,7 @@ pub struct YuckFiles {
 
 impl YuckFiles {
     pub fn new() -> Self {
-        Self { files: HashMap::new(), latest_id: 0 }
+        Self::default()
     }
 }
 

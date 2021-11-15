@@ -262,7 +262,7 @@ impl App {
         }
     }
 
-    fn close_window(&mut self, window_name: &String) -> Result<()> {
+    fn close_window(&mut self, window_name: &str) -> Result<()> {
         let eww_window = self
             .open_windows
             .remove(window_name)
@@ -283,7 +283,7 @@ impl App {
 
     fn open_window(
         &mut self,
-        window_name: &String,
+        window_name: &str,
         pos: Option<Coords>,
         size: Option<Coords>,
         monitor: Option<i32>,
@@ -299,10 +299,10 @@ impl App {
             let mut window_def = self.eww_config.get_window(window_name)?.clone();
             window_def.geometry = window_def.geometry.map(|x| x.override_if_given(anchor, pos, size));
 
-            let root_index = self.scope_graph.borrow().root_index.clone();
+            let root_index = self.scope_graph.borrow().root_index;
 
             let window_scope = self.scope_graph.borrow_mut().register_new_scope(
-                window_name.clone(),
+                window_name.to_string(),
                 Some(root_index),
                 root_index,
                 HashMap::new(),
@@ -336,7 +336,7 @@ impl App {
                     let _ = scope_graph_sender.send(ScopeGraphEvent::RemoveScope(eww_window.scope_index));
                 }
             });
-            self.open_windows.insert(window_name.clone(), eww_window);
+            self.open_windows.insert(window_name.to_string(), eww_window);
         };
 
         if let Err(err) = open_result {
@@ -362,7 +362,7 @@ impl App {
         let window_names: Vec<String> =
             self.open_windows.keys().cloned().chain(self.failed_windows.iter().cloned()).dedup().collect();
         for window_name in &window_names {
-            self.open_window(&window_name, None, None, None, None)?;
+            self.open_window(window_name, None, None, None, None)?;
         }
         Ok(())
     }
