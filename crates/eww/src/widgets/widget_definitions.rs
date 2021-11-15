@@ -25,7 +25,17 @@ use yuck::{
     parser::from_ast::FromAst,
 };
 
-type EventHandlerId = Rc<RefCell<Option<gtk::glib::SignalHandlerId>>>;
+/// Connect a gtk signal handler inside of this macro to ensure that when the same code gets run multiple times,
+/// the previously connected singal handler first gets disconnected.
+macro_rules! connect_single_handler {
+    ($widget:ident, $connect_expr:expr) => {{
+        static ID: Lazy<std::sync::Mutex<Option<gtk::glib::SignalHandlerId>>> = Lazy::new(|| std::sync::Mutex::new(None));
+        let old = ID.lock().unwrap().replace($connect_expr);
+        if let Some(old) = old {
+            $widget.disconnect(old);
+        }
+    }};
+}
 
 // TODO figure out how to
 // TODO https://developer.gnome.org/gtk3/stable/GtkFixed.html
@@ -154,7 +164,6 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
 
 /// @widget !range
 pub(super) fn resolve_range_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Range) -> Result<()> {
-    let on_change_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
     gtk_widget.set_sensitive(false);
 
     // only allow changing the value via the value property if the user isn't currently dragging
@@ -184,13 +193,9 @@ pub(super) fn resolve_range_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Ran
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_string) {
             gtk_widget.set_sensitive(true);
             gtk_widget.add_events(gdk::EventMask::PROPERTY_CHANGE_MASK);
-            let old_id = on_change_handler_id.replace(Some(
-                gtk_widget.connect_value_changed(move |gtk_widget| {
-                    run_command(timeout, &onchange, gtk_widget.value());
-                })
-            ));
-            old_id.map(|id| gtk_widget.disconnect(id));
-
+            connect_single_handler!(gtk_widget, gtk_widget.connect_value_changed(move |gtk_widget| {
+                run_command(timeout, &onchange, gtk_widget.value());
+            }));
         }
     });
     Ok(())
@@ -211,7 +216,6 @@ pub(super) fn resolve_orientable_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk
 /// @desc A combo box allowing the user to choose between several items.
 fn build_gtk_combo_box_text(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText> {
     let gtk_widget = gtk::ComboBoxText::new();
-    let on_change_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
     def_widget!(bargs, _g, gtk_widget, {
         // @prop items - Items that should be displayed in the combo box
         prop(items: as_vec) {
@@ -223,12 +227,9 @@ fn build_gtk_combo_box_text(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText
         // @prop timeout - timeout of the command
         // @prop onchange - runs the code when a item was selected, replacing {} with the item as a string
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_string) {
-            let old_id = on_change_handler_id.replace(Some(
-                gtk_widget.connect_changed(move |gtk_widget| {
-                    run_command(timeout, &onchange, gtk_widget.active_text().unwrap_or_else(|| "".into()));
-                })
-            ));
-            old_id.map(|id| gtk_widget.disconnect(id));
+            connect_single_handler!(gtk_widget, gtk_widget.connect_changed(move |gtk_widget| {
+                run_command(timeout, &onchange, gtk_widget.active_text().unwrap_or_else(|| "".into()));
+            }));
         },
     });
     Ok(gtk_widget)
@@ -265,18 +266,14 @@ fn build_gtk_revealer(bargs: &mut BuilderArgs) -> Result<gtk::Revealer> {
 /// @desc A checkbox that can trigger events on checked / unchecked.
 fn build_gtk_checkbox(bargs: &mut BuilderArgs) -> Result<gtk::CheckButton> {
     let gtk_widget = gtk::CheckButton::new();
-    let on_change_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
     def_widget!(bargs, _g, gtk_widget, {
         // @prop timeout - timeout of the command
         // @prop onchecked - action (command) to be executed when checked by the user
         // @prop onunchecked - similar to onchecked but when the widget is unchecked
         prop(timeout: as_duration = Duration::from_millis(200), onchecked: as_string = "", onunchecked: as_string = "") {
-            let old_id = on_change_handler_id.replace(Some(
-                gtk_widget.connect_toggled(move |gtk_widget| {
-                    run_command(timeout, if gtk_widget.is_active() { &onchecked } else { &onunchecked }, "");
-                })
-            ));
-            old_id.map(|id| gtk_widget.disconnect(id));
+            connect_single_handler!(gtk_widget, gtk_widget.connect_toggled(move |gtk_widget| {
+                run_command(timeout, if gtk_widget.is_active() { &onchecked } else { &onunchecked }, "");
+            }));
        }
     });
 
@@ -287,7 +284,6 @@ fn build_gtk_checkbox(bargs: &mut BuilderArgs) -> Result<gtk::CheckButton> {
 /// @desc A button opening a color chooser window
 fn build_gtk_color_button(bargs: &mut BuilderArgs) -> Result<gtk::ColorButton> {
     let gtk_widget = gtk::ColorButtonBuilder::new().build();
-    let on_change_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
     def_widget!(bargs, _g, gtk_widget, {
         // @prop use-alpha - bool to whether or not use alpha
         prop(use_alpha: as_bool) {gtk_widget.set_use_alpha(use_alpha);},
@@ -295,12 +291,9 @@ fn build_gtk_color_button(bargs: &mut BuilderArgs) -> Result<gtk::ColorButton> {
         // @prop onchange - runs the code when the color was selected
         // @prop timeout - timeout of the command
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_string) {
-            let old_id = on_change_handler_id.replace(Some(
-                gtk_widget.connect_color_set(move |gtk_widget| {
-                    run_command(timeout, &onchange, gtk_widget.rgba());
-                })
-            ));
-            old_id.map(|id| gtk_widget.disconnect(id));
+            connect_single_handler!(gtk_widget, gtk_widget.connect_color_set(move |gtk_widget| {
+                run_command(timeout, &onchange, gtk_widget.rgba());
+            }));
         }
     });
 
@@ -311,7 +304,6 @@ fn build_gtk_color_button(bargs: &mut BuilderArgs) -> Result<gtk::ColorButton> {
 /// @desc A color chooser widget
 fn build_gtk_color_chooser(bargs: &mut BuilderArgs) -> Result<gtk::ColorChooserWidget> {
     let gtk_widget = gtk::ColorChooserWidget::new();
-    let on_change_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
     def_widget!(bargs, _g, gtk_widget, {
         // @prop use-alpha - bool to wether or not use alpha
         prop(use_alpha: as_bool) {gtk_widget.set_use_alpha(use_alpha);},
@@ -319,12 +311,9 @@ fn build_gtk_color_chooser(bargs: &mut BuilderArgs) -> Result<gtk::ColorChooserW
         // @prop onchange - runs the code when the color was selected
         // @prop timeout - timeout of the command
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_string) {
-            let old_id = on_change_handler_id.replace(Some(
-                gtk_widget.connect_color_activated(move |_a, color| {
-                    run_command(timeout, &onchange, *color);
-                })
-            ));
-            old_id.map(|id| gtk_widget.disconnect(id));
+            connect_single_handler!(gtk_widget, gtk_widget.connect_color_activated(move |_a, color| {
+                run_command(timeout, &onchange, *color);
+            }));
         }
     });
 
@@ -343,9 +332,10 @@ fn build_gtk_scale(bargs: &mut BuilderArgs) -> Result<gtk::Scale> {
         // @prop marks - draw marks
         prop(marks: as_string) {
             gtk_widget.clear_marks();
-            for mark in marks.split(','){
+            for mark in marks.split(',') {
                 gtk_widget.add_mark(mark.trim().parse()?, gtk::PositionType::Bottom, None)
-        }},
+            }
+        },
 
         // @prop draw-value - draw the value of the property
         prop(draw_value: as_bool = false) { gtk_widget.set_draw_value(draw_value) },
@@ -374,7 +364,6 @@ fn build_gtk_progress(bargs: &mut BuilderArgs) -> Result<gtk::ProgressBar> {
 /// @desc An input field. For this to be useful, set `focusable="true"` on the window.
 fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
     let gtk_widget = gtk::Entry::new();
-    let on_change_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
     def_widget!(bargs, _g, gtk_widget, {
         // @prop value - the content of the text field
         prop(value: as_string) {
@@ -384,12 +373,9 @@ fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
         // @prop onchange - Command to run when the text changes. The placeholder `{}` will be replaced by the value
         // @prop timeout - timeout of the command
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_string) {
-            let old_id = on_change_handler_id.replace(Some(
-                gtk_widget.connect_changed(move |gtk_widget| {
-                    run_command(timeout, &onchange, gtk_widget.text().to_string());
-                })
-            ));
-            old_id.map(|id| gtk_widget.disconnect(id));
+            connect_single_handler!(gtk_widget, gtk_widget.connect_changed(move |gtk_widget| {
+                run_command(timeout, &onchange, gtk_widget.text().to_string());
+            }));
         }
     });
     Ok(gtk_widget)
@@ -399,7 +385,6 @@ fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
 /// @desc A button
 fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
     let gtk_widget = gtk::Button::new();
-    let on_click_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
 
     def_widget!(bargs, _g, gtk_widget, {
         // @prop onclick - a command that get's run when the button is clicked
@@ -413,18 +398,15 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
             onrightclick: as_string = ""
         ) {
             gtk_widget.add_events(gdk::EventMask::BUTTON_PRESS_MASK);
-            let old_id = on_click_handler_id.replace(Some(
-                gtk_widget.connect_button_press_event(move |_, evt| {
-                    match evt.button() {
-                        1 => run_command(timeout, &onclick, ""),
-                        2 => run_command(timeout, &onmiddleclick, ""),
-                        3 => run_command(timeout, &onrightclick, ""),
-                        _ => {},
-                    }
-                    gtk::Inhibit(false)
-                })
-            ));
-            old_id.map(|id| gtk_widget.disconnect(id));
+            connect_single_handler!(gtk_widget, gtk_widget.connect_button_press_event(move |_, evt| {
+                match evt.button() {
+                    1 => run_command(timeout, &onclick, ""),
+                    2 => run_command(timeout, &onmiddleclick, ""),
+                    3 => run_command(timeout, &onrightclick, ""),
+                    _ => {},
+                }
+                gtk::Inhibit(false)
+            }));
         }
 
     });
@@ -520,12 +502,6 @@ fn build_center_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
 fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
     let gtk_widget = gtk::EventBox::new();
 
-    let on_scroll_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
-    let on_hover_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
-    let on_hover_leave_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
-    let cursor_hover_enter_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
-    let cursor_hover_leave_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
-
     // Support :hover selector
     gtk_widget.connect_enter_notify_event(|gtk_widget, evt| {
         if evt.detail() != NotifyType::Inferior {
@@ -547,75 +523,61 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
         prop(timeout: as_duration = Duration::from_millis(200), onscroll: as_string) {
             gtk_widget.add_events(gdk::EventMask::SCROLL_MASK);
             gtk_widget.add_events(gdk::EventMask::SMOOTH_SCROLL_MASK);
-            let old_id = on_scroll_handler_id.replace(Some(
-                gtk_widget.connect_scroll_event(move |_, evt| {
-                    let delta = evt.delta().1;
-                    if delta != 0f64 { // Ignore the first event https://bugzilla.gnome.org/show_bug.cgi?id=675959
-                        run_command(timeout, &onscroll, if delta < 0f64 { "up" } else { "down" });
-                    }
-                    gtk::Inhibit(false)
-                })
-            ));
-            old_id.map(|id| gtk_widget.disconnect(id));
+            connect_single_handler!(gtk_widget, gtk_widget.connect_scroll_event(move |_, evt| {
+                let delta = evt.delta().1;
+                if delta != 0f64 { // Ignore the first event https://bugzilla.gnome.org/show_bug.cgi?id=675959
+                    run_command(timeout, &onscroll, if delta < 0f64 { "up" } else { "down" });
+                }
+                gtk::Inhibit(false)
+            }));
         },
         // @prop timeout - timeout of the command
         // @prop onhover - event to execute when the user hovers over the widget
         prop(timeout: as_duration = Duration::from_millis(200), onhover: as_string) {
             gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
-            let old_id = on_hover_handler_id.replace(Some(
-                gtk_widget.connect_enter_notify_event(move |_, evt| {
-                    if evt.detail() != NotifyType::Inferior {
-                        run_command(timeout, &onhover, format!("{} {}", evt.position().0, evt.position().1));
-                    }
-                    gtk::Inhibit(false)
-                })
-            ));
-            old_id.map(|id| gtk_widget.disconnect(id));
+            connect_single_handler!(gtk_widget, gtk_widget.connect_enter_notify_event(move |_, evt| {
+                if evt.detail() != NotifyType::Inferior {
+                    run_command(timeout, &onhover, format!("{} {}", evt.position().0, evt.position().1));
+                }
+                gtk::Inhibit(false)
+            }));
         },
         // @prop timeout - timeout of the command
         // @prop onhoverlost - event to execute when the user losts hovers over the widget
         prop(timeout: as_duration = Duration::from_millis(200), onhoverlost: as_string) {
             gtk_widget.add_events(gdk::EventMask::LEAVE_NOTIFY_MASK);
-            let old_id = on_hover_leave_handler_id.replace(Some(
-                gtk_widget.connect_leave_notify_event(move |_, evt| {
-                    if evt.detail() != NotifyType::Inferior {
-                        run_command(timeout, &onhoverlost, format!("{} {}", evt.position().0, evt.position().1));
-                    }
-                    gtk::Inhibit(false)
-                })
-            ));
-            old_id.map(|id| gtk_widget.disconnect(id));
+            connect_single_handler!(gtk_widget, gtk_widget.connect_leave_notify_event(move |_, evt| {
+                if evt.detail() != NotifyType::Inferior {
+                    run_command(timeout, &onhoverlost, format!("{} {}", evt.position().0, evt.position().1));
+                }
+                gtk::Inhibit(false)
+            }));
         },
         // @prop cursor - Cursor to show while hovering (see [gtk3-cursors](https://docs.gtk.org/gdk3/ctor.Cursor.new_from_name.html) for possible names)
         prop(cursor: as_string) {
             gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
             gtk_widget.add_events(gdk::EventMask::LEAVE_NOTIFY_MASK);
 
-            cursor_hover_enter_handler_id.replace(Some(
-                gtk_widget.connect_enter_notify_event(move |widget, _evt| {
-                    if _evt.detail() != NotifyType::Inferior {
-                        let display = gdk::Display::default();
-                        let gdk_window = widget.window();
-                        if let (Some(display), Some(gdk_window)) = (display, gdk_window) {
-                            gdk_window.set_cursor(gdk::Cursor::from_name(&display, &cursor).as_ref());
-                        }
+            connect_single_handler!(gtk_widget, gtk_widget.connect_enter_notify_event(move |widget, _evt| {
+                if _evt.detail() != NotifyType::Inferior {
+                    let display = gdk::Display::default();
+                    let gdk_window = widget.window();
+                    if let (Some(display), Some(gdk_window)) = (display, gdk_window) {
+                        gdk_window.set_cursor(gdk::Cursor::from_name(&display, &cursor).as_ref());
                     }
-                    gtk::Inhibit(false)
-                })
-            )).map(|id| gtk_widget.disconnect(id));
-
-            cursor_hover_leave_handler_id.replace(Some(
-                gtk_widget.connect_leave_notify_event(move |widget, _evt| {
-                    if _evt.detail() != NotifyType::Inferior {
-                        let gdk_window = widget.window();
-                        if let Some(gdk_window) = gdk_window {
-                            gdk_window.set_cursor(None);
-                        }
+                }
+                gtk::Inhibit(false)
+            }));
+            connect_single_handler!(gtk_widget, gtk_widget.connect_leave_notify_event(move |widget, _evt| {
+                if _evt.detail() != NotifyType::Inferior {
+                    let gdk_window = widget.window();
+                    if let Some(gdk_window) = gdk_window {
+                        gdk_window.set_cursor(None);
                     }
-                    gtk::Inhibit(false)
-                })
-            )).map(|id| gtk_widget.disconnect(id));
-        },
+                }
+                gtk::Inhibit(false)
+            }));
+        }
     });
     Ok(gtk_widget)
 }
@@ -704,7 +666,6 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
 /// @desc A widget that displays a calendar
 fn build_gtk_calendar(bargs: &mut BuilderArgs) -> Result<gtk::Calendar> {
     let gtk_widget = gtk::Calendar::new();
-    let on_click_handler_id: EventHandlerId = Rc::new(RefCell::new(None));
     def_widget!(bargs, _g, gtk_widget, {
         // @prop day - the selected day
         prop(day: as_f64) { gtk_widget.set_day(day as i32) },
@@ -723,16 +684,13 @@ fn build_gtk_calendar(bargs: &mut BuilderArgs) -> Result<gtk::Calendar> {
         // @prop onclick - command to run when the user selects a date. The `{}` placeholder will be replaced by the selected date.
         // @prop timeout - timeout of the command
         prop(timeout: as_duration = Duration::from_millis(200), onclick: as_string) {
-            let old_id = on_click_handler_id.replace(Some(
-                gtk_widget.connect_day_selected(move |w| {
-                    run_command(
-                        timeout,
-                        &onclick,
-                        format!("{}.{}.{}", w.day(), w.month(), w.year())
-                    )
-                })
-            ));
-            old_id.map(|id| gtk_widget.disconnect(id));
+            connect_single_handler!(gtk_widget, gtk_widget.connect_day_selected(move |w| {
+                run_command(
+                    timeout,
+                    &onclick,
+                    format!("{}.{}.{}", w.day(), w.month(), w.year())
+                )
+            }));
         }
 
     });
