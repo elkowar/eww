@@ -1,5 +1,5 @@
 #![allow(clippy::option_map_unit_fn)]
-use super::{build_widget::BuilderArgs, circular_progressbar::*, run_command};
+use super::{graph::*, build_widget::BuilderArgs, circular_progressbar::*, run_command};
 use crate::{
     def_widget, enum_parse, error::DiagError, error_handling_ctx, util::list_difference, widgets::build_widget::build_gtk_widget,
 };
@@ -48,6 +48,7 @@ pub(super) fn widget_use_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::W
         "centerbox" => build_center_box(bargs)?.upcast(),
         "eventbox" => build_gtk_event_box(bargs)?.upcast(),
         "circular-progress" => build_circular_progress_bar(bargs)?.upcast(),
+        "graph" => build_graph(bargs)?.upcast(),
         "scale" => build_gtk_scale(bargs)?.upcast(),
         "progress" => build_gtk_progress(bargs)?.upcast(),
         "image" => build_gtk_image(bargs)?.upcast(),
@@ -711,6 +712,21 @@ fn build_circular_progress_bar(bargs: &mut BuilderArgs) -> Result<CircProg> {
         prop(thickness: as_f64) { w.set_property("thickness", thickness)?; },
         // @prop clockwise - wether the progress bar spins clockwise or counter clockwise
         prop(clockwise: as_bool) { w.set_property("clockwise", &clockwise)?; },
+    });
+    Ok(w)
+}
+
+fn build_graph(bargs: &mut BuilderArgs) -> Result<super::graph::Graph> {
+    let w = super::graph::Graph::new();
+    resolve_block!(bargs, w, {
+        // @prop value - the value, between 0 - 100
+        prop(value: as_f64) { w.set_property("value", &(value as f32))?; },
+        // @prop start-angle - the angle that the circle should start at
+        prop(start_at: as_f64) { w.set_property("start-at", &(start_at as f32))?; },
+        // @prop thickness - the thickness of the circle
+        prop(thickness: as_f64) { w.set_property("thickness", &(thickness as f32))?; },
+        // @prop clockwise - wether the progress bar spins clockwise or counter clockwise
+        prop(clockwise: as_bool) { w.set_property("clockwise", &(clockwise as bool))?; },
     });
     Ok(w)
 }
