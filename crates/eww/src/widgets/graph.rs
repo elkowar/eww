@@ -20,7 +20,6 @@ pub struct GraphPriv {
     join: RefCell<String>,
     range: RefCell<u64>,
     history: RefCell<VecDeque<(std::time::Instant, f64)>>,
-    content: RefCell<Option<gtk::Widget>>,
 }
 
 impl Default for GraphPriv {
@@ -31,7 +30,6 @@ impl Default for GraphPriv {
             join: RefCell::new("miter".to_string()),
             range: RefCell::new(10),
             history: RefCell::new(VecDeque::new()),
-            content: RefCell::new(None),
         }
     }
 }

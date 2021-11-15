@@ -1,5 +1,5 @@
 #![allow(clippy::option_map_unit_fn)]
-use super::{graph::*, build_widget::BuilderArgs, circular_progressbar::*, run_command};
+use super::{build_widget::BuilderArgs, circular_progressbar::*, run_command};
 use crate::{
     def_widget, enum_parse, error::DiagError, error_handling_ctx, util::list_difference, widgets::build_widget::build_gtk_widget,
 };
@@ -720,7 +720,7 @@ fn build_circular_progress_bar(bargs: &mut BuilderArgs) -> Result<CircProg> {
 /// @desc A widget that displays a graph showing how a given value changes over time
 fn build_graph(bargs: &mut BuilderArgs) -> Result<super::graph::Graph> {
     let w = super::graph::Graph::new();
-    resolve_block!(bargs, w, {
+    def_widget!(bargs, _g, w, {
         // @prop value - the value, between 0 - 100
         prop(value: as_f64) { w.set_property("value", &value)?; },
         // @prop thickness - the thickness of the line
