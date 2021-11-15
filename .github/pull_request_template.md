@@ -25,5 +25,6 @@ Anything else you want to add, such as remaining questions or explanations.
 Please make sure you can check all the boxes that apply to this PR.
 
 - [ ] All widgets I've added are correctly documented.
+- [ ] I added my changes to CHANGELOG.md, if appropriate.
 - [ ] The documentation in the `docs/content/main` directory has been adjusted to reflect my changes.
 - [ ] I used `cargo fmt` to automatically format all code before committing

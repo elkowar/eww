@@ -56,4 +56,5 @@ If you want to contribute anything, like adding new widgets, features, or subcom
 1. Fork this repository
 2. Install dependencies
 3. Smash your head against the keyboard from frustration (coding is hard)
-4. Open a pull request once you're finished
+4. Write down your changes in CHANGELOG.md
+5. Open a pull request once you're finished
