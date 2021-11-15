@@ -3,7 +3,7 @@ use codespan_reporting::diagnostic::Severity;
 use eww_shared_util::AttrName;
 use gdk::prelude::Cast;
 use gtk::{
-    prelude::{ContainerExt, WidgetExt, WidgetExtManual},
+    prelude::{ContainerExt, WidgetExt},
     Orientation,
 };
 use itertools::Itertools;
@@ -228,7 +228,6 @@ fn build_gtk_children(
 /// remembered whilst building it's content. If the body of the custom widget uses a `children`
 /// widget, the children originally passed to the widget need to be set.
 /// This struct represents that context
-/// TODORW make this private somehow
 pub struct CustomWidgetInvocation {
     /// The scope the custom widget was invoked in
     scope: ScopeIndex,

@@ -242,7 +242,6 @@ impl ScopeGraph {
     /// Notify a scope that a value has been changed. This triggers the listeners and notifies further child scopes recursively.
     pub fn notify_value_changed(&mut self, scope_index: ScopeIndex, updated_var: &VarName) -> Result<()> {
         // Update scopes that reference the changed variable in their attribute expressions.
-        // TODORW very much not sure if this actually belongs here or not, lol
         let edges: Vec<(ScopeIndex, ProvidesAttrEdge)> =
             self.graph.scopes_getting_attr_using(scope_index, updated_var).into_iter().map(|(a, b)| (a, b.clone())).collect();
         for (referencing_scope, edge) in edges {
@@ -485,8 +484,7 @@ impl ScopeGraphInternal {
         }
         Ok(())
     }
-}
-impl ScopeGraphInternal {
+
     pub fn visualize(&self) -> String {
         let mut output = String::new();
         output.push_str("digraph {");
