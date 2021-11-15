@@ -234,7 +234,7 @@ fn build_gtk_combo_box_text(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText
     });
     Ok(gtk_widget)
 }
-/// @widget expander extends container
+/// @widget expander
 /// @desc A widget that can expand and collapse, showing/hiding it's children.
 fn build_gtk_expander(bargs: &mut BuilderArgs) -> Result<gtk::Expander> {
     let gtk_widget = gtk::Expander::new(None);
@@ -247,7 +247,7 @@ fn build_gtk_expander(bargs: &mut BuilderArgs) -> Result<gtk::Expander> {
     Ok(gtk_widget)
 }
 
-/// @widget revealer extends container
+/// @widget revealer
 /// @desc A widget that can reveal a child with an animation.
 fn build_gtk_revealer(bargs: &mut BuilderArgs) -> Result<gtk::Revealer> {
     let gtk_widget = gtk::Revealer::new();
@@ -381,7 +381,7 @@ fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
     Ok(gtk_widget)
 }
 
-/// @widget button extends container
+/// @widget button
 /// @desc A button
 fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
     let gtk_widget = gtk::Button::new();
@@ -434,7 +434,7 @@ fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
     Ok(gtk_widget)
 }
 
-/// @widget box extends container
+/// @widget box
 /// @desc the main layout container
 fn build_gtk_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
     let gtk_widget = gtk::Box::new(gtk::Orientation::Horizontal, 0);
@@ -449,7 +449,7 @@ fn build_gtk_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
     Ok(gtk_widget)
 }
 
-/// @widget centerbox extends container
+/// @widget centerbox
 /// @desc a box that must contain exactly three children, which will be layed out at the start, center and end of the container.
 fn build_center_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
     let gtk_widget = gtk::Box::new(gtk::Orientation::Horizontal, 0);
@@ -497,7 +497,7 @@ fn build_center_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
     }
 }
 
-/// @widget eventbox extends container
+/// @widget eventbox
 /// @desc a container which can receive events and must contain exactly one child. Supports `:hover` css selectors.
 fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
     let gtk_widget = gtk::EventBox::new();
