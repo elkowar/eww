@@ -231,6 +231,19 @@ impl ListenVarHandler {
                     Ok(Some(line)) = stdout_lines.next_line() => {
                         let new_value = DynVal::from_string(line.to_owned());
                         evt_send.send(DaemonCommand::UpdateVars(vec![(var.name.to_owned(), new_value)]))?;
+                        let on_change_command = var.on_change.as_string().unwrap();
+                        if on_change_command != "" {
+                            log::debug!("Executing onchange command {}", on_change_command);
+                            // this should be okay as a fire and forget?
+                            unsafe {
+                                tokio::process::Command::new("sh")
+                                .args(&["-c", &on_change_command])
+                                .pre_exec(|| {
+                                    let _ = setpgid(Pid::from_raw(0), Pid::from_raw(0));
+                                    Ok(())
+                                }).spawn()?
+                            };
+                        }
                     }
                     Ok(Some(line)) = stderr_lines.next_line() => {
                         log::warn!("stderr of `{}`: {}", var.name, line);

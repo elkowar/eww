@@ -109,7 +109,6 @@ mod test {
         assert_eq!(map.get_parent_of(4), None);
         assert_eq!(map.get_parent_of(5), Some(4));
 
-
         assert_eq!(map.get_children_of(4), HashSet::from_iter(vec![3, 5]));
         assert_eq!(map.get_children_of(3), HashSet::from_iter(vec![2]));
         assert_eq!(map.get_children_of(2), HashSet::from_iter(vec![1]));
@@ -135,6 +134,5 @@ mod test {
         assert_eq!(map.get_children_of(3), HashSet::from_iter(vec![2]));
         assert_eq!(map.get_children_of(2), HashSet::from_iter(vec![1]));
         assert_eq!(map.get_children_of(1), HashSet::new());
-
     }
 }

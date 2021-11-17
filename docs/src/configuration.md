@@ -218,6 +218,8 @@ These are particularly efficient and should be preffered if possible.
 For example, the command `xprop -spy -root _NET_CURRENT_DESKTOP` writes the currently focused desktop whenever it changes.
 Another example usecase is monitoring the currently playing song with playerctl: `playerctl --follow metadata --format {{title}}`.
 
+Adding a `:onchange` attribute to the `deflisten` will allow you to execute a command when the listening variable us updated. This might be useful when tailing `playerctl` and you want to expand you music `expander` widget on track change.
+
 **Built-in "magic" variables**
 
 In addition to defining your own variables, eww provides some values for you to use out of the box.

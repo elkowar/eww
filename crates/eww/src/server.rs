@@ -6,7 +6,14 @@ use crate::{
 };
 use anyhow::*;
 
-use std::{cell::RefCell, collections::{HashMap, HashSet}, os::unix::io::AsRawFd, path::Path, rc::Rc, sync::{atomic::Ordering, Arc}};
+use std::{
+    cell::RefCell,
+    collections::{HashMap, HashSet},
+    os::unix::io::AsRawFd,
+    path::Path,
+    rc::Rc,
+    sync::{atomic::Ordering, Arc},
+};
 use tokio::sync::mpsc::*;
 
 pub fn initialize_server(paths: EwwPaths, action: Option<DaemonCommand>, should_daemonize: bool) -> Result<ForkResult> {

@@ -97,6 +97,7 @@ impl FromAstElementContent for PollScriptVar {
 pub struct ListenScriptVar {
     pub name: VarName,
     pub command: String,
+    pub on_change: DynVal,
     pub initial_value: DynVal,
     pub command_span: Span,
     pub name_span: Span,
@@ -108,10 +109,11 @@ impl FromAstElementContent for ListenScriptVar {
         let result: AstResult<_> = try {
             let (name_span, name) = iter.expect_symbol()?;
             let mut attrs = iter.expect_key_values()?;
+            let on_change = attrs.primitive_optional("onchange")?.unwrap_or_else(|| DynVal::from_string(String::new()));
             let initial_value = attrs.primitive_optional("initial")?.unwrap_or_else(|| DynVal::from_string(String::new()));
             let (command_span, script) = iter.expect_literal()?;
             iter.expect_done()?;
-            Self { name_span, name: VarName(name), command: script.to_string(), initial_value, command_span }
+            Self { name_span, name: VarName(name), command: script.to_string(), on_change, initial_value, command_span }
         };
         result.note(r#"Expected format: `(deflisten name :initial "0" "tail -f /tmp/example")`"#)
     }

@@ -24,7 +24,6 @@ pub fn handle_client_only_action(paths: &EwwPaths, action: ActionClientOnly) -> 
     Ok(())
 }
 
-
 /// Connect to the daemon and send the given request.
 /// Returns the response from the daemon, or None if the daemon did not provide any useful response. An Ok(None) response does _not_ indicate failure.
 pub fn do_server_call(stream: &mut UnixStream, action: &opts::ActionWithServer) -> Result<Option<DaemonResponse>> {

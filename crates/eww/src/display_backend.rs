@@ -13,7 +13,10 @@ mod platform {
 mod platform {
     use gdk;
     use gtk::prelude::*;
-    use yuck::config::{window_definition::{WindowStacking, WindowDefinition}, window_geometry::AnchorAlignment};
+    use yuck::config::{
+        window_definition::{WindowDefinition, WindowStacking},
+        window_geometry::AnchorAlignment,
+    };
 
     pub fn initialize_window(window_def: &WindowDefinition, monitor: gdk::Rectangle) -> Option<gtk::Window> {
         let window = gtk::Window::new(gtk::WindowType::Toplevel);
