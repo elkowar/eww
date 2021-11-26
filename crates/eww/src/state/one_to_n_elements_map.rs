@@ -83,7 +83,7 @@ impl<I: Copy + std::hash::Hash + std::cmp::Eq + std::fmt::Debug, T> OneToNElemen
                         );
                     }
                 } else {
-                    bail!("parent_to_child stored mapping from {:?} to {:?}, which was not found in child_to_parent");
+                    bail!("parent_to_child stored mapping from {:?} to {:?}, which was not found in child_to_parent", parent, child);
                 }
             }
         }
