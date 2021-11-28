@@ -70,7 +70,13 @@ impl ObjectImpl for GraphPriv {
                     glib::ParamFlags::READWRITE,
                 ),
                 glib::ParamSpec::new_uint64("range", "Range", "The Range", 0u64, u64::MAX, 10u64, glib::ParamFlags::READWRITE),
-                glib::ParamSpec::new_string("line-style", "Line Style", "The Line Style", Some("miter"), glib::ParamFlags::READWRITE),
+                glib::ParamSpec::new_string(
+                    "line-style",
+                    "Line Style",
+                    "The Line Style",
+                    Some("miter"),
+                    glib::ParamFlags::READWRITE,
+                ),
             ]
         });
 
@@ -196,7 +202,7 @@ impl WidgetImpl for GraphPriv {
                 let t = fetched_at.duration_since(instant).as_millis() as f64;
                 let x = -width * ((t - range) / range);
                 let y = height * (1.0 - (value / 100.0));
-                points.push_front((x,y));
+                points.push_front((x, y));
             }
 
             // Draw Line
@@ -235,20 +241,20 @@ impl WidgetImpl for GraphPriv {
 }
 
 fn set_line_style(style: &str, cr: &cairo::Context) -> Result<()> {
-            match style  {
-                "miter" => {
-                    cr.set_line_cap(cairo::LineCap::Butt);
-                    cr.set_line_join(cairo::LineJoin::Miter);
-                }
-                "bevel" => {
-                    cr.set_line_cap(cairo::LineCap::Square);
-                    cr.set_line_join(cairo::LineJoin::Bevel);
-                }
-                "round" => {
-                    cr.set_line_cap(cairo::LineCap::Round);
-                    cr.set_line_join(cairo::LineJoin::Round);
-                }
-                _ => Err(anyhow!("Error, the value: {} for atribute join is not valid", style))?,
-            };
-            Ok(())
+    match style {
+        "miter" => {
+            cr.set_line_cap(cairo::LineCap::Butt);
+            cr.set_line_join(cairo::LineJoin::Miter);
+        }
+        "bevel" => {
+            cr.set_line_cap(cairo::LineCap::Square);
+            cr.set_line_join(cairo::LineJoin::Bevel);
+        }
+        "round" => {
+            cr.set_line_cap(cairo::LineCap::Round);
+            cr.set_line_join(cairo::LineJoin::Round);
+        }
+        _ => Err(anyhow!("Error, the value: {} for atribute join is not valid", style))?,
+    };
+    Ok(())
 }
