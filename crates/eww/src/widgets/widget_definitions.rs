@@ -727,9 +727,9 @@ fn build_graph(bargs: &mut BuilderArgs) -> Result<super::graph::Graph> {
         prop(thickness: as_f64) { w.set_property("thickness", &thickness)?; },
         // @prop range - the range of time to show
         prop(range: as_duration) { w.set_property("range", &(range.as_millis() as u64))?; },
-        // @prop join - changes the look of the edges in the graph. Values: "miter" (default), "round",
+        // @prop line-style - changes the look of the edges in the graph. Values: "miter" (default), "round",
         // "bevel"
-        prop(join: as_string) { w.set_property("join", &join)?; },
+        prop(line_style: as_string) { w.set_property("line-style", &line_style)?; },
     });
     Ok(w)
 }

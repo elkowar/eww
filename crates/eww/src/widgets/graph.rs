@@ -17,9 +17,11 @@ wrapper! {
 pub struct GraphPriv {
     value: RefCell<f64>,
     thickness: RefCell<f64>,
-    join: RefCell<String>,
+    line_style: RefCell<String>,
     range: RefCell<u64>,
     history: RefCell<VecDeque<(std::time::Instant, f64)>>,
+    extra_point: RefCell<Option<(std::time::Instant, f64)>>,
+    fetched_at: RefCell<std::time::Instant>,
 }
 
 impl Default for GraphPriv {
@@ -27,26 +29,27 @@ impl Default for GraphPriv {
         Self {
             value: RefCell::new(0.0),
             thickness: RefCell::new(1.0),
-            join: RefCell::new("miter".to_string()),
+            line_style: RefCell::new("miter".to_string()),
             range: RefCell::new(10),
             history: RefCell::new(VecDeque::new()),
+            extra_point: RefCell::new(None),
+            fetched_at: RefCell::new(std::time::Instant::now()),
         }
     }
 }
 
+// Updates the history, removing points ouside the range
 fn update_history(graph: &GraphPriv, v: (std::time::Instant, f64)) {
     let mut history = graph.history.borrow_mut();
-    let mut last_value = None;
+    let mut last_value = graph.extra_point.borrow_mut();
+    let mut fetched_at = graph.fetched_at.borrow_mut();
+    *fetched_at = std::time::Instant::now();
     while let Some(entry) = history.front() {
-        if std::time::Instant::now().duration_since(entry.0).as_millis() as u64 > *graph.range.borrow() {
-            last_value = history.pop_front();
+        if fetched_at.duration_since(entry.0).as_millis() as u64 > *graph.range.borrow() {
+            *last_value = history.pop_front();
         } else {
             break;
         }
-    }
-
-    if let Some(v) = last_value {
-        history.push_front(v);
     }
     history.push_back(v);
 }
@@ -67,7 +70,7 @@ impl ObjectImpl for GraphPriv {
                     glib::ParamFlags::READWRITE,
                 ),
                 glib::ParamSpec::new_uint64("range", "Range", "The Range", 0u64, u64::MAX, 10u64, glib::ParamFlags::READWRITE),
-                glib::ParamSpec::new_string("join", "Join", "The Join", Some("miter"), glib::ParamFlags::READWRITE),
+                glib::ParamSpec::new_string("line-style", "Line Style", "The Line Style", Some("miter"), glib::ParamFlags::READWRITE),
             ]
         });
 
@@ -87,8 +90,8 @@ impl ObjectImpl for GraphPriv {
             "range" => {
                 self.range.replace(value.get().unwrap());
             }
-            "join" => {
-                self.join.replace(value.get().unwrap());
+            "line-style" => {
+                self.line_style.replace(value.get().unwrap());
             }
             x => panic!("Tried to set inexistant property of Graph: {}", x,),
         }
@@ -99,7 +102,7 @@ impl ObjectImpl for GraphPriv {
             "value" => self.value.borrow().to_value(),
             "thickness" => self.thickness.borrow().to_value(),
             "range" => self.range.borrow().to_value(),
-            "join" => self.join.borrow().to_value(),
+            "line-style" => self.line_style.borrow().to_value(),
             x => panic!("Tried to access inexistant property of Graph: {}", x,),
         }
     }
@@ -151,72 +154,52 @@ impl WidgetImpl for GraphPriv {
 
     fn draw(&self, widget: &Self::Type, cr: &cairo::Context) -> Inhibit {
         let res: Result<()> = try {
-            let styles = widget.style_context();
-            let thickness = *self.thickness.borrow();
-            let join = &*self.join.borrow();
             let history = &*self.history.borrow();
-            let range = *self.range.borrow();
+            let extra_point = *self.extra_point.borrow();
+            let range = *self.range.borrow() as f64;
+            let fetched_at = self.fetched_at.borrow();
+            let thickness = *self.thickness.borrow();
+            let line_style = &*self.line_style.borrow();
+
+            let styles = widget.style_context();
             let color: gdk::RGBA = styles.color(gtk::StateFlags::NORMAL);
             let bg_color: gdk::RGBA = styles.style_property_for_state("background-color", gtk::StateFlags::NORMAL).get()?;
 
-            let margin = styles.margin(gtk::StateFlags::NORMAL);
-            let width = widget.allocated_width() as f64 - margin.left as f64 - margin.right as f64;
-            let height = widget.allocated_height() as f64 - margin.top as f64 - margin.bottom as f64;
+            let (margin_top, margin_right, margin_bottom, margin_left) = {
+                let margin = styles.margin(gtk::StateFlags::NORMAL);
+                (margin.top as f64, margin.right as f64, margin.bottom as f64, margin.left as f64)
+            };
+
+            let width = widget.allocated_width() as f64 - margin_left - margin_right;
+            let height = widget.allocated_height() as f64 - margin_top - margin_bottom;
 
             cr.save()?;
-
-            cr.translate(margin.left as f64, margin.top as f64);
-
-            // Prevent the line from overflowing over the margin in the sides
+            cr.translate(margin_left, margin_top);
             cr.rectangle(0.0, 0.0, width, height);
             cr.clip();
 
-            // Line join
-            match join.as_str() {
-                "miter" => {
-                    cr.set_line_cap(cairo::LineCap::Butt);
-                    cr.set_line_join(cairo::LineJoin::Miter);
-                }
-                "bevel" => {
-                    cr.set_line_cap(cairo::LineCap::Square);
-                    cr.set_line_join(cairo::LineJoin::Bevel);
-                }
-                "round" => {
-                    cr.set_line_cap(cairo::LineCap::Round);
-                    cr.set_line_join(cairo::LineJoin::Round);
-                }
-                _ => Err(anyhow!("Error, the value: {} for atribute join is not valid", join))?,
-            };
+            set_line_style(line_style.as_str(), cr)?;
 
-            // Calculate points once
-            let points = history
+            // Calculate graph points once
+            let mut points = history
                 .iter()
-                .map(|(t, v)| {
-                    let t = std::time::Instant::now().duration_since(*t).as_millis();
-
-                    // BUG: range includes a point outside the range
-                    let x = width * (1.0 - (t as f64 / range as f64));
-                    let y = height * (1.0 - (v / 100.0));
+                .map(|(instant, value)| {
+                    let t = fetched_at.duration_since(*instant).as_millis() as f64;
+                    let x = width * (1.0 - (t / range));
+                    let y = height * (1.0 - (value / 100.0));
                     (x, y)
                 })
-                .collect::<Vec<(f64, f64)>>();
+                .collect::<VecDeque<(f64, f64)>>();
 
-            dbg!(&points);
-            // Background (separate, to avoid lines in the bottom / sides)
-            if bg_color.alpha > 0.0 {
-                if let Some(first_point) = points.first() {
-                    cr.line_to(first_point.0, height + margin.bottom as f64);
-                }
-                for (x, y) in points.iter() {
-                    cr.line_to(*x, *y);
-                }
-
-                cr.line_to(width, height);
-                cr.set_source_rgba(bg_color.red, bg_color.green, bg_color.blue, bg_color.alpha);
-                cr.fill()?;
+            // Aad an extra point outside of the graph to extend the line to the left
+            if let Some((instant, value)) = extra_point {
+                let t = fetched_at.duration_since(instant).as_millis() as f64;
+                let x = -width * ((t - range) / range);
+                let y = height * (1.0 - (value / 100.0));
+                points.push_front((x,y));
             }
 
-            // Line
+            // Draw Line
             if color.alpha > 0.0 && thickness > 0.0 {
                 for (x, y) in points.iter() {
                     cr.line_to(*x, *y);
@@ -224,6 +207,19 @@ impl WidgetImpl for GraphPriv {
                 cr.set_line_width(thickness);
                 cr.set_source_rgba(color.red, color.green, color.blue, color.alpha);
                 cr.stroke()?;
+            }
+
+            // Draw Background
+            if bg_color.alpha > 0.0 {
+                if let Some(first_point) = points.front() {
+                    cr.line_to(first_point.0, height + margin_bottom);
+                }
+                for (x, y) in points.iter() {
+                    cr.line_to(*x, *y);
+                }
+                cr.line_to(width, height);
+                cr.set_source_rgba(bg_color.red, bg_color.green, bg_color.blue, bg_color.alpha);
+                cr.fill()?;
             }
 
             cr.reset_clip();
@@ -236,4 +232,23 @@ impl WidgetImpl for GraphPriv {
 
         gtk::Inhibit(false)
     }
+}
+
+fn set_line_style(style: &str, cr: &cairo::Context) -> Result<()> {
+            match style  {
+                "miter" => {
+                    cr.set_line_cap(cairo::LineCap::Butt);
+                    cr.set_line_join(cairo::LineJoin::Miter);
+                }
+                "bevel" => {
+                    cr.set_line_cap(cairo::LineCap::Square);
+                    cr.set_line_join(cairo::LineJoin::Bevel);
+                }
+                "round" => {
+                    cr.set_line_cap(cairo::LineCap::Round);
+                    cr.set_line_join(cairo::LineJoin::Round);
+                }
+                _ => Err(anyhow!("Error, the value: {} for atribute join is not valid", style))?,
+            };
+            Ok(())
 }
