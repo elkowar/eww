@@ -725,8 +725,21 @@ fn build_graph(bargs: &mut BuilderArgs) -> Result<super::graph::Graph> {
         prop(value: as_f64) { w.set_property("value", &value)?; },
         // @prop thickness - the thickness of the line
         prop(thickness: as_f64) { w.set_property("thickness", &thickness)?; },
-        // @prop range - the range of time to show
-        prop(range: as_duration) { w.set_property("range", &(range.as_millis() as u64))?; },
+        // @prop time-range - the range of time to show
+        prop(time_range: as_duration) { w.set_property("time-range", &(time_range.as_millis() as u64))?; },
+        // @prop min - the minimum value to show (defaults to 0 if value_max is provided)
+        // @prop max - the maximum value to show
+        prop(min: as_f64 = 0, max: as_f64 = 100) {
+            if min > max {
+                return Err(DiagError::new(gen_diagnostic!(
+                    format!("Graph's min ({}) should never be higher than max ({})",  min, max)
+                )).into());
+            }
+            w.set_property("min", &min)?;
+            w.set_property("max", &max)?;
+        },
+        // @prop dynamic - whether the y range should dynamically change based on value
+        prop(dynamic: as_bool) { w.set_property("dynamic", &dynamic)?; },
         // @prop line-style - changes the look of the edges in the graph. Values: "miter" (default), "round",
         // "bevel"
         prop(line_style: as_string) { w.set_property("line-style", &line_style)?; },

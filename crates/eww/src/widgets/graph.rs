@@ -18,7 +18,10 @@ pub struct GraphPriv {
     value: RefCell<f64>,
     thickness: RefCell<f64>,
     line_style: RefCell<String>,
-    range: RefCell<u64>,
+    min: RefCell<f64>,
+    max: RefCell<f64>,
+    dynamic: RefCell<bool>,
+    time_range: RefCell<u64>,
     history: RefCell<VecDeque<(std::time::Instant, f64)>>,
     extra_point: RefCell<Option<(std::time::Instant, f64)>>,
     fetched_at: RefCell<std::time::Instant>,
@@ -30,7 +33,10 @@ impl Default for GraphPriv {
             value: RefCell::new(0.0),
             thickness: RefCell::new(1.0),
             line_style: RefCell::new("miter".to_string()),
-            range: RefCell::new(10),
+            min: RefCell::new(0.0),
+            max: RefCell::new(100.0),
+            dynamic: RefCell::new(true),
+            time_range: RefCell::new(10),
             history: RefCell::new(VecDeque::new()),
             extra_point: RefCell::new(None),
             fetched_at: RefCell::new(std::time::Instant::now()),
@@ -45,7 +51,7 @@ fn update_history(graph: &GraphPriv, v: (std::time::Instant, f64)) {
     let mut fetched_at = graph.fetched_at.borrow_mut();
     *fetched_at = std::time::Instant::now();
     while let Some(entry) = history.front() {
-        if fetched_at.duration_since(entry.0).as_millis() as u64 > *graph.range.borrow() {
+        if fetched_at.duration_since(entry.0).as_millis() as u64 > *graph.time_range.borrow() {
             *last_value = history.pop_front();
         } else {
             break;
@@ -69,7 +75,34 @@ impl ObjectImpl for GraphPriv {
                     1f64,
                     glib::ParamFlags::READWRITE,
                 ),
-                glib::ParamSpec::new_uint64("range", "Range", "The Range", 0u64, u64::MAX, 10u64, glib::ParamFlags::READWRITE),
+                glib::ParamSpec::new_double(
+                    "max",
+                    "Maximum Value",
+                    "The Maximum Value",
+                    0f64,
+                    f64::MAX,
+                    100f64,
+                    glib::ParamFlags::READWRITE,
+                ),
+                glib::ParamSpec::new_double(
+                    "min",
+                    "Minumum Value",
+                    "The Minimum Value",
+                    0f64,
+                    f64::MAX,
+                    0f64,
+                    glib::ParamFlags::READWRITE,
+                ),
+                glib::ParamSpec::new_boolean("dynamic", "Dynamic", "If it is dynamic", true, glib::ParamFlags::READWRITE),
+                glib::ParamSpec::new_uint64(
+                    "time-range",
+                    "Time Range",
+                    "The Time Range",
+                    0u64,
+                    u64::MAX,
+                    10u64,
+                    glib::ParamFlags::READWRITE,
+                ),
                 glib::ParamSpec::new_string(
                     "line-style",
                     "Line Style",
@@ -93,8 +126,17 @@ impl ObjectImpl for GraphPriv {
             "thickness" => {
                 self.thickness.replace(value.get().unwrap());
             }
-            "range" => {
-                self.range.replace(value.get().unwrap());
+            "max" => {
+                self.max.replace(value.get().unwrap());
+            }
+            "min" => {
+                self.min.replace(value.get().unwrap());
+            }
+            "dynamic" => {
+                self.dynamic.replace(value.get().unwrap());
+            }
+            "time-range" => {
+                self.time_range.replace(value.get().unwrap());
             }
             "line-style" => {
                 self.line_style.replace(value.get().unwrap());
@@ -107,7 +149,10 @@ impl ObjectImpl for GraphPriv {
         match pspec.name() {
             "value" => self.value.borrow().to_value(),
             "thickness" => self.thickness.borrow().to_value(),
-            "range" => self.range.borrow().to_value(),
+            "max" => self.max.borrow().to_value(),
+            "min" => self.min.borrow().to_value(),
+            "dynamic" => self.dynamic.borrow().to_value(),
+            "time-range" => self.time_range.borrow().to_value(),
             "line-style" => self.line_style.borrow().to_value(),
             x => panic!("Tried to access inexistant property of Graph: {}", x,),
         }
@@ -162,7 +207,11 @@ impl WidgetImpl for GraphPriv {
         let res: Result<()> = try {
             let history = &*self.history.borrow();
             let extra_point = *self.extra_point.borrow();
-            let range = *self.range.borrow() as f64;
+            let max = *self.max.borrow() as f64;
+            let min = *self.min.borrow() as f64;
+            let value_range = max - min;
+            let dynamic = *self.min.borrow() as f64;
+            let time_range = *self.time_range.borrow() as f64;
             let fetched_at = self.fetched_at.borrow();
             let thickness = *self.thickness.borrow();
             let line_style = &*self.line_style.borrow();
@@ -191,8 +240,8 @@ impl WidgetImpl for GraphPriv {
                 .iter()
                 .map(|(instant, value)| {
                     let t = fetched_at.duration_since(*instant).as_millis() as f64;
-                    let x = width * (1.0 - (t / range));
-                    let y = height * (1.0 - (value / 100.0));
+                    let x = width * (1.0 - (t / time_range));
+                    let y = height * (1.0 - (value / value_range));
                     (x, y)
                 })
                 .collect::<VecDeque<(f64, f64)>>();
@@ -200,8 +249,8 @@ impl WidgetImpl for GraphPriv {
             // Aad an extra point outside of the graph to extend the line to the left
             if let Some((instant, value)) = extra_point {
                 let t = fetched_at.duration_since(instant).as_millis() as f64;
-                let x = -width * ((t - range) / range);
-                let y = height * (1.0 - (value / 100.0));
+                let x = -width * ((t - time_range) / time_range);
+                let y = height * (1.0 - (value / value_range));
                 points.push_front((x, y));
             }
 
