@@ -119,8 +119,9 @@ impl ObjectImpl for GraphPriv {
     fn set_property(&self, obj: &Self::Type, _id: usize, value: &glib::Value, pspec: &glib::ParamSpec) {
         match pspec.name() {
             "value" => {
-                self.value.replace(value.get().unwrap());
-                update_history(self, (std::time::Instant::now(), value.get().unwrap()));
+                let value = value.get().unwrap();
+                self.value.replace(value);
+                update_history(self, (std::time::Instant::now(), value));
                 obj.queue_draw();
             }
             "thickness" => {
@@ -209,7 +210,6 @@ impl WidgetImpl for GraphPriv {
             let extra_point = *self.extra_point.borrow();
             let max = *self.max.borrow() as f64;
             let min = *self.min.borrow() as f64;
-            let value_range = max - min;
             let dynamic = *self.min.borrow() as f64;
             let time_range = *self.time_range.borrow() as f64;
             let fetched_at = self.fetched_at.borrow();
@@ -236,12 +236,13 @@ impl WidgetImpl for GraphPriv {
             set_line_style(line_style.as_str(), cr)?;
 
             // Calculate graph points once
+            let value_range = max - min;
             let mut points = history
                 .iter()
                 .map(|(instant, value)| {
                     let t = fetched_at.duration_since(*instant).as_millis() as f64;
                     let x = width * (1.0 - (t / time_range));
-                    let y = height * (1.0 - (value / value_range));
+                    let y = height * (1.0 - ((value - min) / value_range));
                     (x, y)
                 })
                 .collect::<VecDeque<(f64, f64)>>();
@@ -250,7 +251,7 @@ impl WidgetImpl for GraphPriv {
             if let Some((instant, value)) = extra_point {
                 let t = fetched_at.duration_since(instant).as_millis() as f64;
                 let x = -width * ((t - time_range) / time_range);
-                let y = height * (1.0 - (value / value_range));
+                let y = height * (1.0 - ((value - min) / value_range));
                 points.push_front((x, y));
             }
 
