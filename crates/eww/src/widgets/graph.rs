@@ -208,9 +208,9 @@ impl WidgetImpl for GraphPriv {
         let res: Result<()> = try {
             let history = &*self.history.borrow();
             let extra_point = *self.extra_point.borrow();
-            let max = *self.max.borrow() as f64;
+            let mut max = *self.max.borrow() as f64;
             let min = *self.min.borrow() as f64;
-            let dynamic = *self.min.borrow() as f64;
+            let dynamic = *self.dynamic.borrow() as bool;
             let time_range = *self.time_range.borrow() as f64;
             let fetched_at = self.fetched_at.borrow();
             let thickness = *self.thickness.borrow();
@@ -235,6 +235,24 @@ impl WidgetImpl for GraphPriv {
 
             set_line_style(line_style.as_str(), cr)?;
 
+
+            // TODO: Clean this up
+            if dynamic {
+                // Check for points higher than max
+                for (_, value) in history {
+                    if *value > max {
+                        max = *value;
+                    }
+                }
+                if let Some((_, value)) = extra_point {
+                    if value > max {
+                        max = value;
+                    }
+                }
+            }
+
+
+            // TODO: Merge these two into one single thing
             // Calculate graph points once
             let value_range = max - min;
             let mut points = history
@@ -255,6 +273,20 @@ impl WidgetImpl for GraphPriv {
                 points.push_front((x, y));
             }
 
+            // Draw Background
+            if bg_color.alpha > 0.0 {
+                if let Some(first_point) = points.front() {
+                    cr.line_to(first_point.0, height + margin_bottom);
+                }
+                for (x, y) in points.iter() {
+                    cr.line_to(*x, *y);
+                }
+                cr.line_to(width, height);
+
+                cr.set_source_rgba(bg_color.red, bg_color.green, bg_color.blue, bg_color.alpha);
+                cr.fill()?;
+            }
+
             // Draw Line
             if color.alpha > 0.0 && thickness > 0.0 {
                 for (x, y) in points.iter() {
@@ -265,18 +297,6 @@ impl WidgetImpl for GraphPriv {
                 cr.stroke()?;
             }
 
-            // Draw Background
-            if bg_color.alpha > 0.0 {
-                if let Some(first_point) = points.front() {
-                    cr.line_to(first_point.0, height + margin_bottom);
-                }
-                for (x, y) in points.iter() {
-                    cr.line_to(*x, *y);
-                }
-                cr.line_to(width, height);
-                cr.set_source_rgba(bg_color.red, bg_color.green, bg_color.blue, bg_color.alpha);
-                cr.fill()?;
-            }
 
             cr.reset_clip();
             cr.restore()?;
