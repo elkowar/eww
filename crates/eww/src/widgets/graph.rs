@@ -256,7 +256,7 @@ impl WidgetImpl for GraphPriv {
                         let y = height * (1.0 - ((value - min) / value_range));
                         (x, y)
                     })
-                .collect::<VecDeque<(f64, f64)>>();
+                    .collect::<VecDeque<(f64, f64)>>();
 
                 // Aad an extra point outside of the graph to extend the line to the left
                 if let Some((instant, value)) = extra_point {
