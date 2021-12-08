@@ -24,7 +24,7 @@ pub struct GraphPriv {
     time_range: RefCell<u64>,
     history: RefCell<VecDeque<(std::time::Instant, f64)>>,
     extra_point: RefCell<Option<(std::time::Instant, f64)>>,
-    fetched_at: RefCell<std::time::Instant>,
+    last_updated_at: RefCell<std::time::Instant>,
 }
 
 impl Default for GraphPriv {
@@ -39,25 +39,28 @@ impl Default for GraphPriv {
             time_range: RefCell::new(10),
             history: RefCell::new(VecDeque::new()),
             extra_point: RefCell::new(None),
-            fetched_at: RefCell::new(std::time::Instant::now()),
+            last_updated_at: RefCell::new(std::time::Instant::now()),
         }
     }
 }
 
-// Updates the history, removing points ouside the range
-fn update_history(graph: &GraphPriv, v: (std::time::Instant, f64)) {
-    let mut history = graph.history.borrow_mut();
-    let mut last_value = graph.extra_point.borrow_mut();
-    let mut fetched_at = graph.fetched_at.borrow_mut();
-    *fetched_at = std::time::Instant::now();
-    while let Some(entry) = history.front() {
-        if fetched_at.duration_since(entry.0).as_millis() as u64 > *graph.time_range.borrow() {
-            *last_value = history.pop_front();
-        } else {
-            break;
+impl GraphPriv {
+    // Updates the history, removing points ouside the range
+    fn update_history(&self, v: (std::time::Instant, f64)) {
+        let mut history = self.history.borrow_mut();
+        let mut last_value = self.extra_point.borrow_mut();
+        let mut last_updated_at = self.last_updated_at.borrow_mut();
+        *last_updated_at = std::time::Instant::now();
+
+        while let Some(entry) = history.front() {
+            if last_updated_at.duration_since(entry.0).as_millis() as u64 > *self.time_range.borrow() {
+                *last_value = history.pop_front();
+            } else {
+                break;
+            }
         }
+        history.push_back(v);
     }
-    history.push_back(v);
 }
 
 impl ObjectImpl for GraphPriv {
@@ -121,7 +124,7 @@ impl ObjectImpl for GraphPriv {
             "value" => {
                 let value = value.get().unwrap();
                 self.value.replace(value);
-                update_history(self, (std::time::Instant::now(), value));
+                self.update_history((std::time::Instant::now(), value));
                 obj.queue_draw();
             }
             "thickness" => {
@@ -208,72 +211,71 @@ impl WidgetImpl for GraphPriv {
         let res: Result<()> = try {
             let history = &*self.history.borrow();
             let extra_point = *self.extra_point.borrow();
-            let mut max = *self.max.borrow() as f64;
-            let min = *self.min.borrow() as f64;
-            let dynamic = *self.dynamic.borrow() as bool;
-            let time_range = *self.time_range.borrow() as f64;
-            let fetched_at = self.fetched_at.borrow();
-            let thickness = *self.thickness.borrow();
-            let line_style = &*self.line_style.borrow();
+
+            // Calculate the max value
+            let (min, max) = {
+                let mut max = *self.max.borrow();
+                let min = *self.min.borrow();
+                let dynamic = *self.dynamic.borrow() as bool;
+                if dynamic {
+                    // Check for points higher than max
+                    for (_, value) in history {
+                        if *value > max {
+                            max = *value;
+                        }
+                    }
+                    if let Some((_, value)) = extra_point {
+                        if value > max {
+                            max = value;
+                        }
+                    }
+                }
+                (min, max)
+            };
 
             let styles = widget.style_context();
-            let color: gdk::RGBA = styles.color(gtk::StateFlags::NORMAL);
-            let bg_color: gdk::RGBA = styles.style_property_for_state("background-color", gtk::StateFlags::NORMAL).get()?;
-
             let (margin_top, margin_right, margin_bottom, margin_left) = {
                 let margin = styles.margin(gtk::StateFlags::NORMAL);
                 (margin.top as f64, margin.right as f64, margin.bottom as f64, margin.left as f64)
             };
-
             let width = widget.allocated_width() as f64 - margin_left - margin_right;
             let height = widget.allocated_height() as f64 - margin_top - margin_bottom;
 
+            // Calculate graph points once
+            //  Separating this into another function would require pasing a
+            //  GraphPriv that would hide interior mutability
+            let points = {
+                let value_range = max - min;
+                let time_range = *self.time_range.borrow() as f64;
+                let last_updated_at = self.last_updated_at.borrow();
+                let mut points = history
+                    .iter()
+                    .map(|(instant, value)| {
+                        let t = last_updated_at.duration_since(*instant).as_millis() as f64;
+                        let x = width * (1.0 - (t / time_range));
+                        let y = height * (1.0 - ((value - min) / value_range));
+                        (x, y)
+                    })
+                .collect::<VecDeque<(f64, f64)>>();
+
+                // Aad an extra point outside of the graph to extend the line to the left
+                if let Some((instant, value)) = extra_point {
+                    let t = last_updated_at.duration_since(instant).as_millis() as f64;
+                    let x = -width * ((t - time_range) / time_range);
+                    let y = height * (1.0 - ((value - min) / value_range));
+                    points.push_front((x, y));
+                }
+                points
+            };
+
+            // Actually draw the graph
             cr.save()?;
             cr.translate(margin_left, margin_top);
             cr.rectangle(0.0, 0.0, width, height);
             cr.clip();
 
-            set_line_style(line_style.as_str(), cr)?;
-
-
-            // TODO: Clean this up
-            if dynamic {
-                // Check for points higher than max
-                for (_, value) in history {
-                    if *value > max {
-                        max = *value;
-                    }
-                }
-                if let Some((_, value)) = extra_point {
-                    if value > max {
-                        max = value;
-                    }
-                }
-            }
-
-
-            // TODO: Merge these two into one single thing
-            // Calculate graph points once
-            let value_range = max - min;
-            let mut points = history
-                .iter()
-                .map(|(instant, value)| {
-                    let t = fetched_at.duration_since(*instant).as_millis() as f64;
-                    let x = width * (1.0 - (t / time_range));
-                    let y = height * (1.0 - ((value - min) / value_range));
-                    (x, y)
-                })
-                .collect::<VecDeque<(f64, f64)>>();
-
-            // Aad an extra point outside of the graph to extend the line to the left
-            if let Some((instant, value)) = extra_point {
-                let t = fetched_at.duration_since(instant).as_millis() as f64;
-                let x = -width * ((t - time_range) / time_range);
-                let y = height * (1.0 - ((value - min) / value_range));
-                points.push_front((x, y));
-            }
-
             // Draw Background
+            let bg_color: gdk::RGBA = styles.style_property_for_state("background-color", gtk::StateFlags::NORMAL).get()?;
             if bg_color.alpha > 0.0 {
                 if let Some(first_point) = points.front() {
                     cr.line_to(first_point.0, height + margin_bottom);
@@ -288,15 +290,19 @@ impl WidgetImpl for GraphPriv {
             }
 
             // Draw Line
-            if color.alpha > 0.0 && thickness > 0.0 {
+            let line_color: gdk::RGBA = styles.color(gtk::StateFlags::NORMAL);
+            let thickness = *self.thickness.borrow();
+            if line_color.alpha > 0.0 && thickness > 0.0 {
                 for (x, y) in points.iter() {
                     cr.line_to(*x, *y);
                 }
+
+                let line_style = &*self.line_style.borrow();
+                apply_line_style(line_style.as_str(), cr)?;
                 cr.set_line_width(thickness);
-                cr.set_source_rgba(color.red, color.green, color.blue, color.alpha);
+                cr.set_source_rgba(line_color.red, line_color.green, line_color.blue, line_color.alpha);
                 cr.stroke()?;
             }
-
 
             cr.reset_clip();
             cr.restore()?;
@@ -310,7 +316,7 @@ impl WidgetImpl for GraphPriv {
     }
 }
 
-fn set_line_style(style: &str, cr: &cairo::Context) -> Result<()> {
+fn apply_line_style(style: &str, cr: &cairo::Context) -> Result<()> {
     match style {
         "miter" => {
             cr.set_line_cap(cairo::LineCap::Butt);
