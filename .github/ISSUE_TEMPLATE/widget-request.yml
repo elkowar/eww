@@ -1,0 +1,29 @@
+name: Widget request
+description: Suggest an new Widget
+title: "[WIDGET] "
+labels: [widget-request]
+body:
+  - type: textarea
+    attributes:
+      label: "Description of the widget"
+      description: "Provide an explanation of the widget."
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: "Implementation proposal"
+      description: "If applicable, describe which GTK-widgets this widget would be based on. A gallery of GTK widgets can be found at https://docs.gtk.org/gtk3. Please include links to the respective GTK documentation pages."
+    validations:
+      required: false
+  - type: textarea
+    attributes:
+      label: "Example usage"
+      description: "Provide an example snippet of configuration showcasing how the widget could be used, including the attributes the widget should support. For anything non-obvious, include an explanation of how the properties should behave."
+    validations:
+      required: false
+  - type: textarea
+    attributes:
+      label: "Additional context"
+      description: "Provide any additional context if applicable."
+    validations:
+      required: false
