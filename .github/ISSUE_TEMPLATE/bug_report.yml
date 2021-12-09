@@ -3,13 +3,16 @@ description: Report a bug you have encountered
 title: "[BUG] "
 labels: bug
 body:
-  - type: markdown
+  - type: checkboxes
     attributes:
-      value: |
-        # Checklist before submitting an issue
-        - [ ] I have searched through the existing [closed and open issues](https://github.com/elkowar/eww/issues?q=is%3Aissue) for eww and made sure this is not a duplicate |
-        - [ ] I have specifically verified that this bug is not a common [user error](https://github.com/elkowar/eww/issues?q=is%3Aissue+label%3Ano-actual-bug+is%3Aclosed) |
-        - [ ] I am providing as much relevant information as I am able to in this bug report (Minimal config to reproduce the issue for example, if applicable) |
+      label: Checklist before submitting an issue
+      options:
+        - label: I have searched through the existing [closed and open issues](https://github.com/elkowar/eww/issues?q=is%3Aissue) for eww and made sure this is not a duplicate
+          required: true
+        - label: I have specifically verified that this bug is not a common [user error](https://github.com/elkowar/eww/issues?q=is%3Aissue+label%3Ano-actual-bug+is%3Aclosed)
+          required: true
+        - label: I am providing as much relevant information as I am able to in this bug report (Minimal config to reproduce the issue for example, if applicable)
+          required: true
   - type: textarea
     attributes:
       label: "Description of the bug"
