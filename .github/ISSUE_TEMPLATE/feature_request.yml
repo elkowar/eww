@@ -1,0 +1,23 @@
+name: Feature request
+description: Suggest an idea for this project
+title: "[FEATURE] "
+labels: [enhancement]
+body:
+  - type: textarea
+    attributes:
+      label: "Description of the requested feature"
+      description: "Give a clear and concise description of the feature you are proposing, including examples for when it would be useful."
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: "Proposed configuration syntax"
+      description: "If the feature you are requesting would add or change something to the Eww configuration, please provide an example for how the feature could be used."
+    validations:
+      required: false
+  - type: textarea
+    attributes:
+      label: "Additional context"
+      description: "If applicable, provide additional context or screenshots here."
+    validations:
+      required: false
