@@ -48,6 +48,7 @@ pub(super) fn widget_use_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::W
         "centerbox" => build_center_box(bargs)?.upcast(),
         "eventbox" => build_gtk_event_box(bargs)?.upcast(),
         "circular-progress" => build_circular_progress_bar(bargs)?.upcast(),
+        "graph" => build_graph(bargs)?.upcast(),
         "scale" => build_gtk_scale(bargs)?.upcast(),
         "progress" => build_gtk_progress(bargs)?.upcast(),
         "image" => build_gtk_image(bargs)?.upcast(),
@@ -711,6 +712,37 @@ fn build_circular_progress_bar(bargs: &mut BuilderArgs) -> Result<CircProg> {
         prop(thickness: as_f64) { w.set_property("thickness", thickness)?; },
         // @prop clockwise - wether the progress bar spins clockwise or counter clockwise
         prop(clockwise: as_bool) { w.set_property("clockwise", &clockwise)?; },
+    });
+    Ok(w)
+}
+
+/// @widget graph
+/// @desc A widget that displays a graph showing how a given value changes over time
+fn build_graph(bargs: &mut BuilderArgs) -> Result<super::graph::Graph> {
+    let w = super::graph::Graph::new();
+    def_widget!(bargs, _g, w, {
+        // @prop value - the value, between 0 - 100
+        prop(value: as_f64) { w.set_property("value", &value)?; },
+        // @prop thickness - the thickness of the line
+        prop(thickness: as_f64) { w.set_property("thickness", &thickness)?; },
+        // @prop time-range - the range of time to show
+        prop(time_range: as_duration) { w.set_property("time-range", &(time_range.as_millis() as u64))?; },
+        // @prop min - the minimum value to show (defaults to 0 if value_max is provided)
+        // @prop max - the maximum value to show
+        prop(min: as_f64 = 0, max: as_f64 = 100) {
+            if min > max {
+                return Err(DiagError::new(gen_diagnostic!(
+                    format!("Graph's min ({}) should never be higher than max ({})",  min, max)
+                )).into());
+            }
+            w.set_property("min", &min)?;
+            w.set_property("max", &max)?;
+        },
+        // @prop dynamic - whether the y range should dynamically change based on value
+        prop(dynamic: as_bool) { w.set_property("dynamic", &dynamic)?; },
+        // @prop line-style - changes the look of the edges in the graph. Values: "miter" (default), "round",
+        // "bevel"
+        prop(line_style: as_string) { w.set_property("line-style", &line_style)?; },
     });
     Ok(w)
 }
