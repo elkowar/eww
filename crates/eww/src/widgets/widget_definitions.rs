@@ -788,14 +788,14 @@ fn build_transform(bargs: &mut BuilderArgs) -> Result<Transform> {
     def_widget!(bargs, _g, w, {
         // @prop rotation - the percentage to rotate
         prop(rotate: as_f64) { w.set_property("rotate", rotate)?; },
-        // @prop translate-x - the amount to translate in the x direction
-        prop(translate_x: as_f64) { w.set_property("translate-x", translate_x)?; },
-        // @prop translate-y - the amount to translate in the y direction
-        prop(translate_y: as_f64) { w.set_property("translate-y", translate_y)?; },
-        // @prop scale_x - the amount to scale in the x direction
-        prop(scale_x: as_f64) { w.set_property("scale-x", scale_x)?; },
-        // @prop scale_y - the amount to scale in the y direction
-        prop(scale_y: as_f64) { w.set_property("scale-y", scale_y)?; },
+        // @prop translate-x - the amount to translate in the x direction (px or %)
+        prop(translate_x: as_string) { w.set_property("translate-x", translate_x)?; },
+        // @prop translate-y - the amount to translate in the y direction (px or %)
+        prop(translate_y: as_string) { w.set_property("translate-y", translate_y)?; },
+        // @prop scale_x - the amount to scale in the x direction (px or %)
+        prop(scale_x: as_string) { w.set_property("scale-x", scale_x)?; },
+        // @prop scale_y - the amount to scale in the y direction (px or %)
+        prop(scale_y: as_string) { w.set_property("scale-y", scale_y)?; },
     });
     Ok(w)
 }

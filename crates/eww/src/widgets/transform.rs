@@ -1,7 +1,8 @@
 use anyhow::{anyhow, Result};
 use glib::{object_subclass, wrapper};
 use gtk::{prelude::*, subclass::prelude::*};
-use std::cell::RefCell;
+use std::{cell::RefCell, str::FromStr};
+use yuck::value::NumWithUnit;
 
 use crate::error_handling_ctx;
 
@@ -11,11 +12,11 @@ wrapper! {
 }
 
 pub struct TransformPriv {
-    translate_x: RefCell<f64>,
-    translate_y: RefCell<f64>,
     rotate: RefCell<f64>,
-    scale_x: RefCell<f64>,
-    scale_y: RefCell<f64>,
+    translate_x: RefCell<Option<String>>,
+    translate_y: RefCell<Option<String>>,
+    scale_x: RefCell<Option<String>>,
+    scale_y: RefCell<Option<String>>,
     content: RefCell<Option<gtk::Widget>>,
 }
 
@@ -23,11 +24,11 @@ pub struct TransformPriv {
 impl Default for TransformPriv {
     fn default() -> Self {
         TransformPriv {
-            translate_x: RefCell::new(0.0),
-            translate_y: RefCell::new(0.0),
             rotate: RefCell::new(0.0),
-            scale_x: RefCell::new(0.0),
-            scale_y: RefCell::new(0.0),
+            translate_x: RefCell::new(None),
+            translate_y: RefCell::new(None),
+            scale_x: RefCell::new(None),
+            scale_y: RefCell::new(None),
             content: RefCell::new(None),
         }
     }
@@ -38,11 +39,19 @@ impl ObjectImpl for TransformPriv {
         use once_cell::sync::Lazy;
         static PROPERTIES: Lazy<Vec<glib::ParamSpec>> = Lazy::new(|| {
             vec![
-                glib::ParamSpec::new_double("rotate", "Rotate", "The Rotation", f64::MIN, f64::MAX, 0f64, glib::ParamFlags::READWRITE),
-                glib::ParamSpec::new_double("translate-x", "Translate x", "The Translation x", f64::MIN, f64::MAX, 0f64, glib::ParamFlags::READWRITE),
-                glib::ParamSpec::new_double("translate-y", "Translate y", "The Translation y", f64::MIN, f64::MAX, 0f64, glib::ParamFlags::READWRITE),
-                glib::ParamSpec::new_double("scale-x", "Scale x", "The amount to scale in x", f64::MIN, f64::MAX, 0f64, glib::ParamFlags::READWRITE),
-                glib::ParamSpec::new_double("scale-y", "Scale y", "The amount to scale in y", f64::MIN, f64::MAX, 0f64, glib::ParamFlags::READWRITE),
+                glib::ParamSpec::new_double(
+                    "rotate",
+                    "Rotate",
+                    "The Rotation",
+                    f64::MIN,
+                    f64::MAX,
+                    0f64,
+                    glib::ParamFlags::READWRITE,
+                ),
+                glib::ParamSpec::new_string("translate-x", "Translate x", "The X Translation", None, glib::ParamFlags::READWRITE),
+                glib::ParamSpec::new_string("translate-y", "Translate y", "The Y Translation", None, glib::ParamFlags::READWRITE),
+                glib::ParamSpec::new_string("scale-x", "Scale x", "The amount to scale in x", None, glib::ParamFlags::READWRITE),
+                glib::ParamSpec::new_string("scale-y", "Scale y", "The amount to scale in y", None, glib::ParamFlags::READWRITE),
             ]
         });
 
@@ -121,26 +130,35 @@ impl BinImpl for TransformPriv {}
 impl WidgetImpl for TransformPriv {
     fn draw(&self, widget: &Self::Type, cr: &cairo::Context) -> Inhibit {
         let res: Result<()> = try {
-            let translate_x = *self.translate_x.borrow();
-            let translate_y = *self.translate_y.borrow();
             let rotate = *self.rotate.borrow();
-            let scale_x = *self.scale_x.borrow();
-            let scale_y = *self.scale_y.borrow();
+            let total_width = widget.allocated_width() as f64;
+            let total_height = widget.allocated_height() as f64;
 
             cr.save()?;
 
-            // Do not change the order
-            if rotate != 0.0 {
-                cr.rotate(perc_to_rad(rotate));
-            }
+            let translate_x = match &*self.translate_x.borrow() {
+                Some(tx) => NumWithUnit::from_str(&tx)?.pixels_relative_to(total_width as i32) as f64,
+                None => 0.0,
+            };
 
-            if translate_x != 0.0 || translate_y != 0.0 {
-                cr.translate(translate_x, translate_y);
-            }
+            let translate_y = match &*self.translate_y.borrow() {
+                Some(ty) => NumWithUnit::from_str(&ty)?.pixels_relative_to(total_height as i32) as f64,
+                None => 0.0,
+            };
 
-            if scale_x != 0.0 || scale_y != 0.0 {
-                cr.scale(scale_x, scale_y);
-            }
+            let scale_x = match &*self.scale_x.borrow() {
+                Some(sx) => NumWithUnit::from_str(&sx)?.perc_relative_to(total_width as i32) as f64 / 100.0,
+                None => 1.0,
+            };
+
+            let scale_y = match &*self.scale_y.borrow() {
+                Some(sy) => NumWithUnit::from_str(&sy)?.perc_relative_to(total_height as i32) as f64 / 100.0,
+                None => 1.0,
+            };
+
+            cr.rotate(perc_to_rad(rotate));
+            cr.translate(translate_x, translate_y);
+            cr.scale(scale_x, scale_y);
 
             // Children widget
             if let Some(child) = &*self.content.borrow() {
