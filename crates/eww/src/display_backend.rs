@@ -69,8 +69,8 @@ mod platform {
             gtk_layer_shell::set_anchor(&window, gtk_layer_shell::Edge::Top, top);
             gtk_layer_shell::set_anchor(&window, gtk_layer_shell::Edge::Bottom, bottom);
 
-            let xoffset = geometry.offset.x.relative_to(monitor.width);
-            let yoffset = geometry.offset.y.relative_to(monitor.height);
+            let xoffset = geometry.offset.x.pixels_relative_to(monitor.width);
+            let yoffset = geometry.offset.y.pixels_relative_to(monitor.height);
 
             if left {
                 gtk_layer_shell::set_margin(&window, gtk_layer_shell::Edge::Left, xoffset);
