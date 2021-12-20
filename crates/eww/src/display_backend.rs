@@ -161,8 +161,8 @@ mod platform {
             let mon_end_y = (monitor_rect.y + monitor_rect.height) as u32 - 1u32;
 
             let dist = match strut_def.side {
-                Side::Left | Side::Right => strut_def.dist.relative_to(monitor_rect.width) as u32,
-                Side::Top | Side::Bottom => strut_def.dist.relative_to(monitor_rect.height) as u32,
+                Side::Left | Side::Right => strut_def.dist.pixels_relative_to(monitor_rect.width) as u32,
+                Side::Top | Side::Bottom => strut_def.dist.pixels_relative_to(monitor_rect.height) as u32,
             };
 
             // don't question it,.....
