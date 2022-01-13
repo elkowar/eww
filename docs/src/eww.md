@@ -27,6 +27,7 @@ The following list of package names should work for arch linux:
 <summary>Packages</summary>
 
 - gtk3 (libgdk-3, libgtk-3)
+- gtk-layer-shell (only on Wayland)
 - pango (libpango)
 - gdk-pixbuf2 (libgdk_pixbuf-2)
 - cairo (libcairo, libcairo-gobject)
