@@ -9,16 +9,14 @@ your own, custom widgets in any window manager.
 
 Documentation **and instructions on how to install** can be found [here](https://elkowar.github.io/eww).
 
-## New configuration language!
+## Current maintenance status
 
-YUCK IS ALIVE! After months of waiting, the new configuration language has now been released!
-This also means that XML is no longer supported from this point onwards.
-If you want to keep using the latest releases of eww, you'll need to migrate your config over to yuck.
+To those of you looking at the current slow progress, commit frequency and general activity:
+Don't worry, eww is not dead! I'm currently in the process of focussing on my bachelors thesis,
+thus work on eww has currently slowed down significantly.
+I hope to find more time to continue working on new features in the not-so-distant future.
 
-The steps to migrate can be found in [the migration guide](YUCK_MIGRATION.md).
-
-Additionally, a couple _amazing_ people have started to work on an
-[automatic converter](https://github.com/undefinedDarkness/ewwxml) that can turn your old eww.xml into the new yuck format!
+Thanks for sticking around!
 
 ## Examples
 
