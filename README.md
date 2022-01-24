@@ -18,6 +18,44 @@ I hope to find more time to continue working on new features in the not-so-dista
 
 Thanks for sticking around!
 
+## Installing
+
+If you would like to install eww the best way to do so would be to compile it manully. 
+
+### Dependencies
+In order to compile eww you must have the following packages
+- rustc
+- cargo (nightly toolchain)
+- gtk3 (libgdk-3, libgtk-3)
+- gtk-layer-shell (only on Wayland)
+- pango (libpango)
+- gdk-pixbuf2 (libgdk_pixbuf-2)
+- cairo (libcairo, libcairo-gobject)
+- glib2 (libgio, libglib-2, libgobject-2)
+- gcc-libs (libgcc)
+- glibc
+### Compiling eww
+```bash
+cd eww
+```
+```bash
+cargo build --release
+```
+**Note:** if your on wayland then do
+```bash
+cargo build --release --no-default-features --features=wayland
+```
+### Installing eww
+```bash
+cd target/release
+```
+```bash
+chmod +x ./eww
+```
+```bash
+sudo install --mode +x ./eww /usr/local/bin/
+```
+
 ## Examples
 
 (Note that some of these still make use of the old configuration syntax.)
