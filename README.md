@@ -45,7 +45,7 @@ cargo build --release
 ```bash
 cargo build --release --no-default-features --features=wayland
 ```
-### Installing eww
+### Adding eww to bin
 ```bash
 cd target/release
 ```

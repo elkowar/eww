@@ -23,3 +23,4 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Added more examples
 - List system-level dependencies in documentation
 - Document structure of magic variables (By: legendofmiracles)
+- Added install instructions to README (By: Wolfdesroyer8)
