@@ -32,6 +32,14 @@ Thanks for sticking around!
 
 <img src="https://raw.githubusercontent.com/elkowar/dots-of-war/master/eww-bar/.config/eww-bar/showcase.png" height="400" width="auto"/>
 
+* [Vertical Bar by Rxyhn](https://github.com/rxyhn/dotfiles)
+
+<div align="left">
+
+![Rxyhn-rice](https://user-images.githubusercontent.com/93292023/152228869-d618335a-7a1e-40f7-95f9-b1cf401be89e.gif)
+
+</div>
+
 * [Setup by Axarva](https://github.com/Axarva/dotfiles-2.0)
 ![Axarva-rice](https://raw.githubusercontent.com/Axarva/dotfiles-2.0/main/screenshots/center.png)
 
