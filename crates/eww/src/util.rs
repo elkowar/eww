@@ -1,4 +1,5 @@
 use anyhow::*;
+use std::fmt::Write;
 use extend::ext;
 use itertools::Itertools;
 use std::path::Path;
@@ -155,9 +156,26 @@ pub fn replace_env_var_references(input: String) -> String {
         .into_owned()
 }
 
+pub fn unindent(text: &str) -> String {
+    // take all the lines of our text and skip over the first empty ones
+    let lines = text.lines().skip_while(|x| *x == "");
+    // find the smallest indentation
+    let min = lines.clone().fold(None, |min, line| {
+        let min = min.unwrap_or(usize::MAX);
+        Some(min.min(line.chars().take(min).take_while(|&c| c == ' ').count()))
+    }).unwrap_or(0);
+
+    let mut result = String::new();
+    for i in lines {
+        writeln!(result, "{}", &i[min..]).expect("Something went wrong unindenting the string");
+    }
+    result.pop();
+    result
+}
+
 #[cfg(test)]
 mod test {
-    use super::replace_env_var_references;
+    use super::{replace_env_var_references, unindent};
     use std;
 
     #[test]
@@ -168,5 +186,13 @@ mod test {
             replace_env_var_references(String::from(scss)),
             format!("$test: {};", std::env::var("USER").unwrap_or_default())
         )
+    }
+
+    #[test]
+    fn test_unindent() {
+        let indented = "
+            line one
+            line two";
+        assert_eq!("line one\nline two", unindent(indented));
     }
 }

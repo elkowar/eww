@@ -1,7 +1,7 @@
 #![allow(clippy::option_map_unit_fn)]
 use super::{build_widget::BuilderArgs, circular_progressbar::*, run_command};
 use crate::{
-    def_widget, enum_parse, error::DiagError, error_handling_ctx, util::list_difference, widgets::build_widget::build_gtk_widget,
+    def_widget, enum_parse, error::DiagError, error_handling_ctx, util::{list_difference, unindent}, widgets::build_widget::build_gtk_widget,
 };
 use anyhow::*;
 use codespan_reporting::diagnostic::Severity;
@@ -601,7 +601,7 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
             }
 
             let text = unescape::unescape(&text).context(format!("Failed to unescape label text {}", &text))?;
-            let text = unindent::unindent(&text);
+            let text = unindent(&text);
             gtk_widget.set_text(&text);
         },
         // @prop markup - Pango markup to display
