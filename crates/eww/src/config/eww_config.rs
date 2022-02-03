@@ -1,4 +1,4 @@
-use anyhow::*;
+use anyhow::{bail, Context, Result};
 use eww_shared_util::VarName;
 use std::{collections::HashMap, path::Path};
 use yuck::config::{

@@ -1,8 +1,7 @@
-use anyhow::*;
-use std::fmt::Write;
+use anyhow::{anyhow, Context, Result};
 use extend::ext;
 use itertools::Itertools;
-use std::path::Path;
+use std::{fmt::Write, path::Path};
 
 #[macro_export]
 macro_rules! try_logging_errors {
@@ -160,10 +159,13 @@ pub fn unindent(text: &str) -> String {
     // take all the lines of our text and skip over the first empty ones
     let lines = text.lines().skip_while(|x| *x == "");
     // find the smallest indentation
-    let min = lines.clone().fold(None, |min, line| {
-        let min = min.unwrap_or(usize::MAX);
-        Some(min.min(line.chars().take(min).take_while(|&c| c == ' ').count()))
-    }).unwrap_or(0);
+    let min = lines
+        .clone()
+        .fold(None, |min, line| {
+            let min = min.unwrap_or(usize::MAX);
+            Some(min.min(line.chars().take(min).take_while(|&c| c == ' ').count()))
+        })
+        .unwrap_or(0);
 
     let mut result = String::new();
     for i in lines {

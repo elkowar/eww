@@ -1,4 +1,4 @@
-use anyhow::*;
+use anyhow::{bail, Result};
 use std::collections::{HashMap, HashSet};
 
 /// A map that represents a structure of a 1-n relationship with edges that contain data.
@@ -83,7 +83,11 @@ impl<I: Copy + std::hash::Hash + std::cmp::Eq + std::fmt::Debug, T> OneToNElemen
                         );
                     }
                 } else {
-                    bail!("parent_to_child stored mapping from {:?} to {:?}, which was not found in child_to_parent", parent, child);
+                    bail!(
+                        "parent_to_child stored mapping from {:?} to {:?}, which was not found in child_to_parent",
+                        parent,
+                        child
+                    );
                 }
             }
         }
@@ -108,7 +112,6 @@ mod test {
         assert_eq!(map.get_parent_of(3), Some(4));
         assert_eq!(map.get_parent_of(4), None);
         assert_eq!(map.get_parent_of(5), Some(4));
-
 
         assert_eq!(map.get_children_of(4), HashSet::from_iter(vec![3, 5]));
         assert_eq!(map.get_children_of(3), HashSet::from_iter(vec![2]));
@@ -135,6 +138,5 @@ mod test {
         assert_eq!(map.get_children_of(3), HashSet::from_iter(vec![2]));
         assert_eq!(map.get_children_of(2), HashSet::from_iter(vec![1]));
         assert_eq!(map.get_children_of(1), HashSet::new());
-
     }
 }

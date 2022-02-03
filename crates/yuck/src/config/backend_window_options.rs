@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use anyhow::*;
+use anyhow::{anyhow, Result};
 
 use crate::{
     enum_parse,

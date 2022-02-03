@@ -1,4 +1,4 @@
-use anyhow::*;
+use anyhow::{Context, Result};
 use codespan_reporting::diagnostic::Severity;
 use eww_shared_util::AttrName;
 use gdk::prelude::Cast;

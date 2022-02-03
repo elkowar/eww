@@ -13,7 +13,10 @@ mod platform {
 mod platform {
     use gdk;
     use gtk::prelude::*;
-    use yuck::config::{window_definition::{WindowStacking, WindowDefinition}, window_geometry::AnchorAlignment};
+    use yuck::config::{
+        window_definition::{WindowDefinition, WindowStacking},
+        window_geometry::AnchorAlignment,
+    };
 
     pub fn initialize_window(window_def: &WindowDefinition, monitor: gdk::Rectangle) -> Option<gtk::Window> {
         let window = gtk::Window::new(gtk::WindowType::Toplevel);
@@ -89,7 +92,7 @@ mod platform {
 
 #[cfg(feature = "x11")]
 mod platform {
-    use anyhow::*;
+    use anyhow::{Context, Result};
     use gdkx11;
     use gtk::{self, prelude::*};
     use x11rb::protocol::xproto::ConnectionExt;

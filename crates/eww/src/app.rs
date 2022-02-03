@@ -7,6 +7,7 @@ use crate::{
     state::scope_graph::{ScopeGraph, ScopeGraphEvent, ScopeIndex},
     EwwPaths, *,
 };
+use anyhow::anyhow;
 use eww_shared_util::VarName;
 use itertools::Itertools;
 use simplexpr::dynval::DynVal;

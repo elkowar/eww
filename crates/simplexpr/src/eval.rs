@@ -135,7 +135,9 @@ impl SimplExpr {
             }
             FunctionCall(_, _, args) => args.iter().flat_map(|a| a.var_refs_with_span()).collect(),
             JsonArray(_, values) => values.iter().flat_map(|v| v.var_refs_with_span()).collect(),
-            JsonObject(_, entries) => entries.iter().flat_map(|(k, v)| k.var_refs_with_span().into_iter().chain(v.var_refs_with_span())).collect(),
+            JsonObject(_, entries) => {
+                entries.iter().flat_map(|(k, v)| k.var_refs_with_span().into_iter().chain(v.var_refs_with_span())).collect()
+            }
         }
     }
 

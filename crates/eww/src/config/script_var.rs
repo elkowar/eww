@@ -1,6 +1,6 @@
 use std::process::Command;
 
-use anyhow::*;
+use anyhow::{anyhow, bail, Context, Result};
 use codespan_reporting::diagnostic::Severity;
 use eww_shared_util::{Span, VarName};
 use simplexpr::dynval::DynVal;

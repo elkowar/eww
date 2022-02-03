@@ -1,9 +1,13 @@
 #![allow(clippy::option_map_unit_fn)]
 use super::{build_widget::BuilderArgs, circular_progressbar::*, run_command};
 use crate::{
-    def_widget, enum_parse, error::DiagError, error_handling_ctx, util::{list_difference, unindent}, widgets::build_widget::build_gtk_widget,
+    def_widget, enum_parse,
+    error::DiagError,
+    error_handling_ctx,
+    util::{list_difference, unindent},
+    widgets::build_widget::build_gtk_widget,
 };
-use anyhow::*;
+use anyhow::{anyhow, Context, Result};
 use codespan_reporting::diagnostic::Severity;
 use eww_shared_util::Spanned;
 use gdk::NotifyType;

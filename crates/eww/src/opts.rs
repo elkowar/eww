@@ -1,4 +1,4 @@
-use anyhow::*;
+use anyhow::{Context, Result};
 use eww_shared_util::VarName;
 use serde::{Deserialize, Serialize};
 use simplexpr::dynval::DynVal;
