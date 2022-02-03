@@ -5,7 +5,7 @@ use crate::{
     opts::{self, ActionClientOnly},
     EwwPaths,
 };
-use anyhow::*;
+use anyhow::{Context, Result};
 use std::{
     io::{Read, Write},
     os::unix::net::UnixStream,
@@ -23,7 +23,6 @@ pub fn handle_client_only_action(paths: &EwwPaths, action: ActionClientOnly) -> 
     }
     Ok(())
 }
-
 
 /// Connect to the daemon and send the given request.
 /// Returns the response from the daemon, or None if the daemon did not provide any useful response. An Ok(None) response does _not_ indicate failure.

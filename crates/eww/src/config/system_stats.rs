@@ -1,5 +1,5 @@
 use crate::util::IterAverage;
-use anyhow::*;
+use anyhow::{Context, Result};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use std::{fs::read_to_string, sync::Mutex};

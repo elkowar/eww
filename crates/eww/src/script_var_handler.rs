@@ -4,7 +4,7 @@ use crate::{
     app,
     config::{create_script_var_failed_warn, script_var},
 };
-use anyhow::*;
+use anyhow::{anyhow, Result};
 use app::DaemonCommand;
 
 use eww_shared_util::VarName;

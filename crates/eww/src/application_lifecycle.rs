@@ -2,7 +2,7 @@
 //! Currently, this only means handling application exit by providing a global
 //! `recv_exit()` function which can be awaited to receive an event in case of application termination.
 
-use anyhow::*;
+use anyhow::{Context, Result};
 use once_cell::sync::Lazy;
 use tokio::sync::broadcast;
 

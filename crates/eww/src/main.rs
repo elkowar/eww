@@ -13,7 +13,7 @@ extern crate gtk;
 #[cfg(feature = "wayland")]
 extern crate gtk_layer_shell as gtk_layer_shell;
 
-use anyhow::*;
+use anyhow::{bail, Context, Result};
 use daemon_response::{DaemonResponse, DaemonResponseReceiver};
 use opts::ActionWithServer;
 use std::{
