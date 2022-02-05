@@ -210,7 +210,10 @@ impl EwwPaths {
         }
 
         let config_dir = config_dir.canonicalize()?;
-        let daemon_id = base64::encode(format!("{}", config_dir.display()));
+
+        let mut daemon_id = base64::encode(format!("{}", config_dir.display()));
+        // truncate to avoid hitting the 108 char max name length for unix sockets (man 7 unix)
+        daemon_id.truncate(90);
 
         Ok(EwwPaths {
             config_dir,
