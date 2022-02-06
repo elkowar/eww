@@ -17,6 +17,8 @@ use anyhow::{bail, Context, Result};
 use daemon_response::{DaemonResponse, DaemonResponseReceiver};
 use opts::ActionWithServer;
 use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
     os::unix::net,
     path::{Path, PathBuf},
     time::Duration,
@@ -211,9 +213,11 @@ impl EwwPaths {
 
         let config_dir = config_dir.canonicalize()?;
 
-        let mut daemon_id = base64::encode(format!("{}", config_dir.display()));
-        // truncate to avoid hitting the 108 char max name length for unix sockets (man 7 unix)
-        daemon_id.truncate(90);
+        let mut hasher = DefaultHasher::new();
+        format!("{}", config_dir.display()).hash(&mut hasher);
+        // daemon_id is a hash of the config dir path to ensure that, given a normal XDG_RUNTIME_DIR,
+        // the absolute path to the socket stays under the 108 bytes limit. (see #387, man 7 unix)
+        let daemon_id = format!("{:x}", hasher.finish());
 
         Ok(EwwPaths {
             config_dir,
