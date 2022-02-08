@@ -53,6 +53,10 @@ Thanks for sticking around!
 * [Setups by iSparsh](https://github.com/iSparsh/gross)
 ![iSparsh-gross](https://user-images.githubusercontent.com/57213270/140309158-e65cbc1d-f3a8-4aec-848c-eef800de3364.png)
 
+* [topbar by saimoomedits](https://github.com/Saimoomedits/eww-widgets)
+![eww-top-bar](https://user-images.githubusercontent.com/72156551/153038194-534f254f-befe-4421-9584-b05e8a40c21e.gif)
+
+
 
 ## Contribewwting
 
