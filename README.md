@@ -40,6 +40,9 @@ Thanks for sticking around!
 
 </div>
 
+* [Bar and Dashboard by niraj998](https://github.com/niraj998/dots)
+![niraj-rice](https://github.com/niraj998/niraj998/blob/main/assets/dots/bar.gif)
+
 * [Setup by Axarva](https://github.com/Axarva/dotfiles-2.0)
 ![Axarva-rice](https://raw.githubusercontent.com/Axarva/dotfiles-2.0/main/screenshots/center.png)
 
