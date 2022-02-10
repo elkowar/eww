@@ -412,7 +412,6 @@ name = "eww"
 version = "0.2.0"
 dependencies = [
  "anyhow",
- "base64",
  "bincode",
  "cairo-rs",
  "cairo-sys-rs",
