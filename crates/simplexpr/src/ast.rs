@@ -27,8 +27,10 @@ pub enum BinOp {
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Debug, strum::EnumString, strum::Display)]
 pub enum UnaryOp {
-    #[strum(serialize = "!")] Not,
-    #[strum(serialize = "-")] Negative,
+    #[strum(serialize = "!")]
+    Not,
+    #[strum(serialize = "-")]
+    Negative,
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
