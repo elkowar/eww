@@ -190,6 +190,8 @@ impl SimplExpr {
                     BinOp::Mod => DynVal::from(a.as_f64()? % b.as_f64()?),
                     BinOp::GT => DynVal::from(a.as_f64()? > b.as_f64()?),
                     BinOp::LT => DynVal::from(a.as_f64()? < b.as_f64()?),
+                    BinOp::GE => DynVal::from(a.as_f64()? >= b.as_f64()?),
+                    BinOp::LE => DynVal::from(a.as_f64()? <= b.as_f64()?),
                     #[allow(clippy::useless_conversion)]
                     BinOp::Elvis => DynVal::from(if a.0.is_empty() { b } else { a }),
                     BinOp::RegexMatch => {
@@ -203,6 +205,7 @@ impl SimplExpr {
                 let a = a.eval(values)?;
                 Ok(match op {
                     UnaryOp::Not => DynVal::from(!a.as_bool()?).at(*span),
+                    UnaryOp::Negative => DynVal::from(-a.as_f64()?).at(*span),
                 })
             }
             SimplExpr::IfElse(_, cond, yes, no) => {
