@@ -62,7 +62,6 @@ tokio-util = "0.6"
 sysinfo = "0.16.1"
 
 dyn-clone = "1.0"
-base64 = "0.13"
 wait-timeout = "0.2"
 
 notify = "5.0.0-pre.7"

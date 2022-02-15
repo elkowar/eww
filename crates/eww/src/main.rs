@@ -17,6 +17,8 @@ use anyhow::{bail, Context, Result};
 use daemon_response::{DaemonResponse, DaemonResponseReceiver};
 use opts::ActionWithServer;
 use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
     os::unix::net,
     path::{Path, PathBuf},
     time::Duration,
@@ -210,7 +212,22 @@ impl EwwPaths {
         }
 
         let config_dir = config_dir.canonicalize()?;
-        let daemon_id = base64::encode(format!("{}", config_dir.display()));
+
+        let mut hasher = DefaultHasher::new();
+        format!("{}", config_dir.display()).hash(&mut hasher);
+        // daemon_id is a hash of the config dir path to ensure that, given a normal XDG_RUNTIME_DIR,
+        // the absolute path to the socket stays under the 108 bytes limit. (see #387, man 7 unix)
+        let daemon_id = format!("{:x}", hasher.finish());
+
+        let ipc_socket_file = std::env::var("XDG_RUNTIME_DIR")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|_| std::path::PathBuf::from("/tmp"))
+            .join(format!("eww-server_{}", daemon_id));
+
+        // 100 as the limit isn't quite 108 everywhere (i.e 104 on BSD or mac)
+        if format!("{}", ipc_socket_file.display()).len() > 100 {
+            log::warn!("The IPC socket file's absolute path exceeds 100 bytes, the socket may fail to create.");
+        }
 
         Ok(EwwPaths {
             config_dir,
@@ -218,10 +235,7 @@ impl EwwPaths {
                 .map(PathBuf::from)
                 .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap()).join(".cache"))
                 .join(format!("eww_{}.log", daemon_id)),
-            ipc_socket_file: std::env::var("XDG_RUNTIME_DIR")
-                .map(std::path::PathBuf::from)
-                .unwrap_or_else(|_| std::path::PathBuf::from("/tmp"))
-                .join(format!("eww-server_{}", daemon_id)),
+            ipc_socket_file,
         })
     }
 
