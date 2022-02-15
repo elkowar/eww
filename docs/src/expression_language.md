@@ -21,7 +21,7 @@ as well as within strings, inside string-interpolation blocks (`"foo ${ ... } ba
 
 Supported currently are the following features:
 - simple mathematical operations (`+`, `-`, `*`, `/`, `%`)
-- comparisons (`==`, `!=`, `>`, `<`)
+- comparisons (`==`, `!=`, `>`, `<`, `<=`, `>=`)
 - boolean operations (`||`, `&&`, `!`)
 - elvis operator (`?:`)
     - if the left side is `""`, then returns the right side, otherwise evaluates to the left side.

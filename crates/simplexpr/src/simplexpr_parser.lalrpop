@@ -20,6 +20,8 @@ extern {
     "!=" => Token::NotEquals,
     "&&" => Token::And,
     "||" => Token::Or,
+    ">=" => Token::GE,
+    "<=" => Token::LE,
     ">"  => Token::GT,
     "<"  => Token::LT,
     "?:" => Token::Elvis,
@@ -81,6 +83,7 @@ pub Expr: SimplExpr = {
 
   #[precedence(level="2")] #[assoc(side="right")]
   <l:@L> "!" <e:Expr> <r:@R> => UnaryOp(Span(l, r, fid), Not, b(e)),
+  <l:@L> "-" <e:Expr> <r:@R> => UnaryOp(Span(l, r, fid), Negative, b(e)),
 
   #[precedence(level="3")] #[assoc(side="left")]
   <l:@L> <le:Expr> "*"  <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), Times,       b(re)),
@@ -94,6 +97,8 @@ pub Expr: SimplExpr = {
   #[precedence(level="5")] #[assoc(side="left")]
   <l:@L> <le:Expr> "==" <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), Equals,     b(re)),
   <l:@L> <le:Expr> "!=" <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), NotEquals,  b(re)),
+  <l:@L> <le:Expr> ">=" <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), GE,         b(re)),
+  <l:@L> <le:Expr> "<=" <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), LE,         b(re)),
   <l:@L> <le:Expr> ">"  <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), GT,         b(re)),
   <l:@L> <le:Expr> "<"  <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), LT,         b(re)),
   <l:@L> <le:Expr> "=~" <re:Expr> <r:@R> => BinOp(Span(l, r, fid), b(le), RegexMatch, b(re)),

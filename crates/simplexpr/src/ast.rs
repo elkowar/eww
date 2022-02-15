@@ -17,6 +17,8 @@ pub enum BinOp {
     #[strum(serialize = "!=")] NotEquals,
     #[strum(serialize = "&&")] And,
     #[strum(serialize = "||")] Or,
+    #[strum(serialize = ">=") ] GE,
+    #[strum(serialize = "<=") ] LE,
     #[strum(serialize = ">") ] GT,
     #[strum(serialize = "<") ] LT,
     #[strum(serialize = "?:")] Elvis,
@@ -27,6 +29,8 @@ pub enum BinOp {
 pub enum UnaryOp {
     #[strum(serialize = "!")]
     Not,
+    #[strum(serialize = "-")]
+    Negative,
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]

@@ -23,12 +23,15 @@ pub enum Token {
     NotEquals,
     And,
     Or,
+    GE,
+    LE,
     GT,
     LT,
     Elvis,
     RegexMatch,
 
     Not,
+    Negative,
 
     Comma,
     Question,
@@ -80,12 +83,15 @@ regex_rules! {
     escape(r"!=")    => |_| Token::NotEquals,
     escape(r"&&")    => |_| Token::And,
     escape(r"||")    => |_| Token::Or,
+    escape(r">=")    => |_| Token::GE,
+    escape(r"<=")    => |_| Token::LE,
     escape(r">")     => |_| Token::GT,
     escape(r"<")     => |_| Token::LT,
     escape(r"?:")    => |_| Token::Elvis,
     escape(r"=~")    => |_| Token::RegexMatch,
 
     escape(r"!" )    => |_| Token::Not,
+    escape(r"-" )    => |_| Token::Negative,
 
     escape(r",")     => |_| Token::Comma,
     escape(r"?")     => |_| Token::Question,
