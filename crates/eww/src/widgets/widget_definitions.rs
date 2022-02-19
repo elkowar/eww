@@ -67,6 +67,7 @@ pub(super) fn widget_use_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::W
         "combo-box-text" => build_gtk_combo_box_text(bargs)?.upcast(),
         "checkbox" => build_gtk_checkbox(bargs)?.upcast(),
         "revealer" => build_gtk_revealer(bargs)?.upcast(),
+        "scroll" => build_gtk_scrolledwindow(bargs)?.upcast(),
         _ => {
             return Err(AstError::ValidationError(ValidationError::UnknownWidget(
                 bargs.widget_use.name_span,
@@ -500,6 +501,26 @@ fn build_center_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
             Ok(gtk_widget)
         }
     }
+}
+
+/// @widget scroll
+/// @desc a container with a single child that can scroll.
+fn build_gtk_scrolledwindow(bargs: &mut BuilderArgs) -> Result<gtk::ScrolledWindow> {
+    // I don't have single idea of what those two generics are supposed to be, but this works.
+    let gtk_widget = gtk::ScrolledWindow::new::<gtk::Adjustment, gtk::Adjustment>(None, None);
+
+    def_widget!(bargs, _g, gtk_widget, {
+        // @prop hscroll - scroll horizontally
+        // @prop vscroll - scroll vertically
+        prop(hscroll: as_bool = true, vscroll: as_bool = true) {
+            gtk_widget.set_policy(
+                if hscroll { gtk::PolicyType::Automatic } else { gtk::PolicyType::Never },
+                if vscroll { gtk::PolicyType::Automatic } else { gtk::PolicyType::Never },
+            )
+        },
+    });
+
+    Ok(gtk_widget)
 }
 
 /// @widget eventbox
