@@ -285,17 +285,17 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
                 let string = string.as_string()?;
                 let pattern = regex::Regex::new(&pattern.as_string()?)?;
                 let mut retval = String::new();
-                retval.push_str("{");
+                retval.push_str("[");
                 let mut find_present = false;
-                pattern.find_iter(&string).enumerate().for_each(|(i, x)| {
+                pattern.find_iter(&string).for_each(|x| {
                     find_present = true;
-                    retval.push_str(&format!("\"{}\": \"{}\", ", i, x.as_str()));
+                    retval.push_str(&format!("\"{}\", ", x.as_str()));
                 });
                 if find_present {
                     retval.pop();
                     retval.pop();
                 }
-                retval.push_str("}");
+                retval.push_str("]");
                 Ok(DynVal::from(retval))
             }
             _ => Err(EvalError::WrongArgCount(name.to_string())),
@@ -305,17 +305,17 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
                 let string = string.as_string()?;
                 let pattern = regex::Regex::new(&pattern.as_string()?)?;
                 let mut retval = String::new();
-                retval.push_str("{");
+                retval.push_str("[");
                 let mut capture_present = false;
                 let mut inner_capture_present = false;
-                pattern.captures_iter(&string).enumerate().for_each(|(i, x)| {
+                pattern.captures_iter(&string).for_each(|x| {
                     capture_present = true;
                     inner_capture_present = false;
-                    retval.push_str(&format!("\"{}\": {{", i));
-                    x.iter().enumerate().for_each(|(j, y)| match y {
+                    retval.push_str("[");
+                    x.iter().for_each(|y| match y {
                         Some(m) => {
                             inner_capture_present = true;
-                            retval.push_str(&format!("\"{}\": \"{}\", ", j, m.as_str()));
+                            retval.push_str(&format!("\"{}\", ", m.as_str()));
                         }
                         None => {}
                     });
@@ -323,13 +323,13 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
                         retval.pop();
                         retval.pop();
                     }
-                    retval.push_str("}, ");
+                    retval.push_str("], ");
                 });
                 if capture_present {
                     retval.pop();
                     retval.pop();
                 }
-                retval.push_str("}");
+                retval.push_str("]");
                 Ok(DynVal::from(retval))
             }
             _ => Err(EvalError::WrongArgCount(name.to_string())),
