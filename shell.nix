@@ -1,7 +1,6 @@
 { pkgs ? import <nixpkgs> {
     overlays = [
-      (import (fetchTarball
-      "https://github.com/nix-community/fenix/archive/main.tar.gz"))
+ (import "${(fetchTarball "https://github.com/nix-community/fenix/archive/main.tar.gz")}/overlay.nix")
       (self: super: {
           rustc = super.fenix.latest.rustc;
           cargo  = super.fenix.latest.cargo;
@@ -20,8 +19,8 @@ pkgs.mkShell {
     gcc
     gtk3
     pkg-config
-    rustfmt-preview
-    clippy-preview
+    # rustfmt-preview
+    # clippy-preview
     deno
     mdbook
   ];
