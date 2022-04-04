@@ -106,7 +106,8 @@ regex_rules! {
     escape(r"true")  => |_| Token::True,
     escape(r"false") => |_| Token::False,
 
-    r"[ \n\n\f]+" => |_| Token::Skip,
+    // Why two \n ?
+    r"[ \t\n\n\f]+" => |_| Token::Skip,
     r";.*"=> |_| Token::Comment,
 
     r"[a-zA-Z_][a-zA-Z0-9_-]*" => |x| Token::Ident(x),
