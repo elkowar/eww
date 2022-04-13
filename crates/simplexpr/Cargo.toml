@@ -1,8 +1,8 @@
 [package]
 name = "simplexpr"
 version = "0.1.0"
-edition = "2018"
 authors = ["elkowar <5300871+elkowar@users.noreply.github.com>"]
+edition = "2021"
 
 
 build = "build.rs"

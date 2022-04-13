@@ -1,10 +1,10 @@
 #![feature(box_patterns)]
-#![feature(format_args_capture)]
 #![feature(pattern)]
 #![feature(box_syntax)]
 #![feature(try_blocks)]
 #![feature(unwrap_infallible)]
 #![feature(never_type)]
+#![feature(once_cell)]
 
 pub mod ast;
 pub mod dynval;

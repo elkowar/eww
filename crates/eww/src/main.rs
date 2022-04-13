@@ -3,7 +3,6 @@
 #![feature(box_syntax)]
 #![feature(box_patterns)]
 #![feature(slice_concat_trait)]
-#![feature(result_cloned)]
 #![feature(try_blocks)]
 #![feature(nll)]
 #![allow(rustdoc::private_intra_doc_links)]
