@@ -48,6 +48,7 @@ mod backend {
         Normal,
         Utility,
         Desktop,
+        Notification,
     }
     impl FromStr for WindowType {
         type Err = EnumParseError;
@@ -60,6 +61,7 @@ mod backend {
                 "normal" => Self::Normal,
                 "utility" => Self::Utility,
                 "desktop" => Self::Desktop,
+                "notification" => Self::Notification,
             }
         }
     }
