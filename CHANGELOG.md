@@ -13,6 +13,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add support for `:hover` css selectors for eventbox (By: druskus20)
 - Add `eww get` subcommand (By: druskus20)
 - Add circular progress widget (By: druskus20)
+- Add `desktop` window type (By: Alvaro Lopez)
 
 ### Notable Internal changes
 - Rework state management completely, now making local state and dynamic widget hierarchy changes possible.

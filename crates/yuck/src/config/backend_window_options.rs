@@ -47,6 +47,7 @@ mod backend {
         Toolbar,
         Normal,
         Utility,
+        Desktop,
     }
     impl FromStr for WindowType {
         type Err = EnumParseError;
@@ -58,6 +59,7 @@ mod backend {
                 "dialog" => Self::Dialog,
                 "normal" => Self::Normal,
                 "utility" => Self::Utility,
+                "desktop" => Self::Desktop,
             }
         }
     }
