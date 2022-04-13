@@ -64,7 +64,7 @@ Thanks for sticking around!
 
 ## Contribewwting
 
-If you want to contribute anything, like adding new widgets, features, or subcommands (Including sample configs), you should definitely do so.
+If you want to contribute anything, like adding new widgets, features, or subcommands (including sample configs), you should definitely do so.
 
 ### Steps
 1. Fork this repository
