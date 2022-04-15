@@ -201,6 +201,7 @@ mod platform {
                 )?
                 .check()?;
 
+            // TODO possibly support setting multiple window types
             x11rb::wrapper::ConnectionExt::change_property32(
                 &self.conn,
                 PropMode::REPLACE,
@@ -213,6 +214,8 @@ mod platform {
                     WindowType::Dialog => self.atoms._NET_WM_WINDOW_TYPE_DIALOG,
                     WindowType::Toolbar => self.atoms._NET_WM_WINDOW_TYPE_TOOLBAR,
                     WindowType::Utility => self.atoms._NET_WM_WINDOW_TYPE_UTILITY,
+                    WindowType::Desktop => self.atoms._NET_WM_WINDOW_TYPE_DESKTOP,
+                    WindowType::Notification => self.atoms._NET_WM_WINDOW_TYPE_NOTIFICATION,
                 }],
             )?
             .check()?;
@@ -229,6 +232,8 @@ mod platform {
             _NET_WM_WINDOW_TYPE_DIALOG,
             _NET_WM_WINDOW_TYPE_TOOLBAR,
             _NET_WM_WINDOW_TYPE_UTILITY,
+            _NET_WM_WINDOW_TYPE_DESKTOP,
+            _NET_WM_WINDOW_TYPE_NOTIFICATION,
             _NET_WM_STATE,
             _NET_WM_STATE_STICKY,
             _NET_WM_STATE_ABOVE,

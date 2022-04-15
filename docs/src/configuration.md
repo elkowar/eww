@@ -72,7 +72,7 @@ Depending on if you are using X11 or Wayland, some additional properties exist:
 |   `stacking` | Where the window should appear in the stack. Possible values: `fg`, `bg`. |
 |  `wm-ignore` | Whether the window manager should ignore this window. This is useful for dashboard-style widgets that don't need to interact with other windows at all. Note that this makes some of the other properties not have any effect. Either `true` or `false`. |
 |    `reserve` | Specify how the window manager should make space for your window. This is useful for bars, which should not overlap any other windows. |
-| `windowtype` | Specify what type of window this is. This will be used by your window manager to determine how it should handle your window. Possible values: `normal`, `dock`, `toolbar`, `dialog`. Default: `dock` if `reserve` is specified, `normal` otherwise. |
+| `windowtype` | Specify what type of window this is. This will be used by your window manager to determine how it should handle your window. Possible values: `normal`, `dock`, `toolbar`, `dialog`, `desktop`. Default: `dock` if `reserve` is specified, `normal` otherwise. |
 
 #### Wayland
 

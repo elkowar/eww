@@ -14,6 +14,11 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add `eww get` subcommand (By: druskus20)
 - Add circular progress widget (By: druskus20)
 - Add `:xalign` and `:yalign` to labels (By: alecsferra)
+- Add graph widget (By: druskus20)
+- Add `>=` and `<=` operators to simplexpr (By: viandoxdev)
+- Add `desktop` window type (By: Alvaro Lopez)
+- Add `scroll` widget (By: viandoxdev)
+- Add `notification` window type
 
 ### Notable Internal changes
 - Rework state management completely, now making local state and dynamic widget hierarchy changes possible.
