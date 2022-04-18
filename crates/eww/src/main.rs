@@ -36,6 +36,8 @@ mod server;
 mod state;
 mod util;
 mod widgets;
+mod window_arguments;
+mod window_initiator;
 
 fn main() {
     let eww_binary_name = std::env::args().next().unwrap();

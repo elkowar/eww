@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use simplexpr::{dynval::FromDynVal, eval::EvalError, SimplExpr};
 
 use crate::{
-    error::DiagError,
+    error::{DiagError, DiagResult},
     parser::{ast::Ast, from_ast::FromAst},
 };
 use eww_shared_util::{AttrName, Span, Spanned};
@@ -107,5 +107,21 @@ impl Attributes {
     /// TODO actually use this and emit warnings
     pub fn get_unused(self) -> impl Iterator<Item = (Span, AttrName)> {
         self.attrs.into_iter().map(|(k, v)| (v.key_span.to(v.value.span()), k))
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
+pub struct AttrSpec {
+    pub name: AttrName,
+    pub optional: bool,
+    pub span: Span,
+}
+
+impl FromAst for AttrSpec {
+    fn from_ast(e: Ast) -> DiagResult<Self> {
+        let span = e.span();
+        let symbol = e.as_symbol()?;
+        let (name, optional) = if let Some(name) = symbol.strip_prefix('?') { (name.to_string(), true) } else { (symbol, false) };
+        Ok(Self { name: AttrName(name), optional, span })
     }
 }

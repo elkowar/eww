@@ -101,6 +101,10 @@ pub enum ActionWithServer {
         /// Name of the window you want to open.
         window_name: String,
 
+        // The id of the window instance
+        #[arg(long)]
+        id: Option<String>,
+
         /// The identifier of the monitor the window should open on
         #[arg(long)]
         screen: Option<MonitorIdentifier>,
@@ -124,13 +128,20 @@ pub enum ActionWithServer {
         /// Automatically close the window after a specified amount of time, i.e.: 1s
         #[arg(long, value_parser=parse_duration)]
         duration: Option<std::time::Duration>,
+
+        #[arg(long, value_parser = parse_var_update_arg)]
+        arg: Option<Vec<(VarName, DynVal)>>,
     },
 
     /// Open multiple windows at once.
     /// NOTE: This will in the future be part of eww open, and will then be removed.
     #[command(name = "open-many")]
     OpenMany {
-        windows: Vec<String>,
+        #[arg(value_parser = parse_window_config_and_id)]
+        windows: Vec<(String, String)>,
+
+        #[arg(long, value_parser = parse_window_id_args)]
+        arg: Vec<(String, VarName, DynVal)>,
 
         /// If a window is already open, close it instead
         #[arg(long = "toggle")]
@@ -195,6 +206,21 @@ impl From<RawOpt> for Opt {
     }
 }
 
+fn parse_window_config_and_id(s: &str) -> Result<(String, String)> {
+    let (name, id) = s.split_once(':').unwrap_or((s, s));
+
+    Ok((name.to_string(), id.to_string()))
+}
+
+fn parse_window_id_args(s: &str) -> Result<(String, VarName, DynVal)> {
+    // Parse the = first so we know if an id has not been given
+    let (name, value) = parse_var_update_arg(s)?;
+
+    let (id, var_name) = (&name.0).split_once(':').unwrap_or((&"", &name.0));
+
+    Ok((id.to_string(), var_name.into(), value))
+}
+
 fn parse_var_update_arg(s: &str) -> Result<(VarName, DynVal)> {
     let (name, value) = s
         .split_once('=')
@@ -219,12 +245,13 @@ impl ActionWithServer {
                 let _ = send.send(DaemonResponse::Success("pong".to_owned()));
                 return (app::DaemonCommand::NoOp, Some(recv));
             }
-            ActionWithServer::OpenMany { windows, should_toggle } => {
-                return with_response_channel(|sender| app::DaemonCommand::OpenMany { windows, should_toggle, sender });
+            ActionWithServer::OpenMany { windows, arg: args, should_toggle } => {
+                return with_response_channel(|sender| app::DaemonCommand::OpenMany { windows, args, should_toggle, sender });
             }
-            ActionWithServer::OpenWindow { window_name, pos, size, screen, anchor, should_toggle, duration } => {
+            ActionWithServer::OpenWindow { window_name, id, pos, size, screen, anchor, should_toggle, duration, arg: args } => {
                 return with_response_channel(|sender| app::DaemonCommand::OpenWindow {
                     window_name,
+                    instance_id: id,
                     pos,
                     size,
                     anchor,
@@ -232,6 +259,7 @@ impl ActionWithServer {
                     should_toggle,
                     duration,
                     sender,
+                    args,
                 })
             }
             ActionWithServer::CloseWindows { windows } => {

@@ -7,6 +7,8 @@ use crate::{
     paths::EwwPaths,
     script_var_handler::ScriptVarHandlerHandle,
     state::scope_graph::{ScopeGraph, ScopeIndex},
+    window_arguments::WindowArguments,
+    window_initiator::WindowInitiator,
     *,
 };
 use anyhow::anyhow;
@@ -26,7 +28,6 @@ use yuck::{
     config::{
         monitor::MonitorIdentifier,
         script_var_definition::ScriptVarDefinition,
-        window_definition::WindowDefinition,
         window_geometry::{AnchorPoint, WindowGeometry},
     },
     error::DiagError,
@@ -44,12 +45,14 @@ pub enum DaemonCommand {
     ReloadConfigAndCss(DaemonResponseSender),
     OpenInspector,
     OpenMany {
-        windows: Vec<String>,
+        windows: Vec<(String, String)>,
+        args: Vec<(String, VarName, DynVal)>,
         should_toggle: bool,
         sender: DaemonResponseSender,
     },
     OpenWindow {
         window_name: String,
+        instance_id: Option<String>,
         pos: Option<Coords>,
         size: Option<Coords>,
         anchor: Option<AnchorPoint>,
@@ -57,6 +60,7 @@ pub enum DaemonCommand {
         should_toggle: bool,
         duration: Option<std::time::Duration>,
         sender: DaemonResponseSender,
+        args: Option<Vec<(VarName, DynVal)>>,
     },
     CloseWindows {
         windows: Vec<String>,
@@ -80,6 +84,7 @@ pub enum DaemonCommand {
 /// An opened window.
 #[derive(Debug)]
 pub struct EwwWindow {
+    pub instance_id: String,
     pub name: String,
     pub scope_index: ScopeIndex,
     pub gtk_window: gtk::Window,
@@ -106,6 +111,7 @@ pub struct App<B> {
     pub eww_config: config::EwwConfig,
     /// Map of all currently open windows
     pub open_windows: HashMap<String, EwwWindow>,
+    pub window_argumentss: HashMap<String, WindowArguments>,
     /// Window names that are supposed to be open, but failed.
     /// When reloading the config, these should be opened again.
     pub failed_windows: HashSet<String>,
@@ -128,6 +134,7 @@ impl<B> std::fmt::Debug for App<B> {
             .field("eww_config", &self.eww_config)
             .field("open_windows", &self.open_windows)
             .field("failed_windows", &self.failed_windows)
+            .field("window_argumentss", &self.window_argumentss)
             .field("paths", &self.paths)
             .finish()
     }
@@ -178,14 +185,30 @@ impl<B: DisplayBackend> App<B> {
                         self.close_window(&window_name)?;
                     }
                 }
-                DaemonCommand::OpenMany { windows, should_toggle, sender } => {
+                DaemonCommand::OpenMany { windows, args, should_toggle, sender } => {
                     let errors = windows
                         .iter()
                         .map(|w| {
-                            if should_toggle && self.open_windows.contains_key(w) {
-                                self.close_window(w)
+                            let (config_name, id) = w;
+                            if should_toggle && self.open_windows.contains_key(id) {
+                                self.close_window(id)
                             } else {
-                                self.open_window(w, None, None, None, None, None)
+                                log::debug!("Config: {}, id: {}", config_name, id);
+                                let window_args: Vec<(VarName, DynVal)> = args
+                                    .iter()
+                                    .filter_map(|(win_id, n, v)| {
+                                        if win_id.is_empty() || win_id == id {
+                                            Some((n.clone(), v.clone()))
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                    .collect();
+                                self.open_window(&WindowArguments::new_from_args(
+                                    id.to_string(),
+                                    config_name.clone(),
+                                    window_args,
+                                )?)
                             }
                         })
                         .filter_map(Result::err);
@@ -193,6 +216,7 @@ impl<B: DisplayBackend> App<B> {
                 }
                 DaemonCommand::OpenWindow {
                     window_name,
+                    instance_id,
                     pos,
                     size,
                     anchor,
@@ -200,13 +224,27 @@ impl<B: DisplayBackend> App<B> {
                     should_toggle,
                     duration,
                     sender,
+                    args,
                 } => {
-                    let is_open = self.open_windows.contains_key(&window_name);
+                    let id = instance_id.unwrap_or_else(|| window_name.clone());
+
+                    let is_open = self.open_windows.contains_key(&id);
+
                     let result = if should_toggle && is_open {
-                        self.close_window(&window_name)
+                        self.close_window(&id)
                     } else {
-                        self.open_window(&window_name, pos, size, monitor, anchor, duration)
+                        self.open_window(&WindowArguments::new(
+                            id,
+                            window_name,
+                            pos,
+                            size,
+                            monitor,
+                            anchor,
+                            duration,
+                            args.unwrap_or_default(),
+                        ))
                     };
+
                     sender.respond_with_result(result)?;
                 }
                 DaemonCommand::CloseWindows { windows, sender } => {
@@ -304,14 +342,14 @@ impl<B: DisplayBackend> App<B> {
     }
 
     /// Close a window and do all the required cleanups in the scope_graph and script_var_handler
-    fn close_window(&mut self, window_name: &str) -> Result<()> {
-        if let Some(old_abort_send) = self.window_close_timer_abort_senders.remove(window_name) {
+    fn close_window(&mut self, instance_id: &str) -> Result<()> {
+        if let Some(old_abort_send) = self.window_close_timer_abort_senders.remove(instance_id) {
             _ = old_abort_send.send(());
         }
         let eww_window = self
             .open_windows
-            .remove(window_name)
-            .with_context(|| format!("Tried to close window named '{}', but no such window was open", window_name))?;
+            .remove(instance_id)
+            .with_context(|| format!("Tried to close window named '{}', but no such window was open", instance_id))?;
 
         let scope_index = eww_window.scope_index;
         eww_window.close();
@@ -324,52 +362,52 @@ impl<B: DisplayBackend> App<B> {
             self.script_var_handler.stop_for_variable(unused_var.clone());
         }
 
+        self.window_argumentss.remove(instance_id);
+
         Ok(())
     }
 
-    fn open_window(
-        &mut self,
-        window_name: &str,
-        pos: Option<Coords>,
-        size: Option<Coords>,
-        monitor: Option<MonitorIdentifier>,
-        anchor: Option<AnchorPoint>,
-        duration: Option<std::time::Duration>,
-    ) -> Result<()> {
-        self.failed_windows.remove(window_name);
-        log::info!("Opening window {}", window_name);
+    fn open_window(&mut self, window_args: &WindowArguments) -> Result<()> {
+        let instance_id = &window_args.id;
+        self.failed_windows.remove(instance_id);
+        log::info!("Opening window {} as '{}'", window_args.config_name, instance_id);
 
         // if an instance of this is already running, close it
-        // TODO make reopening optional via a --no-reopen flag?
-        if self.open_windows.contains_key(window_name) {
-            self.close_window(window_name)?;
+        if self.open_windows.contains_key(instance_id) {
+            self.close_window(instance_id)?;
         }
 
+        self.window_argumentss.insert(instance_id.to_string(), window_args.clone());
+
         let open_result: Result<_> = try {
-            let mut window_def = self.eww_config.get_window(window_name)?.clone();
+            let window_name: &str = &window_args.config_name;
+
+            let window_def = self.eww_config.get_window(window_name)?.clone();
             assert_eq!(window_def.name, window_name, "window definition name did not equal the called window");
-            window_def.geometry = window_def.geometry.map(|x| x.override_if_given(anchor, pos, size));
+
+            let initiator = WindowInitiator::new(&window_def, window_args)?;
 
             let root_index = self.scope_graph.borrow().root_index;
 
             let window_scope = self.scope_graph.borrow_mut().register_new_scope(
-                window_name.to_string(),
+                instance_id.to_string(),
                 Some(root_index),
                 root_index,
-                HashMap::new(),
+                initiator.get_scoped_vars(),
             )?;
 
             let root_widget = crate::widgets::build_widget::build_gtk_widget(
                 &mut self.scope_graph.borrow_mut(),
                 Rc::new(self.eww_config.get_widget_definitions().clone()),
                 window_scope,
-                window_def.widget.clone(),
+                window_def.widget,
                 None,
             )?;
 
-            let monitor_geometry = get_monitor_geometry(monitor.or_else(|| window_def.monitor.clone()))?;
+            root_widget.style_context().add_class(window_name);
 
-            let mut eww_window = initialize_window::<B>(monitor_geometry, root_widget, window_def, window_scope)?;
+            let monitor_geometry = get_monitor_geometry(initiator.monitor.clone())?;
+            let mut eww_window = initialize_window::<B>(&initiator, monitor_geometry, root_widget, window_scope)?;
             eww_window.gtk_window.style_context().add_class(window_name);
 
             // initialize script var handlers for variables. As starting a scriptvar with the script_var_handler is idempodent,
@@ -383,32 +421,32 @@ impl<B: DisplayBackend> App<B> {
 
             eww_window.destroy_event_handler_id = Some(eww_window.gtk_window.connect_destroy({
                 let app_evt_sender = self.app_evt_send.clone();
-                let window_name: String = eww_window.name.to_string();
+                let instance_id = instance_id.to_string();
                 move |_| {
                     // we don't care about the actual error response from the daemon as this is mostly just a fallback.
                     // Generally, this should get disconnected before the gtk window gets destroyed.
                     // It serves as a fallback for when the window is closed manually.
                     let (response_sender, _) = daemon_response::create_pair();
-                    let command = DaemonCommand::CloseWindows { windows: vec![window_name.clone()], sender: response_sender };
+                    let command = DaemonCommand::CloseWindows { windows: vec![instance_id.clone()], sender: response_sender };
                     if let Err(err) = app_evt_sender.send(command) {
                         log::error!("Error sending close window command to daemon after gtk window destroy event: {}", err);
                     }
                 }
             }));
 
+            let duration = window_args.duration;
             if let Some(duration) = duration {
                 let app_evt_sender = self.app_evt_send.clone();
-                let window_name = window_name.to_string();
 
                 let (abort_send, abort_recv) = futures::channel::oneshot::channel();
 
                 glib::MainContext::default().spawn_local({
-                    let window_name = window_name.clone();
+                    let instance_id = instance_id.to_string();
                     async move {
                         tokio::select! {
                             _ = glib::timeout_future(duration) => {
                                 let (response_sender, mut response_recv) = daemon_response::create_pair();
-                                let command = DaemonCommand::CloseWindows { windows: vec![window_name], sender: response_sender };
+                                let command = DaemonCommand::CloseWindows { windows: vec![instance_id.clone()], sender: response_sender };
                                 if let Err(err) = app_evt_sender.send(command) {
                                     log::error!("Error sending close window command to daemon after gtk window destroy event: {}", err);
                                 }
@@ -419,17 +457,17 @@ impl<B: DisplayBackend> App<B> {
                     }
                 });
 
-                if let Some(old_abort_send) = self.window_close_timer_abort_senders.insert(window_name, abort_send) {
+                if let Some(old_abort_send) = self.window_close_timer_abort_senders.insert(instance_id.to_string(), abort_send) {
                     _ = old_abort_send.send(());
                 }
             }
 
-            self.open_windows.insert(window_name.to_string(), eww_window);
+            self.open_windows.insert(instance_id.to_string(), eww_window);
         };
 
         if let Err(err) = open_result {
-            self.failed_windows.insert(window_name.to_string());
-            Err(err).with_context(|| format!("failed to open window `{}`", window_name))
+            self.failed_windows.insert(instance_id.to_string());
+            Err(err).with_context(|| format!("failed to open window `{}`", instance_id))
         } else {
             Ok(())
         }
@@ -448,10 +486,19 @@ impl<B: DisplayBackend> App<B> {
         self.eww_config = config;
         self.scope_graph.borrow_mut().clear(self.eww_config.generate_initial_state()?);
 
-        let window_names: Vec<String> =
+        let instances: Vec<String> =
             self.open_windows.keys().cloned().chain(self.failed_windows.iter().cloned()).dedup().collect();
-        for window_name in &window_names {
-            self.open_window(window_name, None, None, None, None, None)?;
+        let initiators = self.window_argumentss.clone();
+        for instance_id in &instances {
+            let window_arguments;
+            match initiators.get(instance_id) {
+                Some(x) => window_arguments = x,
+                None => {
+                    return Err(anyhow!("Cannot reopen window, initial parameters were not saved correctly for {}", instance_id))
+                }
+            };
+
+            self.open_window(window_arguments)?;
         }
         Ok(())
     }
@@ -480,19 +527,19 @@ impl<B: DisplayBackend> App<B> {
 }
 
 fn initialize_window<B: DisplayBackend>(
+    window_init: &WindowInitiator,
     monitor_geometry: gdk::Rectangle,
     root_widget: gtk::Widget,
-    window_def: WindowDefinition,
     window_scope: ScopeIndex,
 ) -> Result<EwwWindow> {
-    let window = B::initialize_window(&window_def, monitor_geometry)
-        .with_context(|| format!("monitor {} is unavailable", window_def.monitor.clone().unwrap()))?;
+    let window = B::initialize_window(window_init, monitor_geometry)
+        .with_context(|| format!("monitor {} is unavailable", window_init.monitor.clone().unwrap()))?;
 
-    window.set_title(&format!("Eww - {}", window_def.name));
+    window.set_title(&format!("Eww - {}", window_init.name));
     window.set_position(gtk::WindowPosition::None);
     window.set_gravity(gdk::Gravity::Center);
 
-    if let Some(geometry) = window_def.geometry {
+    if let Some(geometry) = window_init.geometry {
         let actual_window_rect = get_window_rectangle(geometry, monitor_geometry);
         window.set_size_request(actual_window_rect.width(), actual_window_rect.height());
         window.set_default_size(actual_window_rect.width(), actual_window_rect.height());
@@ -511,21 +558,27 @@ fn initialize_window<B: DisplayBackend>(
 
     #[cfg(feature = "x11")]
     if B::IS_X11 {
-        if let Some(geometry) = window_def.geometry {
+        if let Some(geometry) = window_init.geometry {
             let _ = apply_window_position(geometry, monitor_geometry, &window);
-            if window_def.backend_options.x11.window_type != yuck::config::backend_window_options::X11WindowType::Normal {
+            if window_init.backend_options.x11.window_type != yuck::config::backend_window_options::X11WindowType::Normal {
                 window.connect_configure_event(move |window, _| {
                     let _ = apply_window_position(geometry, monitor_geometry, window);
                     false
                 });
             }
         }
-        display_backend::set_xprops(&window, monitor_geometry, &window_def)?;
+        display_backend::set_xprops(&window, monitor_geometry, window_init)?;
     }
 
     window.show_all();
 
-    Ok(EwwWindow { name: window_def.name, gtk_window: window, scope_index: window_scope, destroy_event_handler_id: None })
+    Ok(EwwWindow {
+        instance_id: window_init.id.clone(),
+        name: window_init.name.clone(),
+        gtk_window: window,
+        scope_index: window_scope,
+        destroy_event_handler_id: None,
+    })
 }
 
 /// Apply the provided window-positioning rules to the window.
