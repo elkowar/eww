@@ -32,7 +32,7 @@ Thanks for sticking around!
 
 <img src="https://raw.githubusercontent.com/elkowar/dots-of-war/master/eww-bar/.config/eww-bar/showcase.png" height="400" width="auto"/>
 
-* [Vertical Bar by Rxyhn](https://github.com/rxyhn/dotfiles)
+* [Vertical Bar by Rxyhn](https://github.com/rxyhn/bspdots)
 
 <div align="left">
 
