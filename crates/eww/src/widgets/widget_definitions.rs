@@ -10,8 +10,8 @@ use crate::{
 use anyhow::{anyhow, Context, Result};
 use codespan_reporting::diagnostic::Severity;
 use eww_shared_util::Spanned;
-use gdk::NotifyType;
-use gtk::{self, glib, prelude::*};
+use gdk::{ModifierType, NotifyType};
+use gtk::{self, glib, prelude::*, DestDefaults, TargetEntry, TargetList};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 
@@ -603,6 +603,36 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
                 }
                 gtk::Inhibit(false)
             }));
+        },
+        // @prop timeout - timeout of the command
+        // @prop on_dropped - Command to execute when something is dropped on top of this element. The placeholder `{}` used in the command will be replaced with the uri to the dropped thing.
+        prop(timeout: as_duration = Duration::from_millis(200), ondropped: as_string) {
+            gtk_widget.drag_dest_set(
+                DestDefaults::ALL,
+                &[TargetEntry::new("text/uri-list", gtk::TargetFlags::OTHER_APP, 0)],
+                gdk::DragAction::COPY,
+            );
+            connect_single_handler!(gtk_widget, gtk_widget.connect_drag_data_received(move |_, _, _x, _y, selection_data, _target_type, _timestamp| {
+                match selection_data.uris().first() {
+                    Some(uri) => run_command(timeout, &ondropped, format!("{}", uri)),
+                    None => {}
+                }
+            }));
+        },
+
+        // @prop dragvalue - URI that will be provided when dragging from this widget
+        prop(dragvalue: as_string) {
+            let target_entry = TargetEntry::new("text/uri-list", gtk::TargetFlags::OTHER_APP, 0);
+            gtk_widget.drag_source_set(
+                ModifierType::BUTTON1_MASK,
+                &[target_entry.clone()],
+                gdk::DragAction::COPY | gdk::DragAction::MOVE,
+            );
+            gtk_widget.drag_source_set_target_list(Some(&TargetList::new(&[target_entry.clone()])));
+            connect_single_handler!(gtk_widget, gtk_widget.connect_drag_data_get(move |_, _, data, _, _| {
+                data.set_uris(&[&dragvalue]);
+            }));
+
         }
     });
     Ok(gtk_widget)

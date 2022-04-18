@@ -18,6 +18,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add `desktop` window type (By: Alvaro Lopez)
 - Add `scroll` widget (By: viandoxdev)
 - Add `notification` window type
+- Add drag and drop functionality
 
 ### Notable Internal changes
 - Rework state management completely, now making local state and dynamic widget hierarchy changes possible.
