@@ -616,33 +616,44 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
         prop(timeout: as_duration = Duration::from_millis(200), ondropped: as_string) {
             gtk_widget.drag_dest_set(
                 DestDefaults::ALL,
-                &[TargetEntry::new("text/uri-list", gtk::TargetFlags::OTHER_APP, 0)],
+                &[
+                    TargetEntry::new("text/uri-list", gtk::TargetFlags::OTHER_APP | gtk::TargetFlags::OTHER_WIDGET, 0),
+                    TargetEntry::new("text/plain", gtk::TargetFlags::OTHER_APP | gtk::TargetFlags::OTHER_WIDGET, 0)
+                ],
                 gdk::DragAction::COPY,
             );
             connect_single_handler!(gtk_widget, gtk_widget.connect_drag_data_received(move |_, _, _x, _y, selection_data, _target_type, _timestamp| {
-                match selection_data.uris().first() {
-                    Some(uri) => run_command(timeout, &ondropped, format!("{}", uri)),
-                    None => {}
+                if let Some(data) = selection_data.uris().first().cloned().or_else(|| selection_data.text()) {
+                    // TODO provide the target type to the command somehow
+                    run_command(timeout, &ondropped, format!("{}", data));
                 }
             }));
         },
 
         // @prop dragvalue - URI that will be provided when dragging from this widget
-        prop(dragvalue: as_string) {
+        // @prop dragtype - Type of value that should be dragged from this widget. Possible values: $dragtype
+        prop(dragvalue: as_string, dragtype: as_string = "file") {
+            let dragtype = parse_dragtype(&dragtype)?;
             if dragvalue.is_empty() {
                 gtk_widget.drag_source_unset();
             } else {
-                let target_entry_list  = &[TargetEntry::new("text/uri-list", gtk::TargetFlags::OTHER_APP, 0)];
+                let target_entry = match dragtype {
+                    DragEntryType::File => TargetEntry::new("text/uri-list", gtk::TargetFlags::OTHER_APP | gtk::TargetFlags::OTHER_WIDGET, 0),
+                    DragEntryType::Text => TargetEntry::new("text/plain", gtk::TargetFlags::OTHER_APP | gtk::TargetFlags::OTHER_WIDGET, 0),
+                };
                 gtk_widget.drag_source_set(
                     ModifierType::BUTTON1_MASK,
-                    target_entry_list,
+                    &[target_entry.clone()],
                     gdk::DragAction::COPY | gdk::DragAction::MOVE,
                 );
-                gtk_widget.drag_source_set_target_list(Some(&TargetList::new(target_entry_list)));
+                gtk_widget.drag_source_set_target_list(Some(&TargetList::new(&[target_entry])));
             }
 
             connect_single_handler!(gtk_widget, if !dragvalue.is_empty(), gtk_widget.connect_drag_data_get(move |_, _, data, _, _| {
-                data.set_uris(&[&dragvalue]);
+                match dragtype {
+                    DragEntryType::File => data.set_uris(&[&dragvalue]),
+                    DragEntryType::Text => data.set_text(&dragvalue),
+                };
             }));
 
         }
@@ -819,6 +830,19 @@ fn parse_orientation(o: &str) -> Result<gtk::Orientation> {
     enum_parse! { "orientation", o,
         "vertical" | "v" => gtk::Orientation::Vertical,
         "horizontal" | "h" => gtk::Orientation::Horizontal,
+    }
+}
+
+enum DragEntryType {
+    File,
+    Text,
+}
+
+/// @var dragtype - "file", "text"
+fn parse_dragtype(o: &str) -> Result<DragEntryType> {
+    enum_parse! { "dragtype", o,
+        "file" => DragEntryType::File,
+        "text" => DragEntryType::Text,
     }
 }
 
