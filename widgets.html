@@ -310,6 +310,9 @@
 <li><strong><code>onhover</code></strong>: <em><code>string</code></em> event to execute when the user hovers over the widget</li>
 <li><strong><code>onhoverlost</code></strong>: <em><code>string</code></em> event to execute when the user losts hovers over the widget</li>
 <li><strong><code>cursor</code></strong>: <em><code>string</code></em> Cursor to show while hovering (see <a href="https://docs.gtk.org/gdk3/ctor.Cursor.new_from_name.html">gtk3-cursors</a> for possible names)</li>
+<li><strong><code>on_dropped</code></strong>: <em><code>timeout</code></em> Command to execute when something is dropped on top of this element. The placeholder <code>{}</code> used in the command will be replaced with the uri to the dropped thing.</li>
+<li><strong><code>dragvalue</code></strong>: <em><code>string</code></em> URI that will be provided when dragging from this widget</li>
+<li><strong><code>dragtype</code></strong>: <em><code>string</code></em> Type of value that should be dragged from this widget. Possible values: &quot;file&quot;, &quot;text&quot;</li>
 </ul>
 <h2 id="label"><a class="header" href="#label"><code>label</code></a></h2>
 <p>A text widget giving you more control over how the text is displayed</p>
@@ -339,7 +342,7 @@
 <li><strong><code>show-heading</code></strong>: <em><code>bool</code></em> show heading line</li>
 <li><strong><code>show-day-names</code></strong>: <em><code>bool</code></em> show names of days</li>
 <li><strong><code>show-week-numbers</code></strong>: <em><code>bool</code></em> show week numbers</li>
-<li><strong><code>onclick</code></strong>: <em><code>string</code></em> command to run when the user selects a date. The <code>{}</code> placeholder will be replaced by the selected date.</li>
+<li><strong><code>onclick</code></strong>: <em><code>string</code></em> command to run when the user selects a date. The <code>{0}</code> placeholder will be replaced by the selected day, <code>{1}</code> will be replaced by the month, and <code>{2}</code> by the year.</li>
 <li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command</li>
 </ul>
 <h2 id="circular-progress"><a class="header" href="#circular-progress"><code>circular-progress</code></a></h2>
