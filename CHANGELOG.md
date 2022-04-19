@@ -5,6 +5,14 @@ All notable changes to eww will be listed here, starting at changes since versio
 
 ## [Unreleased]
 
+### BREAKING CHANGES
+- Change the onclick command API to support multiple placeholders.
+  This changes. the behaviour of the calendar widget's onclick as well as the onhover and onhoverlost
+  events. Instead of providing the entire date (or, respecively, the x and y mouse coordinates) in
+  a single value (`day.month.year`, `x y`), the values are now provided as separate placeholders.
+  The day can now be accessed with `{0}`, the month with `{1}`, and the year with `{2}`, and
+  similarly x and y are accessed with `{0}` and `{1}`.
+
 ### Features
 - Add `eww inspector` command
 - Add `--no-daemonize` flag
@@ -18,7 +26,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add `desktop` window type (By: Alvaro Lopez)
 - Add `scroll` widget (By: viandoxdev)
 - Add `notification` window type
-- Add drag and drop functionality
+- Add drag and drop functionality to eventbox
 
 ### Notable Internal changes
 - Rework state management completely, now making local state and dynamic widget hierarchy changes possible.
