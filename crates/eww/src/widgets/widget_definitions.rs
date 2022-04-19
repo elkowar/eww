@@ -731,7 +731,7 @@ fn build_circular_progress_bar(bargs: &mut BuilderArgs) -> Result<CircProg> {
     def_widget!(bargs, _g, w, {
         // @prop value - the value, between 0 - 100
         prop(value: as_f64) { w.set_property("value", value)?; },
-        // @prop start-angle - the angle that the circle should start at
+        // @prop start-at - the angle that the circle should start at
         prop(start_at: as_f64) { w.set_property("start-at", start_at)?; },
         // @prop thickness - the thickness of the circle
         prop(thickness: as_f64) { w.set_property("thickness", thickness)?; },
