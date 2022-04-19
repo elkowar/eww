@@ -10,8 +10,8 @@ use crate::{
 use anyhow::{anyhow, Context, Result};
 use codespan_reporting::diagnostic::Severity;
 use eww_shared_util::Spanned;
-use gdk::NotifyType;
-use gtk::{self, glib, prelude::*};
+use gdk::{ModifierType, NotifyType};
+use gtk::{self, glib, prelude::*, DestDefaults, TargetEntry, TargetList};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 
@@ -32,12 +32,19 @@ use yuck::{
 /// Connect a gtk signal handler inside of this macro to ensure that when the same code gets run multiple times,
 /// the previously connected singal handler first gets disconnected.
 macro_rules! connect_single_handler {
-    ($widget:ident, $connect_expr:expr) => {{
+    ($widget:ident, if $cond:expr, $connect_expr:expr) => {{
         static ID: Lazy<std::sync::Mutex<Option<gtk::glib::SignalHandlerId>>> = Lazy::new(|| std::sync::Mutex::new(None));
-        let old = ID.lock().unwrap().replace($connect_expr);
+        let old = if $cond {
+            ID.lock().unwrap().replace($connect_expr)
+        } else {
+            ID.lock().unwrap().take()
+        };
         if let Some(old) = old {
             $widget.disconnect(old);
         }
+    }};
+    ($widget:ident, $connect_expr:expr) => {{
+        connect_single_handler!($widget, if true, $connect_expr)
     }};
 }
 
@@ -200,7 +207,7 @@ pub(super) fn resolve_range_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Ran
             gtk_widget.set_sensitive(true);
             gtk_widget.add_events(gdk::EventMask::PROPERTY_CHANGE_MASK);
             connect_single_handler!(gtk_widget, gtk_widget.connect_value_changed(move |gtk_widget| {
-                run_command(timeout, &onchange, gtk_widget.value());
+                run_command(timeout, &onchange, &[gtk_widget.value()]);
             }));
         }
     });
@@ -234,7 +241,7 @@ fn build_gtk_combo_box_text(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText
         // @prop onchange - runs the code when a item was selected, replacing {} with the item as a string
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_string) {
             connect_single_handler!(gtk_widget, gtk_widget.connect_changed(move |gtk_widget| {
-                run_command(timeout, &onchange, gtk_widget.active_text().unwrap_or_else(|| "".into()));
+                run_command(timeout, &onchange, &[gtk_widget.active_text().unwrap_or_else(|| "".into())]);
             }));
         },
     });
@@ -278,7 +285,7 @@ fn build_gtk_checkbox(bargs: &mut BuilderArgs) -> Result<gtk::CheckButton> {
         // @prop onunchecked - similar to onchecked but when the widget is unchecked
         prop(timeout: as_duration = Duration::from_millis(200), onchecked: as_string = "", onunchecked: as_string = "") {
             connect_single_handler!(gtk_widget, gtk_widget.connect_toggled(move |gtk_widget| {
-                run_command(timeout, if gtk_widget.is_active() { &onchecked } else { &onunchecked }, "");
+                run_command(timeout, if gtk_widget.is_active() { &onchecked } else { &onunchecked }, &[""]);
             }));
        }
     });
@@ -298,7 +305,7 @@ fn build_gtk_color_button(bargs: &mut BuilderArgs) -> Result<gtk::ColorButton> {
         // @prop timeout - timeout of the command
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_string) {
             connect_single_handler!(gtk_widget, gtk_widget.connect_color_set(move |gtk_widget| {
-                run_command(timeout, &onchange, gtk_widget.rgba());
+                run_command(timeout, &onchange, &[gtk_widget.rgba()]);
             }));
         }
     });
@@ -318,7 +325,7 @@ fn build_gtk_color_chooser(bargs: &mut BuilderArgs) -> Result<gtk::ColorChooserW
         // @prop timeout - timeout of the command
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_string) {
             connect_single_handler!(gtk_widget, gtk_widget.connect_color_activated(move |_a, color| {
-                run_command(timeout, &onchange, *color);
+                run_command(timeout, &onchange, &[*color]);
             }));
         }
     });
@@ -380,7 +387,7 @@ fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
         // @prop timeout - timeout of the command
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_string) {
             connect_single_handler!(gtk_widget, gtk_widget.connect_changed(move |gtk_widget| {
-                run_command(timeout, &onchange, gtk_widget.text().to_string());
+                run_command(timeout, &onchange, &[gtk_widget.text().to_string()]);
             }));
         }
     });
@@ -406,9 +413,9 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
             gtk_widget.add_events(gdk::EventMask::BUTTON_PRESS_MASK);
             connect_single_handler!(gtk_widget, gtk_widget.connect_button_press_event(move |_, evt| {
                 match evt.button() {
-                    1 => run_command(timeout, &onclick, ""),
-                    2 => run_command(timeout, &onmiddleclick, ""),
-                    3 => run_command(timeout, &onrightclick, ""),
+                    1 => run_command(timeout, &onclick, &[""]),
+                    2 => run_command(timeout, &onmiddleclick, &[""]),
+                    3 => run_command(timeout, &onrightclick, &[""]),
                     _ => {},
                 }
                 gtk::Inhibit(false)
@@ -552,7 +559,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
             connect_single_handler!(gtk_widget, gtk_widget.connect_scroll_event(move |_, evt| {
                 let delta = evt.delta().1;
                 if delta != 0f64 { // Ignore the first event https://bugzilla.gnome.org/show_bug.cgi?id=675959
-                    run_command(timeout, &onscroll, if delta < 0f64 { "up" } else { "down" });
+                    run_command(timeout, &onscroll, &[if delta < 0f64 { "up" } else { "down" }]);
                 }
                 gtk::Inhibit(false)
             }));
@@ -563,7 +570,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
             gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
             connect_single_handler!(gtk_widget, gtk_widget.connect_enter_notify_event(move |_, evt| {
                 if evt.detail() != NotifyType::Inferior {
-                    run_command(timeout, &onhover, format!("{} {}", evt.position().0, evt.position().1));
+                    run_command(timeout, &onhover, &[evt.position().0, evt.position().1]);
                 }
                 gtk::Inhibit(false)
             }));
@@ -574,7 +581,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
             gtk_widget.add_events(gdk::EventMask::LEAVE_NOTIFY_MASK);
             connect_single_handler!(gtk_widget, gtk_widget.connect_leave_notify_event(move |_, evt| {
                 if evt.detail() != NotifyType::Inferior {
-                    run_command(timeout, &onhoverlost, format!("{} {}", evt.position().0, evt.position().1));
+                    run_command(timeout, &onhoverlost, &[evt.position().0, evt.position().1]);
                 }
                 gtk::Inhibit(false)
             }));
@@ -603,6 +610,53 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
                 }
                 gtk::Inhibit(false)
             }));
+        },
+        // @prop timeout - timeout of the command
+        // @prop on_dropped - Command to execute when something is dropped on top of this element. The placeholder `{}` used in the command will be replaced with the uri to the dropped thing.
+        prop(timeout: as_duration = Duration::from_millis(200), ondropped: as_string) {
+            gtk_widget.drag_dest_set(
+                DestDefaults::ALL,
+                &[
+                    TargetEntry::new("text/uri-list", gtk::TargetFlags::OTHER_APP | gtk::TargetFlags::OTHER_WIDGET, 0),
+                    TargetEntry::new("text/plain", gtk::TargetFlags::OTHER_APP | gtk::TargetFlags::OTHER_WIDGET, 0)
+                ],
+                gdk::DragAction::COPY,
+            );
+            connect_single_handler!(gtk_widget, gtk_widget.connect_drag_data_received(move |_, _, _x, _y, selection_data, _target_type, _timestamp| {
+                if let Some(data) = selection_data.uris().first(){
+                    run_command(timeout, &ondropped, &[data.to_string(), "file".to_string()]);
+                } else if let Some(data) = selection_data.text(){
+                    run_command(timeout, &ondropped, &[data.to_string(), "text".to_string()]);
+                }
+            }));
+        },
+
+        // @prop dragvalue - URI that will be provided when dragging from this widget
+        // @prop dragtype - Type of value that should be dragged from this widget. Possible values: $dragtype
+        prop(dragvalue: as_string, dragtype: as_string = "file") {
+            let dragtype = parse_dragtype(&dragtype)?;
+            if dragvalue.is_empty() {
+                gtk_widget.drag_source_unset();
+            } else {
+                let target_entry = match dragtype {
+                    DragEntryType::File => TargetEntry::new("text/uri-list", gtk::TargetFlags::OTHER_APP | gtk::TargetFlags::OTHER_WIDGET, 0),
+                    DragEntryType::Text => TargetEntry::new("text/plain", gtk::TargetFlags::OTHER_APP | gtk::TargetFlags::OTHER_WIDGET, 0),
+                };
+                gtk_widget.drag_source_set(
+                    ModifierType::BUTTON1_MASK,
+                    &[target_entry.clone()],
+                    gdk::DragAction::COPY | gdk::DragAction::MOVE,
+                );
+                gtk_widget.drag_source_set_target_list(Some(&TargetList::new(&[target_entry])));
+            }
+
+            connect_single_handler!(gtk_widget, if !dragvalue.is_empty(), gtk_widget.connect_drag_data_get(move |_, _, data, _, _| {
+                match dragtype {
+                    DragEntryType::File => data.set_uris(&[&dragvalue]),
+                    DragEntryType::Text => data.set_text(&dragvalue),
+                };
+            }));
+
         }
     });
     Ok(gtk_widget)
@@ -707,14 +761,15 @@ fn build_gtk_calendar(bargs: &mut BuilderArgs) -> Result<gtk::Calendar> {
         prop(show_day_names: as_bool) { gtk_widget.set_show_day_names(show_day_names) },
         // @prop show-week-numbers - show week numbers
         prop(show_week_numbers: as_bool) { gtk_widget.set_show_week_numbers(show_week_numbers) },
-        // @prop onclick - command to run when the user selects a date. The `{}` placeholder will be replaced by the selected date.
+        // @prop onclick - command to run when the user selects a date. The `{0}` placeholder will be replaced by the selected day, `{1}` will be replaced by the month, and `{2}` by the year.
         // @prop timeout - timeout of the command
         prop(timeout: as_duration = Duration::from_millis(200), onclick: as_string) {
             connect_single_handler!(gtk_widget, gtk_widget.connect_day_selected(move |w| {
+                log::warn!("BREAKING CHANGE: The date is now provided via three values, set by the placeholders {{0}}, {{1}} and {{2}}. If you're currently using the onclick date, you will need to change this.");
                 run_command(
                     timeout,
                     &onclick,
-                    format!("{}.{}.{}", w.day(), w.month(), w.year())
+                    &[w.day(), w.month(), w.year()]
                 )
             }));
         }
@@ -777,6 +832,19 @@ fn parse_orientation(o: &str) -> Result<gtk::Orientation> {
     enum_parse! { "orientation", o,
         "vertical" | "v" => gtk::Orientation::Vertical,
         "horizontal" | "h" => gtk::Orientation::Horizontal,
+    }
+}
+
+enum DragEntryType {
+    File,
+    Text,
+}
+
+/// @var dragtype - "file", "text"
+fn parse_dragtype(o: &str) -> Result<DragEntryType> {
+    enum_parse! { "dragtype", o,
+        "file" => DragEntryType::File,
+        "text" => DragEntryType::Text,
     }
 }
 

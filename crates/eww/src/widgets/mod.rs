@@ -6,15 +6,26 @@ pub mod def_widget_macro;
 pub mod graph;
 pub mod widget_definitions;
 
-const CMD_STRING_PLACEHODLER: &str = "{}";
-
-/// Run a command that was provided as an attribute. This command may use a
-/// placeholder ('{}') which will be replaced by the value provided as `arg`
-pub(self) fn run_command<T: 'static + std::fmt::Display + Send + Sync>(timeout: std::time::Duration, cmd: &str, arg: T) {
+/// Run a command that was provided as an attribute.
+/// This command may use placeholders which will be replaced by the values of the arguments given.
+/// This can either be the placeholder `{}`, which will be replaced by the first argument,
+/// Or a placeholder like `{0}`, `{1}`, etc, which will refer to the respective argument.
+pub(self) fn run_command<T>(timeout: std::time::Duration, cmd: &str, args: &[T])
+where
+    T: 'static + std::fmt::Display + Send + Sync + Clone,
+{
     use wait_timeout::ChildExt;
+    let args = args.to_vec();
     let cmd = cmd.to_string();
     std::thread::spawn(move || {
-        let cmd = cmd.replace(CMD_STRING_PLACEHODLER, &format!("{}", arg));
+        let cmd = if !args.is_empty() {
+            args.iter()
+                .enumerate()
+                .fold(cmd.to_string(), |acc, (i, arg)| acc.replace(&format!("{{{}}}", i), &format!("{}", arg)))
+                .replace("{{}}", &format!("{}", args[0]))
+        } else {
+            cmd
+        };
         log::debug!("Running command from widget: {}", cmd);
         let child = Command::new("/bin/sh").arg("-c").arg(&cmd).spawn();
         match child {
