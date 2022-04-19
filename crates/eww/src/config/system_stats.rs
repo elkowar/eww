@@ -149,9 +149,11 @@ pub fn get_battery_capacity() -> Result<String> {
             }
         }
     }
-    json.pop();
-    json.push_str(&format!(r#", "total_avg": {:.1}}}"#, (current / total) * 100_f64));
+    if total == 0_f64 {
+        return Ok(String::from(""));
+    }
 
+    json.push_str(&format!(r#" "total_avg": {:.1}}}"#, (current / total) * 100_f64));
     Ok(json)
 }
 
