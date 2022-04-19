@@ -5,7 +5,10 @@ use crate::{
     dynval::{ConversionError, DynVal},
 };
 use eww_shared_util::{Span, Spanned, VarName};
-use std::{collections::HashMap, convert::TryFrom};
+use std::{
+    collections::HashMap,
+    convert::{TryFrom, TryInto},
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum EvalError {
@@ -276,6 +279,46 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
             }
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
+        "search" => match args.as_slice() {
+            [string, pattern] => {
+                use serde_json::Value;
+                let string = string.as_string()?;
+                let pattern = regex::Regex::new(&pattern.as_string()?)?;
+                Ok(Value::Array(pattern.find_iter(&string).map(|x| Value::String(x.as_str().to_string())).collect())
+                    .try_into()?)
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
+        "captures" => match args.as_slice() {
+            [string, pattern] => {
+                use serde_json::Value;
+                let string = string.as_string()?;
+                let pattern = regex::Regex::new(&pattern.as_string()?)?;
+                Ok(Value::Array(
+                    pattern
+                        .captures_iter(&string)
+                        .map(|captures| {
+                            Value::Array(captures.iter().flatten().map(|x| Value::String(x.as_str().to_string())).collect())
+                        })
+                        .collect(),
+                )
+                .try_into()?)
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
+        "strlength" => match args.as_slice() {
+            [string] => Ok(DynVal::from(string.as_string()?.len() as i32)),
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
+        "arraylength" => match args.as_slice() {
+            [json] => Ok(DynVal::from(json.as_json_array()?.len() as i32)),
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
+        "objectlength" => match args.as_slice() {
+            [json] => Ok(DynVal::from(json.as_json_object()?.len() as i32)),
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
+
         _ => Err(EvalError::UnknownFunction(name.to_string())),
     }
 }

@@ -32,4 +32,8 @@ Supported currently are the following features:
 - some function calls:
     - `round(number, decimal_digits)`: Round a number to the given amount of decimals
     - `replace(string, regex, replacement)`: Replace matches of a given regex in a string
+	- `search(string, regex)`: Search for a given regex in a string (returns array)
+	- `captures(string, regex)`: Get the captures of a given regex in a string (returns array)
+	- `hex_decode(string)`: Hex decodes the string
+	- `length(value)`: Gets the length of the value, as string length, json array length, or json object length
 

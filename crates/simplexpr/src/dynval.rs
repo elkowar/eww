@@ -14,7 +14,7 @@ pub struct ConversionError {
 }
 
 impl ConversionError {
-    fn new(value: DynVal, target_type: &'static str, source: impl std::error::Error + 'static + Sync + Send) -> Self {
+    pub fn new(value: DynVal, target_type: &'static str, source: impl std::error::Error + 'static + Sync + Send) -> Self {
         ConversionError { value, target_type, source: Some(Box::new(source)) }
     }
 }
@@ -213,6 +213,22 @@ impl DynVal {
     pub fn as_json_value(&self) -> Result<serde_json::Value> {
         serde_json::from_str::<serde_json::Value>(&self.0)
             .map_err(|e| ConversionError::new(self.clone(), "json-value", Box::new(e)))
+    }
+
+    pub fn as_json_array(&self) -> Result<Vec<serde_json::Value>> {
+        serde_json::from_str::<serde_json::Value>(&self.0)
+            .map_err(|e| ConversionError::new(self.clone(), "json-value", Box::new(e)))?
+            .as_array()
+            .cloned()
+            .ok_or_else(|| ConversionError { value: self.clone(), target_type: "json-array", source: None })
+    }
+
+    pub fn as_json_object(&self) -> Result<serde_json::Map<String, serde_json::Value>> {
+        serde_json::from_str::<serde_json::Value>(&self.0)
+            .map_err(|e| ConversionError::new(self.clone(), "json-value", Box::new(e)))?
+            .as_object()
+            .cloned()
+            .ok_or_else(|| ConversionError { value: self.clone(), target_type: "json-object", source: None })
     }
 }
 
