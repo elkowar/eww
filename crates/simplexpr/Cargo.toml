@@ -22,6 +22,8 @@ strum = { version = "0.21", features = ["derive"] }
 
 eww_shared_util = { path = "../eww_shared_util" }
 
+hex = "0.4"
+
 
 [build-dependencies]
 lalrpop = "0.19.5"

@@ -34,4 +34,5 @@ Supported currently are the following features:
     - `replace(string, regex, replacement)`: Replace matches of a given regex in a string
 	- `search(string, regex)`: Search for a given regex in a string (returns json)
 	- `captures(string, regex)`: Get the captures of a given regex in a string (returns json)
+	- `hex_decode(string)`: Hex decodes the string
 

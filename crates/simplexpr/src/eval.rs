@@ -5,6 +5,7 @@ use crate::{
     dynval::{ConversionError, DynVal},
 };
 use eww_shared_util::{Span, Spanned, VarName};
+use hex;
 use std::{collections::HashMap, convert::TryFrom};
 
 #[derive(Debug, thiserror::Error)]
@@ -26,6 +27,9 @@ pub enum EvalError {
 
     #[error("Unknown function {0}")]
     UnknownFunction(String),
+
+    #[error("Cannot hex decode {0}")]
+    CannotHexDecode(String),
 
     #[error("Unable to index into value {0}")]
     CannotIndex(String),
@@ -328,6 +332,16 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
                 retval.push_str("}");
                 Ok(DynVal::from(retval))
             }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
+        "hex_decode" => match args.as_slice() {
+            [hexstring] => match hex::decode(hexstring.to_string()) {
+                Ok(hexdec) => match std::str::from_utf8(&hexdec) {
+                    Ok(s) => Ok(DynVal::from(s)),
+                    Err(_) => Err(EvalError::CannotHexDecode(hexstring.to_string())),
+                },
+                Err(_) => Err(EvalError::CannotHexDecode(hexstring.to_string())),
+            },
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
         _ => Err(EvalError::UnknownFunction(name.to_string())),
