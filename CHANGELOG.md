@@ -29,6 +29,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add drag and drop functionality to eventbox
 - Add `search`, `captures`, `stringlength`, `arraylength` and `objectlength` functions for expressions (By: MartinJM, ElKowar)
 - Add `matches` function
+- Add transform widget (By: druskus20)
 
 ### Notable Internal changes
 - Rework state management completely, now making local state and dynamic widget hierarchy changes possible.
