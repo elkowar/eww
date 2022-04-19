@@ -69,8 +69,8 @@ mod platform {
             gtk_layer_shell::set_anchor(&window, gtk_layer_shell::Edge::Top, top);
             gtk_layer_shell::set_anchor(&window, gtk_layer_shell::Edge::Bottom, bottom);
 
-            let xoffset = geometry.offset.x.relative_to(monitor.width);
-            let yoffset = geometry.offset.y.relative_to(monitor.height);
+            let xoffset = geometry.offset.x.pixels_relative_to(monitor.width);
+            let yoffset = geometry.offset.y.pixels_relative_to(monitor.height);
 
             if left {
                 gtk_layer_shell::set_margin(&window, gtk_layer_shell::Edge::Left, xoffset);
@@ -161,8 +161,8 @@ mod platform {
             let mon_end_y = (monitor_rect.y + monitor_rect.height) as u32 - 1u32;
 
             let dist = match strut_def.side {
-                Side::Left | Side::Right => strut_def.dist.relative_to(monitor_rect.width) as u32,
-                Side::Top | Side::Bottom => strut_def.dist.relative_to(monitor_rect.height) as u32,
+                Side::Left | Side::Right => strut_def.dist.pixels_relative_to(monitor_rect.width) as u32,
+                Side::Top | Side::Bottom => strut_def.dist.pixels_relative_to(monitor_rect.height) as u32,
             };
 
             // don't question it,.....
