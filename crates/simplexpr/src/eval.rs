@@ -270,6 +270,14 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
             }
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
+        "matches" => match args.as_slice() {
+            [string, pattern] => {
+                let string = string.as_string()?;
+                let pattern = regex::Regex::new(&pattern.as_string()?)?;
+                Ok(DynVal::from(pattern.is_match(&string)))
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
         "replace" => match args.as_slice() {
             [string, pattern, replacement] => {
                 let string = string.as_string()?;
