@@ -35,4 +35,5 @@ Supported currently are the following features:
 	- `search(string, regex)`: Search for a given regex in a string (returns json)
 	- `captures(string, regex)`: Get the captures of a given regex in a string (returns json)
 	- `hex_decode(string)`: Hex decodes the string
+	- `length(value)`: Gets the length of the value, as string length, json array length, or json object length
 
