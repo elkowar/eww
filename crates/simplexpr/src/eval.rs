@@ -5,8 +5,10 @@ use crate::{
     dynval::{ConversionError, DynVal},
 };
 use eww_shared_util::{Span, Spanned, VarName};
-use hex;
-use std::{collections::HashMap, convert::TryFrom};
+use std::{
+    collections::HashMap,
+    convert::{TryFrom, TryInto},
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum EvalError {
@@ -27,9 +29,6 @@ pub enum EvalError {
 
     #[error("Unknown function {0}")]
     UnknownFunction(String),
-
-    #[error("Cannot hex decode {0}")]
-    CannotHexDecode(String),
 
     #[error("Unable to index into value {0}")]
     CannotIndex(String),
@@ -282,66 +281,29 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
         },
         "search" => match args.as_slice() {
             [string, pattern] => {
+                use serde_json::Value;
                 let string = string.as_string()?;
                 let pattern = regex::Regex::new(&pattern.as_string()?)?;
-                let mut retval = String::new();
-                retval.push_str("[");
-                let mut find_present = false;
-                pattern.find_iter(&string).for_each(|x| {
-                    find_present = true;
-                    retval.push_str(&format!("\"{}\", ", x.as_str()));
-                });
-                if find_present {
-                    retval.pop();
-                    retval.pop();
-                }
-                retval.push_str("]");
-                Ok(DynVal::from(retval))
+                Ok(Value::Array(pattern.find_iter(&string).map(|x| Value::String(x.as_str().to_string())).collect())
+                    .try_into()?)
             }
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
         "captures" => match args.as_slice() {
             [string, pattern] => {
+                use serde_json::Value;
                 let string = string.as_string()?;
                 let pattern = regex::Regex::new(&pattern.as_string()?)?;
-                let mut retval = String::new();
-                retval.push_str("[");
-                let mut capture_present = false;
-                let mut inner_capture_present = false;
-                pattern.captures_iter(&string).for_each(|x| {
-                    capture_present = true;
-                    inner_capture_present = false;
-                    retval.push_str("[");
-                    x.iter().for_each(|y| match y {
-                        Some(m) => {
-                            inner_capture_present = true;
-                            retval.push_str(&format!("\"{}\", ", m.as_str()));
-                        }
-                        None => {}
-                    });
-                    if inner_capture_present {
-                        retval.pop();
-                        retval.pop();
-                    }
-                    retval.push_str("], ");
-                });
-                if capture_present {
-                    retval.pop();
-                    retval.pop();
-                }
-                retval.push_str("]");
-                Ok(DynVal::from(retval))
+                Ok(Value::Array(
+                    pattern
+                        .captures_iter(&string)
+                        .map(|captures| {
+                            Value::Array(captures.iter().flatten().map(|x| Value::String(x.as_str().to_string())).collect())
+                        })
+                        .collect(),
+                )
+                .try_into()?)
             }
-            _ => Err(EvalError::WrongArgCount(name.to_string())),
-        },
-        "hex_decode" => match args.as_slice() {
-            [hexstring] => match hex::decode(hexstring.to_string()) {
-                Ok(hexdec) => match std::str::from_utf8(&hexdec) {
-                    Ok(s) => Ok(DynVal::from(s)),
-                    Err(_) => Err(EvalError::CannotHexDecode(hexstring.to_string())),
-                },
-                Err(_) => Err(EvalError::CannotHexDecode(hexstring.to_string())),
-            },
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
         "length" => match args.as_slice() {

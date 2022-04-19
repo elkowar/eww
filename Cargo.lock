@@ -1048,12 +1048,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hex"
-version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
-
-[[package]]
 name = "humantime"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1924,7 +1918,6 @@ name = "simplexpr"
 version = "0.1.0"
 dependencies = [
  "eww_shared_util",
- "hex",
  "insta",
  "itertools 0.10.1",
  "lalrpop",
