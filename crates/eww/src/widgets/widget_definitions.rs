@@ -32,12 +32,19 @@ use yuck::{
 /// Connect a gtk signal handler inside of this macro to ensure that when the same code gets run multiple times,
 /// the previously connected singal handler first gets disconnected.
 macro_rules! connect_single_handler {
-    ($widget:ident, $connect_expr:expr) => {{
+    ($widget:ident, if $cond:expr, $connect_expr:expr) => {{
         static ID: Lazy<std::sync::Mutex<Option<gtk::glib::SignalHandlerId>>> = Lazy::new(|| std::sync::Mutex::new(None));
-        let old = ID.lock().unwrap().replace($connect_expr);
+        let old = if $cond {
+            ID.lock().unwrap().replace($connect_expr)
+        } else {
+            ID.lock().unwrap().take()
+        };
         if let Some(old) = old {
             $widget.disconnect(old);
         }
+    }};
+    ($widget:ident, $connect_expr:expr) => {{
+        connect_single_handler!($widget, if true, $connect_expr)
     }};
 }
 
@@ -622,14 +629,19 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
 
         // @prop dragvalue - URI that will be provided when dragging from this widget
         prop(dragvalue: as_string) {
-            let target_entry = TargetEntry::new("text/uri-list", gtk::TargetFlags::OTHER_APP, 0);
-            gtk_widget.drag_source_set(
-                ModifierType::BUTTON1_MASK,
-                &[target_entry.clone()],
-                gdk::DragAction::COPY | gdk::DragAction::MOVE,
-            );
-            gtk_widget.drag_source_set_target_list(Some(&TargetList::new(&[target_entry.clone()])));
-            connect_single_handler!(gtk_widget, gtk_widget.connect_drag_data_get(move |_, _, data, _, _| {
+            if dragvalue.is_empty() {
+                gtk_widget.drag_source_unset();
+            } else {
+                let target_entry_list  = &[TargetEntry::new("text/uri-list", gtk::TargetFlags::OTHER_APP, 0)];
+                gtk_widget.drag_source_set(
+                    ModifierType::BUTTON1_MASK,
+                    target_entry_list,
+                    gdk::DragAction::COPY | gdk::DragAction::MOVE,
+                );
+                gtk_widget.drag_source_set_target_list(Some(&TargetList::new(target_entry_list)));
+            }
+
+            connect_single_handler!(gtk_widget, if !dragvalue.is_empty(), gtk_widget.connect_drag_data_get(move |_, _, data, _, _| {
                 data.set_uris(&[&dragvalue]);
             }));
 
