@@ -306,16 +306,19 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
             }
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
-        "length" => match args.as_slice() {
-            [string] => match string.as_json_value().as_ref().map(|x| x.as_array()) {
-                Ok(Some(vec)) => Ok(DynVal::from(vec.len() as i32)),
-                _ => match string.as_json_value().as_ref().map(|x| x.as_object()) {
-                    Ok(Some(map)) => Ok(DynVal::from(map.len() as i32)),
-                    _ => Ok(DynVal::from(string.as_string()?.len() as i32)),
-                },
-            },
+        "strlength" => match args.as_slice() {
+            [string] => Ok(DynVal::from(string.as_string()?.len() as i32)),
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
+        "arraylength" => match args.as_slice() {
+            [json] => Ok(DynVal::from(json.as_json_array()?.len() as i32)),
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
+        "objectlength" => match args.as_slice() {
+            [json] => Ok(DynVal::from(json.as_json_object()?.len() as i32)),
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
+
         _ => Err(EvalError::UnknownFunction(name.to_string())),
     }
 }
