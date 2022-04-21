@@ -44,7 +44,7 @@ Thanks for sticking around!
 ![Axarva-rice](https://raw.githubusercontent.com/Axarva/dotfiles-2.0/main/screenshots/center.png)
 
 * [Setup by adi1090x](https://github.com/adi1090x/widgets)
-![Nordic](https://raw.githubusercontent.com/adi1090x/widgets/main/previews/nordic.png)
+![Nordic](https://raw.githubusercontent.com/adi1090x/widgets/main/previews/dashboard.png)
 
 * [i3 Bar replacement by owenrumney](https://github.com/owenrumney/eww-bar)
 ![Top bar](https://raw.githubusercontent.com/owenrumney/eww-bar/master/.github/topbar.gif)
