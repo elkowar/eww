@@ -339,12 +339,24 @@ or if you want to change the widget structure in some other, more complex way.</
 <pre><code class="language-lisp">(defvar variable_containing_yuck
   &quot;(box (button 'foo') (button 'bar'))&quot;)
 
-; then, inside your widget, use:
+; Then, inside your widget, use:
 (literal :content variable_containing_yuck)
 </code></pre>
 <p>Here, you specify the content of your literal by providing it a string (most likely stored in a variable) which contains a single yuck widget tree.
 Eww then reads the provided value and renders the resulting widget. Whenever it changes, the widget will be rerendered.</p>
 <p>Note that this is not all that efficient. Make sure to only use <code>literal</code> when necessary!</p>
+<h2 id="generating-a-list-of-widgets-from-json-using-for"><a class="header" href="#generating-a-list-of-widgets-from-json-using-for">Generating a list of widgets from JSON using <code>for</code></a></h2>
+<p>If you want to display a list of values, you can use the <code>for</code>-Element to fill a container with a list of elements generated from a JSON-array.</p>
+<pre><code class="language-lisp">(defvar my-json &quot;[1, 2, 3]&quot;)
+
+; Then, inside your widget, you can use
+(box
+  (for entry in my-json
+    (button :onclick &quot;notify-send 'click' 'button ${entry}'&quot;
+      entry)))
+</code></pre>
+<p>This can be useful in many situations, for example when generating a workspace list from a JSON representation of your workspaces.
+In many cases, this can be used instead of <code>literal</code>, and should most likely be preferred in those cases.</p>
 <h2 id="splitting-up-your-configuration"><a class="header" href="#splitting-up-your-configuration">Splitting up your configuration</a></h2>
 <p>As time passes, your configuration might grow larger and larger. Luckily, you can easily split up your configuration into multiple files!</p>
 <p>There are two options to achieve this:</p>
