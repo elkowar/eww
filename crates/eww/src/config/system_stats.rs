@@ -173,3 +173,14 @@ pub fn net() -> String {
     );
     interfaces
 }
+
+#[cfg(feature = "x11")]
+pub fn get_workspaces() -> Result<String> {
+    dbg!(crate::display_backend::X11Backend::new()?.get_workspace_data()?);
+    Ok(String::new())
+}
+
+#[cfg(not(feature = "x11"))]
+pub fn get_workspaces() -> Result<String> {
+    Ok(String::new())
+}

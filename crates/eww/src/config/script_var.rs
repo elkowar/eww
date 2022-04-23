@@ -5,7 +5,7 @@ use codespan_reporting::diagnostic::Severity;
 use eww_shared_util::{Span, VarName};
 use simplexpr::dynval::DynVal;
 use yuck::{
-    config::script_var_definition::{ScriptVarDefinition, VarSource},
+    config::script_var_definition::{ScriptVarDefinition, PollVarSource},
     gen_diagnostic,
 };
 
@@ -25,10 +25,10 @@ pub fn initial_value(var: &ScriptVarDefinition) -> Result<DynVal> {
         ScriptVarDefinition::Poll(x) => match &x.initial_value {
             Some(value) => Ok(value.clone()),
             None => match &x.command {
-                VarSource::Function(f) => f()
+                PollVarSource::Function(f) => f()
                     .map_err(|err| anyhow!(err))
                     .with_context(|| format!("Failed to compute initial value for {}", &var.name())),
-                VarSource::Shell(span, command) => {
+                PollVarSource::Shell(span, command) => {
                     run_command(command).map_err(|e| anyhow!(create_script_var_failed_warn(*span, var.name(), &e.to_string())))
                 }
             },

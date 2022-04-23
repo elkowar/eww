@@ -87,6 +87,9 @@ pub struct Config {
     pub script_vars: HashMap<VarName, ScriptVarDefinition>,
 }
 
+
+static_assertions::assert_impl_all!(Config: Send, Sync);
+
 impl Config {
     fn append_toplevel(&mut self, files: &mut YuckFiles, toplevel: TopLevel) -> AstResult<()> {
         match toplevel {

@@ -18,7 +18,7 @@ use tokio::{
     sync::mpsc::UnboundedSender,
 };
 use tokio_util::sync::CancellationToken;
-use yuck::config::script_var_definition::{ListenScriptVar, PollScriptVar, ScriptVarDefinition, VarSource};
+use yuck::config::script_var_definition::{ListenScriptVar, PollScriptVar, ScriptVarDefinition, PollVarSource};
 
 /// Initialize the script var handler, and return a handle to that handler, which can be used to control
 /// the script var execution.
@@ -180,10 +180,10 @@ impl PollVarHandler {
 
 fn run_poll_once(var: &PollScriptVar) -> Result<DynVal> {
     match &var.command {
-        VarSource::Shell(span, command) => {
+        PollVarSource::Shell(span, command) => {
             script_var::run_command(command).map_err(|e| anyhow!(create_script_var_failed_warn(*span, &var.name, &e.to_string())))
         }
-        VarSource::Function(x) => x().map_err(|e| anyhow!(e)),
+        PollVarSource::Function(x) => x().map_err(|e| anyhow!(e)),
     }
 }
 
@@ -211,10 +211,10 @@ impl ListenVarHandler {
 
         let evt_send = self.evt_send.clone();
         tokio::spawn(async move {
-            crate::try_logging_errors!(format!("Executing listen var-command {}", &var.command) =>  {
+            crate::try_logging_errors!(format!("Executing listen var-command {}", &var.source) =>  {
                 let mut handle = unsafe {
                     tokio::process::Command::new("sh")
-                    .args(&["-c", &var.command])
+                    .args(&["-c", &var.source])
                     .stdout(std::process::Stdio::piped())
                     .stderr(std::process::Stdio::piped())
                     .stdin(std::process::Stdio::null())

@@ -1,4 +1,8 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    rc::Rc,
+    sync::{Arc, Mutex},
+};
 
 use simplexpr::{dynval::DynVal, SimplExpr};
 
@@ -36,16 +40,19 @@ impl ScriptVarDefinition {
     pub fn command_span(&self) -> Option<Span> {
         match self {
             ScriptVarDefinition::Poll(x) => match x.command {
-                VarSource::Shell(span, ..) => Some(span),
-                VarSource::Function(_) => None,
+                PollVarSource::Shell(span, ..) => Some(span),
+                PollVarSource::Function(_) => None,
             },
-            ScriptVarDefinition::Listen(x) => Some(x.command_span),
+            ScriptVarDefinition::Listen(x) => match x.source {
+                ListenVarSource::Command(span, ..) => Some(span),
+                ListenVarSource::Channel(_) => None,
+            },
         }
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
-pub enum VarSource {
+pub enum PollVarSource {
     // TODO allow for other executors? (python, etc)
     Shell(Span, String),
     #[serde(skip)]
@@ -57,7 +64,7 @@ pub struct PollScriptVar {
     pub name: VarName,
     pub run_while_expr: SimplExpr,
     pub run_while_var_refs: Vec<VarName>,
-    pub command: VarSource,
+    pub command: PollVarSource,
     pub initial_value: Option<DynVal>,
     pub interval: std::time::Duration,
     pub name_span: Span,
@@ -84,7 +91,7 @@ impl FromAstElementContent for PollScriptVar {
                 name: VarName(name),
                 run_while_expr,
                 run_while_var_refs,
-                command: VarSource::Shell(script_span, script.to_string()),
+                command: PollVarSource::Shell(script_span, script.to_string()),
                 initial_value,
                 interval,
             }
@@ -96,9 +103,8 @@ impl FromAstElementContent for PollScriptVar {
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub struct ListenScriptVar {
     pub name: VarName,
-    pub command: String,
+    pub source: ListenVarSource,
     pub initial_value: DynVal,
-    pub command_span: Span,
     pub name_span: Span,
 }
 impl FromAstElementContent for ListenScriptVar {
@@ -111,8 +117,26 @@ impl FromAstElementContent for ListenScriptVar {
             let initial_value = attrs.primitive_optional("initial")?.unwrap_or_else(|| DynVal::from_string(String::new()));
             let (command_span, script) = iter.expect_literal()?;
             iter.expect_done()?;
-            Self { name_span, name: VarName(name), command: script.to_string(), initial_value, command_span }
+            Self {
+                name_span,
+                name: VarName(name),
+                source: ListenVarSource::Command(command_span, script.to_string()),
+                initial_value,
+            }
         };
         result.note(r#"Expected format: `(deflisten name :initial "0" "tail -f /tmp/example")`"#)
     }
 }
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub enum ListenVarSource {
+    Command(Span, String),
+
+    #[serde(skip)]
+    // TODO go crossbeam or tokio here over Arc<Mutex<_>>
+    Channel(Arc<Mutex<std::sync::mpsc::Receiver<DynVal>>>),
+}
+
+pub struct StreamListenVarSource {
+}
+

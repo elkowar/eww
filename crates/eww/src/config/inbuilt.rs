@@ -1,22 +1,22 @@
 use std::{collections::HashMap, time::Duration};
 
 use simplexpr::{dynval::DynVal, SimplExpr};
-use yuck::config::script_var_definition::{PollScriptVar, ScriptVarDefinition, VarSource};
+use yuck::config::script_var_definition::{PollScriptVar, ScriptVarDefinition, PollVarSource};
 
 use crate::config::system_stats::*;
 use eww_shared_util::VarName;
 
 macro_rules! builtin_vars {
-    ($interval:expr, $($name:literal => $fun:expr),*$(,)?) => {{
+    ($($name:literal => $fun:expr),*$(,)?) => {{
         maplit::hashmap! {
             $(
             VarName::from($name) => ScriptVarDefinition::Poll(PollScriptVar {
                 name: VarName::from($name),
                 run_while_expr: SimplExpr::Literal(DynVal::from(true)),
                 run_while_var_refs: Vec::new(),
-                command: VarSource::Function($fun),
+                command: PollVarSource::Function($fun),
                 initial_value: None,
-                interval: $interval,
+                interval: Duration::new(2, 0),
                 name_span: eww_shared_util::span::Span::DUMMY,
             })
             ),*
@@ -24,7 +24,7 @@ macro_rules! builtin_vars {
     }}}
 
 pub fn get_inbuilt_vars() -> HashMap<VarName, ScriptVarDefinition> {
-    builtin_vars! {Duration::new(2, 0),
+    builtin_vars! {
         // @desc EWW_TEMPS - Heat of the components in Celcius
         // @prop { <name>: temperature }
         "EWW_TEMPS" => || Ok(DynVal::from(get_temperatures())),
@@ -56,5 +56,10 @@ pub fn get_inbuilt_vars() -> HashMap<VarName, ScriptVarDefinition> {
         // @desc EWW_NET - Bytes up/down on all interfaces
         // @prop { <name>: { up, down } }
         "EWW_NET" => || Ok(DynVal::from(net())),
+
+
+        "EWW_WORKSPACES" => || {
+            Ok(DynVal::from(get_workspaces()?))
+        },
     }
 }
