@@ -298,6 +298,10 @@ impl ToDiagnostic for FormFormatError {
                         To include multiple elements, wrap these elements in a single container widget such as `box`.\n\
                         This is necessary as eww can't know how you want these elements to be layed out otherwise."
             },
+            FormFormatError::ExpectedInInForLoop(span, got) => gen_diagnostic! {
+                msg = self,
+                label = span,
+            },
         }
     }
 }

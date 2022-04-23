@@ -185,6 +185,7 @@ impl DynVal {
         }
     }
 
+    // TODO this should return Result<Vec<DynVal>> and use json parsing
     pub fn as_vec(&self) -> Result<Vec<String>> {
         if self.0.is_empty() {
             Ok(Vec::new())

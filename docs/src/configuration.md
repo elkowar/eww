@@ -239,7 +239,7 @@ For this, you can make use of one of eww's most powerful features: the `literal`
 (defvar variable_containing_yuck
   "(box (button 'foo') (button 'bar'))")
 
-; then, inside your widget, use:
+; Then, inside your widget, use:
 (literal :content variable_containing_yuck)
 ```
 
@@ -247,6 +247,22 @@ Here, you specify the content of your literal by providing it a string (most lik
 Eww then reads the provided value and renders the resulting widget. Whenever it changes, the widget will be rerendered.
 
 Note that this is not all that efficient. Make sure to only use `literal` when necessary!
+
+## Generating a list of widgets from JSON using `for`
+
+If you want to display a list of values, you can use the `for`-Element to fill a container with a list of elements generated from a JSON-array.
+```lisp
+(defvar my-json "[1, 2, 3]")
+
+; Then, inside your widget, you can use
+(box
+  (for entry in my-json
+    (button :onclick "notify-send 'click' 'button ${entry}'"
+      entry)))
+```
+
+This can be useful in many situations, for example when generating a workspace list from a JSON representation of your workspaces.
+In many cases, this can be used instead of `literal`, and should most likely be preferred in those cases.
 
 ## Splitting up your configuration
 
