@@ -16,17 +16,8 @@ where
     T: 'static + std::fmt::Display + Send + Sync + Clone,
 {
     use wait_timeout::ChildExt;
-    let args = args.to_vec();
-    let cmd = cmd.to_string();
+    let cmd = replace_placeholders(cmd, args);
     std::thread::spawn(move || {
-        let cmd = if !args.is_empty() {
-            args.iter()
-                .enumerate()
-                .fold(cmd.to_string(), |acc, (i, arg)| acc.replace(&format!("{{{}}}", i), &format!("{}", arg)))
-                .replace("{{}}", &format!("{}", args[0]))
-        } else {
-            cmd
-        };
         log::debug!("Running command from widget: {}", cmd);
         let child = Command::new("/bin/sh").arg("-c").arg(&cmd).spawn();
         match child {
@@ -43,4 +34,29 @@ where
             Err(err) => log::error!("Failed to launch child process: {}", err),
         }
     });
+}
+
+fn replace_placeholders<T>(cmd: &str, args: &[T]) -> String
+where
+    T: 'static + std::fmt::Display + Send + Sync + Clone,
+{
+    if !args.is_empty() {
+        let cmd = cmd.replace("{}", &format!("{}", args[0]));
+        args.iter().enumerate().fold(cmd.to_string(), |acc, (i, arg)| acc.replace(&format!("{{{}}}", i), &format!("{}", arg)))
+    } else {
+        cmd.to_string()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_replace_placeholders() {
+        assert_eq!("foo", replace_placeholders("foo", &[""]),);
+        assert_eq!("foo hi", replace_placeholders("foo {}", &["hi"]),);
+        assert_eq!("foo hi", replace_placeholders("foo {}", &["hi", "ho"]),);
+        assert_eq!("bar foo baz", replace_placeholders("{0} foo {1}", &["bar", "baz"]),);
+        assert_eq!("baz foo bar", replace_placeholders("{1} foo {0}", &["bar", "baz"]),);
+    }
 }
