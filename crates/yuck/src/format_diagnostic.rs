@@ -99,7 +99,7 @@ impl ToDiagnostic for AstError {
             AstError::UnknownAction(span, actual) => gen_diagnostic! {
                 msg = format!("Unknown action `{}`", actual),
                 label = span,
-                note = format!("Must be one of: {}", crate::config::action::ACTION_NAMES.iter().join(", ")),
+                note = format!("Must be one of: {}", crate::config::attr_value::ACTION_NAMES.iter().join(", ")),
             },
 
             AstError::ParseError { file_id, source } => lalrpop_error_to_diagnostic(source, *file_id),

@@ -2,7 +2,11 @@ use super::{
     ast::{Ast, AstType},
     ast_iterator::AstIterator,
 };
-use crate::{config::action::AttrValue, error::*, parser};
+use crate::{
+    config::attr_value::{Action, AttrValue},
+    error::*,
+    parser,
+};
 use eww_shared_util::{AttrName, Span, VarName};
 use itertools::Itertools;
 use simplexpr::{ast::SimplExpr, dynval::DynVal};
@@ -57,7 +61,6 @@ impl FromAst for SimplExpr {
     }
 }
 
-use crate::config::action::Action;
 impl FromAst for Action {
     fn from_ast(e: Ast) -> AstResult<Self> {
         let mut iter = e.try_ast_iter()?;
