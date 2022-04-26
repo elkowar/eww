@@ -40,9 +40,9 @@ macro_rules! return_or_put_back {
 
 impl<I: Iterator<Item = Ast>> AstIterator<I> {
     return_or_put_back! {
-        fn expect_symbol    -> AstType::Symbol,    (Span, String)    = Ast::Symbol(span, x)    => (span, x)
-        fn expect_list      -> AstType::List,      (Span, Vec<Ast>)  = Ast::List(span, x)      => (span, x)
-        fn expect_array     -> AstType::Array,     (Span, Vec<Ast>)  = Ast::Array(span, x)     => (span, x)
+        fn expect_symbol -> AstType::Symbol, (Span, String)   = Ast::Symbol(span, x) => (span, x)
+        fn expect_list   -> AstType::List,   (Span, Vec<Ast>) = Ast::List(span, x)   => (span, x)
+        fn expect_array  -> AstType::Array,  (Span, Vec<Ast>) = Ast::Array(span, x)  => (span, x)
     }
 
     pub fn expect_literal(&mut self) -> AstResult<(Span, DynVal)> {

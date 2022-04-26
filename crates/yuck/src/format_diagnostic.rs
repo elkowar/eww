@@ -96,6 +96,11 @@ impl ToDiagnostic for AstError {
                 label = span => "Expected some value here",
                 note = format!("Got: {}", actual),
             },
+            AstError::UnknownAction(span, actual) => gen_diagnostic! {
+                msg = format!("Unknown action `{}`", actual),
+                label = span,
+                note = format!("Must be one of: {}", crate::config::action::ACTION_NAMES.iter().join(", ")),
+            },
 
             AstError::ParseError { file_id, source } => lalrpop_error_to_diagnostic(source, *file_id),
             AstError::MismatchedElementName(span, expected, got) => gen_diagnostic! {

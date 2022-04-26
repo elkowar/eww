@@ -2,7 +2,11 @@ use super::{
     ast::{Ast, AstType},
     ast_iterator::AstIterator,
 };
-use crate::{error::*, parser};
+use crate::{
+    config::action::{AttrValue, Update},
+    error::*,
+    parser,
+};
 use eww_shared_util::{AttrName, Span, VarName};
 use itertools::Itertools;
 use simplexpr::{ast::SimplExpr, dynval::DynVal};
@@ -54,5 +58,27 @@ impl FromAst for SimplExpr {
             Ast::SimplExpr(span, x) => Ok(x),
             _ => Err(AstError::NotAValue(e.span(), e.expr_type())),
         }
+    }
+}
+
+use crate::config::action::Action;
+impl FromAst for Action {
+    fn from_ast(e: Ast) -> AstResult<Self> {
+        let mut iter = e.try_ast_iter()?;
+        let (span, action) = iter.expect_symbol()?;
+        match action.as_str() {
+            "update" => {
+                let (varname_span, varname) = iter.expect_symbol()?;
+                let (value_span, value) = iter.expect_simplexpr()?;
+                iter.expect_done()?;
+                Ok(Action::Update(Update { varname: VarName(varname), value }))
+            }
+            _ => Err(AstError::UnknownAction(span, action)),
+        }
+    }
+}
+impl FromAst for AttrValue {
+    fn from_ast(e: Ast) -> AstResult<Self> {
+        todo!()
     }
 }

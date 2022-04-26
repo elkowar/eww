@@ -16,7 +16,7 @@ macro_rules! def_widget {
             // If an attribute is explicitly marked as optional (? appended to type)
             // the attribute will still show up here, as a `None` value. Otherwise, all values in this map
             // will be `Some`.
-            let attr_map: Result<HashMap<eww_shared_util::AttrName, Option<simplexpr::SimplExpr>>> = try {
+            let attr_map: Result<HashMap<eww_shared_util::AttrName, Option<yuck::config::attr_value::AttrValue>>> = try {
                 ::maplit::hashmap! {
                     $(
                         eww_shared_util::AttrName(::std::stringify!($attr_name).to_owned()) =>
@@ -32,7 +32,7 @@ macro_rules! def_widget {
                     // Get all the variables that are referred to in any of the attributes expressions
                     let required_vars: Vec<eww_shared_util::VarName> = attr_map
                         .values()
-                        .flat_map(|expr| expr.as_ref().map(|x| x.collect_var_refs()).unwrap_or_default())
+                        .flat_map(|expr| expr.as_ref().and_then(|x| x.try_into_simplexpr()).map(|x| x.collect_var_refs()).unwrap_or_default())
                         .collect();
 
                     $args.scope_graph.register_listener(
@@ -53,12 +53,13 @@ macro_rules! def_widget {
                                         let $attr_name = attr_map.get(::std::stringify!($attr_name))
                                             .context("Missing attribute, this should never happen")?;
 
-                                        // if the value is Some, evaluate and typecast it as expected
-                                        let $attr_name = if let Some(x) = $attr_name {
-                                            Some(x.eval(&values)?.$typecast_func()?)
-                                        } else {
-                                            None
-                                        };
+
+
+                                        // If the value is some, evaluate and typecast it.
+                                        // This now uses a new macro, to match on the type cast function:
+                                        // if we're casting into an action, we wanna do a different thing than if we where casting into an expr
+                                        let $attr_name = def_widget!(@value_depending_on_type values, $attr_name : $typecast_func $(? $(@ $optional @)?)? $(= $default)?);
+
                                         // If the attribute is optional, keep it as Option<T>, otherwise unwrap
                                         // because we _know_ the value in the attr_map is Some if the attribute is not optional.
                                         def_widget!(@unwrap_if_required $attr_name $(? $($optional)?)?);
@@ -76,6 +77,20 @@ macro_rules! def_widget {
         })+
     };
 
+    (@value_depending_on_type $values:expr, $attr_name:ident : as_action $(? $(@ $optional:tt @)?)? $(= $default:expr)?) => {
+        match $attr_name {
+            Some(yuck::config::attr_value::AttrValue::Action(action)) => Some(action.eval_exprs(&$values)?),
+            _ => None,
+        }
+    };
+
+    (@value_depending_on_type $values:expr, $attr_name:ident : $typecast_func:ident $(? $(@ $optional:tt @)?)? $(= $default:expr)?) => {
+        match $attr_name {
+            Some(yuck::config::attr_value::AttrValue::SimplExpr(expr)) => Some(expr.eval(&$values)?.$typecast_func()?),
+            _ => None,
+        }
+    };
+
     (@unwrap_if_required $value:ident ?) => { };
     (@unwrap_if_required $value:ident) => {
         let $value = $value.unwrap();
@@ -83,16 +98,16 @@ macro_rules! def_widget {
 
     // The attribute is explicitly marked as optional - the value should be provided to the prop function body as Option<T>
     (@get_value $args:ident, $name:expr, ?) => {
-        $args.widget_use.attrs.ast_optional::<simplexpr::SimplExpr>($name)?.clone()
+        $args.widget_use.attrs.ast_optional::<yuck::config::action::AttrValue>($name)?.clone()
     };
 
     // The attribute has a default value
     (@get_value $args:ident, $name:expr, = $default:expr) => {
-        Some($args.widget_use.attrs.ast_optional::<simplexpr::SimplExpr>($name)?.clone().unwrap_or_else(|| simplexpr::SimplExpr::synth_literal($default)))
+        Some($args.widget_use.attrs.ast_optional::<yuck::config::action::AttrValue>($name)?.clone().unwrap_or_else(|| simplexpr::SimplExpr::synth_literal($default)))
     };
 
     // The attribute is required - the prop will only be ran if this attribute is actually provided.
     (@get_value $args:ident, $name:expr,) => {
-        Some($args.widget_use.attrs.ast_required::<simplexpr::SimplExpr>($name)?.clone())
+        Some($args.widget_use.attrs.ast_required::<yuck::config::action::AttrValue>($name)?.clone())
     }
 }

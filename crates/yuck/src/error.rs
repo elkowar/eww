@@ -33,6 +33,8 @@ pub enum AstError {
     NotAValue(Span, AstType),
     #[error("Expected element {1}, but read {2}")]
     MismatchedElementName(Span, String, String),
+    #[error("Unknown action {1}")]
+    UnknownAction(Span, String),
 
     #[error("Keyword `{1}` is missing a value")]
     DanglingKeyword(Span, String),
@@ -116,6 +118,7 @@ impl Spanned for AstError {
             AstError::NoMoreElementsExpected(span) => *span,
             AstError::SimplExpr(err) => err.span(),
             AstError::FormFormatError(err) => err.span(),
+            AstError::UnknownAction(span, ..) => *span,
         }
     }
 }
