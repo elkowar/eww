@@ -1,5 +1,5 @@
 #![allow(clippy::option_map_unit_fn)]
-use super::{build_widget::BuilderArgs, circular_progressbar::*, transform::*, run_command};
+use super::{build_widget::BuilderArgs, circular_progressbar::*, run_command, transform::*};
 use crate::{
     def_widget, enum_parse,
     error::DiagError,
