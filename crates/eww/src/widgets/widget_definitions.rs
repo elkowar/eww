@@ -1,7 +1,7 @@
 #![allow(clippy::option_map_unit_fn)]
 use super::{build_widget::BuilderArgs, circular_progressbar::*, transform::*};
 use crate::{
-    def_widget, enum_parse,
+    def_widget, action_args, enum_parse,
     error::DiagError,
     error_handling_ctx,
     util::{list_difference, unindent},
@@ -11,11 +11,11 @@ use anyhow::{anyhow, Context, Result};
 use codespan_reporting::diagnostic::Severity;
 use eww_shared_util::Spanned;
 use gdk::{ModifierType, NotifyType};
+use glib::signal::SignalHandlerId;
 use gtk::{self, glib, prelude::*, DestDefaults, TargetEntry, TargetList};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use std::hash::Hasher;
-use glib::signal::SignalHandlerId;
 
 use std::{
     cell::RefCell,
@@ -62,7 +62,6 @@ macro_rules! connect_signal_handler {
         connect_signal_handler!($widget, if true, $connect_expr)
     }};
 }
-
 
 // TODO figure out how to
 // TODO https://developer.gnome.org/gtk3/stable/GtkFixed.html
@@ -226,7 +225,8 @@ pub(super) fn resolve_range_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Ran
             gtk_widget.set_sensitive(true);
             gtk_widget.add_events(gdk::EventMask::PROPERTY_CHANGE_MASK);
             connect_signal_handler!(gtk_widget, gtk_widget.connect_value_changed(move |gtk_widget| {
-                run_action(scope_sender.clone(), calling_scope, timeout, &onchange, &[gtk_widget.value()]);
+                let args = action_args! { "value" => gtk_widget.value() };
+                run_action(scope_sender.clone(), calling_scope, timeout, &onchange, &args);
             }));
         }
     });
@@ -262,7 +262,8 @@ fn build_gtk_combo_box_text(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_action) {
             let scope_sender = graph.event_sender.clone();
             connect_signal_handler!(gtk_widget, gtk_widget.connect_changed(move |gtk_widget| {
-                run_action(scope_sender.clone(), calling_scope, timeout, &onchange, &[gtk_widget.active_text().unwrap_or_else(|| "".into())]);
+                let args = action_args! { "value" => gtk_widget.active_text().unwrap_or_else(|| "".into()).to_string() };
+                run_action(scope_sender.clone(), calling_scope, timeout, &onchange, &args);
             }));
         },
     });
@@ -308,7 +309,8 @@ fn build_gtk_checkbox(bargs: &mut BuilderArgs) -> Result<gtk::CheckButton> {
         prop(timeout: as_duration = Duration::from_millis(200), onchecked: as_action?, onunchecked: as_action?) {
             let scope_sender = graph.event_sender.clone();
             connect_signal_handler!(gtk_widget, gtk_widget.connect_toggled(move |gtk_widget| {
-                run_action(scope_sender.clone(), calling_scope, timeout, if gtk_widget.is_active() { &onchecked } else { &onunchecked }, &[""]);
+                let action = if gtk_widget.is_active() { &onchecked } else { &onunchecked };
+                run_action(scope_sender.clone(), calling_scope, timeout, action, &action_args!());
             }));
        }
     });
@@ -330,7 +332,8 @@ fn build_gtk_color_button(bargs: &mut BuilderArgs) -> Result<gtk::ColorButton> {
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_action) {
             let scope_sender = graph.event_sender.clone();
             connect_signal_handler!(gtk_widget, gtk_widget.connect_color_set(move |gtk_widget| {
-                run_action(scope_sender.clone(), calling_scope, timeout, &onchange, &[gtk_widget.rgba()]);
+                let args = action_args! { "value" => format!("{}", gtk_widget.rgba()) };
+                run_action(scope_sender.clone(), calling_scope, timeout, &onchange, &args);
             }));
         }
     });
@@ -352,7 +355,8 @@ fn build_gtk_color_chooser(bargs: &mut BuilderArgs) -> Result<gtk::ColorChooserW
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_action) {
             let scope_sender = graph.event_sender.clone();
             connect_signal_handler!(gtk_widget, gtk_widget.connect_color_activated(move |_a, color| {
-                run_action(scope_sender.clone(), calling_scope, timeout, &onchange, &[*color]);
+                let args = action_args!{ "value" => format!("{}", *color) };
+                run_action(scope_sender.clone(), calling_scope, timeout, &onchange, &args);
             }));
         }
     });
@@ -416,7 +420,8 @@ fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_action) {
             let scope_sender = graph.event_sender.clone();
             connect_signal_handler!(gtk_widget, gtk_widget.connect_changed(move |gtk_widget| {
-                run_action(scope_sender.clone(), calling_scope, timeout, &onchange, &[gtk_widget.text().to_string()]);
+                let args = action_args! { "value" => gtk_widget.text().to_string() };
+                run_action(scope_sender.clone(), calling_scope, timeout, &onchange, &args);
             }));
         }
     });
@@ -444,9 +449,9 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
             gtk_widget.add_events(gdk::EventMask::BUTTON_PRESS_MASK);
             connect_signal_handler!(gtk_widget, gtk_widget.connect_button_press_event(move |_, evt| {
                 match evt.button() {
-                    1 => run_action(scope_sender.clone(), calling_scope, timeout, &onclick, &[""]),
-                    2 => run_action(scope_sender.clone(), calling_scope, timeout, &onmiddleclick, &[""]),
-                    3 => run_action(scope_sender.clone(), calling_scope, timeout, &onrightclick, &[""]),
+                    1 => run_action(scope_sender.clone(), calling_scope, timeout, &onclick, &action_args!()),
+                    2 => run_action(scope_sender.clone(), calling_scope, timeout, &onmiddleclick, &action_args!()),
+                    3 => run_action(scope_sender.clone(), calling_scope, timeout, &onrightclick, &action_args!()),
                     _ => {},
                 }
                 gtk::Inhibit(false)
@@ -592,7 +597,8 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
             connect_signal_handler!(gtk_widget, gtk_widget.connect_scroll_event(move |_, evt| {
                 let delta = evt.delta().1;
                 if delta != 0f64 { // Ignore the first event https://bugzilla.gnome.org/show_bug.cgi?id=675959
-                    run_action(scope_sender.clone(), calling_scope, timeout, &onscroll, &[if delta < 0f64 { "up" } else { "down" }]);
+                    let args = action_args! { "direction" => if delta < 0f64 { "up" } else { "down" } };
+                    run_action(scope_sender.clone(), calling_scope, timeout, &onscroll, &args);
                 }
                 gtk::Inhibit(false)
             }));
@@ -604,7 +610,8 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
             gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
             connect_signal_handler!(gtk_widget, gtk_widget.connect_enter_notify_event(move |_, evt| {
                 if evt.detail() != NotifyType::Inferior {
-                    run_action(scope_sender.clone(), calling_scope, timeout, &onhover, &[evt.position().0, evt.position().1]);
+                    let args = action_args! { "x" => evt.position().0, "y" => evt.position().1 };
+                    run_action(scope_sender.clone(), calling_scope, timeout, &onhover, &args);
                 }
                 gtk::Inhibit(false)
             }));
@@ -616,7 +623,8 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
             gtk_widget.add_events(gdk::EventMask::LEAVE_NOTIFY_MASK);
             connect_signal_handler!(gtk_widget, gtk_widget.connect_leave_notify_event(move |_, evt| {
                 if evt.detail() != NotifyType::Inferior {
-                    run_action(scope_sender.clone(), calling_scope, timeout, &onhoverlost, &[evt.position().0, evt.position().1]);
+                    let args = action_args! { "x" => evt.position().0, "y" => evt.position().1 };
+                    run_action(scope_sender.clone(), calling_scope, timeout, &onhoverlost, &args);
                 }
                 gtk::Inhibit(false)
             }));
@@ -660,9 +668,11 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
             );
             connect_signal_handler!(gtk_widget, gtk_widget.connect_drag_data_received(move |_, _, _x, _y, selection_data, _target_type, _timestamp| {
                 if let Some(data) = selection_data.uris().first(){
-                    run_action(scope_sender.clone(), calling_scope, timeout, &ondropped, &[data.to_string(), "file".to_string()]);
+                    let args = action_args! { "data" => data.to_string(), "type" => "file" };
+                    run_action(scope_sender.clone(), calling_scope, timeout, &ondropped, &args);
                 } else if let Some(data) = selection_data.text(){
-                    run_action(scope_sender.clone(), calling_scope, timeout, &ondropped, &[data.to_string(), "text".to_string()]);
+                    let args = action_args! { "data" => data.to_string(), "type" => "text" };
+                    run_action(scope_sender.clone(), calling_scope, timeout, &ondropped, &args);
                 }
             }));
         },
@@ -803,14 +813,12 @@ fn build_gtk_calendar(bargs: &mut BuilderArgs) -> Result<gtk::Calendar> {
         prop(timeout: as_duration = Duration::from_millis(200), onclick: as_action) {
             let scope_sender = graph.event_sender.clone();
             connect_signal_handler!(gtk_widget, gtk_widget.connect_day_selected(move |w| {
-                log::warn!("BREAKING CHANGE: The date is now provided via three values, set by the placeholders {{0}}, {{1}} and {{2}}. If you're currently using the onclick date, you will need to change this.");
-                run_action(
-                    scope_sender.clone(),
-                    calling_scope,
-                    timeout,
-                    &onclick,
-                    &[w.day(), w.month(), w.year()]
-                )
+                let args = action_args! {
+                    "day" => w.day(),
+                    "month" => w.month(),
+                    "year" => w.year(),
+                };
+                run_action(scope_sender.clone(), calling_scope, timeout, &onclick, &args);
             }));
         }
 

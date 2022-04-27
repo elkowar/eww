@@ -14,6 +14,7 @@ use std::{
     collections::{HashMap, LinkedList},
     iter::FromIterator,
     str::FromStr,
+    time::Duration,
 };
 
 pub trait FromAst: Sized {
@@ -71,6 +72,11 @@ impl FromAst for Action {
                 let (value_span, value) = iter.expect_simplexpr()?;
                 iter.expect_done()?;
                 Ok(Action::Update(VarName(varname), value))
+            }
+            "shell" => {
+                let (value_span, value) = iter.expect_simplexpr()?;
+                iter.expect_done()?;
+                Ok(Action::Shell(value))
             }
             _ => Err(AstError::UnknownAction(span, action)),
         }

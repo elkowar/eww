@@ -79,8 +79,8 @@ macro_rules! def_widget {
 
     (@value_depending_on_type $values:expr, $attr_name:ident : as_action) => {
         match $attr_name {
-            Some(yuck::config::attr_value::AttrValue::Action(action)) => Some(action.eval_exprs(&$values)?),
-            Some(yuck::config::attr_value::AttrValue::SimplExpr(expr)) => Some(ExecutableAction::Shell(expr.eval(&$values)?.as_string()?)),
+            Some(yuck::config::attr_value::AttrValue::Action(action)) => Some(action.clone().resolve_to_executable(&$values)),
+            Some(yuck::config::attr_value::AttrValue::SimplExpr(expr)) => Some(ExecutableAction::Shell(expr.clone().resolve_refs_lenient(&$values))),
             _ => None,
         }
     };
