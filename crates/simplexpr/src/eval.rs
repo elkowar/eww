@@ -154,6 +154,7 @@ impl SimplExpr {
         }
     }
 
+
     pub fn eval(&self, values: &HashMap<VarName, DynVal>) -> Result<DynVal, EvalError> {
         let span = self.span();
         let value = match self {

@@ -1,9 +1,8 @@
 use std::process::Command;
 
-use anyhow::Result;
-use yuck::config::attr_value::Action;
+use yuck::config::attr_value::ExecutableAction;
 
-use crate::state::scope_graph::{ScopeGraph, ScopeIndex};
+use crate::state::scope_graph::{ScopeGraphEvent, ScopeIndex};
 
 pub mod build_widget;
 pub mod circular_progressbar;
@@ -66,13 +65,25 @@ mod test {
     }
 }
 
-pub(self) fn run_action(graph: &mut ScopeGraph, scope: ScopeIndex, action: &Action) -> Result<()> {
+pub(self) fn run_action<T>(
+    sender: tokio::sync::mpsc::UnboundedSender<ScopeGraphEvent>,
+    scope: ScopeIndex,
+    timeout: std::time::Duration,
+    action: &ExecutableAction,
+    args: &[T],
+) where
+    T: 'static + std::fmt::Display + Send + Sync + Clone,
+{
     match action {
-        Action::Update(varname, expr) => {
-            let value = graph.evaluate_simplexpr_in_scope(scope, expr)?;
-            graph.update_value(scope, varname, value)?;
+        ExecutableAction::Update(varname, value) => {
+            let res = sender.send(ScopeGraphEvent::UpdateValue(scope, varname.clone(), value.clone()));
+            if let Err(e) = res {
+                log::error!("{}", e);
+            }
         }
-        Action::Noop => {}
+        ExecutableAction::Shell(command) => {
+            run_command(timeout, command, args);
+        }
+        ExecutableAction::Noop => {}
     }
-    Ok(())
 }

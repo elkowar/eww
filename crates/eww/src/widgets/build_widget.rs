@@ -120,11 +120,23 @@ fn build_let_special_widget(
     custom_widget_invocation: Option<Rc<CustomWidgetInvocation>>,
 ) -> Result<gtk::Widget> {
     let child = widget_use.body.first().expect("no child in let");
+
+    // Evaluate explicitly here, so we don't keep linking the state changes here.
+    // If that was desired, it'd suffice to just pass the simplexprs as attributes to register_new_scope,
+    // rather than converting them into literals explicitly.
+    let mut defined_vars = HashMap::new();
+    for (name, expr) in widget_use.defined_vars.into_iter() {
+        let mut needed_vars = graph.lookup_variables_in_scope(calling_scope, &expr.collect_var_refs())?;
+        needed_vars.extend(defined_vars.clone().into_iter());
+        let value = expr.eval(&needed_vars)?;
+        defined_vars.insert(name, value);
+    }
+
     let let_scope = graph.register_new_scope(
         "let-widget".to_string(),
         Some(calling_scope),
         calling_scope,
-        widget_use.defined_vars.into_iter().map(|(k, v)| (AttrName(k.to_string()), v)).collect(),
+        defined_vars.into_iter().map(|(k, v)| (AttrName(k.to_string()), SimplExpr::Literal(v))).collect(),
     )?;
     let gtk_widget = build_gtk_widget(graph, widget_defs, let_scope, child.clone(), custom_widget_invocation)?;
     let scope_graph_sender = graph.event_sender.clone();

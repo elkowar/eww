@@ -32,16 +32,16 @@ macro_rules! def_widget {
                     // Get all the variables that are referred to in any of the attributes expressions
                     let required_vars: Vec<eww_shared_util::VarName> = attr_map
                         .values()
-                        .flat_map(|expr| expr.as_ref().and_then(|x| x.try_into_simplexpr()).map(|x| x.collect_var_refs()).unwrap_or_default())
+                        .flat_map(|expr| expr.as_ref().map(|x| x.collect_var_refs()).unwrap_or_default())
                         .collect();
 
                     $args.scope_graph.register_listener(
                         $args.calling_scope,
-                            crate::state::scope::Listener {
+                        crate::state::scope::Listener {
                             needed_variables: required_vars,
                             f: Box::new({
                                 let $gtk_widget = gdk::glib::clone::Downgrade::downgrade(&$gtk_widget);
-                                move |$scope_graph, values| {
+                                move |#[allow(unused)] $scope_graph, values| {
                                     let $gtk_widget = gdk::glib::clone::Upgrade::upgrade(&$gtk_widget).expect("Failed to upgrade widget ref");
                                     // values is a map of all the variables that are required to evaluate the
                                     // attributes expression.
@@ -79,7 +79,8 @@ macro_rules! def_widget {
 
     (@value_depending_on_type $values:expr, $attr_name:ident : as_action $(? $(@ $optional:tt @)?)? $(= $default:expr)?) => {
         match $attr_name {
-            Some(yuck::config::attr_value::AttrValue::Action(action)) => Some(action),
+            Some(yuck::config::attr_value::AttrValue::Action(action)) => Some(action.eval_exprs(&$values)?),
+            Some(yuck::config::attr_value::AttrValue::SimplExpr(expr)) => Some(ExecutableAction::Shell(expr.eval(&$values)?.as_string()?)),
             _ => None,
         }
     };
