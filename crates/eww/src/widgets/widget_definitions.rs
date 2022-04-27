@@ -219,7 +219,7 @@ pub(super) fn resolve_range_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Ran
         // @prop max - the maximum value
         prop(max: as_f64) { gtk_widget.adjustment().set_upper(max)},
         // @prop timeout - timeout of the command
-        // @prop onchange - command executed once the value is changes. The placeholder `{}`, used in the command will be replaced by the new value.
+        // @prop onchange - executed once the value changes. Event object: `{"value": <new value>}`
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_action) {
             let scope_sender = graph.event_sender.clone();
             gtk_widget.set_sensitive(true);
@@ -258,7 +258,7 @@ fn build_gtk_combo_box_text(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText
             }
         },
         // @prop timeout - timeout of the command
-        // @prop onchange - runs the code when a item was selected, replacing {} with the item as a string
+        // @prop onchange - executed when a item was selected. Event object: `{"value": <selected item>}`
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_action) {
             let scope_sender = graph.event_sender.clone();
             connect_signal_handler!(gtk_widget, gtk_widget.connect_changed(move |gtk_widget| {
@@ -304,8 +304,8 @@ fn build_gtk_checkbox(bargs: &mut BuilderArgs) -> Result<gtk::CheckButton> {
     let calling_scope = bargs.calling_scope.clone();
     def_widget!(bargs, graph, gtk_widget, {
         // @prop timeout - timeout of the command
-        // @prop onchecked - action (command) to be executed when checked by the user
-        // @prop onunchecked - similar to onchecked but when the widget is unchecked
+        // @prop onchecked - executed when checked by the user
+        // @prop onunchecked - executed when unchecked by the user
         prop(timeout: as_duration = Duration::from_millis(200), onchecked: as_action?, onunchecked: as_action?) {
             let scope_sender = graph.event_sender.clone();
             connect_signal_handler!(gtk_widget, gtk_widget.connect_toggled(move |gtk_widget| {
@@ -327,7 +327,7 @@ fn build_gtk_color_button(bargs: &mut BuilderArgs) -> Result<gtk::ColorButton> {
         // @prop use-alpha - bool to whether or not use alpha
         prop(use_alpha: as_bool) {gtk_widget.set_use_alpha(use_alpha);},
 
-        // @prop onchange - runs the code when the color was selected
+        // @prop onchange - executed when a color was selected. Event object: `{"value": <color>}`
         // @prop timeout - timeout of the command
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_action) {
             let scope_sender = graph.event_sender.clone();
@@ -350,7 +350,7 @@ fn build_gtk_color_chooser(bargs: &mut BuilderArgs) -> Result<gtk::ColorChooserW
         // @prop use-alpha - bool to wether or not use alpha
         prop(use_alpha: as_bool) {gtk_widget.set_use_alpha(use_alpha);},
 
-        // @prop onchange - runs the code when the color was selected
+        // @prop onchange - executed when a color was selected. Event object: `{"value": <color>}`
         // @prop timeout - timeout of the command
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_action) {
             let scope_sender = graph.event_sender.clone();
@@ -415,7 +415,7 @@ fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
             gtk_widget.set_text(&value);
         },
 
-        // @prop onchange - Command to run when the text changes. The placeholder `{}` will be replaced by the value
+        // @prop onchange - Executed when the text changes. Event object: `{"value": <new value>}`
         // @prop timeout - timeout of the command
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_action) {
             let scope_sender = graph.event_sender.clone();
@@ -435,16 +435,11 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
     let calling_scope = bargs.calling_scope.clone();
 
     def_widget!(bargs, graph, gtk_widget, {
-        // @prop onclick - a command that get's run when the button is clicked
-        // @prop onmiddleclick - a command that get's run when the button is middleclicked
-        // @prop onrightclick - a command that get's run when the button is rightclicked
+        // @prop onclick - executed when the button is left-clicked
+        // @prop onmiddleclick - executed when the button is left-clicked
+        // @prop onrightclick - executed when the button is left-clicked
         // @prop timeout - timeout of the command
-        prop(
-            timeout: as_duration = Duration::from_millis(200),
-            onclick: as_action?,
-            onmiddleclick: as_action?,
-            onrightclick: as_action?
-        ) {
+        prop(timeout: as_duration = Duration::from_millis(200), onclick: as_action?, onmiddleclick: as_action?, onrightclick: as_action?) {
             let scope_sender = graph.event_sender.clone();
             gtk_widget.add_events(gdk::EventMask::BUTTON_PRESS_MASK);
             connect_signal_handler!(gtk_widget, gtk_widget.connect_button_press_event(move |_, evt| {
@@ -589,7 +584,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
 
     def_widget!(bargs, graph, gtk_widget, {
         // @prop timeout - timeout of the command
-        // @prop onscroll - event to execute when the user scrolls with the mouse over the widget. The placeholder `{}` used in the command will be replaced with either `up` or `down`.
+        // @prop onscroll - executed when the user scrolls with the mouse over the widget. Event object: `{"direction": <"up" or "down">}`
         prop(timeout: as_duration = Duration::from_millis(200), onscroll: as_action) {
             let scope_sender = graph.event_sender.clone();
             gtk_widget.add_events(gdk::EventMask::SCROLL_MASK);
@@ -604,7 +599,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
             }));
         },
         // @prop timeout - timeout of the command
-        // @prop onhover - event to execute when the user hovers over the widget
+        // @prop onhover - executed when the user hovers over the widget. Event object: `{"x": <mouse X coordinate>, "<mouse Y coordinate>"}`
         prop(timeout: as_duration = Duration::from_millis(200), onhover: as_action) {
             let scope_sender = graph.event_sender.clone();
             gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
@@ -617,7 +612,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
             }));
         },
         // @prop timeout - timeout of the command
-        // @prop onhoverlost - event to execute when the user losts hovers over the widget
+        // @prop onhoverlost - executed when the users mouse leaves the widget. Event object: `{"x": <mouse X coordinate>, "<mouse Y coordinate>"}`
         prop(timeout: as_duration = Duration::from_millis(200), onhoverlost: as_action) {
             let scope_sender = graph.event_sender.clone();
             gtk_widget.add_events(gdk::EventMask::LEAVE_NOTIFY_MASK);
@@ -655,7 +650,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
             }));
         },
         // @prop timeout - timeout of the command
-        // @prop on_dropped - Command to execute when something is dropped on top of this element. The placeholder `{}` used in the command will be replaced with the uri to the dropped thing.
+        // @prop ondropped - executed when something is dropped on top of this element. Event object: `{"data": <data that was dropped>, "type": <"file" or "text">}`
         prop(timeout: as_duration = Duration::from_millis(200), ondropped: as_action) {
             let scope_sender = graph.event_sender.clone();
             gtk_widget.drag_dest_set(
@@ -808,7 +803,7 @@ fn build_gtk_calendar(bargs: &mut BuilderArgs) -> Result<gtk::Calendar> {
         prop(show_day_names: as_bool) { gtk_widget.set_show_day_names(show_day_names) },
         // @prop show-week-numbers - show week numbers
         prop(show_week_numbers: as_bool) { gtk_widget.set_show_week_numbers(show_week_numbers) },
-        // @prop onclick - command to run when the user selects a date. The `{0}` placeholder will be replaced by the selected day, `{1}` will be replaced by the month, and `{2}` by the year.
+        // @prop onclick - executed when the user selects a date. Event object `{"day": <day>, "month": <month>, "year": <year>}`
         // @prop timeout - timeout of the command
         prop(timeout: as_duration = Duration::from_millis(200), onclick: as_action) {
             let scope_sender = graph.event_sender.clone();
@@ -833,7 +828,7 @@ fn build_gtk_calendar(bargs: &mut BuilderArgs) -> Result<gtk::Calendar> {
 fn build_transform(bargs: &mut BuilderArgs) -> Result<Transform> {
     let w = Transform::new();
     def_widget!(bargs, _g, w, {
-        // @prop rotation - the percentage to rotate
+        // @prop rotate - the percentage to rotate
         prop(rotate: as_f64) { w.set_property("rotate", rotate)?; },
         // @prop translate-x - the amount to translate in the x direction (px or %)
         prop(translate_x: as_string) { w.set_property("translate-x", translate_x)?; },
