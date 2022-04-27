@@ -27,6 +27,7 @@ impl AttrValue {
     }
 }
 
+/// an action as it is provided by the user. These actions contain Expressions which may reference variables.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Action {
     Update(VarName, SimplExpr),
@@ -57,6 +58,8 @@ impl Action {
     }
 }
 
+/// an action ready for execution.
+/// The expressions in this struct may only reference the variable "event", and _must_ be fully resolved otherwise.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum ExecutableAction {
     Update(VarName, SimplExpr),
