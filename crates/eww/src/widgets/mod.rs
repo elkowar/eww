@@ -1,5 +1,11 @@
 use std::process::Command;
 
+use eww_shared_util::VarName;
+use simplexpr::dynval::DynVal;
+use yuck::config::attr_value::ExecutableAction;
+
+use crate::state::scope_graph::{ScopeGraphEvent, ScopeIndex};
+
 pub mod build_widget;
 pub mod circular_progressbar;
 pub mod def_widget_macro;
@@ -7,16 +13,45 @@ pub mod graph;
 pub mod transform;
 pub mod widget_definitions;
 
-/// Run a command that was provided as an attribute.
-/// This command may use placeholders which will be replaced by the values of the arguments given.
-/// This can either be the placeholder `{}`, which will be replaced by the first argument,
-/// Or a placeholder like `{0}`, `{1}`, etc, which will refer to the respective argument.
-pub(self) fn run_command<T>(timeout: std::time::Duration, cmd: &str, args: &[T])
-where
-    T: 'static + std::fmt::Display + Send + Sync + Clone,
-{
+#[macro_export]
+macro_rules! action_args {
+    ($($key:literal => $value:expr),* $(,)?) => {
+        serde_json::json!({
+            $($key.to_string(): $value),*
+        })
+    }
+}
+
+/// Run an action
+pub(self) fn run_action(
+    sender: tokio::sync::mpsc::UnboundedSender<ScopeGraphEvent>,
+    scope: ScopeIndex,
+    timeout: std::time::Duration,
+    action: &ExecutableAction,
+    args: &serde_json::Value,
+) {
+    let result: anyhow::Result<()> = try {
+        let event_arg = maplit::hashmap! { VarName("event".to_string()) => DynVal::try_from(args)? };
+        match action {
+            ExecutableAction::Update(varname, value) => {
+                let value = value.eval(&event_arg)?;
+                sender.send(ScopeGraphEvent::UpdateValue(scope, varname.clone(), value.clone()))?;
+            }
+            ExecutableAction::Shell(command) => {
+                let command = command.eval(&event_arg)?;
+                run_command(timeout, command.to_string());
+            }
+            ExecutableAction::Noop => {}
+        }
+    };
+    if let Err(e) = result {
+        log::error!("{}", e);
+    }
+}
+
+/// Run a command with a given timeout
+fn run_command(timeout: std::time::Duration, cmd: String) {
     use wait_timeout::ChildExt;
-    let cmd = replace_placeholders(cmd, args);
     std::thread::spawn(move || {
         log::debug!("Running command from widget: {}", cmd);
         let child = Command::new("/bin/sh").arg("-c").arg(&cmd).spawn();
@@ -24,7 +59,7 @@ where
             Ok(mut child) => match child.wait_timeout(timeout) {
                 // child timed out
                 Ok(None) => {
-                    log::error!("WARNING: command {} timed out", &cmd);
+                    log::warn!(": command {} timed out", &cmd);
                     let _ = child.kill();
                     let _ = child.wait();
                 }
@@ -34,29 +69,4 @@ where
             Err(err) => log::error!("Failed to launch child process: {}", err),
         }
     });
-}
-
-fn replace_placeholders<T>(cmd: &str, args: &[T]) -> String
-where
-    T: 'static + std::fmt::Display + Send + Sync + Clone,
-{
-    if !args.is_empty() {
-        let cmd = cmd.replace("{}", &format!("{}", args[0]));
-        args.iter().enumerate().fold(cmd.to_string(), |acc, (i, arg)| acc.replace(&format!("{{{}}}", i), &format!("{}", arg)))
-    } else {
-        cmd.to_string()
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    #[test]
-    fn test_replace_placeholders() {
-        assert_eq!("foo", replace_placeholders("foo", &[""]),);
-        assert_eq!("foo hi", replace_placeholders("foo {}", &["hi"]),);
-        assert_eq!("foo hi", replace_placeholders("foo {}", &["hi", "ho"]),);
-        assert_eq!("bar foo baz", replace_placeholders("{0} foo {1}", &["bar", "baz"]),);
-        assert_eq!("baz foo bar", replace_placeholders("{1} foo {0}", &["bar", "baz"]),);
-    }
 }

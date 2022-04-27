@@ -96,6 +96,11 @@ impl ToDiagnostic for AstError {
                 label = span => "Expected some value here",
                 note = format!("Got: {}", actual),
             },
+            AstError::UnknownAction(span, actual) => gen_diagnostic! {
+                msg = format!("Unknown action `{}`", actual),
+                label = span,
+                note = format!("Must be one of: {}", crate::config::attr_value::ACTION_NAMES.iter().join(", ")),
+            },
 
             AstError::ParseError { file_id, source } => lalrpop_error_to_diagnostic(source, *file_id),
             AstError::MismatchedElementName(span, expected, got) => gen_diagnostic! {
@@ -123,6 +128,11 @@ impl ToDiagnostic for AstError {
             AstError::DanglingKeyword(span, keyword) => gen_diagnostic! {
                 msg = self,
                 label = span => "No value provided for this",
+            },
+            AstError::LetVarWithoutValue(span, var_name) => gen_diagnostic! {
+                msg = self,
+                label = span => "In this let block",
+                note = "Let-blocks need to have a value specified for each variable."
             },
             AstError::ErrorNote(note, source) => source.to_diagnostic().with_notes(vec![note.to_string()]),
             AstError::ValidationError(source) => source.to_diagnostic(),

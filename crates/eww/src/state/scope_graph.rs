@@ -26,8 +26,10 @@ impl ScopeIndex {
     }
 }
 
+#[derive(Debug)]
 pub enum ScopeGraphEvent {
     RemoveScope(ScopeIndex),
+    UpdateValue(ScopeIndex, VarName, DynVal),
 }
 
 /// A graph structure of scopes where each scope may inherit from another scope,
@@ -86,6 +88,11 @@ impl ScopeGraph {
         match evt {
             ScopeGraphEvent::RemoveScope(scope_index) => {
                 self.remove_scope(scope_index);
+            }
+            ScopeGraphEvent::UpdateValue(scope_index, name, value) => {
+                if let Err(e) = self.update_value(scope_index, &name, value) {
+                    log::error!("{}", e);
+                }
             }
         }
     }

@@ -118,6 +118,14 @@ impl SimplExpr {
         })
     }
 
+    /// resolve variable references in the expression. Will leave unresolved variables in place
+    pub fn resolve_refs_lenient(self, variables: &HashMap<VarName, DynVal>) -> Self {
+        self.map_var_refs(|span, name| match variables.get(&name) {
+            Some(value) => SimplExpr::Literal(value.clone()),
+            None => SimplExpr::VarRef(span, name),
+        })
+    }
+
     pub fn var_refs_with_span(&self) -> Vec<(Span, &VarName)> {
         use SimplExpr::*;
         match self {

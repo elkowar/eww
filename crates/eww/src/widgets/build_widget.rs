@@ -13,7 +13,7 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 use yuck::{
     config::{
         widget_definition::WidgetDefinition,
-        widget_use::{BasicWidgetUse, ChildrenWidgetUse, LoopWidgetUse, WidgetUse},
+        widget_use::{BasicWidgetUse, ChildrenWidgetUse, LetWidgetUse, LoopWidgetUse, WidgetUse},
     },
     gen_diagnostic,
 };
@@ -55,6 +55,9 @@ pub fn build_gtk_widget(
     match widget_use {
         WidgetUse::Basic(widget_use) => {
             build_basic_gtk_widget(graph, widget_defs, calling_scope, widget_use, custom_widget_invocation)
+        }
+        WidgetUse::Let(let_use) => {
+            build_let_special_widget_single_child(graph, widget_defs, calling_scope, let_use, custom_widget_invocation)
         }
         WidgetUse::Loop(_) | WidgetUse::Children(_) => Err(anyhow::anyhow!(DiagError::new(gen_diagnostic! {
             msg = "This widget can only be used as a child of some container widget such as box",
@@ -109,6 +112,68 @@ fn build_basic_gtk_widget(
     } else {
         build_builtin_gtk_widget(graph, widget_defs, calling_scope, widget_use, custom_widget_invocation)
     }
+}
+
+fn init_let_widget_scope(graph: &mut ScopeGraph, calling_scope: ScopeIndex, widget_use: &LetWidgetUse) -> Result<ScopeIndex> {
+    // Evaluate explicitly here, so we don't keep linking the state changes here.
+    // If that was desired, it'd suffice to just pass the simplexprs as attributes to register_new_scope,
+    // rather than converting them into literals explicitly.
+    let mut defined_vars = HashMap::new();
+    for (name, expr) in widget_use.defined_vars.clone().into_iter() {
+        let mut needed_vars = graph.lookup_variables_in_scope(calling_scope, &expr.collect_var_refs())?;
+        needed_vars.extend(defined_vars.clone().into_iter());
+        let value = expr.eval(&needed_vars)?;
+        defined_vars.insert(name, value);
+    }
+
+    let let_scope = graph.register_new_scope(
+        "let-widget".to_string(),
+        Some(calling_scope),
+        calling_scope,
+        defined_vars.into_iter().map(|(k, v)| (AttrName(k.to_string()), SimplExpr::Literal(v))).collect(),
+    )?;
+    Ok(let_scope)
+}
+
+fn build_let_special_widget_single_child(
+    graph: &mut ScopeGraph,
+    widget_defs: Rc<HashMap<String, WidgetDefinition>>,
+    calling_scope: ScopeIndex,
+    widget_use: LetWidgetUse,
+    custom_widget_invocation: Option<Rc<CustomWidgetInvocation>>,
+) -> Result<gtk::Widget> {
+    assert!(widget_use.body.len() == 1, "build_let_special_widget_single_child called with let with more than one child");
+    let child = widget_use.body.first().cloned().expect("no child in let");
+    let let_scope = init_let_widget_scope(graph, calling_scope, &widget_use)?;
+    let child_widget = build_gtk_widget(graph, widget_defs, let_scope, child.clone(), custom_widget_invocation)?;
+    let scope_graph_sender = graph.event_sender.clone();
+    child_widget.connect_destroy(move |_| {
+        let _ = scope_graph_sender.send(ScopeGraphEvent::RemoveScope(let_scope));
+    });
+    Ok(child_widget)
+}
+
+fn build_let_special_widget_multiple_children(
+    graph: &mut ScopeGraph,
+    widget_defs: Rc<HashMap<String, WidgetDefinition>>,
+    calling_scope: ScopeIndex,
+    widget_use: LetWidgetUse,
+    gtk_container: &gtk::Container,
+    custom_widget_invocation: Option<Rc<CustomWidgetInvocation>>,
+) -> Result<()> {
+    let let_scope = init_let_widget_scope(graph, calling_scope, &widget_use)?;
+    let scope_graph_sender = graph.event_sender.clone();
+
+    for child in &widget_use.body {
+        let child_widget =
+            build_gtk_widget(graph, widget_defs.clone(), let_scope, child.clone(), custom_widget_invocation.clone())?;
+        gtk_container.add(&child_widget);
+    }
+
+    gtk_container.connect_destroy(move |_| {
+        let _ = scope_graph_sender.send(ScopeGraphEvent::RemoveScope(let_scope));
+    });
+    Ok(())
 }
 
 /// build a [`gtk::Widget`] out of a [`WidgetUse`] that uses a
@@ -184,26 +249,31 @@ fn populate_widget_children(
 ) -> Result<()> {
     for child in widget_use_children {
         match child {
-            WidgetUse::Children(child) => {
-                build_children_special_widget(
-                    tree,
-                    widget_defs.clone(),
-                    calling_scope,
-                    child,
-                    gtk_container,
-                    custom_widget_invocation.clone().context("Not in a custom widget invocation")?,
-                )?;
-            }
-            WidgetUse::Loop(child) => {
-                build_loop_special_widget(
-                    tree,
-                    widget_defs.clone(),
-                    calling_scope,
-                    child,
-                    gtk_container,
-                    custom_widget_invocation.clone(),
-                )?;
-            }
+            WidgetUse::Children(child) => build_children_special_widget(
+                tree,
+                widget_defs.clone(),
+                calling_scope,
+                child,
+                gtk_container,
+                custom_widget_invocation.clone().context("Not in a custom widget invocation")?,
+            )?,
+
+            WidgetUse::Let(child) => build_let_special_widget_multiple_children(
+                tree,
+                widget_defs.clone(),
+                calling_scope,
+                child,
+                gtk_container,
+                custom_widget_invocation.clone(),
+            )?,
+            WidgetUse::Loop(child) => build_loop_special_widget(
+                tree,
+                widget_defs.clone(),
+                calling_scope,
+                child,
+                gtk_container,
+                custom_widget_invocation.clone(),
+            )?,
             _ => {
                 let child_widget =
                     build_gtk_widget(tree, widget_defs.clone(), calling_scope, child, custom_widget_invocation.clone())?;
