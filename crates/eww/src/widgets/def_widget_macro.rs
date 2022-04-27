@@ -42,7 +42,7 @@ macro_rules! def_widget {
                             f: Box::new({
                                 let $gtk_widget = gdk::glib::clone::Downgrade::downgrade(&$gtk_widget);
                                 move |$scope_graph, values| {
-                                    let $gtk_widget = gdk::glib::clone::Upgrade::upgrade(&$gtk_widget).unwrap();
+                                    let $gtk_widget = gdk::glib::clone::Upgrade::upgrade(&$gtk_widget).expect("Failed to upgrade widget ref");
                                     // values is a map of all the variables that are required to evaluate the
                                     // attributes expression.
 
@@ -79,7 +79,7 @@ macro_rules! def_widget {
 
     (@value_depending_on_type $values:expr, $attr_name:ident : as_action $(? $(@ $optional:tt @)?)? $(= $default:expr)?) => {
         match $attr_name {
-            Some(yuck::config::attr_value::AttrValue::Action(action)) => Some(action.eval_exprs(&$values)?),
+            Some(yuck::config::attr_value::AttrValue::Action(action)) => Some(action),
             _ => None,
         }
     };
@@ -93,7 +93,7 @@ macro_rules! def_widget {
 
     (@unwrap_if_required $value:ident ?) => { };
     (@unwrap_if_required $value:ident) => {
-        let $value = $value.unwrap();
+        let $value = $value.expect("No value was provided, eventhough value was required");
     };
 
     // The attribute is explicitly marked as optional - the value should be provided to the prop function body as Option<T>

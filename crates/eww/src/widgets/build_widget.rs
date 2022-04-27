@@ -13,7 +13,7 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 use yuck::{
     config::{
         widget_definition::WidgetDefinition,
-        widget_use::{BasicWidgetUse, ChildrenWidgetUse, LoopWidgetUse, WidgetUse},
+        widget_use::{BasicWidgetUse, ChildrenWidgetUse, LetWidgetUse, LoopWidgetUse, WidgetUse},
     },
     gen_diagnostic,
 };
@@ -56,6 +56,7 @@ pub fn build_gtk_widget(
         WidgetUse::Basic(widget_use) => {
             build_basic_gtk_widget(graph, widget_defs, calling_scope, widget_use, custom_widget_invocation)
         }
+        WidgetUse::Let(let_use) => build_let_special_widget(graph, widget_defs, calling_scope, let_use, custom_widget_invocation),
         WidgetUse::Loop(_) | WidgetUse::Children(_) => Err(anyhow::anyhow!(DiagError::new(gen_diagnostic! {
             msg = "This widget can only be used as a child of some container widget such as box",
             label = widget_use.span(),
@@ -109,6 +110,29 @@ fn build_basic_gtk_widget(
     } else {
         build_builtin_gtk_widget(graph, widget_defs, calling_scope, widget_use, custom_widget_invocation)
     }
+}
+
+fn build_let_special_widget(
+    graph: &mut ScopeGraph,
+    widget_defs: Rc<HashMap<String, WidgetDefinition>>,
+    calling_scope: ScopeIndex,
+    widget_use: LetWidgetUse,
+    custom_widget_invocation: Option<Rc<CustomWidgetInvocation>>,
+) -> Result<gtk::Widget> {
+    let child = widget_use.body.first().expect("no child in let");
+    let let_scope = graph.register_new_scope(
+        "let-widget".to_string(),
+        Some(calling_scope),
+        calling_scope,
+        widget_use.defined_vars.into_iter().map(|(k, v)| (AttrName(k.to_string()), v)).collect(),
+    )?;
+    let gtk_widget = build_gtk_widget(graph, widget_defs, let_scope, child.clone(), custom_widget_invocation)?;
+    let scope_graph_sender = graph.event_sender.clone();
+
+    gtk_widget.connect_destroy(move |_| {
+        let _ = scope_graph_sender.send(ScopeGraphEvent::RemoveScope(let_scope));
+    });
+    Ok(gtk_widget)
 }
 
 /// build a [`gtk::Widget`] out of a [`WidgetUse`] that uses a

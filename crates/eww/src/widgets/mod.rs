@@ -1,5 +1,10 @@
 use std::process::Command;
 
+use anyhow::Result;
+use yuck::config::attr_value::Action;
+
+use crate::state::scope_graph::{ScopeGraph, ScopeIndex};
+
 pub mod build_widget;
 pub mod circular_progressbar;
 pub mod def_widget_macro;
@@ -59,4 +64,15 @@ mod test {
         assert_eq!("bar foo baz", replace_placeholders("{0} foo {1}", &["bar", "baz"]),);
         assert_eq!("baz foo bar", replace_placeholders("{1} foo {0}", &["bar", "baz"]),);
     }
+}
+
+pub(self) fn run_action(graph: &mut ScopeGraph, scope: ScopeIndex, action: &Action) -> Result<()> {
+    match action {
+        Action::Update(varname, expr) => {
+            let value = graph.evaluate_simplexpr_in_scope(scope, expr)?;
+            graph.update_value(scope, varname, value)?;
+        }
+        Action::Noop => {}
+    }
+    Ok(())
 }

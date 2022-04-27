@@ -129,6 +129,11 @@ impl ToDiagnostic for AstError {
                 msg = self,
                 label = span => "No value provided for this",
             },
+            AstError::LetVarWithoutValue(span, var_name) => gen_diagnostic! {
+                msg = self,
+                label = span => "In this let block",
+                note = "Let-blocks need to have a value specified for each variable."
+            },
             AstError::ErrorNote(note, source) => source.to_diagnostic().with_notes(vec![note.to_string()]),
             AstError::ValidationError(source) => source.to_diagnostic(),
             AstError::NoMoreElementsExpected(span) => gen_diagnostic!(self, span),

@@ -20,6 +20,15 @@ pub enum WidgetUse {
     Basic(BasicWidgetUse),
     Loop(LoopWidgetUse),
     Children(ChildrenWidgetUse),
+    Let(LetWidgetUse),
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
+pub struct LetWidgetUse {
+    pub defined_vars: HashMap<VarName, SimplExpr>,
+    pub body: Vec<WidgetUse>,
+    pub vars_span: Span,
+    pub span: Span,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
@@ -100,6 +109,24 @@ impl FromAstElementContent for ChildrenWidgetUse {
     }
 }
 
+impl FromAstElementContent for LetWidgetUse {
+    const ELEMENT_NAME: &'static str = "let";
+
+    fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> AstResult<Self> {
+        let (vars_span, vars) = iter.expect_array()?;
+        let mut vars_iter = vars.into_iter();
+        let mut vars = HashMap::<VarName, SimplExpr>::new();
+        while let Some(var_name) = vars_iter.next() {
+            let var_name = var_name.as_symbol()?;
+            let value =
+                vars_iter.next().ok_or_else(|| AstError::LetVarWithoutValue(vars_span, var_name.clone()))?.as_simplexpr()?;
+            vars.insert(var_name.into(), value);
+        }
+        let children = iter.map(WidgetUse::from_ast).collect::<AstResult<Vec<_>>>()?;
+        Ok(Self { defined_vars: vars, body: children, vars_span, span })
+    }
+}
+
 impl FromAst for WidgetUse {
     fn from_ast(e: Ast) -> AstResult<Self> {
         let span = e.span();
@@ -109,6 +136,7 @@ impl FromAst for WidgetUse {
             let mut iter = e.try_ast_iter()?;
             let (name_span, name) = iter.expect_symbol()?;
             match name.as_ref() {
+                LetWidgetUse::ELEMENT_NAME => Ok(WidgetUse::Let(LetWidgetUse::from_tail(span, iter)?)),
                 LoopWidgetUse::ELEMENT_NAME => Ok(WidgetUse::Loop(LoopWidgetUse::from_tail(span, iter)?)),
                 ChildrenWidgetUse::ELEMENT_NAME => Ok(WidgetUse::Children(ChildrenWidgetUse::from_tail(span, iter)?)),
                 _ => Ok(WidgetUse::Basic(BasicWidgetUse::from_iter(span, name, name_span, iter)?)),
@@ -136,7 +164,7 @@ fn label_from_simplexpr(value: SimplExpr, span: Span) -> BasicWidgetUse {
 }
 
 macro_rules! impl_spanned {
-    ($($super:ident => $name:ident),*) => {
+    ($($super:ident => $name:ident),* $(,)?) => {
         $(impl Spanned for $name { fn span(&self) -> Span { self.span } })*
         impl Spanned for WidgetUse {
             fn span(&self) -> Span {
@@ -145,4 +173,9 @@ macro_rules! impl_spanned {
         }
     }
 }
-impl_spanned!(Basic => BasicWidgetUse, Loop => LoopWidgetUse, Children => ChildrenWidgetUse);
+impl_spanned!(
+    Basic => BasicWidgetUse,
+    Loop => LoopWidgetUse,
+    Children => ChildrenWidgetUse,
+    Let => LetWidgetUse,
+);

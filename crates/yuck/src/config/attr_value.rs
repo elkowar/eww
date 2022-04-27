@@ -26,18 +26,3 @@ pub enum Action {
     Update(VarName, SimplExpr),
     Noop,
 }
-
-impl Action {
-    pub fn eval_exprs(&self, values: &HashMap<VarName, DynVal>) -> Result<ResolvedAction, EvalError> {
-        Ok(match self {
-            Self::Update(varname, expr) => ResolvedAction::Update(varname.clone(), expr.eval(values)?),
-            Self::Noop => ResolvedAction::Noop,
-        })
-    }
-}
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub enum ResolvedAction {
-    Update(VarName, DynVal),
-    Noop,
-}

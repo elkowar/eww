@@ -5,7 +5,7 @@ use crate::{
     error::DiagError,
     error_handling_ctx,
     util::{list_difference, unindent},
-    widgets::build_widget::build_gtk_widget,
+    widgets::{build_widget::build_gtk_widget, run_action},
 };
 use anyhow::{anyhow, Context, Result};
 use codespan_reporting::diagnostic::Severity;
@@ -25,7 +25,7 @@ use std::{
     time::Duration,
 };
 use yuck::{
-    config::validate::ValidationError,
+    config::{validate::ValidationError, attr_value::Action},
     error::{AstError, AstResult},
     gen_diagnostic,
     parser::from_ast::FromAst,
@@ -416,21 +416,26 @@ fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
 fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
     let gtk_widget = gtk::Button::new();
 
-    def_widget!(bargs, _g, gtk_widget, {
+    def_widget!(bargs, scope_graph, gtk_widget, {
         // @prop onclick - a command that get's run when the button is clicked
         // @prop onmiddleclick - a command that get's run when the button is middleclicked
         // @prop onrightclick - a command that get's run when the button is rightclicked
         // @prop timeout - timeout of the command
         prop(
             timeout: as_duration = Duration::from_millis(200),
-            onclick: as_string = "",
+            onclick: as_action?,
             onmiddleclick: as_string = "",
             onrightclick: as_string = ""
         ) {
             gtk_widget.add_events(gdk::EventMask::BUTTON_PRESS_MASK);
+            let onclick = onclick.cloned().unwrap_or(Action::Noop);
             connect_signal_handler!(gtk_widget, gtk_widget.connect_button_press_event(move |_, evt| {
                 match evt.button() {
-                    1 => run_command(timeout, &onclick, &[""]),
+                    1 => {
+                        if let Err(e) = run_action(scope_graph, bargs.calling_scope, &onclick) {
+                            log::error!("{}", e);
+                        }
+                    }
                     2 => run_command(timeout, &onmiddleclick, &[""]),
                     3 => run_command(timeout, &onrightclick, &[""]),
                     _ => {},
