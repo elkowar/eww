@@ -14,6 +14,8 @@ use gdk::{ModifierType, NotifyType};
 use gtk::{self, glib, prelude::*, DestDefaults, TargetEntry, TargetList};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
+use std::hash::Hasher;
+use glib::signal::SignalHandlerId;
 
 use std::{
     cell::RefCell,
@@ -31,22 +33,36 @@ use yuck::{
 
 /// Connect a gtk signal handler inside of this macro to ensure that when the same code gets run multiple times,
 /// the previously connected singal handler first gets disconnected.
-macro_rules! connect_single_handler {
+/// Can take an optional condition.
+/// If the condition is false, we disconnect the handler without running the connect_expr,
+/// thus not connecting a new handler unless the condition is met.
+macro_rules! connect_signal_handler {
     ($widget:ident, if $cond:expr, $connect_expr:expr) => {{
-        static ID: Lazy<std::sync::Mutex<Option<gtk::glib::SignalHandlerId>>> = Lazy::new(|| std::sync::Mutex::new(None));
+        // static hashmap of widget hashes to signal handler ids.
+        // For each use of connect_signal_handler (which represents a specific widget-type and a specific attribute),
+        // we need to remember the handlers of all actual widget instances that use this field.
+        // We can't go by instance by just using a static, and we can't really go by field/attribute without static -- so we do both.
+        static ID: Lazy<std::sync::Mutex<HashMap<u64, SignalHandlerId>>> = Lazy::new(|| std::sync::Mutex::new(HashMap::new()));
+        let widget_hash = {
+            let mut hasher = std::collections::hash_map::DefaultHasher::new();
+            std::hash::Hash::hash(&$widget, &mut hasher);
+            hasher.finish()
+        };
         let old = if $cond {
-            ID.lock().unwrap().replace($connect_expr)
+            let new_id = $connect_expr;
+            ID.lock().unwrap().insert(widget_hash, new_id)
         } else {
-            ID.lock().unwrap().take()
+            ID.lock().unwrap().remove(&widget_hash)
         };
         if let Some(old) = old {
             $widget.disconnect(old);
         }
     }};
     ($widget:ident, $connect_expr:expr) => {{
-        connect_single_handler!($widget, if true, $connect_expr)
+        connect_signal_handler!($widget, if true, $connect_expr)
     }};
 }
+
 
 // TODO figure out how to
 // TODO https://developer.gnome.org/gtk3/stable/GtkFixed.html
@@ -207,7 +223,7 @@ pub(super) fn resolve_range_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Ran
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_string) {
             gtk_widget.set_sensitive(true);
             gtk_widget.add_events(gdk::EventMask::PROPERTY_CHANGE_MASK);
-            connect_single_handler!(gtk_widget, gtk_widget.connect_value_changed(move |gtk_widget| {
+            connect_signal_handler!(gtk_widget, gtk_widget.connect_value_changed(move |gtk_widget| {
                 run_command(timeout, &onchange, &[gtk_widget.value()]);
             }));
         }
@@ -241,7 +257,7 @@ fn build_gtk_combo_box_text(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText
         // @prop timeout - timeout of the command
         // @prop onchange - runs the code when a item was selected, replacing {} with the item as a string
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_string) {
-            connect_single_handler!(gtk_widget, gtk_widget.connect_changed(move |gtk_widget| {
+            connect_signal_handler!(gtk_widget, gtk_widget.connect_changed(move |gtk_widget| {
                 run_command(timeout, &onchange, &[gtk_widget.active_text().unwrap_or_else(|| "".into())]);
             }));
         },
@@ -285,7 +301,7 @@ fn build_gtk_checkbox(bargs: &mut BuilderArgs) -> Result<gtk::CheckButton> {
         // @prop onchecked - action (command) to be executed when checked by the user
         // @prop onunchecked - similar to onchecked but when the widget is unchecked
         prop(timeout: as_duration = Duration::from_millis(200), onchecked: as_string = "", onunchecked: as_string = "") {
-            connect_single_handler!(gtk_widget, gtk_widget.connect_toggled(move |gtk_widget| {
+            connect_signal_handler!(gtk_widget, gtk_widget.connect_toggled(move |gtk_widget| {
                 run_command(timeout, if gtk_widget.is_active() { &onchecked } else { &onunchecked }, &[""]);
             }));
        }
@@ -305,7 +321,7 @@ fn build_gtk_color_button(bargs: &mut BuilderArgs) -> Result<gtk::ColorButton> {
         // @prop onchange - runs the code when the color was selected
         // @prop timeout - timeout of the command
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_string) {
-            connect_single_handler!(gtk_widget, gtk_widget.connect_color_set(move |gtk_widget| {
+            connect_signal_handler!(gtk_widget, gtk_widget.connect_color_set(move |gtk_widget| {
                 run_command(timeout, &onchange, &[gtk_widget.rgba()]);
             }));
         }
@@ -325,7 +341,7 @@ fn build_gtk_color_chooser(bargs: &mut BuilderArgs) -> Result<gtk::ColorChooserW
         // @prop onchange - runs the code when the color was selected
         // @prop timeout - timeout of the command
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_string) {
-            connect_single_handler!(gtk_widget, gtk_widget.connect_color_activated(move |_a, color| {
+            connect_signal_handler!(gtk_widget, gtk_widget.connect_color_activated(move |_a, color| {
                 run_command(timeout, &onchange, &[*color]);
             }));
         }
@@ -387,7 +403,7 @@ fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
         // @prop onchange - Command to run when the text changes. The placeholder `{}` will be replaced by the value
         // @prop timeout - timeout of the command
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_string) {
-            connect_single_handler!(gtk_widget, gtk_widget.connect_changed(move |gtk_widget| {
+            connect_signal_handler!(gtk_widget, gtk_widget.connect_changed(move |gtk_widget| {
                 run_command(timeout, &onchange, &[gtk_widget.text().to_string()]);
             }));
         }
@@ -412,7 +428,7 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
             onrightclick: as_string = ""
         ) {
             gtk_widget.add_events(gdk::EventMask::BUTTON_PRESS_MASK);
-            connect_single_handler!(gtk_widget, gtk_widget.connect_button_press_event(move |_, evt| {
+            connect_signal_handler!(gtk_widget, gtk_widget.connect_button_press_event(move |_, evt| {
                 match evt.button() {
                     1 => run_command(timeout, &onclick, &[""]),
                     2 => run_command(timeout, &onmiddleclick, &[""]),
@@ -557,7 +573,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
         prop(timeout: as_duration = Duration::from_millis(200), onscroll: as_string) {
             gtk_widget.add_events(gdk::EventMask::SCROLL_MASK);
             gtk_widget.add_events(gdk::EventMask::SMOOTH_SCROLL_MASK);
-            connect_single_handler!(gtk_widget, gtk_widget.connect_scroll_event(move |_, evt| {
+            connect_signal_handler!(gtk_widget, gtk_widget.connect_scroll_event(move |_, evt| {
                 let delta = evt.delta().1;
                 if delta != 0f64 { // Ignore the first event https://bugzilla.gnome.org/show_bug.cgi?id=675959
                     run_command(timeout, &onscroll, &[if delta < 0f64 { "up" } else { "down" }]);
@@ -569,7 +585,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
         // @prop onhover - event to execute when the user hovers over the widget
         prop(timeout: as_duration = Duration::from_millis(200), onhover: as_string) {
             gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
-            connect_single_handler!(gtk_widget, gtk_widget.connect_enter_notify_event(move |_, evt| {
+            connect_signal_handler!(gtk_widget, gtk_widget.connect_enter_notify_event(move |_, evt| {
                 if evt.detail() != NotifyType::Inferior {
                     run_command(timeout, &onhover, &[evt.position().0, evt.position().1]);
                 }
@@ -580,7 +596,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
         // @prop onhoverlost - event to execute when the user losts hovers over the widget
         prop(timeout: as_duration = Duration::from_millis(200), onhoverlost: as_string) {
             gtk_widget.add_events(gdk::EventMask::LEAVE_NOTIFY_MASK);
-            connect_single_handler!(gtk_widget, gtk_widget.connect_leave_notify_event(move |_, evt| {
+            connect_signal_handler!(gtk_widget, gtk_widget.connect_leave_notify_event(move |_, evt| {
                 if evt.detail() != NotifyType::Inferior {
                     run_command(timeout, &onhoverlost, &[evt.position().0, evt.position().1]);
                 }
@@ -592,7 +608,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
             gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
             gtk_widget.add_events(gdk::EventMask::LEAVE_NOTIFY_MASK);
 
-            connect_single_handler!(gtk_widget, gtk_widget.connect_enter_notify_event(move |widget, _evt| {
+            connect_signal_handler!(gtk_widget, gtk_widget.connect_enter_notify_event(move |widget, _evt| {
                 if _evt.detail() != NotifyType::Inferior {
                     let display = gdk::Display::default();
                     let gdk_window = widget.window();
@@ -602,7 +618,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
                 }
                 gtk::Inhibit(false)
             }));
-            connect_single_handler!(gtk_widget, gtk_widget.connect_leave_notify_event(move |widget, _evt| {
+            connect_signal_handler!(gtk_widget, gtk_widget.connect_leave_notify_event(move |widget, _evt| {
                 if _evt.detail() != NotifyType::Inferior {
                     let gdk_window = widget.window();
                     if let Some(gdk_window) = gdk_window {
@@ -623,7 +639,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
                 ],
                 gdk::DragAction::COPY,
             );
-            connect_single_handler!(gtk_widget, gtk_widget.connect_drag_data_received(move |_, _, _x, _y, selection_data, _target_type, _timestamp| {
+            connect_signal_handler!(gtk_widget, gtk_widget.connect_drag_data_received(move |_, _, _x, _y, selection_data, _target_type, _timestamp| {
                 if let Some(data) = selection_data.uris().first(){
                     run_command(timeout, &ondropped, &[data.to_string(), "file".to_string()]);
                 } else if let Some(data) = selection_data.text(){
@@ -651,7 +667,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
                 gtk_widget.drag_source_set_target_list(Some(&TargetList::new(&[target_entry])));
             }
 
-            connect_single_handler!(gtk_widget, if !dragvalue.is_empty(), gtk_widget.connect_drag_data_get(move |_, _, data, _, _| {
+            connect_signal_handler!(gtk_widget, if !dragvalue.is_empty(), gtk_widget.connect_drag_data_get(move |_, _, data, _, _| {
                 match dragtype {
                     DragEntryType::File => data.set_uris(&[&dragvalue]),
                     DragEntryType::Text => data.set_text(&dragvalue),
@@ -765,7 +781,7 @@ fn build_gtk_calendar(bargs: &mut BuilderArgs) -> Result<gtk::Calendar> {
         // @prop onclick - command to run when the user selects a date. The `{0}` placeholder will be replaced by the selected day, `{1}` will be replaced by the month, and `{2}` by the year.
         // @prop timeout - timeout of the command
         prop(timeout: as_duration = Duration::from_millis(200), onclick: as_string) {
-            connect_single_handler!(gtk_widget, gtk_widget.connect_day_selected(move |w| {
+            connect_signal_handler!(gtk_widget, gtk_widget.connect_day_selected(move |w| {
                 log::warn!("BREAKING CHANGE: The date is now provided via three values, set by the placeholders {{0}}, {{1}} and {{2}}. If you're currently using the onclick date, you will need to change this.");
                 run_command(
                     timeout,
