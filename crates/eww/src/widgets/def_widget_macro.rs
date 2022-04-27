@@ -20,7 +20,7 @@ macro_rules! def_widget {
                 ::maplit::hashmap! {
                     $(
                         eww_shared_util::AttrName(::std::stringify!($attr_name).to_owned()) =>
-                            def_widget!(@get_value $args, &::std::stringify!($attr_name).replace('_', "-"), $(? $($optional)?)? $(= $default)?)
+                            def_widget!(@get_value $args, &::std::stringify!($attr_name).replace('_', "-"), $typecast_func, $(? $($optional)?)? $(= $default)?)
                     ),*
                 }
             };
@@ -58,11 +58,11 @@ macro_rules! def_widget {
                                         // If the value is some, evaluate and typecast it.
                                         // This now uses a new macro, to match on the type cast function:
                                         // if we're casting into an action, we wanna do a different thing than if we where casting into an expr
-                                        let $attr_name = def_widget!(@value_depending_on_type values, $attr_name : $typecast_func $(? $(@ $optional @)?)? $(= $default)?);
+                                        let $attr_name = def_widget!(@value_depending_on_type values, $attr_name : $typecast_func);
 
                                         // If the attribute is optional, keep it as Option<T>, otherwise unwrap
                                         // because we _know_ the value in the attr_map is Some if the attribute is not optional.
-                                        def_widget!(@unwrap_if_required $attr_name $(? $($optional)?)?);
+                                        def_widget!(@unwrap_if_required $attr_name : $typecast_func $(? $($optional)?)?);
                                     )*
 
                                     // And then run the provided code with those attributes in scope.
@@ -77,7 +77,7 @@ macro_rules! def_widget {
         })+
     };
 
-    (@value_depending_on_type $values:expr, $attr_name:ident : as_action $(? $(@ $optional:tt @)?)? $(= $default:expr)?) => {
+    (@value_depending_on_type $values:expr, $attr_name:ident : as_action) => {
         match $attr_name {
             Some(yuck::config::attr_value::AttrValue::Action(action)) => Some(action.eval_exprs(&$values)?),
             Some(yuck::config::attr_value::AttrValue::SimplExpr(expr)) => Some(ExecutableAction::Shell(expr.eval(&$values)?.as_string()?)),
@@ -85,32 +85,43 @@ macro_rules! def_widget {
         }
     };
 
-    (@value_depending_on_type $values:expr, $attr_name:ident : $typecast_func:ident $(? $(@ $optional:tt @)?)? $(= $default:expr)?) => {
+    (@value_depending_on_type $values:expr, $attr_name:ident : $typecast_func:ident) => {
         match $attr_name {
             Some(yuck::config::attr_value::AttrValue::SimplExpr(expr)) => Some(expr.eval(&$values)?.$typecast_func()?),
             _ => None,
         }
     };
 
-    (@unwrap_if_required $value:ident ?) => { };
-    (@unwrap_if_required $value:ident) => {
+    // optional actions are a special case, as those should default to Noop rather than being represented as options.
+    (@unwrap_if_required $value:ident : as_action ?) => {
         let $value = $value.expect("No value was provided, eventhough value was required");
     };
-
+    // Optional values don't need unwrapping, they're supposed to be optional
+    (@unwrap_if_required $value:ident : $typecast_func:ident ?) => { };
+    // required values will still be stored as option at this point (because typechecking) -- but they are known to exist, and thus we can unwrap-
+    (@unwrap_if_required $value:ident : $typecast_func:ident) => {
+        let $value = $value.expect("No value was provided, eventhough value was required");
+    };
+    // The attribute is explicitly marked as optional and is an action. Optional actions should just default to Noop
+    (@get_value $args:ident, $name:expr, as_action, ?) => {
+        Some($args.widget_use.attrs.ast_optional::<yuck::config::attr_value::AttrValue>($name)?
+            .clone()
+            .unwrap_or_else(|| yuck::config::attr_value::AttrValue::Action(yuck::config::attr_value::Action::Noop)))
+    };
     // The attribute is explicitly marked as optional - the value should be provided to the prop function body as Option<T>
-    (@get_value $args:ident, $name:expr, ?) => {
+    (@get_value $args:ident, $name:expr, $typecast_func:ident, ?) => {
         $args.widget_use.attrs.ast_optional::<yuck::config::attr_value::AttrValue>($name)?.clone()
     };
 
     // The attribute has a default value
-    (@get_value $args:ident, $name:expr, = $default:expr) => {
+    (@get_value $args:ident, $name:expr, $_typecast_func:ident, = $default:expr) => {
         Some($args.widget_use.attrs.ast_optional::<yuck::config::attr_value::AttrValue>($name)?
             .clone()
             .unwrap_or_else(|| yuck::config::attr_value::AttrValue::SimplExpr(simplexpr::SimplExpr::synth_literal($default))))
     };
 
     // The attribute is required - the prop will only be ran if this attribute is actually provided.
-    (@get_value $args:ident, $name:expr,) => {
+    (@get_value $args:ident, $name:expr, $typecast_func:ident,) => {
         Some($args.widget_use.attrs.ast_required::<yuck::config::attr_value::AttrValue>($name)?.clone())
     }
 }

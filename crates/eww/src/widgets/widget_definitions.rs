@@ -307,8 +307,6 @@ fn build_gtk_checkbox(bargs: &mut BuilderArgs) -> Result<gtk::CheckButton> {
         // @prop onunchecked - similar to onchecked but when the widget is unchecked
         prop(timeout: as_duration = Duration::from_millis(200), onchecked: as_action?, onunchecked: as_action?) {
             let scope_sender = graph.event_sender.clone();
-            let onchecked = onchecked.unwrap_or(ExecutableAction::Noop);
-            let onunchecked = onunchecked.unwrap_or(ExecutableAction::Noop);
             connect_signal_handler!(gtk_widget, gtk_widget.connect_toggled(move |gtk_widget| {
                 run_action(scope_sender.clone(), calling_scope, timeout, if gtk_widget.is_active() { &onchecked } else { &onunchecked }, &[""]);
             }));
@@ -444,20 +442,11 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
         ) {
             let scope_sender = graph.event_sender.clone();
             gtk_widget.add_events(gdk::EventMask::BUTTON_PRESS_MASK);
-            let onclick = onclick.unwrap_or(ExecutableAction::Noop);
-            let onmiddleclick = onmiddleclick.unwrap_or(ExecutableAction::Noop);
-            let onrightclick = onrightclick.unwrap_or(ExecutableAction::Noop);
             connect_signal_handler!(gtk_widget, gtk_widget.connect_button_press_event(move |_, evt| {
                 match evt.button() {
-                    1 => {
-                        run_action(scope_sender.clone(), calling_scope, timeout, &onclick, &[""]);
-                    },
-                    2 => {
-                        run_action(scope_sender.clone(), calling_scope, timeout, &onmiddleclick, &[""]);
-                    },
-                    3 => {
-                        run_action(scope_sender.clone(), calling_scope, timeout, &onrightclick, &[""]);
-                    },
+                    1 => run_action(scope_sender.clone(), calling_scope, timeout, &onclick, &[""]),
+                    2 => run_action(scope_sender.clone(), calling_scope, timeout, &onmiddleclick, &[""]),
+                    3 => run_action(scope_sender.clone(), calling_scope, timeout, &onrightclick, &[""]),
                     _ => {},
                 }
                 gtk::Inhibit(false)
