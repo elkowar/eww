@@ -11,12 +11,10 @@ use anyhow::{anyhow, Context, Result};
 use codespan_reporting::diagnostic::Severity;
 use eww_shared_util::Spanned;
 use gdk::{ModifierType, NotifyType};
-use glib::signal::SignalHandlerId;
 use gtk::{self, glib, prelude::*, DestDefaults, TargetEntry, TargetList};
 use glib::translate::FromGlib;
 use itertools::Itertools;
 use once_cell::sync::Lazy;
-use std::hash::Hasher;
 
 use std::{
     cell::RefCell,
