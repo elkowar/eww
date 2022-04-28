@@ -11,10 +11,13 @@ use eww_shared_util::Spanned;
 use gdk::{ModifierType, NotifyType};
 
 use glib::translate::FromGlib;
+use glib::signal::SignalHandlerId;
 use gtk::{self, glib, prelude::*, DestDefaults, TargetEntry, TargetList};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
+use std::hash::Hasher;
 
+use crate::widgets::system_tray::{spawn_local_handler, start_communication_thread};
 use std::{
     cell::RefCell,
     cmp::Ordering,
@@ -22,6 +25,7 @@ use std::{
     rc::Rc,
     time::Duration,
 };
+use tokio::sync::mpsc;
 use yuck::{
     config::file_provider::YuckFileProvider,
     error::{DiagError, DiagResult},
@@ -107,6 +111,7 @@ pub(super) fn widget_use_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::W
         WIDGET_NAME_REVEALER => build_gtk_revealer(bargs)?.upcast(),
         WIDGET_NAME_SCROLL => build_gtk_scrolledwindow(bargs)?.upcast(),
         WIDGET_NAME_OVERLAY => build_gtk_overlay(bargs)?.upcast(),
+        WIDGET_NAME_SYSTRAY => build_gtk_system_tray(bargs)?.upcast(),
         _ => {
             return Err(DiagError(gen_diagnostic! {
                 msg = format!("referenced unknown widget `{}`", bargs.widget_use.name),
@@ -642,7 +647,23 @@ fn build_gtk_scrolledwindow(bargs: &mut BuilderArgs) -> Result<gtk::ScrolledWind
     Ok(gtk_widget)
 }
 
+const WIDGET_NAME_SYSTRAY: &str = "system-tray";
+/// @widget system-stray
+/// @desc a system-tray menubar.
+fn build_gtk_system_tray(_bargs: &mut BuilderArgs) -> Result<gtk::Box> {
+    let menu_bar = gtk::MenuBar::new();
+    let v_box = gtk::Box::builder().child(&menu_bar).build();
+    let (sender, receiver) = mpsc::channel(32);
+    let (cmd_tx, cmd_rx) = mpsc::channel(32);
+
+    spawn_local_handler(menu_bar, receiver, cmd_tx);
+    start_communication_thread(sender, cmd_rx);
+
+    Ok(v_box)
+}
+
 const WIDGET_NAME_EVENTBOX: &str = "eventbox";
+
 /// @widget eventbox
 /// @desc a container which can receive events and must contain exactly one child. Supports `:hover` and `:active` css selectors.
 fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
