@@ -13,6 +13,7 @@ use eww_shared_util::Spanned;
 use gdk::{ModifierType, NotifyType};
 use glib::signal::SignalHandlerId;
 use gtk::{self, glib, prelude::*, DestDefaults, TargetEntry, TargetList};
+use glib::translate::FromGlib;
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use std::hash::Hasher;
@@ -38,24 +39,17 @@ use yuck::{
 /// thus not connecting a new handler unless the condition is met.
 macro_rules! connect_signal_handler {
     ($widget:ident, if $cond:expr, $connect_expr:expr) => {{
-        // static hashmap of widget hashes to signal handler ids.
-        // For each use of connect_signal_handler (which represents a specific widget-type and a specific attribute),
-        // we need to remember the handlers of all actual widget instances that use this field.
-        // We can't go by instance by just using a static, and we can't really go by field/attribute without static -- so we do both.
-        static ID: Lazy<std::sync::Mutex<HashMap<u64, SignalHandlerId>>> = Lazy::new(|| std::sync::Mutex::new(HashMap::new()));
-        let widget_hash = {
-            let mut hasher = std::collections::hash_map::DefaultHasher::new();
-            std::hash::Hash::hash(&$widget, &mut hasher);
-            hasher.finish()
-        };
-        let old = if $cond {
-            let new_id = $connect_expr;
-            ID.lock().unwrap().insert(widget_hash, new_id)
-        } else {
-            ID.lock().unwrap().remove(&widget_hash)
-        };
-        if let Some(old) = old {
-            $widget.disconnect(old);
+        let key = "signal_id";
+
+        unsafe {
+            let old = $widget.data::<gtk::glib::SignalHandlerId>(&key);
+
+            if let Some(old) = old {
+                 let a = old.as_ref().as_raw() ;
+                 $widget.disconnect(gtk::glib::SignalHandlerId::from_glib(a));
+            }
+
+            $widget.set_data::<gtk::glib::SignalHandlerId>(&key, $connect_expr);
         }
     }};
     ($widget:ident, $connect_expr:expr) => {{
