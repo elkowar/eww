@@ -1,0 +1,8 @@
+---
+source: crates/simplexpr/src/dynval.rs
+expression: "DynVal::from(\"1h\").as_duration()"
+
+---
+Ok(
+    3600s,
+)

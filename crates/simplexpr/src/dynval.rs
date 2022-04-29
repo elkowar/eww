@@ -169,17 +169,18 @@ impl DynVal {
                 s.trim_end_matches("ms").parse().map_err(|e| ConversionError::new(self.clone(), "integer", e))?,
             ))
         } else if s.ends_with('s') {
-            Ok(Duration::from_secs(
-                s.trim_end_matches('s').parse().map_err(|e| ConversionError::new(self.clone(), "integer", e))?,
-            ))
-        } else if s.ends_with('m') {
-            Ok(Duration::from_secs(
-                s.trim_end_matches('m').parse::<u64>().map_err(|e| ConversionError::new(self.clone(), "integer", e))? * 60,
-            ))
+            let secs = s.trim_end_matches('s').parse::<f64>().map_err(|e| ConversionError::new(self.clone(), "number", e))?;
+            Ok(Duration::from_millis(f64::floor(secs * 1000f64) as u64))
+        } else if s.ends_with('m') || s.ends_with("min") {
+            let minutes = s
+                .trim_end_matches("min")
+                .trim_end_matches('m')
+                .parse::<f64>()
+                .map_err(|e| ConversionError::new(self.clone(), "number", e))?;
+            Ok(Duration::from_secs(f64::floor(minutes * 60f64) as u64))
         } else if s.ends_with('h') {
-            Ok(Duration::from_secs(
-                s.trim_end_matches('h').parse::<u64>().map_err(|e| ConversionError::new(self.clone(), "integer", e))? * 60 * 60,
-            ))
+            let hours = s.trim_end_matches('h').parse::<f64>().map_err(|e| ConversionError::new(self.clone(), "number", e))?;
+            Ok(Duration::from_secs(f64::floor(hours * 60f64 * 60f64) as u64))
         } else {
             Err(ConversionError { value: self.clone(), target_type: "duration", source: None })
         }
@@ -238,13 +239,25 @@ mod test {
     use super::*;
     #[test]
     fn test_parse_vec() {
-        insta::assert_debug_snapshot!(DynVal::from_string("[]".to_string()).as_vec());
-        insta::assert_debug_snapshot!(DynVal::from_string("[hi]".to_string()).as_vec());
-        insta::assert_debug_snapshot!(DynVal::from_string("[hi,ho,hu]".to_string()).as_vec());
-        insta::assert_debug_snapshot!(DynVal::from_string("[hi\\,ho]".to_string()).as_vec());
-        insta::assert_debug_snapshot!(DynVal::from_string("[hi\\,ho,hu]".to_string()).as_vec());
-        insta::assert_debug_snapshot!(DynVal::from_string("".to_string()).as_vec());
-        insta::assert_debug_snapshot!(DynVal::from_string("[a,b".to_string()).as_vec());
-        insta::assert_debug_snapshot!(DynVal::from_string("a]".to_string()).as_vec());
+        insta::assert_debug_snapshot!(DynVal::from("[]").as_vec());
+        insta::assert_debug_snapshot!(DynVal::from("[hi]").as_vec());
+        insta::assert_debug_snapshot!(DynVal::from("[hi,ho,hu]").as_vec());
+        insta::assert_debug_snapshot!(DynVal::from("[hi\\,ho]").as_vec());
+        insta::assert_debug_snapshot!(DynVal::from("[hi\\,ho,hu]").as_vec());
+        insta::assert_debug_snapshot!(DynVal::from("").as_vec());
+        insta::assert_debug_snapshot!(DynVal::from("[a,b").as_vec());
+        insta::assert_debug_snapshot!(DynVal::from("a]").as_vec());
+    }
+
+    #[test]
+    fn test_parse_duration() {
+        insta::assert_debug_snapshot!(DynVal::from("100ms").as_duration());
+        insta::assert_debug_snapshot!(DynVal::from("1s").as_duration());
+        insta::assert_debug_snapshot!(DynVal::from("0.1s").as_duration());
+        insta::assert_debug_snapshot!(DynVal::from("5m").as_duration());
+        insta::assert_debug_snapshot!(DynVal::from("5min").as_duration());
+        insta::assert_debug_snapshot!(DynVal::from("0.5m").as_duration());
+        insta::assert_debug_snapshot!(DynVal::from("1h").as_duration());
+        insta::assert_debug_snapshot!(DynVal::from("0.5h").as_duration());
     }
 }

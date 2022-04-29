@@ -19,7 +19,7 @@ Config(
           span: Span(29, 33, 0),
         ),
       ],
-      widget: WidgetUse(
+      widget: Basic(BasicWidgetUse(
         name: "foo",
         attrs: Attributes(
           span: Span(51, 61, 0),
@@ -33,7 +33,7 @@ Config(
         children: [],
         span: Span(47, 62, 0),
         name_span: Span(48, 51, 0),
-      ),
+      )),
       span: Span(9, 63, 0),
       args_span: Span(24, 34, 0),
     ),
@@ -57,7 +57,7 @@ Config(
       )),
       stacking: Foreground,
       monitor_number: Some(12),
-      widget: WidgetUse(
+      widget: Basic(BasicWidgetUse(
         name: "bar",
         attrs: Attributes(
           span: Span(467, 478, 0),
@@ -71,7 +71,7 @@ Config(
         children: [],
         span: Span(463, 479, 0),
         name_span: Span(464, 467, 0),
-      ),
+      )),
       resizable: true,
       backend_options: BackendWindowOptions(
         wm_ignore: false,
