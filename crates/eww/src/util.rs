@@ -105,16 +105,6 @@ pub fn extend_safe<K: std::cmp::Eq + std::hash::Hash + Clone, V, T: IntoIterator
     b.into_iter().filter_map(|(k, v)| a.insert(k.clone(), v).map(|_| k.clone())).collect()
 }
 
-/// read an scss file, replace all environment variable references within it and
-/// then parse it into css.
-pub fn parse_scss_from_file(path: &Path) -> Result<String> {
-    let config_dir = path.parent().context("Given SCSS file has no parent directory?!")?;
-    let scss_file_content =
-        std::fs::read_to_string(path).with_context(|| format!("Given SCSS File Doesnt Exist! {}", path.display()))?;
-    let file_content = replace_env_var_references(scss_file_content);
-    let grass_config = grass::Options::default().load_path(config_dir);
-    grass::from_string(file_content, &grass_config).map_err(|err| anyhow!("Encountered SCSS parsing error: {:?}", err))
-}
 
 #[ext(pub, name = StringExt)]
 impl<T: AsRef<str>> T {
