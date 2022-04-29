@@ -80,7 +80,14 @@ macro_rules! def_widget {
     (@value_depending_on_type $values:expr, $attr_name:ident : as_action) => {
         match $attr_name {
             Some(yuck::config::attr_value::AttrValue::Action(action)) => Some(action.clone().resolve_to_executable(&$values)),
-            Some(yuck::config::attr_value::AttrValue::SimplExpr(expr)) => Some(ExecutableAction::Shell(expr.clone().resolve_refs_lenient(&$values))),
+            Some(yuck::config::attr_value::AttrValue::SimplExpr(expr)) => {
+                let value = expr.eval(&$values)?;
+                if let Ok(action) = value.as_opaque::<yuck::config::attr_value::Action>() {
+                    Some(action.clone().resolve_to_executable(&$values))
+                } else {
+                    Some(ExecutableAction::Shell(expr.clone().resolve_refs_lenient(&$values)))
+                }
+            }
             _ => None,
         }
     };

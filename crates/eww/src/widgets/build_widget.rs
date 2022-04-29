@@ -324,7 +324,7 @@ fn build_loop_special_widget(
                             Some(calling_scope),
                             calling_scope,
                             hashmap! {
-                                element_name.clone().into() => SimplExpr::Literal(DynVal(element.0, elements_expr_span))
+                                element_name.clone().into() => SimplExpr::Literal(element.at(elements_expr_span))
                             },
                         )?;
                         let new_child_widget =

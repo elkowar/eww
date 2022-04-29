@@ -1,7 +1,7 @@
 #![allow(clippy::option_map_unit_fn)]
 use super::{build_widget::BuilderArgs, circular_progressbar::*, transform::*};
 use crate::{
-    def_widget, action_args, enum_parse,
+    action_args, def_widget, enum_parse,
     error::DiagError,
     error_handling_ctx,
     util::{list_difference, unindent},
@@ -15,6 +15,7 @@ use glib::signal::SignalHandlerId;
 use gtk::{self, glib, prelude::*, DestDefaults, TargetEntry, TargetList};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
+use simplexpr::dynval::DynVal;
 use std::hash::Hasher;
 
 use std::{
@@ -251,10 +252,11 @@ fn build_gtk_combo_box_text(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText
     let calling_scope = bargs.calling_scope.clone();
     def_widget!(bargs, graph, gtk_widget, {
         // @prop items - Items that should be displayed in the combo box
-        prop(items: as_vec) {
+        prop(items: as_json_array) {
             gtk_widget.remove_all();
             for i in items {
-                gtk_widget.append_text(&i);
+                let i = DynVal::try_from(i)?;
+                gtk_widget.append_text(&i.as_string()?);
             }
         },
         // @prop timeout - timeout of the command

@@ -170,9 +170,9 @@ impl SimplExpr {
                 let mut output = String::new();
                 for elem in elems {
                     let result = elem.eval(values)?;
-                    output.push_str(&result.0);
+                    output.push_str(&result.as_string()?);
                 }
-                Ok(DynVal(output, *span))
+                Ok(DynVal::Value(*span, output))
             }
             SimplExpr::VarRef(span, ref name) => {
                 let similar_ish =
@@ -204,7 +204,7 @@ impl SimplExpr {
                     BinOp::GE => DynVal::from(a.as_f64()? >= b.as_f64()?),
                     BinOp::LE => DynVal::from(a.as_f64()? <= b.as_f64()?),
                     #[allow(clippy::useless_conversion)]
-                    BinOp::Elvis => DynVal::from(if a.0.is_empty() { b } else { a }),
+                    BinOp::Elvis => DynVal::from(if a.is_nullish() { b } else { a }),
                     BinOp::RegexMatch => {
                         let regex = regex::Regex::new(&b.as_string()?)?;
                         DynVal::from(regex.is_match(&a.as_string()?))

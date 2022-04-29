@@ -1,7 +1,12 @@
 use std::collections::HashMap;
 
 use eww_shared_util::VarName;
-use simplexpr::{dynval::DynVal, eval::EvalError, SimplExpr};
+use serde::{Deserialize, Serialize};
+use simplexpr::{
+    dynval::{DynVal, Opaque, OpaqueType},
+    eval::EvalError,
+    SimplExpr,
+};
 
 pub static ACTION_NAMES: &[&str] = &["update"];
 
@@ -28,11 +33,15 @@ impl AttrValue {
 }
 
 /// an action as it is provided by the user. These actions contain Expressions which may reference variables.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub enum Action {
     Update(VarName, SimplExpr),
     Shell(SimplExpr),
     Noop,
+}
+
+impl OpaqueType for Action {
+    const TYPE_NAME: &'static str = "action";
 }
 
 impl Action {

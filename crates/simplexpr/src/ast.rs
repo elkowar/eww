@@ -78,12 +78,12 @@ impl std::fmt::Display for SimplExpr {
 }
 impl SimplExpr {
     pub fn literal(span: Span, s: String) -> Self {
-        Self::Literal(DynVal(s, span))
+        Self::Literal(DynVal::Value(span, s))
     }
 
     /// Construct a synthetic simplexpr from a literal string, without adding any relevant span information (uses [`Span::DUMMY`])
     pub fn synth_string(s: impl Into<String>) -> Self {
-        Self::Literal(DynVal(s.into(), Span::DUMMY))
+        Self::Literal(DynVal::Value(Span::DUMMY, s.into()))
     }
 
     /// Construct a synthetic simplexpr from a literal dynval, without adding any relevant span information (uses [`Span::DUMMY`])
