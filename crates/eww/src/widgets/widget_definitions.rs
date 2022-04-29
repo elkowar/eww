@@ -302,7 +302,7 @@ fn build_gtk_checkbox(bargs: &mut BuilderArgs) -> Result<gtk::CheckButton> {
         // @prop onunchecked - similar to onchecked but when the widget is unchecked
         prop(timeout: as_duration = Duration::from_millis(200), onchecked: as_string = "", onunchecked: as_string = "") {
             connect_signal_handler!(gtk_widget, gtk_widget.connect_toggled(move |gtk_widget| {
-                run_command(timeout, if gtk_widget.is_active() { &onchecked } else { &onunchecked }, &[""]);
+                run_command(timeout, if gtk_widget.is_active() { &onchecked } else { &onunchecked }, &[] as &[&str]);
             }));
        }
     });
@@ -437,9 +437,9 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
             gtk_widget.add_events(gdk::EventMask::BUTTON_PRESS_MASK);
             connect_signal_handler!(gtk_widget, gtk_widget.connect_button_press_event(move |_, evt| {
                 match evt.button() {
-                    1 => run_command(timeout, &onclick, &[""]),
-                    2 => run_command(timeout, &onmiddleclick, &[""]),
-                    3 => run_command(timeout, &onrightclick, &[""]),
+                    1 => run_command(timeout, &onclick, &[] as &[&str]),
+                    2 => run_command(timeout, &onmiddleclick, &[] as &[&str]),
+                    3 => run_command(timeout, &onrightclick, &[] as &[&str]),
                     _ => {},
                 }
                 gtk::Inhibit(false)
@@ -680,9 +680,33 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
                     DragEntryType::Text => data.set_text(&dragvalue),
                 };
             }));
+        },
 
+        // TODO the fact that we have the same code here as for button is ugly, as we want to keep consistency
+
+        // @prop onclick - a command that get's run when the button is clicked
+        // @prop onmiddleclick - a command that get's run when the button is middleclicked
+        // @prop onrightclick - a command that get's run when the button is rightclicked
+        // @prop timeout - timeout of the command
+        prop(
+            timeout: as_duration = Duration::from_millis(200),
+            onclick: as_string = "",
+            onmiddleclick: as_string = "",
+            onrightclick: as_string = ""
+        ) {
+            gtk_widget.add_events(gdk::EventMask::BUTTON_PRESS_MASK);
+            connect_signal_handler!(gtk_widget, gtk_widget.connect_button_press_event(move |_, evt| {
+                match evt.button() {
+                    1 => run_command(timeout, &onclick, &[] as &[&str]),
+                    2 => run_command(timeout, &onmiddleclick, &[] as &[&str]),
+                    3 => run_command(timeout, &onrightclick, &[] as &[&str]),
+                    _ => {},
+                }
+                gtk::Inhibit(false)
+            }));
         }
     });
+
     Ok(gtk_widget)
 }
 
