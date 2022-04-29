@@ -37,17 +37,16 @@ use yuck::{
 /// thus not connecting a new handler unless the condition is met.
 macro_rules! connect_signal_handler {
     ($widget:ident, if $cond:expr, $connect_expr:expr) => {{
-        let key = "signal_id";
-
         unsafe {
-            let old = $widget.data::<gtk::glib::SignalHandlerId>(&key);
+            let key = ::std::concat!("signal-handler:", ::std::line!());
+            let old = $widget.data::<gtk::glib::SignalHandlerId>(key);
 
             if let Some(old) = old {
                  let a = old.as_ref().as_raw() ;
                  $widget.disconnect(gtk::glib::SignalHandlerId::from_glib(a));
             }
 
-            $widget.set_data::<gtk::glib::SignalHandlerId>(&key, $connect_expr);
+            $widget.set_data::<gtk::glib::SignalHandlerId>(key, $connect_expr);
         }
     }};
     ($widget:ident, $connect_expr:expr) => {{
