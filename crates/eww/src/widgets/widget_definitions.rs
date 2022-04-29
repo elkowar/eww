@@ -406,6 +406,13 @@ fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
             connect_signal_handler!(gtk_widget, gtk_widget.connect_changed(move |gtk_widget| {
                 run_command(timeout, &onchange, &[gtk_widget.text().to_string()]);
             }));
+        },
+        // @prop onaccept - Command to run when the user hits return in the input field. The placeholder `{}` will be replaced by the value
+        // @prop timeout - timeout of the command
+        prop(timeout: as_duration = Duration::from_millis(200), onaccept: as_string) {
+            connect_signal_handler!(gtk_widget, gtk_widget.connect_activate(move |gtk_widget| {
+                run_command(timeout, &onaccept, &[gtk_widget.text().to_string()]);
+            }));
         }
     });
     Ok(gtk_widget)
