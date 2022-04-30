@@ -68,8 +68,8 @@ impl ObjectImpl for GraphPriv {
         use once_cell::sync::Lazy;
         static PROPERTIES: Lazy<Vec<glib::ParamSpec>> = Lazy::new(|| {
             vec![
-                glib::ParamSpec::new_double("value", "Value", "The value", 0f64, 100f64, 0f64, glib::ParamFlags::READWRITE),
-                glib::ParamSpec::new_double(
+                glib::ParamSpecDouble::new("value", "Value", "The value", 0f64, 100f64, 0f64, glib::ParamFlags::READWRITE),
+                glib::ParamSpecDouble::new(
                     "thickness",
                     "Thickness",
                     "The Thickness",
@@ -78,7 +78,7 @@ impl ObjectImpl for GraphPriv {
                     1f64,
                     glib::ParamFlags::READWRITE,
                 ),
-                glib::ParamSpec::new_double(
+                glib::ParamSpecDouble::new(
                     "max",
                     "Maximum Value",
                     "The Maximum Value",
@@ -87,7 +87,7 @@ impl ObjectImpl for GraphPriv {
                     100f64,
                     glib::ParamFlags::READWRITE,
                 ),
-                glib::ParamSpec::new_double(
+                glib::ParamSpecDouble::new(
                     "min",
                     "Minumum Value",
                     "The Minimum Value",
@@ -96,8 +96,8 @@ impl ObjectImpl for GraphPriv {
                     0f64,
                     glib::ParamFlags::READWRITE,
                 ),
-                glib::ParamSpec::new_boolean("dynamic", "Dynamic", "If it is dynamic", true, glib::ParamFlags::READWRITE),
-                glib::ParamSpec::new_uint64(
+                glib::ParamSpecBoolean::new("dynamic", "Dynamic", "If it is dynamic", true, glib::ParamFlags::READWRITE),
+                glib::ParamSpecUInt64::new(
                     "time-range",
                     "Time Range",
                     "The Time Range",
@@ -106,7 +106,7 @@ impl ObjectImpl for GraphPriv {
                     10u64,
                     glib::ParamFlags::READWRITE,
                 ),
-                glib::ParamSpec::new_string(
+                glib::ParamSpecString::new(
                     "line-style",
                     "Line Style",
                     "The Line Style",
@@ -276,7 +276,7 @@ impl WidgetImpl for GraphPriv {
 
             // Draw Background
             let bg_color: gdk::RGBA = styles.style_property_for_state("background-color", gtk::StateFlags::NORMAL).get()?;
-            if bg_color.alpha > 0.0 {
+            if bg_color.alpha() > 0.0 {
                 if let Some(first_point) = points.front() {
                     cr.line_to(first_point.0, height + margin_bottom);
                 }
@@ -285,14 +285,14 @@ impl WidgetImpl for GraphPriv {
                 }
                 cr.line_to(width, height);
 
-                cr.set_source_rgba(bg_color.red, bg_color.green, bg_color.blue, bg_color.alpha);
+                cr.set_source_rgba(bg_color.red(), bg_color.green(), bg_color.blue(), bg_color.alpha());
                 cr.fill()?;
             }
 
             // Draw Line
             let line_color: gdk::RGBA = styles.color(gtk::StateFlags::NORMAL);
             let thickness = *self.thickness.borrow();
-            if line_color.alpha > 0.0 && thickness > 0.0 {
+            if line_color.alpha() > 0.0 && thickness > 0.0 {
                 for (x, y) in points.iter() {
                     cr.line_to(*x, *y);
                 }
@@ -300,7 +300,7 @@ impl WidgetImpl for GraphPriv {
                 let line_style = &*self.line_style.borrow();
                 apply_line_style(line_style.as_str(), cr)?;
                 cr.set_line_width(thickness);
-                cr.set_source_rgba(line_color.red, line_color.green, line_color.blue, line_color.alpha);
+                cr.set_source_rgba(line_color.red(), line_color.green(), line_color.blue(), line_color.alpha());
                 cr.stroke()?;
             }
 

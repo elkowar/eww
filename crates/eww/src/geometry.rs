@@ -26,6 +26,6 @@ impl Rectangular for Rect {
 
 impl Rectangular for gdk::Rectangle {
     fn get_rect(&self) -> Rect {
-        Rect { x: self.x, y: self.y, width: self.width, height: self.height }
+        Rect { x: self.x(), y: self.y(), width: self.width(), height: self.height() }
     }
 }

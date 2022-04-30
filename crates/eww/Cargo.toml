@@ -15,21 +15,21 @@ default = ["x11"]
 x11 = ["gdkx11", "x11rb", "yuck/x11"]
 wayland = ["gtk-layer-shell", "gtk-layer-shell-sys", "yuck/wayland"]
 [dependencies.cairo-sys-rs]
-version = "0.14.0"
+version = "0.15.1"
 
 [dependencies]
-gtk = { version = "0.14", features = [ "v3_22" ] }
+gtk = { version = "0.15", features = [ "v3_22" ] }
 gdk = { version = "*", features = ["v3_22"] }
 gio = { version = "*", features = ["v2_44"] }
-glib = { version = "0.14.8"}
+glib = { version = "0.15.11"}
 
-cairo-rs = "0.14.0"
+cairo-rs = "0.15.11"
 
-gdk-pixbuf = "0.9"
+gdk-pixbuf = "0.15"
 
-gtk-layer-shell = { version="0.2.0", optional=true }
-gtk-layer-shell-sys = { version="0.2.0", optional=true }
-gdkx11 = { version = "0.14", optional = true }
+gtk-layer-shell = { version="0.3.1", optional=true }
+gtk-layer-shell-sys = { version="0.3.1", optional=true }
+gdkx11 = { version = "0.15", optional = true }
 x11rb = { version = "0.8", features = ["randr"], optional = true }
 
 regex = "1"

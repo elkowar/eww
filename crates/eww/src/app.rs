@@ -388,8 +388,8 @@ fn initialize_window(
 
     if let Some(geometry) = window_def.geometry {
         let actual_window_rect = get_window_rectangle(geometry, monitor_geometry);
-        window.set_size_request(actual_window_rect.width, actual_window_rect.height);
-        window.set_default_size(actual_window_rect.width, actual_window_rect.height);
+        window.set_size_request(actual_window_rect.width(), actual_window_rect.height());
+        window.set_default_size(actual_window_rect.width(), actual_window_rect.height());
     }
     window.set_decorated(false);
     window.set_skip_taskbar_hint(true);
@@ -435,8 +435,8 @@ fn apply_window_position(
 
     let gdk_origin = gdk_window.origin();
 
-    if actual_window_rect.x != gdk_origin.1 || actual_window_rect.y != gdk_origin.2 {
-        gdk_window.move_(actual_window_rect.x, actual_window_rect.y);
+    if actual_window_rect.x() != gdk_origin.1 || actual_window_rect.y() != gdk_origin.2 {
+        gdk_window.move_(actual_window_rect.x(), actual_window_rect.y());
     }
 
     Ok(())
@@ -463,9 +463,9 @@ fn get_monitor_geometry(n: Option<i32>) -> Result<gdk::Rectangle> {
 }
 
 pub fn get_window_rectangle(geometry: WindowGeometry, screen_rect: gdk::Rectangle) -> gdk::Rectangle {
-    let (offset_x, offset_y) = geometry.offset.relative_to(screen_rect.width, screen_rect.height);
-    let (width, height) = geometry.size.relative_to(screen_rect.width, screen_rect.height);
-    let x = screen_rect.x + offset_x + geometry.anchor_point.x.alignment_to_coordinate(width, screen_rect.width);
-    let y = screen_rect.y + offset_y + geometry.anchor_point.y.alignment_to_coordinate(height, screen_rect.height);
-    gdk::Rectangle { x, y, width, height }
+    let (offset_x, offset_y) = geometry.offset.relative_to(screen_rect.width(), screen_rect.height());
+    let (width, height) = geometry.size.relative_to(screen_rect.width(), screen_rect.height());
+    let x = screen_rect.x() + offset_x + geometry.anchor_point.x.alignment_to_coordinate(width, screen_rect.width());
+    let y = screen_rect.y() + offset_y + geometry.anchor_point.y.alignment_to_coordinate(height, screen_rect.height());
+    gdk::Rectangle::new(x, y, width, height)
 }
