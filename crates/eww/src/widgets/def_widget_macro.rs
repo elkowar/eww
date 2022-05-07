@@ -45,7 +45,8 @@ macro_rules! def_widget {
                             f: Box::new({
                                 let $gtk_widget = gdk::glib::clone::Downgrade::downgrade(&$gtk_widget);
                                 move |$scope_graph, values| {
-                                    let $gtk_widget = gdk::glib::clone::Upgrade::upgrade(&$gtk_widget).unwrap();
+                                    let $gtk_widget = gdk::glib::clone::Upgrade::upgrade(&$gtk_widget)
+                                        .ok_or_else(|| anyhow!("Couldn't upgrade reference."))?;
                                     // values is a map of all the variables that are required to evaluate the
                                     // attributes expression.
 
