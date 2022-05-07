@@ -9,7 +9,10 @@ macro_rules! def_widget {
     }) => {
         $({
             $(
-                $args.unhandled_attrs.retain(|a| &a.0 != &::std::stringify!($attr_name).replace('_', "-"));
+                // explicitly box the function to not cause tons of monomorphization related duplications of Vec::retain
+                let retain_fn: Box<dyn Fn(&eww_shared_util::wrappers::AttrName) -> bool> =
+                    Box::new(|a| &a.0 != &::std::stringify!($attr_name).replace('_', "-"));
+                $args.unhandled_attrs.retain(retain_fn);
             )*
 
             // Map of all attributes to their provided expressions.
