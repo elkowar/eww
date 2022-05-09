@@ -24,7 +24,7 @@ levenshtein = "1.0"
 
 strum = { version = "0.21", features = ["derive"] }
 
-eww_shared_util = { path = "../eww_shared_util" }
+eww_shared_util = { version = "0.1.0", path = "../eww_shared_util" }
 
 
 [build-dependencies]
