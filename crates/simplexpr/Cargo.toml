@@ -3,6 +3,10 @@ name = "simplexpr"
 version = "0.1.0"
 authors = ["elkowar <5300871+elkowar@users.noreply.github.com>"]
 edition = "2021"
+license = "MIT"
+description = "A simple expression language, used as a part of eww"
+repository = "https://github.com/elkowar/eww"
+homepage = "https://github.com/elkowar/eww"
 
 
 build = "build.rs"

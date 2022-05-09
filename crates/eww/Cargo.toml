@@ -2,7 +2,7 @@
 name = "eww"
 version = "0.2.0"
 authors = ["elkowar <5300871+elkowar@users.noreply.github.com>"]
-description = "Widget system for everyone!"
+description = "Widgets for everyone!"
 license = "MIT"
 repository = "https://github.com/elkowar/eww"
 homepage = "https://github.com/elkowar/eww"
