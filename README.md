@@ -9,14 +9,10 @@ your own, custom widgets in any window manager.
 
 Documentation **and instructions on how to install** can be found [here](https://elkowar.github.io/eww).
 
-## Current maintenance status
+## Eww needs your opinion!
+I've hit a bit of a design roadblock for one of the bigger features that are in the works right now.
 
-To those of you looking at the current slow progress, commit frequency and general activity:
-Don't worry, eww is not dead! I'm currently in the process of focussing on my bachelors thesis,
-thus work on eww has currently slowed down significantly.
-I hope to find more time to continue working on new features in the not-so-distant future.
-
-Thanks for sticking around!
+**Please read through https://github.com/elkowar/eww/discussions/453 and share your thoughts, ideas and opinions!**
 
 ## Examples
 
