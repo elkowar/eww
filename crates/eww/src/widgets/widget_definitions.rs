@@ -518,7 +518,8 @@ fn build_gtk_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
 
 const WIDGET_NAME_OVERLAY: &str = "overlay";
 /// @widget overlay
-/// @desc a widget that places its children on top of each other.
+/// @desc a widget that places its children on top of each other. The overlay widget takes the size
+/// of its first child.
 fn build_gtk_overlay(bargs: &mut BuilderArgs) -> Result<gtk::Overlay> {
     let gtk_widget = gtk::Overlay::new();
     
