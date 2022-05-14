@@ -84,7 +84,6 @@ pub const BUILTIN_WIDGET_NAMES: &[&str] = &[
 //// widget definitions
 pub(super) fn widget_use_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::Widget> {
     let gtk_widget = match bargs.widget_use.name.as_str() {
-<<<<<<< HEAD
         WIDGET_NAME_BOX => build_gtk_box(bargs)?.upcast(),
         WIDGET_NAME_CENTERBOX => build_center_box(bargs)?.upcast(),
         WIDGET_NAME_EVENTBOX => build_gtk_event_box(bargs)?.upcast(),
@@ -106,30 +105,7 @@ pub(super) fn widget_use_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::W
         WIDGET_NAME_CHECKBOX => build_gtk_checkbox(bargs)?.upcast(),
         WIDGET_NAME_REVEALER => build_gtk_revealer(bargs)?.upcast(),
         WIDGET_NAME_SCROLL => build_gtk_scrolledwindow(bargs)?.upcast(),
-=======
-        "box" => build_gtk_box(bargs)?.upcast(),
-        "centerbox" => build_center_box(bargs)?.upcast(),
-        "eventbox" => build_gtk_event_box(bargs)?.upcast(),
-        "circular-progress" => build_circular_progress_bar(bargs)?.upcast(),
-        "graph" => build_graph(bargs)?.upcast(),
-        "transform" => build_transform(bargs)?.upcast(),
-        "scale" => build_gtk_scale(bargs)?.upcast(),
-        "progress" => build_gtk_progress(bargs)?.upcast(),
-        "image" => build_gtk_image(bargs)?.upcast(),
-        "button" => build_gtk_button(bargs)?.upcast(),
-        "label" => build_gtk_label(bargs)?.upcast(),
-        "literal" => build_gtk_literal(bargs)?.upcast(),
-        "input" => build_gtk_input(bargs)?.upcast(),
-        "calendar" => build_gtk_calendar(bargs)?.upcast(),
-        "color-button" => build_gtk_color_button(bargs)?.upcast(),
-        "expander" => build_gtk_expander(bargs)?.upcast(),
-        "color-chooser" => build_gtk_color_chooser(bargs)?.upcast(),
-        "combo-box-text" => build_gtk_combo_box_text(bargs)?.upcast(),
-        "checkbox" => build_gtk_checkbox(bargs)?.upcast(),
-        "revealer" => build_gtk_revealer(bargs)?.upcast(),
-        "scroll" => build_gtk_scrolledwindow(bargs)?.upcast(),
-        "overlay" => build_gtk_overlay(bargs)?.upcast(),
->>>>>>> 5726fc6 (overlay widget)
+        WIDGET_NAME_OVERLAY => build_gtk_overlay(bargs)?.upcast(),
         _ => {
             return Err(AstError::ValidationError(ValidationError::UnknownWidget(
                 bargs.widget_use.name_span,
