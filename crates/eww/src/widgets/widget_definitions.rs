@@ -522,7 +522,7 @@ const WIDGET_NAME_OVERLAY: &str = "overlay";
 /// of its first child.
 fn build_gtk_overlay(bargs: &mut BuilderArgs) -> Result<gtk::Overlay> {
     let gtk_widget = gtk::Overlay::new();
-    
+
     // no def_widget because this widget has no props.
     // And this widget has no proprs because they would pretty much just be the same as boxes,
     // so you might as well just use a box inside the widget to get them.
