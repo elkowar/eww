@@ -79,6 +79,7 @@ pub const BUILTIN_WIDGET_NAMES: &[&str] = &[
     WIDGET_NAME_CHECKBOX,
     WIDGET_NAME_REVEALER,
     WIDGET_NAME_SCROLL,
+    WIDGET_NAME_OVERLAY,
 ];
 
 //// widget definitions
