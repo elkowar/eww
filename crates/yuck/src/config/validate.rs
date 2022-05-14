@@ -19,6 +19,9 @@ pub enum ValidationError {
     #[error("Unknown widget `{1}` referenced")]
     UnknownWidget(Span, String),
 
+    #[error("There is already a builtin widget called `{1}`")]
+    AccidentalBuiltinOverride(Span, String),
+
     #[error("Missing attribute `{arg_name}` in use of widget `{widget_name}`")]
     MissingAttr { widget_name: String, arg_name: AttrName, arg_list_span: Option<Span>, use_span: Span },
 
@@ -37,6 +40,7 @@ impl Spanned for ValidationError {
             ValidationError::UnknownWidget(span, _) => *span,
             ValidationError::MissingAttr { use_span, .. } => *use_span,
             ValidationError::UnknownVariable { span, .. } => *span,
+            ValidationError::AccidentalBuiltinOverride(span, ..) => *span,
         }
     }
 }

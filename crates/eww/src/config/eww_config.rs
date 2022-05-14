@@ -1,9 +1,12 @@
 use anyhow::{bail, Context, Result};
 use eww_shared_util::VarName;
 use std::{collections::HashMap, path::Path};
-use yuck::config::{
-    file_provider::YuckFiles, script_var_definition::ScriptVarDefinition, widget_definition::WidgetDefinition,
-    window_definition::WindowDefinition, Config,
+use yuck::{
+    config::{
+        file_provider::YuckFiles, script_var_definition::ScriptVarDefinition, validate::ValidationError,
+        widget_definition::WidgetDefinition, window_definition::WindowDefinition, Config,
+    },
+    error::AstError,
 };
 
 use simplexpr::dynval::DynVal;
@@ -51,6 +54,14 @@ impl EwwConfig {
 
         // run some validations on the configuration
         yuck::config::validate::validate(&config, super::inbuilt::get_inbuilt_vars().keys().cloned().collect())?;
+
+        for (name, def) in &config.widget_definitions {
+            if crate::widgets::widget_definitions::BUILTIN_WIDGET_NAMES.contains(&name.as_str()) {
+                return Err(
+                    AstError::ValidationError(ValidationError::AccidentalBuiltinOverride(def.span, name.to_string())).into()
+                );
+            }
+        }
 
         let Config { widget_definitions, window_definitions, var_definitions, mut script_vars } = config;
         script_vars.extend(crate::config::inbuilt::get_inbuilt_vars());

@@ -194,6 +194,11 @@ impl ToDiagnostic for ValidationError {
 
                 diag.with_notes(extra_notes)
             }
+            ValidationError::AccidentalBuiltinOverride(span, widget_name) => gen_diagnostic! {
+                msg = self,
+                label = span => "Defined here",
+                note = "Hint: Give your widget a different name. You could call it \"John\" for example. That's a cool name."
+            },
         }
     }
 }

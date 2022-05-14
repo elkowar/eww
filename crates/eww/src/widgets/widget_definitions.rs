@@ -1,5 +1,5 @@
 #![allow(clippy::option_map_unit_fn)]
-use super::{build_widget::BuilderArgs, circular_progressbar::*, transform::*, run_command};
+use super::{build_widget::BuilderArgs, circular_progressbar::*, run_command, transform::*};
 use crate::{
     def_widget, enum_parse,
     error::DiagError,
@@ -11,11 +11,11 @@ use anyhow::{anyhow, Context, Result};
 use codespan_reporting::diagnostic::Severity;
 use eww_shared_util::Spanned;
 use gdk::{ModifierType, NotifyType};
+use glib::signal::SignalHandlerId;
 use gtk::{self, glib, prelude::*, DestDefaults, TargetEntry, TargetList};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use std::hash::Hasher;
-use glib::signal::SignalHandlerId;
 
 use std::{
     cell::RefCell,
@@ -63,35 +63,57 @@ macro_rules! connect_signal_handler {
     }};
 }
 
-
 // TODO figure out how to
 // TODO https://developer.gnome.org/gtk3/stable/GtkFixed.html
 
-//// widget definitions
+pub const BUILTIN_WIDGET_NAMES: &[&str] = &[
+    WIDGET_NAME_BOX,
+    WIDGET_NAME_CENTERBOX,
+    WIDGET_NAME_EVENTBOX,
+    WIDGET_NAME_CIRCULAR_PROGRESS,
+    WIDGET_NAME_GRAPH,
+    WIDGET_NAME_TRANSFORM,
+    WIDGET_NAME_SCALE,
+    WIDGET_NAME_PROGRESS,
+    WIDGET_NAME_IMAGE,
+    WIDGET_NAME_BUTTON,
+    WIDGET_NAME_LABEL,
+    WIDGET_NAME_LITERAL,
+    WIDGET_NAME_INPUT,
+    WIDGET_NAME_CALENDAR,
+    WIDGET_NAME_COLOR_BUTTON,
+    WIDGET_NAME_EXPANDER,
+    WIDGET_NAME_COLOR_CHOOSER,
+    WIDGET_NAME_COMBO_BOX_TEXT,
+    WIDGET_NAME_CHECKBOX,
+    WIDGET_NAME_REVEALER,
+    WIDGET_NAME_SCROLL,
+];
 
+//// widget definitions
 pub(super) fn widget_use_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::Widget> {
     let gtk_widget = match bargs.widget_use.name.as_str() {
-        "box" => build_gtk_box(bargs)?.upcast(),
-        "centerbox" => build_center_box(bargs)?.upcast(),
-        "eventbox" => build_gtk_event_box(bargs)?.upcast(),
-        "circular-progress" => build_circular_progress_bar(bargs)?.upcast(),
-        "graph" => build_graph(bargs)?.upcast(),
-        "transform" => build_transform(bargs)?.upcast(),
-        "scale" => build_gtk_scale(bargs)?.upcast(),
-        "progress" => build_gtk_progress(bargs)?.upcast(),
-        "image" => build_gtk_image(bargs)?.upcast(),
-        "button" => build_gtk_button(bargs)?.upcast(),
-        "label" => build_gtk_label(bargs)?.upcast(),
-        "literal" => build_gtk_literal(bargs)?.upcast(),
-        "input" => build_gtk_input(bargs)?.upcast(),
-        "calendar" => build_gtk_calendar(bargs)?.upcast(),
-        "color-button" => build_gtk_color_button(bargs)?.upcast(),
-        "expander" => build_gtk_expander(bargs)?.upcast(),
-        "color-chooser" => build_gtk_color_chooser(bargs)?.upcast(),
-        "combo-box-text" => build_gtk_combo_box_text(bargs)?.upcast(),
-        "checkbox" => build_gtk_checkbox(bargs)?.upcast(),
-        "revealer" => build_gtk_revealer(bargs)?.upcast(),
-        "scroll" => build_gtk_scrolledwindow(bargs)?.upcast(),
+        WIDGET_NAME_BOX => build_gtk_box(bargs)?.upcast(),
+        WIDGET_NAME_CENTERBOX => build_center_box(bargs)?.upcast(),
+        WIDGET_NAME_EVENTBOX => build_gtk_event_box(bargs)?.upcast(),
+        WIDGET_NAME_CIRCULAR_PROGRESS => build_circular_progress_bar(bargs)?.upcast(),
+        WIDGET_NAME_GRAPH => build_graph(bargs)?.upcast(),
+        WIDGET_NAME_TRANSFORM => build_transform(bargs)?.upcast(),
+        WIDGET_NAME_SCALE => build_gtk_scale(bargs)?.upcast(),
+        WIDGET_NAME_PROGRESS => build_gtk_progress(bargs)?.upcast(),
+        WIDGET_NAME_IMAGE => build_gtk_image(bargs)?.upcast(),
+        WIDGET_NAME_BUTTON => build_gtk_button(bargs)?.upcast(),
+        WIDGET_NAME_LABEL => build_gtk_label(bargs)?.upcast(),
+        WIDGET_NAME_LITERAL => build_gtk_literal(bargs)?.upcast(),
+        WIDGET_NAME_INPUT => build_gtk_input(bargs)?.upcast(),
+        WIDGET_NAME_CALENDAR => build_gtk_calendar(bargs)?.upcast(),
+        WIDGET_NAME_COLOR_BUTTON => build_gtk_color_button(bargs)?.upcast(),
+        WIDGET_NAME_EXPANDER => build_gtk_expander(bargs)?.upcast(),
+        WIDGET_NAME_COLOR_CHOOSER => build_gtk_color_chooser(bargs)?.upcast(),
+        WIDGET_NAME_COMBO_BOX_TEXT => build_gtk_combo_box_text(bargs)?.upcast(),
+        WIDGET_NAME_CHECKBOX => build_gtk_checkbox(bargs)?.upcast(),
+        WIDGET_NAME_REVEALER => build_gtk_revealer(bargs)?.upcast(),
+        WIDGET_NAME_SCROLL => build_gtk_scrolledwindow(bargs)?.upcast(),
         _ => {
             return Err(AstError::ValidationError(ValidationError::UnknownWidget(
                 bargs.widget_use.name_span,
@@ -242,6 +264,7 @@ pub(super) fn resolve_orientable_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk
 
 // concrete widgets
 
+const WIDGET_NAME_COMBO_BOX_TEXT: &'static str = "combo-box-text";
 /// @widget combo-box-text
 /// @desc A combo box allowing the user to choose between several items.
 fn build_gtk_combo_box_text(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText> {
@@ -264,6 +287,8 @@ fn build_gtk_combo_box_text(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText
     });
     Ok(gtk_widget)
 }
+
+const WIDGET_NAME_EXPANDER: &str = "expander";
 /// @widget expander
 /// @desc A widget that can expand and collapse, showing/hiding it's children.
 fn build_gtk_expander(bargs: &mut BuilderArgs) -> Result<gtk::Expander> {
@@ -277,6 +302,7 @@ fn build_gtk_expander(bargs: &mut BuilderArgs) -> Result<gtk::Expander> {
     Ok(gtk_widget)
 }
 
+const WIDGET_NAME_REVEALER: &str = "revealer";
 /// @widget revealer
 /// @desc A widget that can reveal a child with an animation.
 fn build_gtk_revealer(bargs: &mut BuilderArgs) -> Result<gtk::Revealer> {
@@ -292,6 +318,7 @@ fn build_gtk_revealer(bargs: &mut BuilderArgs) -> Result<gtk::Revealer> {
     Ok(gtk_widget)
 }
 
+const WIDGET_NAME_CHECKBOX: &str = "checkbox";
 /// @widget a checkbox
 /// @desc A checkbox that can trigger events on checked / unchecked.
 fn build_gtk_checkbox(bargs: &mut BuilderArgs) -> Result<gtk::CheckButton> {
@@ -310,6 +337,7 @@ fn build_gtk_checkbox(bargs: &mut BuilderArgs) -> Result<gtk::CheckButton> {
     Ok(gtk_widget)
 }
 
+const WIDGET_NAME_COLOR_BUTTON: &str = "color-button";
 /// @widget color-button
 /// @desc A button opening a color chooser window
 fn build_gtk_color_button(bargs: &mut BuilderArgs) -> Result<gtk::ColorButton> {
@@ -330,6 +358,7 @@ fn build_gtk_color_button(bargs: &mut BuilderArgs) -> Result<gtk::ColorButton> {
     Ok(gtk_widget)
 }
 
+const WIDGET_NAME_COLOR_CHOOSER: &str = "color-chooser";
 /// @widget color-chooser
 /// @desc A color chooser widget
 fn build_gtk_color_chooser(bargs: &mut BuilderArgs) -> Result<gtk::ColorChooserWidget> {
@@ -350,6 +379,7 @@ fn build_gtk_color_chooser(bargs: &mut BuilderArgs) -> Result<gtk::ColorChooserW
     Ok(gtk_widget)
 }
 
+const WIDGET_NAME_SCALE: &str = "scale";
 /// @widget scale extends range, orientable
 /// @desc A slider.
 fn build_gtk_scale(bargs: &mut BuilderArgs) -> Result<gtk::Scale> {
@@ -373,6 +403,7 @@ fn build_gtk_scale(bargs: &mut BuilderArgs) -> Result<gtk::Scale> {
     Ok(gtk_widget)
 }
 
+const WIDGET_NAME_PROGRESS: &str = "progress";
 /// @widget progress
 /// @desc A progress bar
 fn build_gtk_progress(bargs: &mut BuilderArgs) -> Result<gtk::ProgressBar> {
@@ -390,6 +421,7 @@ fn build_gtk_progress(bargs: &mut BuilderArgs) -> Result<gtk::ProgressBar> {
     Ok(gtk_widget)
 }
 
+const WIDGET_NAME_INPUT: &str = "input";
 /// @widget input
 /// @desc An input field. For this to be useful, set `focusable="true"` on the window.
 fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
@@ -418,6 +450,7 @@ fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
     Ok(gtk_widget)
 }
 
+const WIDGET_NAME_BUTTON: &str = "button";
 /// @widget button
 /// @desc A button
 fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
@@ -450,6 +483,7 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
     Ok(gtk_widget)
 }
 
+const WIDGET_NAME_IMAGE: &str = "image";
 /// @widget image
 /// @desc A widget displaying an image
 fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
@@ -471,6 +505,7 @@ fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
     Ok(gtk_widget)
 }
 
+const WIDGET_NAME_BOX: &str = "box";
 /// @widget box
 /// @desc the main layout container
 fn build_gtk_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
@@ -486,6 +521,7 @@ fn build_gtk_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
     Ok(gtk_widget)
 }
 
+const WIDGET_NAME_CENTERBOX: &str = "centerbox";
 /// @widget centerbox
 /// @desc a box that must contain exactly three children, which will be layed out at the start, center and end of the container.
 fn build_center_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
@@ -534,6 +570,7 @@ fn build_center_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
     }
 }
 
+const WIDGET_NAME_SCROLL: &str = "scroll";
 /// @widget scroll
 /// @desc a container with a single child that can scroll.
 fn build_gtk_scrolledwindow(bargs: &mut BuilderArgs) -> Result<gtk::ScrolledWindow> {
@@ -554,6 +591,7 @@ fn build_gtk_scrolledwindow(bargs: &mut BuilderArgs) -> Result<gtk::ScrolledWind
     Ok(gtk_widget)
 }
 
+const WIDGET_NAME_EVENTBOX: &str = "eventbox";
 /// @widget eventbox
 /// @desc a container which can receive events and must contain exactly one child. Supports `:hover` css selectors.
 fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
@@ -710,6 +748,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
     Ok(gtk_widget)
 }
 
+const WIDGET_NAME_LABEL: &str = "label";
 /// @widget label
 /// @desc A text widget giving you more control over how the text is displayed
 fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
@@ -745,6 +784,7 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
     Ok(gtk_widget)
 }
 
+const WIDGET_NAME_LITERAL: &str = "literal";
 /// @widget literal
 /// @desc A widget that allows you to render arbitrary yuck.
 fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
@@ -794,6 +834,7 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
     Ok(gtk_widget)
 }
 
+const WIDGET_NAME_CALENDAR: &str = "calendar";
 /// @widget calendar
 /// @desc A widget that displays a calendar
 fn build_gtk_calendar(bargs: &mut BuilderArgs) -> Result<gtk::Calendar> {
@@ -831,6 +872,7 @@ fn build_gtk_calendar(bargs: &mut BuilderArgs) -> Result<gtk::Calendar> {
     Ok(gtk_widget)
 }
 
+const WIDGET_NAME_TRANSFORM: &str = "transform";
 /// @widget transform
 /// @desc A widget that applies transformations to its content. They are applied in the following
 /// order: rotate->translate->scale)
@@ -851,6 +893,7 @@ fn build_transform(bargs: &mut BuilderArgs) -> Result<Transform> {
     Ok(w)
 }
 
+const WIDGET_NAME_CIRCULAR_PROGRESS: &str = "circular-progress";
 /// @widget circular-progress
 /// @desc A widget that displays a circular progress bar
 fn build_circular_progress_bar(bargs: &mut BuilderArgs) -> Result<CircProg> {
@@ -868,6 +911,7 @@ fn build_circular_progress_bar(bargs: &mut BuilderArgs) -> Result<CircProg> {
     Ok(w)
 }
 
+const WIDGET_NAME_GRAPH: &str = "graph";
 /// @widget graph
 /// @desc A widget that displays a graph showing how a given value changes over time
 fn build_graph(bargs: &mut BuilderArgs) -> Result<super::graph::Graph> {
