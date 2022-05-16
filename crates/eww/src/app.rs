@@ -456,7 +456,9 @@ fn get_monitor_geometry(n: Option<i32>) -> Result<gdk::Rectangle> {
     let display = gdk::Display::default().expect("could not get default display");
     let monitor = match n {
         Some(n) => display.monitor(n).with_context(|| format!("Failed to get monitor with index {}", n))?,
-        None => display.primary_monitor().context("Failed to get primary monitor from GTK")?,
+        None => display
+            .primary_monitor()
+            .context("Failed to get primary monitor from GTK. Try explicitly specifying the monitor on your window.")?,
     };
     Ok(monitor.geometry())
 }
