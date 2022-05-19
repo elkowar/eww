@@ -13,16 +13,16 @@ pub fn get_disks() -> String {
 
     format!(
         "{{ {} }}",
-        c.get_disks()
+        c.disks()
             .iter()
             .map(|c| {
-                let total_space = c.get_total_space();
-                let available_space = c.get_available_space();
+                let total_space = c.total_space();
+                let available_space = c.available_space();
                 let used_space = total_space - available_space;
                 format!(
                     r#""{}": {{"name": {:?}, "total": {}, "free": {}, "used": {}, "used_perc": {}}}"#,
-                    c.get_mount_point().display(),
-                    c.get_name(),
+                    c.mount_point().display(),
+                    c.name(),
                     total_space,
                     available_space,
                     used_space,
@@ -37,15 +37,15 @@ pub fn get_ram() -> String {
     let mut c = SYSTEM.lock().unwrap();
     c.refresh_memory();
 
-    let total_memory = c.get_total_memory();
-    let available_memory = c.get_available_memory();
+    let total_memory = c.total_memory();
+    let available_memory = c.available_memory();
     let used_memory = total_memory as f32 - available_memory as f32;
     format!(
         r#"{{"total_mem": {}, "free_mem": {}, "total_swap": {}, "free_swap": {}, "available_mem": {}, "used_mem": {}, "used_mem_perc": {}}}"#,
         total_memory,
-        c.get_free_memory(),
-        c.get_total_swap(),
-        c.get_free_swap(),
+        c.free_memory(),
+        c.total_swap(),
+        c.free_swap(),
         available_memory,
         used_memory,
         (used_memory / total_memory as f32) * 100f32,
@@ -58,9 +58,9 @@ pub fn get_temperatures() -> String {
     c.refresh_components();
     format!(
         "{{ {} }}",
-        c.get_components()
+        c.components()
             .iter()
-            .map(|c| format!(r#""{}": {}"#, c.get_label().to_uppercase().replace(" ", "_"), c.get_temperature()))
+            .map(|c| format!(r#""{}": {}"#, c.label().to_uppercase().replace(" ", "_"), c.temperature()))
             .join(",")
     )
 }
@@ -68,19 +68,14 @@ pub fn get_temperatures() -> String {
 pub fn get_cpus() -> String {
     let mut c = SYSTEM.lock().unwrap();
     c.refresh_cpu();
-    let processors = c.get_processors();
+    let processors = c.processors();
     format!(
         r#"{{ "cores": [{}], "avg": {} }}"#,
         processors
             .iter()
-            .map(|a| format!(
-                r#"{{"core": "{}", "freq": {}, "usage": {:.0}}}"#,
-                a.get_name(),
-                a.get_frequency(),
-                a.get_cpu_usage()
-            ))
+            .map(|a| format!(r#"{{"core": "{}", "freq": {}, "usage": {:.0}}}"#, a.name(), a.frequency(), a.cpu_usage()))
             .join(","),
-        processors.iter().map(|a| a.get_cpu_usage()).avg()
+        processors.iter().map(|a| a.cpu_usage()).avg()
     )
 }
 
@@ -168,9 +163,9 @@ pub fn net() -> String {
     c.refresh_networks_list();
     let interfaces = format!(
         "{{ {} }}",
-        &c.get_networks()
+        &c.networks()
             .iter()
-            .map(|a| format!(r#""{}": {{ "NET_UP": {}, "NET_DOWN": {} }}"#, a.0, a.1.get_transmitted(), a.1.get_received()))
+            .map(|a| format!(r#""{}": {{ "NET_UP": {}, "NET_DOWN": {} }}"#, a.0, a.1.transmitted(), a.1.received()))
             .join(","),
     );
     interfaces

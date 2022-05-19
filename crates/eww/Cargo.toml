@@ -58,7 +58,7 @@ futures-core = "0.3"
 futures-util = "0.3"
 tokio-util = "0.6"
 
-sysinfo = "0.16.1"
+sysinfo = "0.23"
 
 dyn-clone = "1.0"
 wait-timeout = "0.2"
