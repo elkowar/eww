@@ -159,8 +159,8 @@ pub fn get_battery_capacity() -> Result<String> {
 
 #[cfg(not(target_os = "macos"))]
 #[cfg(not(target_os = "linux"))]
-pub fn get_battery_capacity() -> Result<u8> {
-    anyhow!("Eww doesn't support your OS for getting the battery capacity")
+pub fn get_battery_capacity() -> Result<String> {
+    Err(anyhow::anyhow!("Eww doesn't support your OS for getting the battery capacity"))
 }
 
 pub fn net() -> String {
