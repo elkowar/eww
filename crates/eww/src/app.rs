@@ -126,7 +126,7 @@ impl App {
                 DaemonCommand::ReloadConfigAndCss(sender) => {
                     let mut errors = Vec::new();
 
-                    let config_result = config::read_from_file(&self.paths.get_yuck_path());
+                    let config_result = config::read_from_eww_paths(&self.paths);
                     if let Err(e) = config_result.and_then(|new_config| self.load_config(new_config)) {
                         errors.push(e)
                     }

@@ -32,6 +32,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add `matches` function
 - Add transform widget (By: druskus20)
 - Add `:onaccept` to input field, add `:onclick` to eventbox
+- Add `EWW_CMD`, `EWW_CONFIG_DIR`, `EWW_EXECUTABLE` magic variables
 
 ### Notable Internal changes
 - Rework state management completely, now making local state and dynamic widget hierarchy changes possible.

@@ -24,7 +24,7 @@ pub fn initialize_server(paths: EwwPaths, action: Option<DaemonCommand>, should_
 
     log::info!("Loading paths: {}", &paths);
 
-    let read_config = config::read_from_file(&paths.get_yuck_path());
+    let read_config = config::read_from_eww_paths(&paths);
 
     let eww_config = match read_config {
         Ok(config) => config,

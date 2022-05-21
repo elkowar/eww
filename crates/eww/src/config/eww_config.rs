@@ -1,6 +1,6 @@
 use anyhow::{bail, Context, Result};
 use eww_shared_util::VarName;
-use std::{collections::HashMap, path::Path};
+use std::collections::HashMap;
 use yuck::{
     config::{
         file_provider::YuckFiles, script_var_definition::ScriptVarDefinition, validate::ValidationError,
@@ -11,14 +11,15 @@ use yuck::{
 
 use simplexpr::dynval::DynVal;
 
-use crate::error_handling_ctx;
+use crate::{config::inbuilt, error_handling_ctx, widgets::widget_definitions, EwwPaths};
 
 use super::script_var;
 
-/// Load an [EwwConfig] from a given file, resetting and applying the global YuckFiles object in [`crate::error_handling_ctx`].
-pub fn read_from_file(path: impl AsRef<Path>) -> Result<EwwConfig> {
+/// Load an [`EwwConfig`] from the config dir of the given [`crate::EwwPaths`],
+/// resetting and applying the global YuckFiles object in [`crate::error_handling_ctx`].
+pub fn read_from_eww_paths(eww_paths: &EwwPaths) -> Result<EwwConfig> {
     error_handling_ctx::clear_files();
-    EwwConfig::read_from_file(&mut error_handling_ctx::YUCK_FILES.write().unwrap(), path)
+    EwwConfig::read_from_dir(&mut error_handling_ctx::YUCK_FILES.write().unwrap(), eww_paths)
 }
 
 /// Eww configuration structure.
@@ -46,25 +47,34 @@ impl Default for EwwConfig {
 }
 
 impl EwwConfig {
-    pub fn read_from_file(files: &mut YuckFiles, path: impl AsRef<Path>) -> Result<Self> {
-        if !path.as_ref().exists() {
-            bail!("The configuration file `{}` does not exist", path.as_ref().display());
+    /// Load an [`EwwConfig`] from the config dir of the given [`crate::EwwPaths`], reading the main config file.
+    pub fn read_from_dir(files: &mut YuckFiles, eww_paths: &EwwPaths) -> Result<Self> {
+        let yuck_path = eww_paths.get_yuck_path();
+        if !yuck_path.exists() {
+            bail!("The configuration file `{}` does not exist", yuck_path.display());
         }
-        let config = Config::generate_from_main_file(files, path)?;
+        let config = Config::generate_from_main_file(files, yuck_path)?;
 
         // run some validations on the configuration
-        yuck::config::validate::validate(&config, super::inbuilt::get_inbuilt_vars().keys().cloned().collect())?;
+        let magic_globals: Vec<_> = inbuilt::MAGIC_CONSTANT_NAMES
+            .into_iter()
+            .chain(inbuilt::MAGIC_CONSTANT_NAMES)
+            .into_iter()
+            .map(|x| VarName::from(x.clone()))
+            .collect();
+        yuck::config::validate::validate(&config, magic_globals)?;
 
         for (name, def) in &config.widget_definitions {
-            if crate::widgets::widget_definitions::BUILTIN_WIDGET_NAMES.contains(&name.as_str()) {
+            if widget_definitions::BUILTIN_WIDGET_NAMES.contains(&name.as_str()) {
                 return Err(
                     AstError::ValidationError(ValidationError::AccidentalBuiltinOverride(def.span, name.to_string())).into()
                 );
             }
         }
 
-        let Config { widget_definitions, window_definitions, var_definitions, mut script_vars } = config;
-        script_vars.extend(crate::config::inbuilt::get_inbuilt_vars());
+        let Config { widget_definitions, window_definitions, mut var_definitions, mut script_vars } = config;
+        script_vars.extend(inbuilt::get_inbuilt_vars());
+        var_definitions.extend(inbuilt::get_magic_constants(eww_paths));
 
         let mut poll_var_links = HashMap::<VarName, Vec<VarName>>::new();
         script_vars
