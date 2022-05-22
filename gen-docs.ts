@@ -12,24 +12,57 @@ interface Widget {
     isVisible: boolean;
 }
 
+interface MagicVar {
+    name: string;
+    desc: string;
+    prop?: string;
+}
+
 function parseMagicVariables(data: string) {
-    const pattern = /^.*\/\/\s*@desc\s*(\w+)\s*-\s*(.*)$/gm;
-    const prop_pattern = /^.*\/\/\s+@prop +\s*(.*)$/gm;
-    let properties = [...data.matchAll(prop_pattern)]
-    let output = [];
-    let i = 0;
-    for (const [_, name, desc] of data.matchAll(pattern)) {
-        output.push(
-`### \`${name}\`
-${desc.replaceAll("\\n", "\n\n")}
-#### Structure
-\`\`\`
-${properties[i][1]}
-\`\`\`
-`);
-        i = i + 1
+    const desc_pattern = /^.*\/\/\s*@desc\s*(\w+)\s*-\s*(.*)$/; // matches `// @desc <name> - <desc>`
+    const prop_pattern = /^.*\/\/\s+@prop +\s*(.*)$/; // matches `// @prop <prop>`
+    const continuation = /^.*\/\/\s*(.*)$/; // matches `// <...>`
+    let defs: MagicVar[] = [];
+    let last: "desc" | "prop" | null = null; // what was the last line
+    for (const line of data.split("\n")) {
+        const desc = desc_pattern.exec(line);
+        const prop = prop_pattern.exec(line);
+        const cont = continuation.exec(line);
+        if(desc) {
+            defs.push({
+                name: desc[1],
+                desc: desc[2],
+                prop: undefined,
+            });
+            last = "desc";
+        } else if(prop && defs.length > 0) {
+            defs[defs.length - 1].prop = prop[1];
+            last = "prop";
+        } else if(cont && defs.length > 0) {
+            if(last == "desc") {
+                defs[defs.length - 1].desc += `\n\n${cont[1]}`;
+            } else if(last == "prop" && defs[defs.length - 1].prop) {
+                defs[defs.length - 1].prop += `\n\n${cont[1]}`;
+            } // else this is just a comment, we ignore
+        } else {
+            last = null;
+        }
     }
-    return output.join("\n");
+    let output = "";
+    for (const {name, desc, prop} of defs) {
+        output += 
+            `### \`${name}\`\n` +
+            `${desc}\n`;
+        if(prop != null) {
+            output +=
+                '#### Structure\n' +
+                '```\n' +
+                `${prop}\n` +
+                '```\n';
+        }
+        output += '\n';
+    }
+    return output;
 }
 
 function parseVars(code: string): Record<string, string> {
