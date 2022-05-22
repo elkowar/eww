@@ -405,7 +405,7 @@ fn build_gtk_scale(bargs: &mut BuilderArgs) -> Result<gtk::Scale> {
 
 const WIDGET_NAME_PROGRESS: &str = "progress";
 /// @widget progress
-/// @desc A progress bar
+/// @desc A progress bar. HINT: for the `width` property to work, you may need to set the `min-width` of `progressbar > trough` in your css.
 fn build_gtk_progress(bargs: &mut BuilderArgs) -> Result<gtk::ProgressBar> {
     let gtk_widget = gtk::ProgressBar::new();
     def_widget!(bargs, _g, gtk_widget, {
@@ -418,6 +418,7 @@ fn build_gtk_progress(bargs: &mut BuilderArgs) -> Result<gtk::ProgressBar> {
         // @prop orientation - orientation of the progress bar. possible values: $orientation
         prop(orientation: as_string) { gtk_widget.set_orientation(parse_orientation(&orientation)?) },
     });
+
     Ok(gtk_widget)
 }
 
