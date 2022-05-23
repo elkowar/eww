@@ -56,7 +56,7 @@ impl EwwConfig {
         let config = Config::generate_from_main_file(files, yuck_path)?;
 
         // run some validations on the configuration
-        let magic_globals: Vec<_> = inbuilt::MAGIC_CONSTANT_NAMES
+        let magic_globals: Vec<_> = inbuilt::INBUILT_VAR_NAMES
             .into_iter()
             .chain(inbuilt::MAGIC_CONSTANT_NAMES)
             .into_iter()
