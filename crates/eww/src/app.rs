@@ -317,11 +317,10 @@ impl App {
                 None,
             )?;
 
-            root_widget.style_context().add_class(&window_name.to_string());
-
             let monitor_geometry = get_monitor_geometry(monitor.or(window_def.monitor_number))?;
 
             let eww_window = initialize_window(monitor_geometry, root_widget, window_def, window_scope)?;
+            eww_window.gtk_window.style_context().add_class(&window_name.to_string());
 
             // initialize script var handlers for variables that where not used before opening this window.
             // TODO maybe this could be handled by having a track_newly_used_variables function in the scope tree?
