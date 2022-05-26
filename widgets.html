@@ -268,10 +268,10 @@
 <p>A button</p>
 <p><strong>Properties</strong></p>
 <ul>
-<li><strong><code>onclick</code></strong>: <em><code>no-type-found</code></em> a command that get's run when the button is clicked</li>
-<li><strong><code>onmiddleclick</code></strong>: <em><code>no-type-found</code></em> a command that get's run when the button is middleclicked</li>
-<li><strong><code>onrightclick</code></strong>: <em><code>no-type-found</code></em> a command that get's run when the button is rightclicked</li>
-<li><strong><code>timeout</code></strong>: <em><code>no-type-found</code></em> timeout of the command</li>
+<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command</li>
+<li><strong><code>onclick</code></strong>: <em><code>string</code></em> a command that get's run when the button is clicked</li>
+<li><strong><code>onmiddleclick</code></strong>: <em><code>string</code></em> a command that get's run when the button is middleclicked</li>
+<li><strong><code>onrightclick</code></strong>: <em><code>string</code></em> a command that get's run when the button is rightclicked</li>
 </ul>
 <h2 id="image"><a class="header" href="#image"><code>image</code></a></h2>
 <p>A widget displaying an image</p>
@@ -314,12 +314,12 @@
 <li><strong><code>onhover</code></strong>: <em><code>string</code></em> event to execute when the user hovers over the widget</li>
 <li><strong><code>onhoverlost</code></strong>: <em><code>string</code></em> event to execute when the user losts hovers over the widget</li>
 <li><strong><code>cursor</code></strong>: <em><code>string</code></em> Cursor to show while hovering (see <a href="https://docs.gtk.org/gdk3/ctor.Cursor.new_from_name.html">gtk3-cursors</a> for possible names)</li>
-<li><strong><code>on_dropped</code></strong>: <em><code>timeout</code></em> Command to execute when something is dropped on top of this element. The placeholder <code>{}</code> used in the command will be replaced with the uri to the dropped thing.</li>
+<li><strong><code>ondropped</code></strong>: <em><code>string</code></em> Command to execute when something is dropped on top of this element. The placeholder <code>{}</code> used in the command will be replaced with the uri to the dropped thing.</li>
 <li><strong><code>dragvalue</code></strong>: <em><code>string</code></em> URI that will be provided when dragging from this widget</li>
 <li><strong><code>dragtype</code></strong>: <em><code>string</code></em> Type of value that should be dragged from this widget. Possible values: &quot;file&quot;, &quot;text&quot;</li>
-<li><strong><code>onclick</code></strong>: <em><code>no-type-found</code></em> a command that get's run when the button is clicked</li>
-<li><strong><code>onmiddleclick</code></strong>: <em><code>no-type-found</code></em> a command that get's run when the button is middleclicked</li>
-<li><strong><code>onrightclick</code></strong>: <em><code>no-type-found</code></em> a command that get's run when the button is rightclicked</li>
+<li><strong><code>onclick</code></strong>: <em><code>string</code></em> a command that get's run when the button is clicked</li>
+<li><strong><code>onmiddleclick</code></strong>: <em><code>string</code></em> a command that get's run when the button is middleclicked</li>
+<li><strong><code>onrightclick</code></strong>: <em><code>string</code></em> a command that get's run when the button is rightclicked</li>
 </ul>
 <h2 id="label"><a class="header" href="#label"><code>label</code></a></h2>
 <p>A text widget giving you more control over how the text is displayed</p>
@@ -358,7 +358,7 @@
 <p>A widget that applies transformations to its content. They are applied in the following</p>
 <p><strong>Properties</strong></p>
 <ul>
-<li><strong><code>rotation</code></strong>: <em><code>rotate</code></em> the percentage to rotate</li>
+<li><strong><code>rotate</code></strong>: <em><code>float</code></em> the percentage to rotate</li>
 <li><strong><code>translate-x</code></strong>: <em><code>string</code></em> the amount to translate in the x direction (px or %)</li>
 <li><strong><code>translate-y</code></strong>: <em><code>string</code></em> the amount to translate in the y direction (px or %)</li>
 <li><strong><code>scale_x</code></strong>: <em><code>string</code></em> the amount to scale in the x direction (px or %)</li>
