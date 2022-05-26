@@ -341,6 +341,11 @@ pub struct CustomWidgetInvocation {
 
 /// Make sure that [`gtk::Bin`] widgets only get a single child.
 fn validate_container_children_count(container: &gtk::Container, widget_use: &BasicWidgetUse) -> Result<(), DiagError> {
+    // ignore for overlay as it can take more than one.
+    if container.dynamic_cast_ref::<gtk::Overlay>().is_some() {
+        return Ok(());
+    }
+
     if container.dynamic_cast_ref::<gtk::Bin>().is_some() && widget_use.children.len() > 1 {
         Err(DiagError::new(gen_diagnostic! {
             kind =  Severity::Error,

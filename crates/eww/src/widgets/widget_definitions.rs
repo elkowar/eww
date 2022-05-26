@@ -79,6 +79,7 @@ pub const BUILTIN_WIDGET_NAMES: &[&str] = &[
     WIDGET_NAME_CHECKBOX,
     WIDGET_NAME_REVEALER,
     WIDGET_NAME_SCROLL,
+    WIDGET_NAME_OVERLAY,
 ];
 
 //// widget definitions
@@ -105,6 +106,7 @@ pub(super) fn widget_use_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::W
         WIDGET_NAME_CHECKBOX => build_gtk_checkbox(bargs)?.upcast(),
         WIDGET_NAME_REVEALER => build_gtk_revealer(bargs)?.upcast(),
         WIDGET_NAME_SCROLL => build_gtk_scrolledwindow(bargs)?.upcast(),
+        WIDGET_NAME_OVERLAY => build_gtk_overlay(bargs)?.upcast(),
         _ => {
             return Err(AstError::ValidationError(ValidationError::UnknownWidget(
                 bargs.widget_use.name_span,
@@ -512,6 +514,45 @@ fn build_gtk_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
         prop(space_evenly: as_bool = true) { gtk_widget.set_homogeneous(space_evenly) },
     });
     Ok(gtk_widget)
+}
+
+const WIDGET_NAME_OVERLAY: &str = "overlay";
+/// @widget overlay
+/// @desc a widget that places its children on top of each other. The overlay widget takes the size
+/// of its first child.
+fn build_gtk_overlay(bargs: &mut BuilderArgs) -> Result<gtk::Overlay> {
+    let gtk_widget = gtk::Overlay::new();
+
+    // no def_widget because this widget has no props.
+    // And this widget has no proprs because they would pretty much just be the same as boxes,
+    // so you might as well just use a box inside the widget to get them.
+
+    match bargs.widget_use.children.len().cmp(&1) {
+        Ordering::Less => {
+            Err(DiagError::new(gen_diagnostic!("overlay must contain at least one element", bargs.widget_use.span)).into())
+        }
+        Ordering::Greater | Ordering::Equal => {
+            let mut children = bargs.widget_use.children.iter().map(|child| {
+                build_gtk_widget(
+                    bargs.scope_graph,
+                    bargs.widget_defs.clone(),
+                    bargs.calling_scope,
+                    child.clone(),
+                    bargs.custom_widget_invocation.clone(),
+                )
+            });
+            // we have more than one children, we can unwrap
+            let first = children.next().unwrap()?;
+            gtk_widget.add(&first);
+            first.show();
+            for child in children {
+                let child = child?;
+                gtk_widget.add_overlay(&child);
+                child.show();
+            }
+            Ok(gtk_widget)
+        }
+    }
 }
 
 const WIDGET_NAME_CENTERBOX: &str = "centerbox";
