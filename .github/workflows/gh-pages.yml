@@ -5,7 +5,7 @@ on:
             - master
         paths:
             - "docs/**"
-            - "gen-docs.js"
+            - "gen-docs.ts"
             - "crates/eww/src/widgets/widget_definitions.rs"
             - "crates/eww/src/config/inbuilt.rs"
             - ".github/workflows/**"
