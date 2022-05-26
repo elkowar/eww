@@ -95,11 +95,11 @@ pub enum ActionWithServer {
         #[structopt(long)]
         screen: Option<i32>,
 
-        /// The position of the window, where it should open.
+        /// The position of the window, where it should open. (i.e.: 200x100)
         #[structopt(short, long)]
         pos: Option<Coords>,
 
-        /// The size of the window to open
+        /// The size of the window to open (i.e.: 200x100)
         #[structopt(short, long)]
         size: Option<Coords>,
 

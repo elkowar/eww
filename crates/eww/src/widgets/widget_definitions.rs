@@ -158,6 +158,7 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
     def_widget!(bargs, _g, gtk_widget, {
         // @prop class - css class name
         prop(class: as_string) {
+            // TODO currently this overrides classes that gtk adds automatically, which is kinda stupid...
             let old_classes = gtk_widget.style_context().list_classes();
             let old_classes = old_classes.iter().map(|x| x.as_str()).collect::<Vec<&str>>();
             let new_classes = class.split(' ').collect::<Vec<_>>();
