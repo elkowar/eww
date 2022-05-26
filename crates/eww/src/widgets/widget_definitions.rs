@@ -452,14 +452,14 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
     let gtk_widget = gtk::Button::new();
 
     def_widget!(bargs, _g, gtk_widget, {
-        // @prop onclick - a command that get's run when the button is clicked
-        // @prop onmiddleclick - a command that get's run when the button is middleclicked
-        // @prop onrightclick - a command that get's run when the button is rightclicked
-        // @prop timeout - timeout of the command
         prop(
+            // @prop timeout - timeout of the command
             timeout: as_duration = Duration::from_millis(200),
+            // @prop onclick - a command that get's run when the button is clicked
             onclick: as_string = "",
+            // @prop onmiddleclick - a command that get's run when the button is middleclicked
             onmiddleclick: as_string = "",
+            // @prop onrightclick - a command that get's run when the button is rightclicked
             onrightclick: as_string = ""
         ) {
             gtk_widget.add_events(gdk::EventMask::BUTTON_PRESS_MASK);
@@ -705,7 +705,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
             }));
         },
         // @prop timeout - timeout of the command
-        // @prop on_dropped - Command to execute when something is dropped on top of this element. The placeholder `{}` used in the command will be replaced with the uri to the dropped thing.
+        // @prop ondropped - Command to execute when something is dropped on top of this element. The placeholder `{}` used in the command will be replaced with the uri to the dropped thing.
         prop(timeout: as_duration = Duration::from_millis(200), ondropped: as_string) {
             gtk_widget.drag_dest_set(
                 DestDefaults::ALL,
@@ -753,14 +753,14 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
 
         // TODO the fact that we have the same code here as for button is ugly, as we want to keep consistency
 
-        // @prop onclick - a command that get's run when the button is clicked
-        // @prop onmiddleclick - a command that get's run when the button is middleclicked
-        // @prop onrightclick - a command that get's run when the button is rightclicked
-        // @prop timeout - timeout of the command
         prop(
+            // @prop timeout - timeout of the command
             timeout: as_duration = Duration::from_millis(200),
+            // @prop onclick - a command that get's run when the button is clicked
             onclick: as_string = "",
+            // @prop onmiddleclick - a command that get's run when the button is middleclicked
             onmiddleclick: as_string = "",
+            // @prop onrightclick - a command that get's run when the button is rightclicked
             onrightclick: as_string = ""
         ) {
             gtk_widget.add_events(gdk::EventMask::BUTTON_PRESS_MASK);
@@ -910,7 +910,7 @@ const WIDGET_NAME_TRANSFORM: &str = "transform";
 fn build_transform(bargs: &mut BuilderArgs) -> Result<Transform> {
     let w = Transform::new();
     def_widget!(bargs, _g, w, {
-        // @prop rotation - the percentage to rotate
+        // @prop rotate - the percentage to rotate
         prop(rotate: as_f64) { w.set_property("rotate", rotate)?; },
         // @prop translate-x - the amount to translate in the x direction (px or %)
         prop(translate_x: as_string) { w.set_property("translate-x", translate_x)?; },

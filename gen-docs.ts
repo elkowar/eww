@@ -50,7 +50,7 @@ function parseMagicVariables(data: string) {
     }
     let output = "";
     for (const {name, desc, prop} of defs) {
-        output += 
+        output +=
             `### \`${name}\`\n` +
             `${desc}\n`;
         if(prop != null) {
@@ -82,7 +82,6 @@ function parseVars(code: string): Record<string, string> {
 }
 
 function replaceTypeNames(type: string) {
-
     switch (type) {
         case "f64":
         case "f32":
@@ -114,8 +113,7 @@ function parseDocs(code: string) {
 
         if (newWidgetMatch && newWidgetMatch.length >= 3) {
             const name = newWidgetMatch[2];
-            /** @type string[] */
-            const exts = newWidgetMatch[3]
+            const exts: string[] = newWidgetMatch[3]
                 ? newWidgetMatch[3].split(/, */)
                 : [];
             currentWidget = name;
@@ -135,6 +133,7 @@ function parseDocs(code: string) {
             continue;
         }
 
+        // if we find a property, check through the following lines until we reach the actual property definition
         const propMatch = line.match(PROP_PATTERN);
         if (propMatch && propMatch.length == 3) {
             let no = lineIndex + 1
