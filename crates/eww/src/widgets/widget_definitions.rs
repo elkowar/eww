@@ -518,14 +518,11 @@ fn build_gtk_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
 
 const WIDGET_NAME_OVERLAY: &str = "overlay";
 /// @widget overlay
-/// @desc a widget that places its children on top of each other. The overlay widget takes the size
-/// of its first child.
+/// @desc a widget that places its children on top of each other. The overlay widget takes the size of its first child.
 fn build_gtk_overlay(bargs: &mut BuilderArgs) -> Result<gtk::Overlay> {
     let gtk_widget = gtk::Overlay::new();
 
     // no def_widget because this widget has no props.
-    // And this widget has no proprs because they would pretty much just be the same as boxes,
-    // so you might as well just use a box inside the widget to get them.
 
     match bargs.widget_use.children.len().cmp(&1) {
         Ordering::Less => {
@@ -541,7 +538,7 @@ fn build_gtk_overlay(bargs: &mut BuilderArgs) -> Result<gtk::Overlay> {
                     bargs.custom_widget_invocation.clone(),
                 )
             });
-            // we have more than one children, we can unwrap
+            // we have more than one child, we can unwrap
             let first = children.next().unwrap()?;
             gtk_widget.add(&first);
             first.show();
