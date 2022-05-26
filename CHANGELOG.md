@@ -1,9 +1,11 @@
 # Changelog
 
-All notable changes to eww will be listed here, starting at changes since version 0.1.2.
+All notable changes to eww will be listed here, starting at changes since version 0.2.0.
 
 
 ## [Unreleased]
+
+## 0.3.0 (26.05.2022)
 
 ### BREAKING CHANGES
 - Change the onclick command API to support multiple placeholders.
@@ -22,7 +24,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add `eww get` subcommand (By: druskus20)
 - Add circular progress widget (By: druskus20)
 - Add `:xalign` and `:yalign` to labels (By: alecsferra)
-- Add graph widget (By: druskus20)
+- Add `graph` widget (By: druskus20)
 - Add `>=` and `<=` operators to simplexpr (By: viandoxdev)
 - Add `desktop` window type (By: Alvaro Lopez)
 - Add `scroll` widget (By: viandoxdev)
@@ -30,7 +32,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add drag and drop functionality to eventbox
 - Add `search`, `captures`, `stringlength`, `arraylength` and `objectlength` functions for expressions (By: MartinJM, ElKowar)
 - Add `matches` function
-- Add transform widget (By: druskus20)
+- Add `transform` widget (By: druskus20)
 - Add `:onaccept` to input field, add `:onclick` to eventbox
 - Add `EWW_CMD`, `EWW_CONFIG_DIR`, `EWW_EXECUTABLE` magic variables
 - Add `overlay` widget (By: viandoxdev)
