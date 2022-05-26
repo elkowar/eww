@@ -11,8 +11,8 @@ use anyhow::{anyhow, Context, Result};
 use codespan_reporting::diagnostic::Severity;
 use eww_shared_util::Spanned;
 use gdk::{ModifierType, NotifyType};
-use gtk::{self, glib, prelude::*, DestDefaults, TargetEntry, TargetList};
 use glib::translate::FromGlib;
+use gtk::{self, glib, prelude::*, DestDefaults, TargetEntry, TargetList};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 
@@ -42,7 +42,7 @@ macro_rules! connect_signal_handler {
             let old = $widget.data::<gtk::glib::SignalHandlerId>(key);
 
             if let Some(old) = old {
-                 let a = old.as_ref().as_raw() ;
+                 let a = old.as_ref().as_raw();
                  $widget.disconnect(gtk::glib::SignalHandlerId::from_glib(a));
             }
 
