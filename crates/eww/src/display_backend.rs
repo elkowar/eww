@@ -44,7 +44,7 @@ mod platform {
         }
 
         // Sets the keyboard interactivity
-        gtk_layer_shell::set_keyboard_interactivity(&window, window_def.backend_options.focusable);
+        gtk_layer_shell::set_keyboard_mode(&window, gtk_layer_shell::KeyboardMode::Exclusive);
 
         if let Some(geometry) = window_def.geometry {
             // Positioning surface
