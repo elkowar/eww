@@ -1,0 +1,51 @@
+(defwidget command [cmd ?class icon text]
+  (eventbox :cursor "hand"
+    (box :orientation "v" :space-evenly false
+      (button	:class "${class} text-lg hover-sky"
+        :onclick cmd icon)
+      (label :class "text-xs sans bold sky beyno" :text text)
+    )
+  )
+)
+
+(defwindow powermenu
+  :monitor 0
+  :geometry (geometry :height "18%" :width "32%" :anchor "center")
+  :stacking "fg"
+  :wm-ignore true
+  (box :valign "fill" :halign "fill" :class "bg-crust"
+    (overlay :valign "fill" :halign "fill"
+      (eventbox :cursor "hand" :valign "start" :halign "end"
+        (button	:class "red text-sm hover-sky"
+          :onclick "eww close powermenu" " ")
+      )
+      (box :valign "center" :halign "center" :orientation "v" 
+        :space-evenly false
+        (label :class "text-base beyno" :text "Wakanda Forever!!")
+        (box :valign "center" :halign "center"
+          :spacing 40
+          (command :class "blue"
+            :cmd "i3lock && eww close powermenu" 
+            :icon "" 
+            :text "Lock")
+          (command :class "blue" 
+            :cmd "pidof openbox && openbox --exit; pidof bspc && bspc quit"
+            :icon ""
+            :text "Log out")
+          (command :class "green"
+            :cmd "systemctl suspend && eww close powermenu" 
+            :icon "鈴"
+            :text "Sleep")
+          (command :class "red"
+            :cmd "systemctl poweroff" 
+            :icon "襤" 
+            :text "Shut Down")
+          (command :class "red"
+            :cmd "systemctl restart" 
+            :icon "ﰇ" 
+            :text "Restart")
+        )
+      )
+    )
+  )
+)
