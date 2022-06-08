@@ -1,5 +1,11 @@
 # Screenshots
-// TBD
+## Status bar
+![](readme/logo-volume.gif)
+![](readme/music.gif)
+## Power menu
+![](readme/power.gif)
+## Screenshot menu
+![](readme/ss.gif)
 # Installation
 Install required fonts (Iosevka Nerd Font & Beyno)
 ```
@@ -29,5 +35,7 @@ eww open --toggle takeshot
 ```
 # Customization
 Weather section is now pointing to my city, edit `wttr` section to match yours.
+
 By default log out command only support `openbox` and `bspwm`. You should change it accordingly.
+
 I use `rofi` and `i3lock`, but you might differ. Change those command to suit your case.
