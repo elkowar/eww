@@ -13,7 +13,7 @@ edition = "2021"
 [features]
 default = ["x11"]
 x11 = ["gdkx11", "x11rb", "yuck/x11"]
-wayland = ["gtk-layer-shell", "gtk-layer-shell-sys", "yuck/wayland"]
+wayland = ["gtk-layer-shell", "yuck/wayland"]
 [dependencies.cairo-sys-rs]
 version = "0.15.1"
 
@@ -27,8 +27,7 @@ cairo-rs = "0.15.11"
 
 gdk-pixbuf = "0.15"
 
-gtk-layer-shell = { version="0.3.1", optional=true }
-gtk-layer-shell-sys = { version="0.3.1", optional=true }
+gtk-layer-shell = { version = "0.4", optional = true}
 gdkx11 = { version = "0.15", optional = true }
 x11rb = { version = "0.9", features = ["randr"], optional = true }
 
@@ -58,7 +57,7 @@ futures-core = "0.3"
 futures-util = "0.3"
 tokio-util = "0.7"
 
-sysinfo = "0.23"
+sysinfo = "0.24"
 
 dyn-clone = "1.0"
 wait-timeout = "0.2"
