@@ -2,7 +2,7 @@ use std::str::pattern::Pattern;
 
 use eww_shared_util::{Span, Spanned};
 use once_cell::sync::Lazy;
-use regex::{escape, Regex, RegexSet};
+use regex::{Regex, RegexSet};
 
 pub type Sp<T> = (usize, T, usize);
 
@@ -56,12 +56,12 @@ pub enum Token {
 }
 
 macro_rules! regex_rules {
-    ($( $regex:expr => $token:expr),*) => {
+    ($( $regex:literal => $token:expr),*) => {
         static LEXER_REGEX_SET: Lazy<RegexSet> = Lazy::new(|| { RegexSet::new(&[
-            $(format!("^{}", $regex)),*
+            $(concat!("^", $regex)),*
         ]).unwrap()});
         static LEXER_REGEXES: Lazy<Vec<Regex>> = Lazy::new(|| { vec![
-            $(Regex::new(&format!("^{}", $regex)).unwrap()),*
+            $(Regex::new(concat!("^", $regex)).unwrap()),*
         ]});
         static LEXER_FNS: Lazy<Vec<Box<dyn Fn(String) -> Token + Sync + Send>>> = Lazy::new(|| { vec![
             $(Box::new($token)),*
@@ -74,37 +74,37 @@ pub static STR_INTERPOLATION_START: &str = "${";
 pub static STR_INTERPOLATION_END: &str = "}";
 
 regex_rules! {
-    escape(r"+")     => |_| Token::Plus,
-    escape(r"-")     => |_| Token::Minus,
-    escape(r"*")     => |_| Token::Times,
-    escape(r"/")     => |_| Token::Div,
-    escape(r"%")     => |_| Token::Mod,
-    escape(r"==")    => |_| Token::Equals,
-    escape(r"!=")    => |_| Token::NotEquals,
-    escape(r"&&")    => |_| Token::And,
-    escape(r"||")    => |_| Token::Or,
-    escape(r">=")    => |_| Token::GE,
-    escape(r"<=")    => |_| Token::LE,
-    escape(r">")     => |_| Token::GT,
-    escape(r"<")     => |_| Token::LT,
-    escape(r"?:")    => |_| Token::Elvis,
-    escape(r"=~")    => |_| Token::RegexMatch,
+    r"\+"     => |_| Token::Plus,
+    r"-"     => |_| Token::Minus,
+    r"\*"     => |_| Token::Times,
+    r"/"     => |_| Token::Div,
+    r"%"     => |_| Token::Mod,
+    r"=="    => |_| Token::Equals,
+    r"!="    => |_| Token::NotEquals,
+    r"&&"    => |_| Token::And,
+    r"\|\|"    => |_| Token::Or,
+    r">="    => |_| Token::GE,
+    r"<="    => |_| Token::LE,
+    r">"     => |_| Token::GT,
+    r"<"     => |_| Token::LT,
+    r"\?:"    => |_| Token::Elvis,
+    r"=~"    => |_| Token::RegexMatch,
 
-    escape(r"!" )    => |_| Token::Not,
-    escape(r"-" )    => |_| Token::Negative,
+    r"!"     => |_| Token::Not,
+    r"-"     => |_| Token::Negative,
 
-    escape(r",")     => |_| Token::Comma,
-    escape(r"?")     => |_| Token::Question,
-    escape(r":")     => |_| Token::Colon,
-    escape(r"(")     => |_| Token::LPren,
-    escape(r")")     => |_| Token::RPren,
-    escape(r"[")     => |_| Token::LBrack,
-    escape(r"]")     => |_| Token::RBrack,
-    escape(r"{")     => |_| Token::LCurl,
-    escape(r"}")     => |_| Token::RCurl,
-    escape(r".")     => |_| Token::Dot,
-    escape(r"true")  => |_| Token::True,
-    escape(r"false") => |_| Token::False,
+    r","     => |_| Token::Comma,
+    r"\?"     => |_| Token::Question,
+    r":"     => |_| Token::Colon,
+    r"\("     => |_| Token::LPren,
+    r"\)"     => |_| Token::RPren,
+    r"\["     => |_| Token::LBrack,
+    r"\]"     => |_| Token::RBrack,
+    r"\{"     => |_| Token::LCurl,
+    r"\}"     => |_| Token::RCurl,
+    r"\."     => |_| Token::Dot,
+    r"true"  => |_| Token::True,
+    r"false" => |_| Token::False,
 
     r"\s+" => |_| Token::Skip,
     r";.*"=> |_| Token::Comment,
