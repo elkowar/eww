@@ -119,8 +119,8 @@ pub fn get_battery_capacity() -> Result<String> {
                 json.push_str(&format!(
                     r#"{:?}: {{ "status": "{}", "capacity": {} }},"#,
                     i.file_name().context("couldn't convert file name to rust string")?,
-                    s.replace("\n", ""),
-                    o.replace("\n", "")
+                    s.trim_end_matches(|c| c == '\n'),
+                    o.trim_end_matches(|c| c == '\n')
                 ));
                 if let (Ok(t), Ok(c), Ok(v)) = (
                     read_to_string(i.join("charge_full")),
@@ -128,13 +128,15 @@ pub fn get_battery_capacity() -> Result<String> {
                     read_to_string(i.join("voltage_now")),
                 ) {
                     // (uAh / 1000000) * U = p and that / one million so that we have microwatt
-                    current +=
-                        ((c.replace("\n", "").parse::<f64>()? / 1000000_f64) * v.replace("\n", "").parse::<f64>()?) / 1000000_f64;
-                    total +=
-                        ((t.replace("\n", "").parse::<f64>()? / 1000000_f64) * v.replace("\n", "").parse::<f64>()?) / 1000000_f64;
+                    current += ((c.trim_end_matches(|c| c == '\n').parse::<f64>()? / 1000000_f64)
+                        * v.trim_end_matches(|c| c == '\n').parse::<f64>()?)
+                        / 1000000_f64;
+                    total += ((t.trim_end_matches(|c| c == '\n').parse::<f64>()? / 1000000_f64)
+                        * v.trim_end_matches(|c| c == '\n').parse::<f64>()?)
+                        / 1000000_f64;
                 } else if let (Ok(t), Ok(c)) = (read_to_string(i.join("energy_full")), read_to_string(i.join("energy_now"))) {
-                    current += c.replace("\n", "").parse::<f64>()?;
-                    total += t.replace("\n", "").parse::<f64>()?;
+                    current += c.trim_end_matches(|c| c == '\n').parse::<f64>()?;
+                    total += t.trim_end_matches(|c| c == '\n').parse::<f64>()?;
                 } else {
                     log::warn!(
                         "Failed to get/calculate uWh: the total_avg value of the battery magic var will probably be a garbage \

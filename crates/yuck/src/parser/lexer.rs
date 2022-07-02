@@ -1,5 +1,5 @@
 use once_cell::sync::Lazy;
-use regex::{escape, Regex, RegexSet};
+use regex::{Regex, RegexSet};
 use simplexpr::parser::lexer::{STR_INTERPOLATION_END, STR_INTERPOLATION_START};
 
 use super::parse_error;
@@ -41,12 +41,12 @@ impl std::fmt::Display for Token {
 }
 
 macro_rules! regex_rules {
-    ($( $regex:expr => $token:expr),*) => {
+    ($( $regex:literal => $token:expr),*) => {
         static LEXER_REGEX_SET: Lazy<RegexSet> = Lazy::new(|| { RegexSet::new(&[
-            $(format!("^{}", $regex)),*
+            $(concat!("^", $regex)),*
         ]).unwrap()});
         static LEXER_REGEXES: Lazy<Vec<Regex>> = Lazy::new(|| { vec![
-            $(Regex::new(&format!("^{}", $regex)).unwrap()),*
+            $(Regex::new(concat!("^", $regex)).unwrap()),*
         ]});
         static LEXER_FNS: Lazy<Vec<Box<dyn Fn(String) -> Token + Sync + Send>>> = Lazy::new(|| { vec![
             $(Box::new($token)),*
@@ -57,12 +57,12 @@ macro_rules! regex_rules {
 static ESCAPE_REPLACE_REGEX: Lazy<regex::Regex> = Lazy::new(|| Regex::new(r"\\(.)").unwrap());
 
 regex_rules! {
-    escape("(") => |_| Token::LPren,
-    escape(")") => |_| Token::RPren,
-    escape("[") => |_| Token::LBrack,
-    escape("]") => |_| Token::RBrack,
-    escape("true")  => |_| Token::True,
-    escape("false") => |_| Token::False,
+    r"\(" => |_| Token::LPren,
+    r"\)" => |_| Token::RPren,
+    r"\[" => |_| Token::LBrack,
+    r"\]" => |_| Token::RBrack,
+    r"true"  => |_| Token::True,
+    r"false" => |_| Token::False,
     r#"[+-]?(?:[0-9]+[.])?[0-9]+"# => |x| Token::NumLit(x),
     r#":[^\s\)\]}]+"# => |x| Token::Keyword(x),
     r#"[a-zA-Z_!\?<>/\.\*-\+\-][^\s{}\(\)\[\](){}]*"# => |x| Token::Symbol(x),
