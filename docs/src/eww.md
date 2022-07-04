@@ -37,6 +37,18 @@ The following list of package names should work for arch linux:
 
 </details>
 
+<details>
+<summary>VoidLinux</summary>
+
+- cairo-devel 
+- pango-devel 
+- glib-devel 
+- atk-devel 
+- gtk+3-devel 
+- gdk-pixbuf-devel
+
+</details>
+
 (Note that you will most likely need the -devel variants of your distro's packages to be able to compile eww.)
 
 ### Building
