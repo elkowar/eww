@@ -440,6 +440,10 @@ fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
             connect_signal_handler!(gtk_widget, gtk_widget.connect_activate(move |gtk_widget| {
                 run_command(timeout, &onaccept, &[gtk_widget.text().to_string()]);
             }));
+        },
+        // @prop password - if the input is obscured
+        prop(password: as_bool = false) {
+            gtk_widget.set_visibility(!password);
         }
     });
     Ok(gtk_widget)
