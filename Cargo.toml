@@ -1,10 +1,5 @@
 [workspace]
-members = [
-    "crates/eww",
-    "crates/simplexpr",
-    "crates/yuck",
-    "crates/eww_shared_util"
-]
+members = ["crates/*"]
 [profile.dev]
 split-debuginfo = "unpacked"
 
