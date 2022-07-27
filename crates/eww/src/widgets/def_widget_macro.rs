@@ -43,9 +43,13 @@ macro_rules! def_widget {
                             crate::state::scope::Listener {
                             needed_variables: required_vars,
                             f: Box::new({
+                                // create a weak reference to the widget, such that this listener doesn't prevent the actual widget from
+                                // getting deallocated (garbage collected by the gtk runtime)
                                 let $gtk_widget = gdk::glib::clone::Downgrade::downgrade(&$gtk_widget);
                                 move |$scope_graph, values| {
-                                    let $gtk_widget = gdk::glib::clone::Upgrade::upgrade(&$gtk_widget).unwrap();
+                                    // TODO when this fails, shouldn't we technically remove the listener somehow? Need to analyze when exactly this happens.
+                                    let $gtk_widget = gdk::glib::clone::Upgrade::upgrade(&$gtk_widget)
+                                        .context("Couldn't upgrade reference, widget got deallocated")?;
                                     // values is a map of all the variables that are required to evaluate the
                                     // attributes expression.
 
