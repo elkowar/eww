@@ -11,6 +11,7 @@ use anyhow::{anyhow, Context, Result};
 use codespan_reporting::diagnostic::Severity;
 use eww_shared_util::Spanned;
 use gdk::{ModifierType, NotifyType};
+
 use glib::translate::FromGlib;
 use gtk::{self, glib, prelude::*, DestDefaults, TargetEntry, TargetList};
 use itertools::Itertools;
@@ -335,7 +336,7 @@ const WIDGET_NAME_COLOR_BUTTON: &str = "color-button";
 /// @widget color-button
 /// @desc A button opening a color chooser window
 fn build_gtk_color_button(bargs: &mut BuilderArgs) -> Result<gtk::ColorButton> {
-    let gtk_widget = gtk::ColorButtonBuilder::new().build();
+    let gtk_widget = gtk::builders::ColorButtonBuilder::new().build();
     def_widget!(bargs, _g, gtk_widget, {
         // @prop use-alpha - bool to whether or not use alpha
         prop(use_alpha: as_bool) {gtk_widget.set_use_alpha(use_alpha);},
@@ -610,7 +611,7 @@ const WIDGET_NAME_SCROLL: &str = "scroll";
 /// @desc a container with a single child that can scroll.
 fn build_gtk_scrolledwindow(bargs: &mut BuilderArgs) -> Result<gtk::ScrolledWindow> {
     // I don't have single idea of what those two generics are supposed to be, but this works.
-    let gtk_widget = gtk::ScrolledWindow::new::<gtk::Adjustment, gtk::Adjustment>(None, None);
+    let gtk_widget = gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
 
     def_widget!(bargs, _g, gtk_widget, {
         // @prop hscroll - scroll horizontally
@@ -915,15 +916,15 @@ fn build_transform(bargs: &mut BuilderArgs) -> Result<Transform> {
     let w = Transform::new();
     def_widget!(bargs, _g, w, {
         // @prop rotate - the percentage to rotate
-        prop(rotate: as_f64) { w.set_property("rotate", rotate)?; },
+        prop(rotate: as_f64) { w.set_property("rotate", rotate); },
         // @prop translate-x - the amount to translate in the x direction (px or %)
-        prop(translate_x: as_string) { w.set_property("translate-x", translate_x)?; },
+        prop(translate_x: as_string) { w.set_property("translate-x", translate_x); },
         // @prop translate-y - the amount to translate in the y direction (px or %)
-        prop(translate_y: as_string) { w.set_property("translate-y", translate_y)?; },
+        prop(translate_y: as_string) { w.set_property("translate-y", translate_y); },
         // @prop scale_x - the amount to scale in the x direction (px or %)
-        prop(scale_x: as_string) { w.set_property("scale-x", scale_x)?; },
+        prop(scale_x: as_string) { w.set_property("scale-x", scale_x); },
         // @prop scale_y - the amount to scale in the y direction (px or %)
-        prop(scale_y: as_string) { w.set_property("scale-y", scale_y)?; },
+        prop(scale_y: as_string) { w.set_property("scale-y", scale_y); },
     });
     Ok(w)
 }
@@ -935,13 +936,13 @@ fn build_circular_progress_bar(bargs: &mut BuilderArgs) -> Result<CircProg> {
     let w = CircProg::new();
     def_widget!(bargs, _g, w, {
         // @prop value - the value, between 0 - 100
-        prop(value: as_f64) { w.set_property("value", value)?; },
+        prop(value: as_f64) { w.set_property("value", value); },
         // @prop start-at - the angle that the circle should start at
-        prop(start_at: as_f64) { w.set_property("start-at", start_at)?; },
+        prop(start_at: as_f64) { w.set_property("start-at", start_at); },
         // @prop thickness - the thickness of the circle
-        prop(thickness: as_f64) { w.set_property("thickness", thickness)?; },
+        prop(thickness: as_f64) { w.set_property("thickness", thickness); },
         // @prop clockwise - wether the progress bar spins clockwise or counter clockwise
-        prop(clockwise: as_bool) { w.set_property("clockwise", &clockwise)?; },
+        prop(clockwise: as_bool) { w.set_property("clockwise", &clockwise); },
     });
     Ok(w)
 }
@@ -953,11 +954,11 @@ fn build_graph(bargs: &mut BuilderArgs) -> Result<super::graph::Graph> {
     let w = super::graph::Graph::new();
     def_widget!(bargs, _g, w, {
         // @prop value - the value, between 0 - 100
-        prop(value: as_f64) { w.set_property("value", &value)?; },
+        prop(value: as_f64) { w.set_property("value", &value); },
         // @prop thickness - the thickness of the line
-        prop(thickness: as_f64) { w.set_property("thickness", &thickness)?; },
+        prop(thickness: as_f64) { w.set_property("thickness", &thickness); },
         // @prop time-range - the range of time to show
-        prop(time_range: as_duration) { w.set_property("time-range", &(time_range.as_millis() as u64))?; },
+        prop(time_range: as_duration) { w.set_property("time-range", &(time_range.as_millis() as u64)); },
         // @prop min - the minimum value to show (defaults to 0 if value_max is provided)
         // @prop max - the maximum value to show
         prop(min: as_f64 = 0, max: as_f64 = 100) {
@@ -966,14 +967,14 @@ fn build_graph(bargs: &mut BuilderArgs) -> Result<super::graph::Graph> {
                     format!("Graph's min ({}) should never be higher than max ({})",  min, max)
                 )).into());
             }
-            w.set_property("min", &min)?;
-            w.set_property("max", &max)?;
+            w.set_property("min", &min);
+            w.set_property("max", &max);
         },
         // @prop dynamic - whether the y range should dynamically change based on value
-        prop(dynamic: as_bool) { w.set_property("dynamic", &dynamic)?; },
+        prop(dynamic: as_bool) { w.set_property("dynamic", &dynamic); },
         // @prop line-style - changes the look of the edges in the graph. Values: "miter" (default), "round",
         // "bevel"
-        prop(line_style: as_string) { w.set_property("line-style", &line_style)?; },
+        prop(line_style: as_string) { w.set_property("line-style", &line_style); },
     });
     Ok(w)
 }

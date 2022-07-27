@@ -39,7 +39,7 @@ impl ObjectImpl for TransformPriv {
         use once_cell::sync::Lazy;
         static PROPERTIES: Lazy<Vec<glib::ParamSpec>> = Lazy::new(|| {
             vec![
-                glib::ParamSpec::new_double(
+                glib::ParamSpecDouble::new(
                     "rotate",
                     "Rotate",
                     "The Rotation",
@@ -48,10 +48,10 @@ impl ObjectImpl for TransformPriv {
                     0f64,
                     glib::ParamFlags::READWRITE,
                 ),
-                glib::ParamSpec::new_string("translate-x", "Translate x", "The X Translation", None, glib::ParamFlags::READWRITE),
-                glib::ParamSpec::new_string("translate-y", "Translate y", "The Y Translation", None, glib::ParamFlags::READWRITE),
-                glib::ParamSpec::new_string("scale-x", "Scale x", "The amount to scale in x", None, glib::ParamFlags::READWRITE),
-                glib::ParamSpec::new_string("scale-y", "Scale y", "The amount to scale in y", None, glib::ParamFlags::READWRITE),
+                glib::ParamSpecString::new("translate-x", "Translate x", "The X Translation", None, glib::ParamFlags::READWRITE),
+                glib::ParamSpecString::new("translate-y", "Translate y", "The Y Translation", None, glib::ParamFlags::READWRITE),
+                glib::ParamSpecString::new("scale-x", "Scale x", "The amount to scale in x", None, glib::ParamFlags::READWRITE),
+                glib::ParamSpecString::new("scale-y", "Scale y", "The amount to scale in y", None, glib::ParamFlags::READWRITE),
             ]
         });
 

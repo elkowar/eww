@@ -1,4 +1,4 @@
-
+[![dependency status](https://deps.rs/repo/github/elkowar/eww/status.svg)](https://deps.rs/repo/github/elkowar/eww)
 
 # Eww
 

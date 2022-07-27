@@ -3,7 +3,7 @@ use anyhow::{Context, Result};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use std::{fs::read_to_string, sync::Mutex};
-use sysinfo::{ComponentExt, DiskExt, NetworkExt, NetworksExt, ProcessorExt, System, SystemExt};
+use sysinfo::{ComponentExt, CpuExt, DiskExt, NetworkExt, NetworksExt, System, SystemExt};
 
 static SYSTEM: Lazy<Mutex<System>> = Lazy::new(|| Mutex::new(System::new()));
 
@@ -68,14 +68,13 @@ pub fn get_temperatures() -> String {
 pub fn get_cpus() -> String {
     let mut c = SYSTEM.lock().unwrap();
     c.refresh_cpu();
-    let processors = c.processors();
+    let cpus = c.cpus();
     format!(
         r#"{{ "cores": [{}], "avg": {} }}"#,
-        processors
-            .iter()
+        cpus.iter()
             .map(|a| format!(r#"{{"core": "{}", "freq": {}, "usage": {:.0}}}"#, a.name(), a.frequency(), a.cpu_usage()))
             .join(","),
-        processors.iter().map(|a| a.cpu_usage()).avg()
+        cpus.iter().map(|a| a.cpu_usage()).avg()
     )
 }
 
