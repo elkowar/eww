@@ -395,7 +395,7 @@ fn build_gtk_scale(bargs: &mut BuilderArgs) -> Result<gtk::Scale> {
         // @prop draw-value - draw the value of the property
         prop(draw_value: as_bool = false) { gtk_widget.set_draw_value(draw_value) },
 
-        // @prop round-digits - Sets the number of digits to round the value to when it changes
+        // @prop round-digits - Sets the number of decimals to round the value to when it changes
         prop(round_digits: as_i32 = 0) { gtk_widget.set_round_digits(round_digits) }
 
     });
