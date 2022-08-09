@@ -317,5 +317,6 @@ mod test {
         weird_nesting => v!(r#"
             "${ {"hi": "ho"}.hi }".hi
         "#),
+        empty_interpolation   => v!(r#""${}""#),
     }
 }

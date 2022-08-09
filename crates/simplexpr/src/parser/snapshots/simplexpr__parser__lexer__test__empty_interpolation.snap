@@ -1,0 +1,6 @@
+---
+source: crates/simplexpr/src/parser/lexer.rs
+assertion_line: 306
+expression: "v!(r#\"\"${}\"\"#)"
+---
+(0, StringLit([(0, Literal(""), 3), (3, Interp([]), 3), (3, Literal(""), 5)]), 5)
