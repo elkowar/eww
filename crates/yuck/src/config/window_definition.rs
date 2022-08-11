@@ -20,7 +20,7 @@ pub struct WindowDefinition {
     pub name: String,
     pub geometry: Option<WindowGeometry>,
     pub stacking: WindowStacking,
-    pub monitor_number: Option<i32>,
+    pub monitor: Option<String>,
     pub widget: WidgetUse,
     pub resizable: bool,
     pub backend_options: BackendWindowOptions,
@@ -32,14 +32,14 @@ impl FromAstElementContent for WindowDefinition {
     fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> AstResult<Self> {
         let (_, name) = iter.expect_symbol()?;
         let mut attrs = iter.expect_key_values()?;
-        let monitor_number = attrs.primitive_optional("monitor")?;
+        let monitor = attrs.primitive_optional("monitor")?;
         let resizable = attrs.primitive_optional("resizable")?.unwrap_or(true);
         let stacking = attrs.primitive_optional("stacking")?.unwrap_or(WindowStacking::Foreground);
         let geometry = attrs.ast_optional("geometry")?;
         let backend_options = BackendWindowOptions::from_attrs(&mut attrs)?;
         let widget = iter.expect_any().and_then(WidgetUse::from_ast)?;
         iter.expect_done()?;
-        Ok(Self { name, monitor_number, resizable, widget, stacking, geometry, backend_options })
+        Ok(Self { name, monitor, resizable, widget, stacking, geometry, backend_options })
     }
 }
 

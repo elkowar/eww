@@ -91,9 +91,9 @@ pub enum ActionWithServer {
         /// Name of the window you want to open.
         window_name: String,
 
-        /// Monitor-index the window should open on
+        /// The identifier of the monitor the window should open on
         #[structopt(long)]
-        screen: Option<i32>,
+        screen: Option<String>,
 
         /// The position of the window, where it should open. (i.e.: 200x100)
         #[structopt(short, long)]

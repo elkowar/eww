@@ -44,7 +44,7 @@ pub enum DaemonCommand {
         pos: Option<Coords>,
         size: Option<Coords>,
         anchor: Option<AnchorPoint>,
-        screen: Option<i32>,
+        screen: Option<String>,
         should_toggle: bool,
         sender: DaemonResponseSender,
     },
@@ -287,7 +287,7 @@ impl App {
         window_name: &str,
         pos: Option<Coords>,
         size: Option<Coords>,
-        monitor: Option<i32>,
+        monitor: Option<String>,
         anchor: Option<AnchorPoint>,
     ) -> Result<()> {
         self.failed_windows.remove(window_name);
@@ -317,7 +317,7 @@ impl App {
                 None,
             )?;
 
-            let monitor_geometry = get_monitor_geometry(monitor.or(window_def.monitor_number))?;
+            let monitor_geometry = get_monitor_geometry(monitor.or(window_def.monitor.clone()))?;
 
             let eww_window = initialize_window(monitor_geometry, root_widget, window_def, window_scope)?;
             eww_window.gtk_window.style_context().add_class(&window_name.to_string());
@@ -380,7 +380,7 @@ fn initialize_window(
     window_scope: ScopeIndex,
 ) -> Result<EwwWindow> {
     let window = display_backend::initialize_window(&window_def, monitor_geometry)
-        .with_context(|| format!("monitor {} is unavailable", window_def.monitor_number.unwrap()))?;
+        .with_context(|| format!("monitor {} is unavailable", window_def.monitor.clone().unwrap()))?;
 
     window.set_title(&format!("Eww - {}", window_def.name));
     window.set_position(gtk::WindowPosition::None);
@@ -450,11 +450,24 @@ fn on_screen_changed(window: &gtk::Window, _old_screen: Option<&gdk::Screen>) {
 }
 
 /// Get the monitor geometry of a given monitor number, or the default if none is given
-fn get_monitor_geometry(n: Option<i32>) -> Result<gdk::Rectangle> {
+fn get_monitor_geometry(n: Option<String>) -> Result<gdk::Rectangle> {
     #[allow(deprecated)]
     let display = gdk::Display::default().expect("could not get default display");
     let monitor = match n {
-        Some(n) => display.monitor(n).with_context(|| format!("Failed to get monitor with index {}", n))?,
+        Some(n) => {
+            let mut idx = -1;
+            for m in 0..display.n_monitors() {
+                if let Some(mon) = display.monitor(m) {
+                    if let Some(name) = mon.model() {
+                        if name == n {
+                            idx = m;
+                            break;
+                        }
+                    }
+                }
+            }
+            display.monitor(idx).with_context(|| format!("Failed to get monitor with identifier {}", n))?
+        },
         None => display
             .primary_monitor()
             .context("Failed to get primary monitor from GTK. Try explicitly specifying the monitor on your window.")?,
