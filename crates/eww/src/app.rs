@@ -467,7 +467,7 @@ fn get_monitor_geometry(n: Option<String>) -> Result<gdk::Rectangle> {
                 }
             }
             display.monitor(idx).with_context(|| format!("Failed to get monitor with identifier {}", n))?
-        },
+        }
         None => display
             .primary_monitor()
             .context("Failed to get primary monitor from GTK. Try explicitly specifying the monitor on your window.")?,

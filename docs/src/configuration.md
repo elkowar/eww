@@ -29,7 +29,7 @@ Let's look at an example window definition:
 
 ```lisp
 (defwindow example
-           :monitor 0
+           :monitor "DP-1"
            :geometry (geometry :x "0%"
                                :y "20px"
                                :width "90%"
@@ -284,4 +284,3 @@ If you want to separate different widgets even further, you can create a new eww
 Then, you can tell eww to use that configuration directory by passing _every_ command the `--config /path/to/your/config/dir` flag.
 Make sure to actually include this in all your `eww` calls, including `eww kill`, `eww logs`, etc.
 This launches a separate instance of the eww daemon that has separate logs and state from your main eww configuration.
-
