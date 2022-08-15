@@ -4,7 +4,7 @@ use crate::{
     display_backend, error_handling_ctx,
     gtk::prelude::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt},
     script_var_handler::ScriptVarHandlerHandle,
-    state::scope_graph::{ScopeGraph, ScopeGraphEvent, ScopeIndex},
+    state::scope_graph::{ScopeGraph, ScopeIndex},
     EwwPaths, *,
 };
 use anyhow::anyhow;
@@ -67,17 +67,22 @@ pub enum DaemonCommand {
     PrintWindows(DaemonResponseSender),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct EwwWindow {
     pub name: String,
     pub definition: yuck::config::window_definition::WindowDefinition,
     pub scope_index: ScopeIndex,
     pub gtk_window: gtk::Window,
+    pub destroy_event_handler_id: Option<glib::SignalHandlerId>,
 }
 
 impl EwwWindow {
     pub fn close(self) {
+        log::info!("Closing gtk window {}", self.name);
         self.gtk_window.close();
+        if let Some(handler_id) = self.destroy_event_handler_id {
+            self.gtk_window.disconnect(handler_id);
+        }
     }
 }
 
@@ -150,7 +155,7 @@ impl App {
                 }
                 DaemonCommand::CloseAll => {
                     log::info!("Received close command, closing all windows");
-                    for (window_name, _window) in self.open_windows.clone() {
+                    for window_name in self.open_windows.keys().cloned().collect::<Vec<String>>() {
                         self.close_window(&window_name)?;
                     }
                 }
@@ -269,9 +274,10 @@ impl App {
             .remove(window_name)
             .with_context(|| format!("Tried to close window named '{}', but no such window was open", window_name))?;
 
-        self.scope_graph.borrow_mut().remove_scope(eww_window.scope_index);
-
+        let scope_index = eww_window.scope_index;
         eww_window.close();
+
+        self.scope_graph.borrow_mut().remove_scope(scope_index);
 
         let unused_variables = self.scope_graph.borrow().currently_unused_globals();
         for unused_var in unused_variables {
@@ -294,10 +300,13 @@ impl App {
         log::info!("Opening window {}", window_name);
 
         // if an instance of this is already running, close it
-        let _ = self.close_window(window_name);
+        if self.open_windows.contains_key(window_name) {
+            self.close_window(window_name)?;
+        }
 
         let open_result: Result<_> = try {
             let mut window_def = self.eww_config.get_window(window_name)?.clone();
+            assert_eq!(window_def.name, window_name, "window definition name did not equal the called window");
             window_def.geometry = window_def.geometry.map(|x| x.override_if_given(anchor, pos, size));
 
             let root_index = self.scope_graph.borrow().root_index;
@@ -319,7 +328,7 @@ impl App {
 
             let monitor_geometry = get_monitor_geometry(monitor.or(window_def.monitor.clone()))?;
 
-            let eww_window = initialize_window(monitor_geometry, root_widget, window_def, window_scope)?;
+            let mut eww_window = initialize_window(monitor_geometry, root_widget, window_def, window_scope)?;
             eww_window.gtk_window.style_context().add_class(&window_name.to_string());
 
             // initialize script var handlers for variables that where not used before opening this window.
@@ -330,12 +339,22 @@ impl App {
                 }
             }
 
-            eww_window.gtk_window.connect_destroy({
-                let scope_graph_sender = self.scope_graph.borrow().event_sender.clone();
+            eww_window.destroy_event_handler_id = Some(eww_window.gtk_window.connect_destroy({
+                let app_evt_sender = self.app_evt_send.clone();
+                let window_name: String = eww_window.name.to_string();
                 move |_| {
-                    let _ = scope_graph_sender.send(ScopeGraphEvent::RemoveScope(eww_window.scope_index));
+                    // we don't care about the actual error response from the daemon as this is mostly just a fallback.
+                    // Generally, this should get disconnected before the gtk window gets destroyed.
+                    // It serves as a fallback for when the window is closed manually.
+                    let (response_sender, _) = daemon_response::create_pair();
+                    if let Err(err) = app_evt_sender
+                        .send(DaemonCommand::CloseWindows { windows: vec![window_name.clone()], sender: response_sender })
+                    {
+                        log::error!("Error sending close window command to daemon after gtk window destroy event: {}", err);
+                    }
                 }
-            });
+            }));
+
             self.open_windows.insert(window_name.to_string(), eww_window);
         };
 
@@ -419,7 +438,13 @@ fn initialize_window(
 
     window.show_all();
 
-    Ok(EwwWindow { name: window_def.name.clone(), definition: window_def, gtk_window: window, scope_index: window_scope })
+    Ok(EwwWindow {
+        name: window_def.name.clone(),
+        definition: window_def,
+        gtk_window: window,
+        scope_index: window_scope,
+        destroy_event_handler_id: None,
+    })
 }
 
 /// Apply the provided window-positioning rules to the window.

@@ -394,6 +394,10 @@ fn build_gtk_scale(bargs: &mut BuilderArgs) -> Result<gtk::Scale> {
 
         // @prop draw-value - draw the value of the property
         prop(draw_value: as_bool = false) { gtk_widget.set_draw_value(draw_value) },
+
+        // @prop round-digits - Sets the number of decimals to round the value to when it changes
+        prop(round_digits: as_i32 = 0) { gtk_widget.set_round_digits(round_digits) }
+
     });
     Ok(gtk_widget)
 }
@@ -550,6 +554,7 @@ fn build_gtk_overlay(bargs: &mut BuilderArgs) -> Result<gtk::Overlay> {
             for child in children {
                 let child = child?;
                 gtk_widget.add_overlay(&child);
+                gtk_widget.set_overlay_pass_through(&child, true);
                 child.show();
             }
             Ok(gtk_widget)
