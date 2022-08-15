@@ -550,6 +550,7 @@ fn build_gtk_overlay(bargs: &mut BuilderArgs) -> Result<gtk::Overlay> {
             for child in children {
                 let child = child?;
                 gtk_widget.add_overlay(&child);
+                gtk_widget.set_overlay_pass_through(&child, true);
                 child.show();
             }
             Ok(gtk_widget)
