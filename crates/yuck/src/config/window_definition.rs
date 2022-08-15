@@ -11,7 +11,7 @@ use crate::{
     },
     value::NumWithUnit,
 };
-use eww_shared_util::{AttrName, Span, VarName};
+use eww_shared_util::{AttrName, MonitorIdentifier, Span, VarName};
 
 use super::{backend_window_options::BackendWindowOptions, widget_use::WidgetUse, window_geometry::WindowGeometry};
 
@@ -20,7 +20,7 @@ pub struct WindowDefinition {
     pub name: String,
     pub geometry: Option<WindowGeometry>,
     pub stacking: WindowStacking,
-    pub monitor: Option<String>,
+    pub monitor: Option<MonitorIdentifier>,
     pub widget: WidgetUse,
     pub resizable: bool,
     pub backend_options: BackendWindowOptions,

@@ -8,7 +8,7 @@ use crate::{
     EwwPaths, *,
 };
 use anyhow::anyhow;
-use eww_shared_util::VarName;
+use eww_shared_util::{MonitorIdentifier, VarName};
 use itertools::Itertools;
 use simplexpr::dynval::DynVal;
 use std::{
@@ -44,7 +44,7 @@ pub enum DaemonCommand {
         pos: Option<Coords>,
         size: Option<Coords>,
         anchor: Option<AnchorPoint>,
-        screen: Option<String>,
+        screen: Option<MonitorIdentifier>,
         should_toggle: bool,
         sender: DaemonResponseSender,
     },
@@ -287,7 +287,7 @@ impl App {
         window_name: &str,
         pos: Option<Coords>,
         size: Option<Coords>,
-        monitor: Option<String>,
+        monitor: Option<MonitorIdentifier>,
         anchor: Option<AnchorPoint>,
     ) -> Result<()> {
         self.failed_windows.remove(window_name);
@@ -449,24 +449,13 @@ fn on_screen_changed(window: &gtk::Window, _old_screen: Option<&gdk::Screen>) {
     window.set_visual(visual.as_ref());
 }
 
-/// Get the monitor geometry of a given monitor number, or the default if none is given
-fn get_monitor_geometry(n: Option<String>) -> Result<gdk::Rectangle> {
-    #[allow(deprecated)]
+/// Get the monitor geometry of a given monitor, or the default if none is given
+fn get_monitor_geometry(n: Option<MonitorIdentifier>) -> Result<gdk::Rectangle> {
     let display = gdk::Display::default().expect("could not get default display");
     let monitor = match n {
-        Some(n) => {
-            let mut idx = -1;
-            for m in 0..display.n_monitors() {
-                if let Some(mon) = display.monitor(m) {
-                    if let Some(name) = mon.model() {
-                        if name == n {
-                            idx = m;
-                            break;
-                        }
-                    }
-                }
-            }
-            display.monitor(idx).with_context(|| format!("Failed to get monitor with identifier {}", n))?
+        Some(ident) => {
+            let mon = ident.get_monitor(&display);
+            mon.with_context(|| format!("Failed to get monitor {}", ident))?
         }
         None => display
             .primary_monitor()

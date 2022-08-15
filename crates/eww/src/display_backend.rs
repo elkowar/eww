@@ -24,20 +24,9 @@ mod platform {
         gtk_layer_shell::init_for_window(&window);
         // Sets the monitor where the surface is shown
         match window_def.monitor.clone() {
-            Some(n) => {
+            Some(ident) => {
                 let display = gdk::Display::default().expect("could not get default display");
-                let mut idx = -1;
-                for m in 0..display.n_monitors() {
-                    if let Some(mon) = display.monitor(m) {
-                        if let Some(name) = mon.model() {
-                            if name == n {
-                                idx = m;
-                                break;
-                            }
-                        }
-                    }
-                }
-                if let Some(monitor) = display.monitor(idx) {
+                if let Some(monitor) = ident.get_monitor(&display) {
                     gtk_layer_shell::set_monitor(&window, &monitor);
                 } else {
                     return None;

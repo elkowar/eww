@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use eww_shared_util::VarName;
+use eww_shared_util::{MonitorIdentifier, VarName};
 use serde::{Deserialize, Serialize};
 use simplexpr::dynval::DynVal;
 use structopt::StructOpt;
@@ -93,7 +93,7 @@ pub enum ActionWithServer {
 
         /// The identifier of the monitor the window should open on
         #[structopt(long)]
-        screen: Option<String>,
+        screen: Option<MonitorIdentifier>,
 
         /// The position of the window, where it should open. (i.e.: 200x100)
         #[structopt(short, long)]
