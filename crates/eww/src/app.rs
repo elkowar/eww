@@ -455,7 +455,18 @@ fn get_monitor_geometry(n: Option<MonitorIdentifier>) -> Result<gdk::Rectangle> 
     let monitor = match n {
         Some(ident) => {
             let mon = ident.get_monitor(&display);
-            mon.with_context(|| format!("Failed to get monitor {}", ident))?
+            mon.with_context(|| {
+                let head = format!("Failure to get monitor {}\nThe available monitors are:", ident);
+                let mut body = String::new();
+                for m in 0..display.n_monitors() {
+                    if let Some(mon) = display.monitor(m) {
+                        if let Some(model) = mon.model() {
+                            body.push_str(format!("\n        [{}] {}", m, model).as_str());
+                        }
+                    }
+                }
+                format!("{}{}", head, body)
+            })?
         }
         None => display
             .primary_monitor()
