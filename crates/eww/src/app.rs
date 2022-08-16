@@ -9,6 +9,7 @@ use crate::{
 };
 use anyhow::anyhow;
 use eww_shared_util::{MonitorIdentifier, VarName};
+use glib::ObjectExt;
 use itertools::Itertools;
 use simplexpr::dynval::DynVal;
 use std::{
