@@ -19,11 +19,10 @@ version = "0.15.1"
 
 [dependencies]
 gtk = { version = "0.15", features = [ "v3_22" ] }
-gdk = { version = "*", features = ["v3_22"] }
-gio = { version = "*", features = ["v2_44"] }
-glib = { version = "0.15.11"}
+gdk = "0.15"
+glib = "0.15"
 
-cairo-rs = "0.15.11"
+cairo-rs = "0.15"
 
 gdk-pixbuf = "0.15"
 
@@ -42,7 +41,6 @@ serde_json = "1.0"
 extend = "1"
 grass = "0.11"
 itertools = "0.10"
-debug_stub_derive = "0.3"
 log = "0.4"
 pretty_env_logger = "0.4"
 libc = "0.2"
@@ -62,7 +60,7 @@ sysinfo = "0.24"
 dyn-clone = "1.0"
 wait-timeout = "0.2"
 
-notify = "5.0.0-pre.14"
+notify = "=5.0.0-pre.14"
 
 codespan-reporting = "0.11"
 
