@@ -634,7 +634,7 @@ fn build_gtk_scrolledwindow(bargs: &mut BuilderArgs) -> Result<gtk::ScrolledWind
 
 const WIDGET_NAME_EVENTBOX: &str = "eventbox";
 /// @widget eventbox
-/// @desc a container which can receive events and must contain exactly one child. Supports `:hover` css selectors.
+/// @desc a container which can receive events and must contain exactly one child. Supports `:hover` and `:active` css selectors.
 fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
     let gtk_widget = gtk::EventBox::new();
 
@@ -650,6 +650,17 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
         if evt.detail() != NotifyType::Inferior {
             gtk_widget.clone().unset_state_flags(gtk::StateFlags::PRELIGHT);
         }
+        gtk::Inhibit(false)
+    });
+
+    // Support :active selector
+    gtk_widget.connect_button_press_event(|gtk_widget, _| {
+        gtk_widget.clone().set_state_flags(gtk::StateFlags::ACTIVE, false);
+        gtk::Inhibit(false)
+    });
+
+    gtk_widget.connect_button_release_event(|gtk_widget, _| {
+        gtk_widget.clone().unset_state_flags(gtk::StateFlags::ACTIVE);
         gtk::Inhibit(false)
     });
 
