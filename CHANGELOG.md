@@ -8,6 +8,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 ### Features
 - Add support for output names in X11 to select `:monitor`.
 
+
 ## 0.3.0 (26.05.2022)
 
 ### BREAKING CHANGES
