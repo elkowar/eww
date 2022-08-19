@@ -3,6 +3,7 @@ use std::{convert::Infallible, fmt, str};
 use gdk::Monitor;
 use serde::{Deserialize, Serialize};
 
+/// The type of the identifier used to select a monitor
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MonitorIdentifier {
     Numeric(i32),
@@ -10,24 +11,40 @@ pub enum MonitorIdentifier {
 }
 
 impl MonitorIdentifier {
-    pub fn get_monitor(&self, display: &gdk::Display) -> Option<Monitor> {
+    /// Returns the [Monitor][gdk::Monitor] structure corresponding to the identifer
+    // wayland argument is a hack so that this package
+    // doesn't have to include features for x11 and wayland
+    // remove when it becomes possible/easy to get output names in wayland
+    pub fn get_monitor(&self, display: &gdk::Display, wayland: bool) -> Option<Monitor> {
         display.monitor(match self {
             Self::Numeric(num) => *num,
             Self::Name(name) => {
-                let mut idx = -1;
-                for m in 0..display.n_monitors() {
-                    if let Some(mon) = display.monitor(m) {
-                        if let Some(model) = mon.model() {
-                            if model == *name {
-                                idx = m;
-                                break;
+                if wayland {
+                    return None;
+                } else {
+                    let mut idx = -1;
+                    for m in 0..display.n_monitors() {
+                        if let Some(mon) = display.monitor(m) {
+                            if let Some(model) = mon.model() {
+                                if model == *name {
+                                    idx = m;
+                                    break;
+                                }
                             }
                         }
                     }
+                    idx
                 }
-                idx
             }
         })
+    }
+
+    // only needed because we only support numeric identifiers for wayland for now
+    pub fn is_numeric(&self) -> bool {
+        match self {
+            Self::Numeric(_) => true,
+            _ => false,
+        }
     }
 }
 

@@ -29,7 +29,7 @@ Let's look at an example window definition:
 
 ```lisp
 (defwindow example
-           :monitor "DP-1"
+           :monitor 0
            :geometry (geometry :x "0%"
                                :y "20px"
                                :width "90%"
@@ -50,7 +50,7 @@ You can now open your first window by running `eww open example`! Glorious!
 
 |   Property | Description                                                  |
 | ---------: | ------------------------------------------------------------ |
-|  `monitor` | Which monitor this window should be displayed on.            |
+|  `monitor` | Which monitor this window should be displayed on. Can be either a number (X11 and Wayland) or an output name (X11 only). |
 | `geometry` | Geometry of the window.  |
 
 

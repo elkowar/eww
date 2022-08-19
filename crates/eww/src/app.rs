@@ -476,11 +476,12 @@ fn on_screen_changed(window: &gtk::Window, _old_screen: Option<&gdk::Screen>) {
 }
 
 /// Get the monitor geometry of a given monitor, or the default if none is given
+#[cfg(feature = "x11")]
 fn get_monitor_geometry(n: Option<MonitorIdentifier>) -> Result<gdk::Rectangle> {
     let display = gdk::Display::default().expect("could not get default display");
     let monitor = match n {
         Some(ident) => {
-            let mon = ident.get_monitor(&display);
+            let mon = ident.get_monitor(&display, false);
             mon.with_context(|| {
                 let head = format!("Failure to get monitor {}\nThe available monitors are:", ident);
                 let mut body = String::new();
@@ -492,6 +493,27 @@ fn get_monitor_geometry(n: Option<MonitorIdentifier>) -> Result<gdk::Rectangle> 
                     }
                 }
                 format!("{}{}", head, body)
+            })?
+        }
+        None => display
+            .primary_monitor()
+            .context("Failed to get primary monitor from GTK. Try explicitly specifying the monitor on your window.")?,
+    };
+    Ok(monitor.geometry())
+}
+#[cfg(feature = "wayland")]
+// use only the function above when it becomes possible to get output/connection names in wayland
+fn get_monitor_geometry(n: Option<MonitorIdentifier>) -> Result<gdk::Rectangle> {
+    let display = gdk::Display::default().expect("could not get default display");
+    let monitor = match n {
+        Some(ident) => {
+            let mon = ident.get_monitor(&display, true);
+            mon.with_context(|| {
+                if ident.is_numeric() {
+                    format!("Failure to get monitor {}", ident)
+                } else {
+                    format!("Using ouput names (\"{}\" in the configuration) in Wayland is not supported yet", ident)
+                }
             })?
         }
         None => display
