@@ -1,12 +1,9 @@
 {
   inputs = {
-    flake-compat = {
-      url = "github:edolstra/flake-compat";
-      flake = false;
-    };
-
+    flake-compat = { url = "github:edolstra/flake-compat"; flake = false; };
     rust-overlay.url = "github:oxalica/rust-overlay";
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
+    rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs = { self, nixpkgs, rust-overlay, flake-compat, ... }:
@@ -21,37 +18,28 @@
       };
 
       targetSystems = [ "aarch64-linux" "x86_64-linux" ];
+      mkRustToolchain = pkgs: pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
     in
     {
-      overlays.default = final: prev: {
-        eww = prev.rustPlatform.buildRustPackage rec {
-          pname = "eww";
-          version = self.rev or "dirty";
+      overlays.default = final: prev:
+        let
+          rust = mkRustToolchain final;
 
-          src = builtins.path {
-            name = "eww";
-            path = prev.lib.cleanSource ./.;
+          rustPlatform = prev.makeRustPlatform {
+            cargo = rust;
+            rustc = rust;
           };
+        in
+        {
+          eww = (prev.eww.override { inherit rustPlatform; }).overrideAttrs (old: {
+            version = self.rev or "dirty";
+            src = builtins.path { name = "eww"; path = prev.lib.cleanSource ./.; };
+            cargoDeps = rustPlatform.importCargoLock { lockFile = ./Cargo.lock; };
+            patches = [ ];
+          });
 
-          cargoLock.lockFile = ./Cargo.lock;
-
-          nativeBuildInputs = [
-            prev.pkg-config
-            (final.rust-bin.fromRustupToolchainFile ./rust-toolchain)
-          ];
-
-          buildInputs = [ prev.gtk3 ];
-
-          cargoBuildFlags = [ "--bin" "eww" ];
-          cargoTestFlags = cargoBuildFlags;
+          eww-wayland = final.eww.override { withWayland = true; };
         };
-
-        eww-wayland = final.eww.overrideAttrs (old: {
-          buildInputs = (old.buildInputs or [ ]) ++ [ prev.gtk-layer-shell ];
-          buildNoDefaultFeatures = true;
-          buildFeatures = [ "wayland" ];
-        });
-      };
 
       packages = nixpkgs.lib.genAttrs targetSystems (system:
         let
@@ -65,15 +53,12 @@
       devShells = nixpkgs.lib.genAttrs targetSystems (system:
         let
           pkgs = pkgsFor system;
-
-          rust-toolchain = (pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain).override {
-            extensions = [ "rust-src" ];
-          };
+          rust = mkRustToolchain pkgs;
         in
         {
           default = pkgs.mkShell {
             packages = with pkgs; [
-              rust-toolchain
+              rust
               rust-analyzer-unwrapped
               gcc
               gtk3
@@ -83,7 +68,7 @@
               mdbook
             ];
 
-            RUST_SRC_PATH = "${rust-toolchain}/lib/rustlib/src/rust/library";
+            RUST_SRC_PATH = "${rust}/lib/rustlib/src/rust/library";
           };
         }
       );
