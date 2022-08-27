@@ -26,7 +26,7 @@ mod platform {
         match window_def.monitor.clone() {
             Some(ident) => {
                 let display = gdk::Display::default().expect("could not get default display");
-                if let Some(monitor) = ident.get_monitor(&display, true) {
+                if let Some(monitor) = crate::app::get_monitor_from_display(&display, &ident) {
                     gtk_layer_shell::set_monitor(&window, &monitor);
                 } else {
                     return None;

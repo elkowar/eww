@@ -3,6 +3,7 @@ use std::{collections::HashMap, fmt::Display, str::FromStr};
 use simplexpr::{dynval::DynVal, SimplExpr};
 
 use crate::{
+    config::monitor::MonitorIdentifier,
     error::{AstError, AstResult},
     parser::{
         ast::Ast,
@@ -11,7 +12,7 @@ use crate::{
     },
     value::NumWithUnit,
 };
-use eww_shared_util::{AttrName, MonitorIdentifier, Span, VarName};
+use eww_shared_util::{AttrName, Span, VarName};
 
 use super::{backend_window_options::BackendWindowOptions, widget_use::WidgetUse, window_geometry::WindowGeometry};
 

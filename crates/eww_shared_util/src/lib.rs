@@ -1,8 +1,6 @@
-pub mod monitor;
 pub mod span;
 pub mod wrappers;
 
-pub use monitor::*;
 pub use span::*;
 pub use wrappers::*;
 

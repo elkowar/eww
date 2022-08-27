@@ -8,7 +8,7 @@ use crate::{
     EwwPaths, *,
 };
 use anyhow::anyhow;
-use eww_shared_util::{MonitorIdentifier, VarName};
+use eww_shared_util::VarName;
 use glib::ObjectExt;
 use itertools::Itertools;
 use simplexpr::dynval::DynVal;
@@ -20,6 +20,7 @@ use std::{
 use tokio::sync::mpsc::UnboundedSender;
 use yuck::{
     config::{
+        monitor::MonitorIdentifier,
         script_var_definition::ScriptVarDefinition,
         window_definition::WindowDefinition,
         window_geometry::{AnchorPoint, WindowGeometry},
@@ -476,24 +477,36 @@ fn on_screen_changed(window: &gtk::Window, _old_screen: Option<&gdk::Screen>) {
 }
 
 /// Get the monitor geometry of a given monitor, or the default if none is given
-#[cfg(feature = "x11")]
-fn get_monitor_geometry(n: Option<MonitorIdentifier>) -> Result<gdk::Rectangle> {
+fn get_monitor_geometry(identifier: Option<MonitorIdentifier>) -> Result<gdk::Rectangle> {
     let display = gdk::Display::default().expect("could not get default display");
-    let monitor = match n {
+    let monitor = match identifier {
         Some(ident) => {
-            let mon = ident.get_monitor(&display, false);
-            mon.with_context(|| {
-                let head = format!("Failure to get monitor {}\nThe available monitors are:", ident);
-                let mut body = String::new();
-                for m in 0..display.n_monitors() {
-                    if let Some(mon) = display.monitor(m) {
-                        if let Some(model) = mon.model() {
-                            body.push_str(format!("\n        [{}] {}", m, model).as_str());
+            let mon = get_monitor_from_display(&display, &ident);
+
+            #[cfg(feature = "x11")]
+            {
+                mon.with_context(|| {
+                    let head = format!("Failed to get monitor {}\nThe available monitors are:", ident);
+                    let mut body = String::new();
+                    for m in 0..display.n_monitors() {
+                        if let Some(model) = display.monitor(m).and_then(|x| x.model()) {
+                            body.push_str(format!("\n\t[{}] {}", m, model).as_str());
                         }
                     }
-                }
-                format!("{}{}", head, body)
-            })?
+                    format!("{}{}", head, body)
+                })?
+            }
+
+            #[cfg(not(feature = "x11"))]
+            {
+                mon.with_context(|| {
+                    if ident.is_numeric() {
+                        format!("Failed to get monitor {}", ident)
+                    } else {
+                        format!("Using ouput names (\"{}\" in the configuration) is not supported outside of x11 yet", ident)
+                    }
+                })?
+            }
         }
         None => display
             .primary_monitor()
@@ -501,26 +514,28 @@ fn get_monitor_geometry(n: Option<MonitorIdentifier>) -> Result<gdk::Rectangle> 
     };
     Ok(monitor.geometry())
 }
-#[cfg(feature = "wayland")]
-// use only the function above when it becomes possible to get output/connection names in wayland
-fn get_monitor_geometry(n: Option<MonitorIdentifier>) -> Result<gdk::Rectangle> {
-    let display = gdk::Display::default().expect("could not get default display");
-    let monitor = match n {
-        Some(ident) => {
-            let mon = ident.get_monitor(&display, true);
-            mon.with_context(|| {
-                if ident.is_numeric() {
-                    format!("Failure to get monitor {}", ident)
-                } else {
-                    format!("Using ouput names (\"{}\" in the configuration) in Wayland is not supported yet", ident)
+
+/// Returns the [Monitor][gdk::Monitor] structure corresponding to the identifer.
+/// Outside of x11, only [MonitorIdentifier::Numeric] is supported
+pub fn get_monitor_from_display(display: &gdk::Display, identifier: &MonitorIdentifier) -> Option<gdk::Monitor> {
+    match identifier {
+        MonitorIdentifier::Numeric(num) => return display.monitor(*num),
+
+        #[cfg(not(feature = "x11"))]
+        MonitorIdentifier::Name(_) => return None,
+
+        #[cfg(feature = "x11")]
+        MonitorIdentifier::Name(name) => {
+            for m in 0..display.n_monitors() {
+                if let Some(model) = display.monitor(m).and_then(|x| x.model()) {
+                    if model == *name {
+                        return display.monitor(m);
+                    }
                 }
-            })?
+            }
         }
-        None => display
-            .primary_monitor()
-            .context("Failed to get primary monitor from GTK. Try explicitly specifying the monitor on your window.")?,
-    };
-    Ok(monitor.geometry())
+    }
+    return None;
 }
 
 pub fn get_window_rectangle(geometry: WindowGeometry, screen_rect: gdk::Rectangle) -> gdk::Rectangle {

@@ -1,9 +1,12 @@
 use anyhow::{Context, Result};
-use eww_shared_util::{MonitorIdentifier, VarName};
+use eww_shared_util::VarName;
 use serde::{Deserialize, Serialize};
 use simplexpr::dynval::DynVal;
 use structopt::StructOpt;
-use yuck::{config::window_geometry::AnchorPoint, value::Coords};
+use yuck::{
+    config::{monitor::MonitorIdentifier, window_geometry::AnchorPoint},
+    value::Coords,
+};
 
 use crate::{
     app,

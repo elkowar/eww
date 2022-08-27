@@ -2,6 +2,7 @@ pub mod attributes;
 pub mod backend_window_options;
 pub mod config;
 pub mod file_provider;
+pub mod monitor;
 pub mod script_var_definition;
 #[cfg(test)]
 mod test;
