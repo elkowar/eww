@@ -4,10 +4,8 @@
 #![feature(box_patterns)]
 #![feature(slice_concat_trait)]
 #![feature(try_blocks)]
-#![feature(nll)]
 #![allow(rustdoc::private_intra_doc_links)]
 
-extern crate gio;
 extern crate gtk;
 #[cfg(feature = "wayland")]
 extern crate gtk_layer_shell as gtk_layer_shell;
