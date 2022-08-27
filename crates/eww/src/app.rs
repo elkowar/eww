@@ -372,7 +372,8 @@ impl App {
         log::info!("Reloading windows");
 
         self.script_var_handler.stop_all();
-        self.script_var_handler = script_var_handler::init(self.app_evt_send.clone());
+        let old_handler = std::mem::replace(&mut self.script_var_handler, script_var_handler::init(self.app_evt_send.clone()));
+        old_handler.join_thread();
 
         log::trace!("loading config: {:#?}", config);
 
