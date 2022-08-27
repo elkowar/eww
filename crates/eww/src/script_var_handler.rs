@@ -303,6 +303,10 @@ async fn terminate_handle(mut child: tokio::process::Child) {
     }
 }
 
+// Especially for listenvars, we want to make sure that the scripts are actually
+// cancelled before we kill the tokio task that they run in.
+// for that, we need to wait for the completion of the cancel itself
+/// Provides a CancellationToken-like object that allows to wait for completion of the cancellation.
 mod cancellation {
     pub(super) struct CancelCompletionNotifier(tokio::sync::mpsc::Sender<()>);
     impl CancelCompletionNotifier {
