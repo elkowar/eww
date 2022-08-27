@@ -61,6 +61,8 @@ pub struct ScriptVarHandlerHandle {
 
 impl ScriptVarHandlerHandle {
     /// Add a new script-var that should be executed.
+    /// This is idempodent, meaning that running a definition that already has a script_var attached which is running
+    /// won't do anything.
     pub fn add(&self, script_var: ScriptVarDefinition) {
         crate::print_result_err!(
             "while forwarding instruction to script-var handler",
@@ -204,8 +206,16 @@ impl ListenVarHandler {
         Ok(handler)
     }
 
+    /// Start a listen-var. Starting a variable that is already running will not do anything.
     async fn start(&mut self, var: ListenScriptVar) {
         log::debug!("starting listen-var {}", &var.name);
+
+        // Make sure the same listenvar is never started twice,
+        // as that would cause eww to not clean up the older listenvar on window close.
+        if self.listen_process_handles.contains_key(&var.name) {
+            return;
+        }
+
         let cancellation_token = CancellationToken::new();
         self.listen_process_handles.insert(var.name.clone(), cancellation_token.clone());
 
@@ -264,7 +274,7 @@ async fn terminate_handle(mut child: tokio::process::Child) {
     if let Some(id) = child.id() {
         let _ = signal::killpg(Pid::from_raw(id as i32), signal::SIGTERM);
         tokio::select! {
-            _ = child.wait() => {},
+            _ = child.wait() => { },
             _ = tokio::time::sleep(std::time::Duration::from_secs(10)) => {
                 let _ = child.kill().await;
             }

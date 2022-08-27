@@ -332,7 +332,8 @@ impl App {
             let mut eww_window = initialize_window(monitor_geometry, root_widget, window_def, window_scope)?;
             eww_window.gtk_window.style_context().add_class(&window_name.to_string());
 
-            // initialize script var handlers for variables that where not used before opening this window.
+            // initialize script var handlers for variables. As starting a scriptvar with the script_var_handler is idempodent,
+            // we can just start script vars that are already running without causing issues
             // TODO maybe this could be handled by having a track_newly_used_variables function in the scope tree?
             for used_var in self.scope_graph.borrow().variables_used_in_self_or_subscopes_of(eww_window.scope_index) {
                 if let Ok(script_var) = self.eww_config.get_script_var(&used_var) {
@@ -348,9 +349,8 @@ impl App {
                     // Generally, this should get disconnected before the gtk window gets destroyed.
                     // It serves as a fallback for when the window is closed manually.
                     let (response_sender, _) = daemon_response::create_pair();
-                    if let Err(err) = app_evt_sender
-                        .send(DaemonCommand::CloseWindows { windows: vec![window_name.clone()], sender: response_sender })
-                    {
+                    let command = DaemonCommand::CloseWindows { windows: vec![window_name.clone()], sender: response_sender };
+                    if let Err(err) = app_evt_sender.send(command) {
                         log::error!("Error sending close window command to daemon after gtk window destroy event: {}", err);
                     }
                 }
