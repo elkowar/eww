@@ -27,7 +27,7 @@ mod backend {
     }
 
     impl BackendWindowOptions {
-        pub fn from_attrs(attrs: &mut Attributes) -> AstResult<Self> {
+        pub(crate) fn from_attrs(attrs: &mut Attributes, preset: Option<Self>) -> AstResult<Self> {
             let struts = attrs.ast_optional("reserve")?;
             let window_type = attrs.primitive_optional("windowtype")?;
             Ok(Self {
@@ -115,7 +115,7 @@ mod backend {
         pub focusable: bool,
     }
     impl BackendWindowOptions {
-        pub fn from_attrs(attrs: &mut Attributes) -> AstResult<Self> {
+        pub(crate) fn from_attrs(attrs: &mut Attributes, preset: Option<Self>) -> AstResult<Self> {
             Ok(Self {
                 exclusive: attrs.primitive_optional("exclusive")?.unwrap_or(false),
                 focusable: attrs.primitive_optional("focusable")?.unwrap_or(false),
@@ -130,7 +130,7 @@ mod backend {
     #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
     pub struct BackendWindowOptions;
     impl BackendWindowOptions {
-        pub fn from_attrs(attrs: &mut Attributes) -> AstResult<Self> {
+        pub(crate) fn from_attrs(attrs: &mut Attributes, preset: Option<Self>) -> AstResult<Self> {
             Ok(Self)
         }
     }

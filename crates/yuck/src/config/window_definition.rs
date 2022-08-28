@@ -15,6 +15,31 @@ use eww_shared_util::{AttrName, Span, VarName};
 
 use super::{backend_window_options::BackendWindowOptions, widget_use::WidgetUse, window_geometry::WindowGeometry};
 
+#[non_exhaustive]
+#[derive(Debug, Clone, serde::Serialize, PartialEq, Eq)]
+enum WindowDefinitionPreset {
+    #[non_exhaustive]
+    Bar {},
+    #[non_exhaustive]
+    Background {},
+    #[non_exhaustive]
+    Float {},
+    #[non_exhaustive]
+    Normal {},
+}
+impl FromAstElementContent for WindowDefinitionPreset {
+    const ELEMENT_NAME: &'static str = "defwindowpreset";
+
+    fn from_tail<I: Iterator<Item = Ast>>(span: Span, iter: AstIterator<I>) -> AstResult<Self> {
+        todo!()
+    }
+}
+impl WindowDefinitionPreset {
+    fn to_window_definition(&self) -> WindowDefinition {
+        todo!()
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, PartialEq, Eq)]
 pub struct WindowDefinition {
     pub name: String,
@@ -32,12 +57,26 @@ impl FromAstElementContent for WindowDefinition {
     fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> AstResult<Self> {
         let (_, name) = iter.expect_symbol()?;
         let mut attrs = iter.expect_key_values()?;
-        let monitor_number = attrs.primitive_optional("monitor")?;
-        let resizable = attrs.primitive_optional("resizable")?.unwrap_or(true);
-        let stacking = attrs.primitive_optional("stacking")?.unwrap_or(WindowStacking::Foreground);
-        let geometry = attrs.ast_optional("geometry")?;
-        let backend_options = BackendWindowOptions::from_attrs(&mut attrs)?;
+
+        let preset = attrs.ast_optional::<WindowDefinitionPreset>("preset")?.map(|preset| preset.to_window_definition());
+        let preset_ref = preset.as_ref();
+
+        let monitor_number = attrs.primitive_optional("monitor")?.or_else(|| preset_ref.and_then(|preset| preset.monitor_number));
+
+        let resizable =
+            attrs.primitive_optional("resizable")?.or_else(|| preset_ref.map(|preset| preset.resizable)).unwrap_or(true);
+
+        let stacking = attrs
+            .primitive_optional("stacking")?
+            .or_else(|| preset_ref.map(|preset| preset.stacking))
+            .unwrap_or(WindowStacking::Foreground);
+
+        let geometry = attrs.ast_optional("geometry")?.or_else(|| preset_ref.and_then(|preset| preset.geometry));
+
+        let backend_options = BackendWindowOptions::from_attrs(&mut attrs, preset.map(|preset| preset.backend_options))?;
+
         let widget = iter.expect_any().and_then(WidgetUse::from_ast)?;
+
         iter.expect_done()?;
         Ok(Self { name, monitor_number, resizable, widget, stacking, geometry, backend_options })
     }
