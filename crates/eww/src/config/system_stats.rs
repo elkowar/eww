@@ -67,7 +67,7 @@ pub fn get_temperatures() -> String {
 
 pub fn get_cpus() -> String {
     let mut c = SYSTEM.lock().unwrap();
-    c.refresh_cpu();
+    c.refresh_cpu_specifics(sysinfo::CpuRefreshKind::everything());
     let cpus = c.cpus();
     format!(
         r#"{{ "cores": [{}], "avg": {} }}"#,
