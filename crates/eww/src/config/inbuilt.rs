@@ -18,7 +18,6 @@ macro_rules! define_builtin_vars {
                 VarName::from($name) => ScriptVarDefinition::Poll(PollScriptVar {
                     name: VarName::from($name),
                     run_while_expr: SimplExpr::Literal(DynVal::from(true)),
-                    run_while_var_refs: Vec::new(),
                     command: VarSource::Function($fun),
                     initial_value: None,
                     interval: $interval,

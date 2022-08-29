@@ -29,6 +29,9 @@ use yuck::{
     value::Coords,
 };
 
+/// A command for the eww daemon.
+/// While these are mostly generated from eww CLI commands (see [`opts::ActionWithServer`]),
+/// they may also be generated from other places internally.
 #[derive(Debug)]
 pub enum DaemonCommand {
     NoOp,
@@ -115,7 +118,7 @@ impl std::fmt::Debug for App {
 }
 
 impl App {
-    /// Handle a DaemonCommand event.
+    /// Handle a [DaemonCommand] event.
     pub fn handle_command(&mut self, event: DaemonCommand) {
         log::debug!("Handling event: {:?}", &event);
         let result: Result<_> = try {
@@ -126,7 +129,7 @@ impl App {
                 }
                 DaemonCommand::UpdateVars(mappings) => {
                     for (var_name, new_value) in mappings {
-                        self.update_global_state(var_name, new_value);
+                        self.update_global_variable(var_name, new_value);
                     }
                 }
                 DaemonCommand::ReloadConfigAndCss(sender) => {
@@ -146,7 +149,6 @@ impl App {
                 DaemonCommand::KillServer => {
                     log::info!("Received kill command, stopping server!");
                     self.stop_application();
-                    let _ = crate::application_lifecycle::send_exit();
                 }
                 DaemonCommand::CloseAll => {
                     log::info!("Received close command, closing all windows");
@@ -169,15 +171,12 @@ impl App {
                 }
                 DaemonCommand::OpenWindow { window_name, pos, size, anchor, screen: monitor, should_toggle, sender } => {
                     let is_open = self.open_windows.contains_key(&window_name);
-                    let result = if is_open {
-                        if should_toggle {
-                            self.close_window(&window_name)
-                        } else {
-                            // user should use `eww reload` to reload windows (https://github.com/elkowar/eww/issues/260)
-                            Ok(())
-                        }
-                    } else {
+                    let result = if !is_open {
                         self.open_window(&window_name, pos, size, monitor, anchor)
+                    } else if should_toggle {
+                        self.close_window(&window_name)
+                    } else {
+                        Ok(())
                     };
                     sender.respond_with_result(result)?;
                 }
@@ -231,35 +230,48 @@ impl App {
         }
     }
 
+    /// Fully stop eww:
+    /// close all windows, stop the script_var_handler, quit the gtk appliaction and send the exit instruction to the lifecycle manager
     fn stop_application(&mut self) {
         self.script_var_handler.stop_all();
         for (_, window) in self.open_windows.drain() {
             window.close();
         }
         gtk::main_quit();
+        let _ = crate::application_lifecycle::send_exit();
     }
 
-    fn update_global_state(&mut self, fieldname: VarName, value: DynVal) {
-        let result = self.scope_graph.borrow_mut().update_global_value(&fieldname, value);
+    fn update_global_variable(&mut self, name: VarName, value: DynVal) {
+        let result = self.scope_graph.borrow_mut().update_global_value(&name, value);
         if let Err(err) = result {
             error_handling_ctx::print_error(err);
         }
 
-        if let Ok(linked_poll_vars) = self.eww_config.get_poll_var_link(&fieldname) {
-            linked_poll_vars.iter().filter_map(|name| self.eww_config.get_script_var(name).ok()).for_each(|var| {
-                if let ScriptVarDefinition::Poll(poll_var) = var {
-                    let scope_graph = self.scope_graph.borrow();
-                    let run_while = scope_graph
-                        .evaluate_simplexpr_in_scope(scope_graph.root_index, &poll_var.run_while_expr)
-                        .map(|v| v.as_bool());
-                    match run_while {
-                        Ok(Ok(true)) => self.script_var_handler.add(var.clone()),
-                        Ok(Ok(false)) => self.script_var_handler.stop_for_variable(poll_var.name.clone()),
-                        Ok(Err(err)) => error_handling_ctx::print_error(anyhow!(err)),
-                        Err(err) => error_handling_ctx::print_error(anyhow!(err)),
-                    };
-                }
-            });
+        self.apply_run_while_expressions_mentioning(&name);
+    }
+
+    /// Variables may be referenced in defpoll :run-while expressions.
+    /// Thus, when a variable changes, the run-while conditions of all variables
+    /// that mention the changed variable need to be reevaluated and reapplied.
+    fn apply_run_while_expressions_mentioning(&mut self, name: &VarName) {
+        let mentioning_vars = match self.eww_config.get_run_while_mentions_of(&name) {
+            Some(x) => x,
+            None => return,
+        };
+        let mentioning_vars = mentioning_vars.iter().filter_map(|name| self.eww_config.get_script_var(name).ok());
+        for var in mentioning_vars {
+            if let ScriptVarDefinition::Poll(poll_var) = var {
+                let scope_graph = self.scope_graph.borrow();
+                let run_while_result = scope_graph
+                    .evaluate_simplexpr_in_scope(scope_graph.root_index, &poll_var.run_while_expr)
+                    .map(|v| v.as_bool());
+                match run_while_result {
+                    Ok(Ok(true)) => self.script_var_handler.add(var.clone()),
+                    Ok(Ok(false)) => self.script_var_handler.stop_for_variable(poll_var.name.clone()),
+                    Ok(Err(err)) => error_handling_ctx::print_error(anyhow!(err)),
+                    Err(err) => error_handling_ctx::print_error(anyhow!(err)),
+                };
+            }
         }
     }
 
@@ -276,7 +288,7 @@ impl App {
 
         let unused_variables = self.scope_graph.borrow().currently_unused_globals();
         for unused_var in unused_variables {
-            log::debug!("stopping for {}", &unused_var);
+            log::debug!("stopping script-var {}", &unused_var);
             self.script_var_handler.stop_for_variable(unused_var.clone());
         }
 

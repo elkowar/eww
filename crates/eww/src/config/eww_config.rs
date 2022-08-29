@@ -11,7 +11,7 @@ use yuck::{
 
 use simplexpr::dynval::DynVal;
 
-use crate::{config::inbuilt, error_handling_ctx, widgets::widget_definitions, paths::EwwPaths};
+use crate::{config::inbuilt, error_handling_ctx, paths::EwwPaths, widgets::widget_definitions};
 
 use super::script_var;
 
@@ -30,8 +30,8 @@ pub struct EwwConfig {
     initial_variables: HashMap<VarName, DynVal>,
     script_vars: HashMap<VarName, ScriptVarDefinition>,
 
-    // Links variable which affect state (active/inactive) of poll var to those poll variables
-    poll_var_links: HashMap<VarName, Vec<VarName>>,
+    // map of variables to all pollvars which refer to them in their run-while-expression
+    run_while_mentions: HashMap<VarName, Vec<VarName>>,
 }
 
 impl Default for EwwConfig {
@@ -41,7 +41,7 @@ impl Default for EwwConfig {
             windows: HashMap::new(),
             initial_variables: HashMap::new(),
             script_vars: HashMap::new(),
-            poll_var_links: HashMap::new(),
+            run_while_mentions: HashMap::new(),
         }
     }
 }
@@ -76,22 +76,21 @@ impl EwwConfig {
         script_vars.extend(inbuilt::get_inbuilt_vars());
         var_definitions.extend(inbuilt::get_magic_constants(eww_paths));
 
-        let mut poll_var_links = HashMap::<VarName, Vec<VarName>>::new();
-        script_vars
-            .iter()
-            .filter_map(|(_, var)| if let ScriptVarDefinition::Poll(poll_var) = var { Some(poll_var) } else { None })
-            .for_each(|var| {
-                var.run_while_var_refs
-                    .iter()
-                    .for_each(|name| poll_var_links.entry(name.clone()).or_default().push(var.name.clone()))
-            });
+        let mut run_while_mentions = HashMap::<VarName, Vec<VarName>>::new();
+        for var in script_vars.values() {
+            if let ScriptVarDefinition::Poll(var) = var {
+                for name in var.run_while_expr.collect_var_refs() {
+                    run_while_mentions.entry(name.clone()).or_default().push(var.name.clone())
+                }
+            }
+        }
 
         Ok(EwwConfig {
             windows: window_definitions,
             widgets: widget_definitions,
             initial_variables: var_definitions.into_iter().map(|(k, v)| (k, v.initial_value)).collect(),
             script_vars,
-            poll_var_links,
+            run_while_mentions,
         })
     }
 
@@ -128,7 +127,8 @@ impl EwwConfig {
         &self.widgets
     }
 
-    pub fn get_poll_var_link(&self, name: &VarName) -> Result<&Vec<VarName>> {
-        self.poll_var_links.get(name).with_context(|| format!("{} does not links to any poll variable", name.0))
+    /// Given a variable name, get the names of all variables that reference that variable in their run-while (active/inactive) state
+    pub fn get_run_while_mentions_of(&self, name: &VarName) -> Option<&Vec<VarName>> {
+        self.run_while_mentions.get(name)
     }
 }
