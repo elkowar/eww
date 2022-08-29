@@ -144,7 +144,11 @@ fn main() {
 }
 
 fn listen_for_daemon_response(mut recv: DaemonResponseReceiver) {
-    let rt = tokio::runtime::Builder::new_current_thread().enable_time().build().expect("Failed to initialize tokio runtime");
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .thread_name("listen-for-daemon-response")
+        .enable_all()
+        .build()
+        .expect("Failed to initialize tokio runtime");
     rt.block_on(async {
         if let Ok(Some(response)) = tokio::time::timeout(Duration::from_millis(100), recv.recv()).await {
             println!("{}", response);

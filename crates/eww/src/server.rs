@@ -116,38 +116,46 @@ pub fn initialize_server(paths: EwwPaths, action: Option<DaemonCommand>, should_
 }
 
 fn init_async_part(paths: EwwPaths, ui_send: UnboundedSender<app::DaemonCommand>) {
-    std::thread::spawn(move || {
-        let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().expect("Failed to initialize tokio runtime");
-        rt.block_on(async {
-            let filewatch_join_handle = {
-                let ui_send = ui_send.clone();
-                let paths = paths.clone();
-                tokio::spawn(async move { run_filewatch(paths.config_dir, ui_send).await })
-            };
+    std::thread::Builder::new()
+        .name("outer-main-async-runtime".to_string())
+        .spawn(move || {
+            let rt = tokio::runtime::Builder::new_multi_thread()
+                .thread_name("main-async-runtime")
+                .enable_all()
+                .build()
+                .expect("Failed to initialize tokio runtime");
 
-            let ipc_server_join_handle = {
-                let ui_send = ui_send.clone();
-                tokio::spawn(async move { ipc_server::run_server(ui_send, paths.get_ipc_socket_file()).await })
-            };
+            rt.block_on(async {
+                let filewatch_join_handle = {
+                    let ui_send = ui_send.clone();
+                    let paths = paths.clone();
+                    tokio::spawn(async move { run_filewatch(paths.config_dir, ui_send).await })
+                };
 
-            let forward_exit_to_app_handle = {
-                let ui_send = ui_send.clone();
-                tokio::spawn(async move {
-                    // Wait for application exit event
-                    let _ = crate::application_lifecycle::recv_exit().await;
-                    log::debug!("Forward task received exit event");
-                    // Then forward that to the application
-                    let _ = ui_send.send(app::DaemonCommand::KillServer);
-                })
-            };
+                let ipc_server_join_handle = {
+                    let ui_send = ui_send.clone();
+                    tokio::spawn(async move { ipc_server::run_server(ui_send, paths.get_ipc_socket_file()).await })
+                };
 
-            let result = tokio::try_join!(filewatch_join_handle, ipc_server_join_handle, forward_exit_to_app_handle);
+                let forward_exit_to_app_handle = {
+                    let ui_send = ui_send.clone();
+                    tokio::spawn(async move {
+                        // Wait for application exit event
+                        let _ = crate::application_lifecycle::recv_exit().await;
+                        log::debug!("Forward task received exit event");
+                        // Then forward that to the application
+                        let _ = ui_send.send(app::DaemonCommand::KillServer);
+                    })
+                };
 
-            if let Err(e) = result {
-                log::error!("Eww exiting with error: {:?}", e);
-            }
+                let result = tokio::try_join!(filewatch_join_handle, ipc_server_join_handle, forward_exit_to_app_handle);
+
+                if let Err(e) = result {
+                    log::error!("Eww exiting with error: {:?}", e);
+                }
+            })
         })
-    });
+        .expect("Failed to start outer-main-async-runtime thread");
 }
 
 /// Watch configuration files for changes, sending reload events to the eww app when the files change.

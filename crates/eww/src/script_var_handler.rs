@@ -24,32 +24,39 @@ use yuck::config::script_var_definition::{ListenScriptVar, PollScriptVar, Script
 /// the script var execution.
 pub fn init(evt_send: UnboundedSender<DaemonCommand>) -> ScriptVarHandlerHandle {
     let (msg_send, mut msg_recv) = tokio::sync::mpsc::unbounded_channel();
-    let thread_handle = std::thread::spawn(move || {
-        let rt = tokio::runtime::Runtime::new().expect("Failed to initialize tokio runtime for script var handlers");
-        rt.block_on(async {
-            let _: Result<_> = try {
-                let mut handler = ScriptVarHandler {
-                    listen_handler: ListenVarHandler::new(evt_send.clone())?,
-                    poll_handler: PollVarHandler::new(evt_send)?,
+    let thread_handle = std::thread::Builder::new()
+        .name("outer-script-var-handler".to_string())
+        .spawn(move || {
+            let rt = tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .thread_name("script-var-handler")
+                .build()
+                .expect("Failed to initialize tokio runtime for script var handlers");
+            rt.block_on(async {
+                let _: Result<_> = try {
+                    let mut handler = ScriptVarHandler {
+                        listen_handler: ListenVarHandler::new(evt_send.clone())?,
+                        poll_handler: PollVarHandler::new(evt_send)?,
+                    };
+                    crate::loop_select_exiting! {
+                        Some(msg) = msg_recv.recv() => match msg {
+                            ScriptVarHandlerMsg::AddVar(var) => {
+                                handler.add(var).await;
+                            }
+                            ScriptVarHandlerMsg::Stop(name) => {
+                                handler.stop_for_variable(&name).await?;
+                            }
+                            ScriptVarHandlerMsg::StopAll => {
+                                handler.stop_all().await;
+                                break;
+                            }
+                        },
+                        else => break,
+                    };
                 };
-                crate::loop_select_exiting! {
-                    Some(msg) = msg_recv.recv() => match msg {
-                        ScriptVarHandlerMsg::AddVar(var) => {
-                            handler.add(var).await;
-                        }
-                        ScriptVarHandlerMsg::Stop(name) => {
-                            handler.stop_for_variable(&name).await?;
-                        }
-                        ScriptVarHandlerMsg::StopAll => {
-                            handler.stop_all().await;
-                            break;
-                        }
-                    },
-                    else => break,
-                };
-            };
+            })
         })
-    });
+        .expect("Failed to start script-var-handler thread");
     let handle = ScriptVarHandlerHandle { msg_send, thread_handle };
     handle
 }
@@ -276,15 +283,6 @@ impl ListenVarHandler {
         for (_, token) in self.listen_process_handles.drain() {
             token.cancel().await;
         }
-    }
-}
-
-impl Drop for ListenVarHandler {
-    fn drop(&mut self) {
-        let rt = tokio::runtime::Runtime::new().expect("Failed to initialize tokio runtime for script var handlers");
-        rt.block_on(async {
-            self.stop_all().await;
-        });
     }
 }
 
