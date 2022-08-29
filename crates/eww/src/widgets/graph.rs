@@ -68,7 +68,7 @@ impl ObjectImpl for GraphPriv {
         use once_cell::sync::Lazy;
         static PROPERTIES: Lazy<Vec<glib::ParamSpec>> = Lazy::new(|| {
             vec![
-                glib::ParamSpecDouble::new("value", "Value", "The value", 0f64, 100f64, 0f64, glib::ParamFlags::READWRITE),
+                glib::ParamSpecDouble::new("value", "Value", "The value", 0f64, f64::MAX, 0f64, glib::ParamFlags::READWRITE),
                 glib::ParamSpecDouble::new(
                     "thickness",
                     "Thickness",
