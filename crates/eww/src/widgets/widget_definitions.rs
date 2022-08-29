@@ -224,11 +224,18 @@ pub(super) fn resolve_range_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Ran
         gtk::Inhibit(false)
     }));
 
+    // We keep track of the last value that has been set via gtk_widget.set_value (by a change in the value property).
+    // We do this so we can detect if the new value came from a scripted change or from a user input from within the value_changed handler
+    // and only run on_change when it's caused by manual user input
+    let last_set_value = Rc::new(RefCell::new(None));
+    let last_set_value_clone = last_set_value.clone();
+
     def_widget!(bargs, _g, gtk_widget, {
         // @prop value - the value
         prop(value: as_f64) {
             if !*is_being_dragged.borrow() {
-                gtk_widget.set_value(value)
+                *last_set_value.borrow_mut() = Some(value);
+                gtk_widget.set_value(value);
             }
         },
         // @prop min - the minimum value
@@ -240,8 +247,12 @@ pub(super) fn resolve_range_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Ran
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_string) {
             gtk_widget.set_sensitive(true);
             gtk_widget.add_events(gdk::EventMask::PROPERTY_CHANGE_MASK);
+            let last_set_value = last_set_value_clone.clone();
             connect_signal_handler!(gtk_widget, gtk_widget.connect_value_changed(move |gtk_widget| {
-                run_command(timeout, &onchange, &[gtk_widget.value()]);
+                let value = gtk_widget.value();
+                if last_set_value.borrow_mut().take() != Some(value) {
+                    run_command(timeout, &onchange, &[value]);
+                }
             }));
         }
     });

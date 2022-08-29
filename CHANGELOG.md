@@ -8,6 +8,9 @@ All notable changes to eww will be listed here, starting at changes since versio
 ### Features
 - Add support for output names in X11 to select `:monitor`.
 
+### Notable fixes and other changes
+- Scale now only runs the onchange command on changes caused by user-interaction
+
 
 ## 0.3.0 (26.05.2022)
 
