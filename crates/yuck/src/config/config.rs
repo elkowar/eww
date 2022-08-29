@@ -9,6 +9,7 @@ use simplexpr::SimplExpr;
 use super::{
     file_provider::{FilesError, YuckFiles},
     script_var_definition::ScriptVarDefinition,
+    validate::ValidationError,
     var_definition::VarDefinition,
     widget_definition::WidgetDefinition,
     widget_use::WidgetUse,
@@ -91,10 +92,24 @@ impl Config {
     fn append_toplevel(&mut self, files: &mut YuckFiles, toplevel: TopLevel) -> AstResult<()> {
         match toplevel {
             TopLevel::VarDefinition(x) => {
-                self.var_definitions.insert(x.name.clone(), x);
+                if self.var_definitions.contains_key(&x.name) || self.script_vars.contains_key(&x.name) {
+                    return Err(AstError::ValidationError(ValidationError::VariableDefinedTwice {
+                        name: x.name.clone(),
+                        span: x.span,
+                    }));
+                } else {
+                    self.var_definitions.insert(x.name.clone(), x);
+                }
             }
             TopLevel::ScriptVarDefinition(x) => {
-                self.script_vars.insert(x.name().clone(), x);
+                if self.var_definitions.contains_key(x.name()) || self.script_vars.contains_key(x.name()) {
+                    return Err(AstError::ValidationError(ValidationError::VariableDefinedTwice {
+                        name: x.name().clone(),
+                        span: x.name_span(),
+                    }));
+                } else {
+                    self.script_vars.insert(x.name().clone(), x);
+                }
             }
             TopLevel::WidgetDefinition(x) => {
                 self.widget_definitions.insert(x.name.clone(), x);

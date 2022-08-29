@@ -199,6 +199,10 @@ impl ToDiagnostic for ValidationError {
                 label = span => "Defined here",
                 note = "Hint: Give your widget a different name. You could call it \"John\" for example. That's a cool name."
             },
+            ValidationError::VariableDefinedTwice { span, name } => gen_diagnostic! {
+                msg = self,
+                label = span => "Defined again here"
+            },
         }
     }
 }
