@@ -422,6 +422,7 @@ name = "eww_shared_util"
 version = "0.1.0"
 dependencies = [
  "derive_more",
+ "gdk",
  "ref-cast",
  "serde",
 ]

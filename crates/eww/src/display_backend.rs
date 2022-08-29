@@ -23,9 +23,10 @@ mod platform {
         // Initialising a layer shell surface
         gtk_layer_shell::init_for_window(&window);
         // Sets the monitor where the surface is shown
-        match window_def.monitor_number {
-            Some(index) => {
-                if let Some(monitor) = gdk::Display::default().expect("could not get default display").monitor(index) {
+        match window_def.monitor.clone() {
+            Some(ident) => {
+                let display = gdk::Display::default().expect("could not get default display");
+                if let Some(monitor) = crate::app::get_monitor_from_display(&display, &ident) {
                     gtk_layer_shell::set_monitor(&window, &monitor);
                 } else {
                     return None;

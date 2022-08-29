@@ -50,7 +50,7 @@ You can now open your first window by running `eww open example`! Glorious!
 
 |   Property | Description                                                  |
 | ---------: | ------------------------------------------------------------ |
-|  `monitor` | Which monitor this window should be displayed on.            |
+|  `monitor` | Which monitor this window should be displayed on. Can be either a number (X11 and Wayland) or an output name (X11 only). |
 | `geometry` | Geometry of the window.  |
 
 
@@ -284,4 +284,3 @@ If you want to separate different widgets even further, you can create a new eww
 Then, you can tell eww to use that configuration directory by passing _every_ command the `--config /path/to/your/config/dir` flag.
 Make sure to actually include this in all your `eww` calls, including `eww kill`, `eww logs`, etc.
 This launches a separate instance of the eww daemon that has separate logs and state from your main eww configuration.
-

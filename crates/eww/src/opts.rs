@@ -3,7 +3,10 @@ use eww_shared_util::VarName;
 use serde::{Deserialize, Serialize};
 use simplexpr::dynval::DynVal;
 use structopt::StructOpt;
-use yuck::{config::window_geometry::AnchorPoint, value::Coords};
+use yuck::{
+    config::{monitor::MonitorIdentifier, window_geometry::AnchorPoint},
+    value::Coords,
+};
 
 use crate::{
     app,
@@ -91,9 +94,9 @@ pub enum ActionWithServer {
         /// Name of the window you want to open.
         window_name: String,
 
-        /// Monitor-index the window should open on
+        /// The identifier of the monitor the window should open on
         #[structopt(long)]
-        screen: Option<i32>,
+        screen: Option<MonitorIdentifier>,
 
         /// The position of the window, where it should open. (i.e.: 200x100)
         #[structopt(short, long)]

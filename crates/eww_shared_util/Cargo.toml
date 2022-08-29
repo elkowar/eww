@@ -12,3 +12,4 @@ homepage = "https://github.com/elkowar/eww"
 serde = {version = "1.0", features = ["derive"]}
 derive_more = "0.99"
 ref-cast = "1.0.6"
+gdk = { version = "*", features = ["v3_22"] }

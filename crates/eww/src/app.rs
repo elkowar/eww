@@ -20,6 +20,7 @@ use std::{
 use tokio::sync::mpsc::UnboundedSender;
 use yuck::{
     config::{
+        monitor::MonitorIdentifier,
         script_var_definition::ScriptVarDefinition,
         window_definition::WindowDefinition,
         window_geometry::{AnchorPoint, WindowGeometry},
@@ -45,7 +46,7 @@ pub enum DaemonCommand {
         pos: Option<Coords>,
         size: Option<Coords>,
         anchor: Option<AnchorPoint>,
-        screen: Option<i32>,
+        screen: Option<MonitorIdentifier>,
         should_toggle: bool,
         sender: DaemonResponseSender,
     },
@@ -294,7 +295,7 @@ impl App {
         window_name: &str,
         pos: Option<Coords>,
         size: Option<Coords>,
-        monitor: Option<i32>,
+        monitor: Option<MonitorIdentifier>,
         anchor: Option<AnchorPoint>,
     ) -> Result<()> {
         self.failed_windows.remove(window_name);
@@ -327,7 +328,7 @@ impl App {
                 None,
             )?;
 
-            let monitor_geometry = get_monitor_geometry(monitor.or(window_def.monitor_number))?;
+            let monitor_geometry = get_monitor_geometry(monitor.or(window_def.monitor.clone()))?;
 
             let mut eww_window = initialize_window(monitor_geometry, root_widget, window_def, window_scope)?;
             eww_window.gtk_window.style_context().add_class(&window_name.to_string());
@@ -401,7 +402,7 @@ fn initialize_window(
     window_scope: ScopeIndex,
 ) -> Result<EwwWindow> {
     let window = display_backend::initialize_window(&window_def, monitor_geometry)
-        .with_context(|| format!("monitor {} is unavailable", window_def.monitor_number.unwrap()))?;
+        .with_context(|| format!("monitor {} is unavailable", window_def.monitor.clone().unwrap()))?;
 
     window.set_title(&format!("Eww - {}", window_def.name));
     window.set_position(gtk::WindowPosition::None);
@@ -476,17 +477,66 @@ fn on_screen_changed(window: &gtk::Window, _old_screen: Option<&gdk::Screen>) {
     window.set_visual(visual.as_ref());
 }
 
-/// Get the monitor geometry of a given monitor number, or the default if none is given
-fn get_monitor_geometry(n: Option<i32>) -> Result<gdk::Rectangle> {
-    #[allow(deprecated)]
+/// Get the monitor geometry of a given monitor, or the default if none is given
+fn get_monitor_geometry(identifier: Option<MonitorIdentifier>) -> Result<gdk::Rectangle> {
     let display = gdk::Display::default().expect("could not get default display");
-    let monitor = match n {
-        Some(n) => display.monitor(n).with_context(|| format!("Failed to get monitor with index {}", n))?,
+    let monitor = match identifier {
+        Some(ident) => {
+            let mon = get_monitor_from_display(&display, &ident);
+
+            #[cfg(feature = "x11")]
+            {
+                mon.with_context(|| {
+                    let head = format!("Failed to get monitor {}\nThe available monitors are:", ident);
+                    let mut body = String::new();
+                    for m in 0..display.n_monitors() {
+                        if let Some(model) = display.monitor(m).and_then(|x| x.model()) {
+                            body.push_str(format!("\n\t[{}] {}", m, model).as_str());
+                        }
+                    }
+                    format!("{}{}", head, body)
+                })?
+            }
+
+            #[cfg(not(feature = "x11"))]
+            {
+                mon.with_context(|| {
+                    if ident.is_numeric() {
+                        format!("Failed to get monitor {}", ident)
+                    } else {
+                        format!("Using ouput names (\"{}\" in the configuration) is not supported outside of x11 yet", ident)
+                    }
+                })?
+            }
+        }
         None => display
             .primary_monitor()
             .context("Failed to get primary monitor from GTK. Try explicitly specifying the monitor on your window.")?,
     };
     Ok(monitor.geometry())
+}
+
+/// Returns the [Monitor][gdk::Monitor] structure corresponding to the identifer.
+/// Outside of x11, only [MonitorIdentifier::Numeric] is supported
+pub fn get_monitor_from_display(display: &gdk::Display, identifier: &MonitorIdentifier) -> Option<gdk::Monitor> {
+    match identifier {
+        MonitorIdentifier::Numeric(num) => return display.monitor(*num),
+
+        #[cfg(not(feature = "x11"))]
+        MonitorIdentifier::Name(_) => return None,
+
+        #[cfg(feature = "x11")]
+        MonitorIdentifier::Name(name) => {
+            for m in 0..display.n_monitors() {
+                if let Some(model) = display.monitor(m).and_then(|x| x.model()) {
+                    if model == *name {
+                        return display.monitor(m);
+                    }
+                }
+            }
+        }
+    }
+    return None;
 }
 
 pub fn get_window_rectangle(geometry: WindowGeometry, screen_rect: gdk::Rectangle) -> gdk::Rectangle {
