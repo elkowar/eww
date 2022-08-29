@@ -286,6 +286,24 @@ impl ListenVarHandler {
     }
 }
 
+impl Drop for ListenVarHandler {
+    fn drop(&mut self) {
+        if !self.listen_process_handles.is_empty() {
+            std::thread::scope(|s| {
+                s.spawn(|| {
+                    let rt = tokio::runtime::Builder::new_current_thread()
+                        .thread_name("listen-var-drop-stop-all")
+                        .build()
+                        .expect("Failed to initialize tokio runtime for script var handlers");
+                    rt.block_on(async {
+                        self.stop_all().await;
+                    });
+                });
+            })
+        }
+    }
+}
+
 async fn terminate_handle(mut child: tokio::process::Child) {
     if let Some(id) = child.id() {
         log::debug!("Killing process with id {}", id);
