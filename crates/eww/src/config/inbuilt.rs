@@ -6,7 +6,7 @@ use yuck::config::{
     var_definition::VarDefinition,
 };
 
-use crate::{config::system_stats::*, EwwPaths};
+use crate::{config::system_stats::*, paths::EwwPaths};
 use eww_shared_util::VarName;
 
 macro_rules! define_builtin_vars {

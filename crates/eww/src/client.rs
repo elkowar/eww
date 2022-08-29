@@ -3,7 +3,7 @@ use std::process::Stdio;
 use crate::{
     daemon_response::DaemonResponse,
     opts::{self, ActionClientOnly},
-    EwwPaths,
+    paths::EwwPaths,
 };
 use anyhow::{Context, Result};
 use std::{

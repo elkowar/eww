@@ -10,35 +10,31 @@ extern crate gtk;
 #[cfg(feature = "wayland")]
 extern crate gtk_layer_shell as gtk_layer_shell;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use daemon_response::{DaemonResponse, DaemonResponseReceiver};
 use opts::ActionWithServer;
-use std::{
-    collections::hash_map::DefaultHasher,
-    hash::{Hash, Hasher},
-    os::unix::net,
-    path::{Path, PathBuf},
-    time::Duration,
-};
+use paths::EwwPaths;
+use std::{os::unix::net, path::Path, time::Duration};
 
 use crate::server::ForkResult;
 
-pub mod app;
-pub mod application_lifecycle;
-pub mod client;
-pub mod config;
+mod app;
+mod application_lifecycle;
+mod client;
+mod config;
 mod daemon_response;
-pub mod display_backend;
-pub mod error;
+mod display_backend;
+mod error;
 mod error_handling_ctx;
-pub mod geometry;
-pub mod ipc_server;
-pub mod opts;
-pub mod script_var_handler;
-pub mod server;
-pub mod state;
-pub mod util;
-pub mod widgets;
+mod geometry;
+mod ipc_server;
+mod opts;
+mod paths;
+mod script_var_handler;
+mod server;
+mod state;
+mod util;
+mod widgets;
 
 fn main() {
     let eww_binary_name = std::env::args().next().unwrap();
@@ -192,92 +188,4 @@ fn check_server_running(socket_path: impl AsRef<Path>) -> bool {
         .ok()
         .and_then(|mut stream| client::do_server_call(&mut stream, &opts::ActionWithServer::Ping).ok());
     response.is_some()
-}
-
-#[derive(Debug, Clone)]
-pub struct EwwPaths {
-    log_file: PathBuf,
-    ipc_socket_file: PathBuf,
-    config_dir: PathBuf,
-}
-
-impl EwwPaths {
-    pub fn from_config_dir<P: AsRef<Path>>(config_dir: P) -> Result<Self> {
-        let config_dir = config_dir.as_ref();
-        if config_dir.is_file() {
-            bail!("Please provide the path to the config directory, not a file within it")
-        }
-
-        if !config_dir.exists() {
-            bail!("Configuration directory {} does not exist", config_dir.display());
-        }
-
-        let config_dir = config_dir.canonicalize()?;
-
-        let mut hasher = DefaultHasher::new();
-        format!("{}", config_dir.display()).hash(&mut hasher);
-        // daemon_id is a hash of the config dir path to ensure that, given a normal XDG_RUNTIME_DIR,
-        // the absolute path to the socket stays under the 108 bytes limit. (see #387, man 7 unix)
-        let daemon_id = format!("{:x}", hasher.finish());
-
-        let ipc_socket_file = std::env::var("XDG_RUNTIME_DIR")
-            .map(std::path::PathBuf::from)
-            .unwrap_or_else(|_| std::path::PathBuf::from("/tmp"))
-            .join(format!("eww-server_{}", daemon_id));
-
-        // 100 as the limit isn't quite 108 everywhere (i.e 104 on BSD or mac)
-        if format!("{}", ipc_socket_file.display()).len() > 100 {
-            log::warn!("The IPC socket file's absolute path exceeds 100 bytes, the socket may fail to create.");
-        }
-
-        Ok(EwwPaths {
-            config_dir,
-            log_file: std::env::var("XDG_CACHE_HOME")
-                .map(PathBuf::from)
-                .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap()).join(".cache"))
-                .join(format!("eww_{}.log", daemon_id)),
-            ipc_socket_file,
-        })
-    }
-
-    pub fn default() -> Result<Self> {
-        let config_dir = std::env::var("XDG_CONFIG_HOME")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap()).join(".config"))
-            .join("eww");
-
-        Self::from_config_dir(config_dir)
-    }
-
-    pub fn get_log_file(&self) -> &Path {
-        self.log_file.as_path()
-    }
-
-    pub fn get_ipc_socket_file(&self) -> &Path {
-        self.ipc_socket_file.as_path()
-    }
-
-    pub fn get_config_dir(&self) -> &Path {
-        self.config_dir.as_path()
-    }
-
-    pub fn get_yuck_path(&self) -> PathBuf {
-        self.config_dir.join("eww.yuck")
-    }
-
-    pub fn get_eww_scss_path(&self) -> PathBuf {
-        self.config_dir.join("eww.scss")
-    }
-}
-
-impl std::fmt::Display for EwwPaths {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "config-dir: {}, ipc-socket: {}, log-file: {}",
-            self.config_dir.display(),
-            self.ipc_socket_file.display(),
-            self.log_file.display()
-        )
-    }
 }

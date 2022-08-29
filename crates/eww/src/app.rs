@@ -3,9 +3,10 @@ use crate::{
     daemon_response::DaemonResponseSender,
     display_backend, error_handling_ctx,
     gtk::prelude::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt},
+    paths::EwwPaths,
     script_var_handler::ScriptVarHandlerHandle,
     state::scope_graph::{ScopeGraph, ScopeIndex},
-    EwwPaths, *,
+    *,
 };
 use anyhow::anyhow;
 use eww_shared_util::VarName;
@@ -33,8 +34,6 @@ pub enum DaemonCommand {
     NoOp,
     UpdateVars(Vec<(VarName, DynVal)>),
     ReloadConfigAndCss(DaemonResponseSender),
-    UpdateConfig(config::EwwConfig),
-    UpdateCss(String),
     OpenInspector,
     OpenMany {
         windows: Vec<String>,
@@ -143,12 +142,6 @@ impl App {
                     }
 
                     sender.respond_with_error_list(errors)?;
-                }
-                DaemonCommand::UpdateConfig(config) => {
-                    self.load_config(config)?;
-                }
-                DaemonCommand::UpdateCss(css) => {
-                    self.load_css(&css)?;
                 }
                 DaemonCommand::KillServer => {
                     log::info!("Received kill command, stopping server!");

@@ -11,16 +11,6 @@ pub enum DaemonResponse {
     Failure(String),
 }
 
-impl DaemonResponse {
-    pub fn is_success(&self) -> bool {
-        matches!(self, DaemonResponse::Success(_))
-    }
-
-    pub fn is_failure(&self) -> bool {
-        !self.is_success()
-    }
-}
-
 #[derive(Debug)]
 pub struct DaemonResponseSender(tokio::sync::mpsc::UnboundedSender<DaemonResponse>);
 
