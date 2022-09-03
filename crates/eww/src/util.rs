@@ -153,6 +153,41 @@ pub fn unindent(text: &str) -> String {
     result
 }
 
+pub fn update_json_object(
+    mut json: serde_json::Value,
+    accessors: &[String],
+    new: serde_json::Value,
+) -> anyhow::Result<serde_json::Value> {
+    let mut accessors = accessors.iter().peekable();
+    let idx = 0;
+    let mut cur_json = &mut json;
+    while let Some(step) = accessors.next() {
+        match cur_json {
+            serde_json::Value::Array(ref mut arr) => {
+                let index = step.parse::<usize>()?;
+                if index == arr.len() && accessors.peek().is_none() {
+                    arr.push(new);
+                } else {
+                    cur_json = arr.get_mut(index).with_context(|| format!("Index {} out of bounds", index))?;
+                }
+            }
+            serde_json::Value::Object(ref mut obj) => {
+                if let Some(value) = obj.get_mut(step) {
+                    cur_json = value;
+                } else if accessors.peek().is_none() {
+                    obj.insert(step.clone(), new);
+                } else {
+                    // TODO finish this
+                    aow::bail!("No field {} in object", step);
+                }
+            }
+            _ => {}
+        }
+    }
+    Ok(json)
+}
+
+
 #[cfg(test)]
 mod test {
     use super::{replace_env_var_references, unindent};

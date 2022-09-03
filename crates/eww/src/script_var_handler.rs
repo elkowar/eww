@@ -159,7 +159,7 @@ impl PollVarHandler {
         let evt_send = self.evt_send.clone();
         tokio::spawn(async move {
             let result: Result<_> = try {
-                evt_send.send(app::DaemonCommand::UpdateVars(vec![(var.name.clone(), run_poll_once(&var)?)]))?;
+                evt_send.send(app::DaemonCommand::UpdateVars(vec![((var.name.clone(), Vec::new()), run_poll_once(&var)?)]))?;
             };
             if let Err(err) = result {
                 crate::error_handling_ctx::print_error(err);
@@ -169,7 +169,7 @@ impl PollVarHandler {
                 _ = cancellation_token.cancelled() => break,
                 _ = tokio::time::sleep(var.interval) => {
                     let result: Result<_> = try {
-                        evt_send.send(app::DaemonCommand::UpdateVars(vec![(var.name.clone(), run_poll_once(&var)?)]))?;
+                        evt_send.send(app::DaemonCommand::UpdateVars(vec![((var.name.clone(), Vec::new()), run_poll_once(&var)?)]))?;
                     };
 
                     if let Err(err) = result {

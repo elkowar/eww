@@ -35,7 +35,7 @@ use yuck::{
 #[derive(Debug)]
 pub enum DaemonCommand {
     NoOp,
-    UpdateVars(Vec<(VarName, DynVal)>),
+    UpdateVars(Vec<((VarName, Vec<String>), DynVal)>),
     ReloadConfigAndCss(DaemonResponseSender),
     OpenInspector,
     OpenMany {
@@ -128,8 +128,8 @@ impl App {
                     gtk::Window::set_interactive_debugging(true);
                 }
                 DaemonCommand::UpdateVars(mappings) => {
-                    for (var_name, new_value) in mappings {
-                        self.update_global_variable(var_name, new_value);
+                    for (var_access, new_value) in mappings {
+                        self.update_global_variable(var_access, new_value);
                     }
                 }
                 DaemonCommand::ReloadConfigAndCss(sender) => {
@@ -241,7 +241,11 @@ impl App {
         let _ = crate::application_lifecycle::send_exit();
     }
 
-    fn update_global_variable(&mut self, name: VarName, value: DynVal) {
+    fn update_global_variable(&mut self, accessor: (VarName, Vec<String>), value: DynVal) {
+        let scope_graph = self.scope_graph.borrow();
+        let old = scope_graph.lookup_variable_in_scope(scope_graph.root_index, &accessor.0);
+        if let Some(old)=old {
+        }
         let result = self.scope_graph.borrow_mut().update_global_value(&name, value);
         if let Err(err) = result {
             error_handling_ctx::print_error(err);

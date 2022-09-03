@@ -79,9 +79,9 @@ pub enum ActionWithServer {
     /// Update the value of a variable, in a running eww instance
     #[structopt(name = "update", alias = "u")]
     Update {
-        /// variable_name="new_value"-pairs that will be updated
+        /// variable_name="new_value"-pairs that will be updated. Suports json access, i.e. variable_name.field[1]="new_value"
         #[structopt(parse(try_from_str = parse_var_update_arg))]
-        mappings: Vec<(VarName, DynVal)>,
+        mappings: Vec<((VarName, Vec<String>), DynVal)>,
     },
 
     /// Open the GTK debugger
@@ -184,11 +184,30 @@ impl From<RawOpt> for Opt {
     }
 }
 
-fn parse_var_update_arg(s: &str) -> Result<(VarName, DynVal)> {
-    let (name, value) = s
+fn parse_var_update_arg(s: &str) -> Result<((VarName, Vec<String>), DynVal)> {
+    let (accessor, value) = s
         .split_once('=')
         .with_context(|| format!("arguments must be in the shape `variable_name=\"new_value\"`, but got: {}", s))?;
-    Ok((name.into(), DynVal::from_string(value.to_owned())))
+    let (var_name, accessors) = parse_json_accessor(accessor)?;
+
+    Ok(((var_name.to_string().into(), accessors.iter().map(|x| x.to_string()).collect()), DynVal::from_string(value.to_owned())))
+}
+
+fn parse_json_accessor(s: &str) -> Result<(&&str, &[&str])> {
+    let mut accessors = Vec::new();
+    for part in s.split('.') {
+        if part.ends_with(']') {
+            if let Some((field, array)) = part.split_once('[') {
+                accessors.push(field);
+                accessors.push(&array[0..(array.len() - 1)]);
+            } else {
+                anyhow::bail!("Couldn't parse json accessor");
+            }
+        } else {
+            accessors.push(part);
+        }
+    }
+    accessors.split_first().context("Empty accessor")
 }
 
 impl ActionWithServer {
