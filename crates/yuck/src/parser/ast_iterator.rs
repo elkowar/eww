@@ -17,6 +17,7 @@ use crate::{
 };
 use eww_shared_util::{AttrName, Span, Spanned, VarName};
 
+/// Iterator over [`crate::parser::ast::Ast`] nodes which allows to explicitly expect specific types of items
 pub struct AstIterator<I: Iterator<Item = Ast>> {
     remaining_span: Span,
     iter: itertools::PutBack<I>,

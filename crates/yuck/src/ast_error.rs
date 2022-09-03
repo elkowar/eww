@@ -1,4 +1,3 @@
-//! Error type representing errors that occur when trying to access parts of the AST specifically
 use eww_shared_util::{AttrName, Span};
 
 use crate::{
@@ -8,6 +7,7 @@ use crate::{
     parser::ast::AstType,
 };
 
+/// Error type representing errors that occur when trying to access parts of the AST specifically
 #[derive(Debug, thiserror::Error)]
 pub enum AstError {
     #[error("Did not expect any further elements here. Make sure your format is correct")]
@@ -22,19 +22,9 @@ pub enum AstError {
     #[error("'{0}' is missing a value")]
     DanglingKeyword(Span, AttrName),
 
+    /// May occur when we need to evaluate an expression when expecting a literal value
     #[error(transparent)]
     EvalError(#[from] simplexpr::eval::EvalError),
-}
-
-impl AstError {
-    pub fn wrong_expr_type_to<T: Into<DiagError>>(self, f: impl FnOnce(Span, AstType) -> Option<T>) -> DiagError {
-        match self {
-            AstError::WrongExprType(span, expected, got) => {
-                f(span.point_span(), got).map(|x| x.into()).unwrap_or_else(|| self.into())
-            }
-            other => other.into(),
-        }
-    }
 }
 
 impl ToDiagnostic for AstError {
