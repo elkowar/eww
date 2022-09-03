@@ -61,4 +61,3 @@ impl<T> DiagResultExt<T> for DiagResult<T> {
         self.map_err(|e| e.note(note))
     }
 }
-
