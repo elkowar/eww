@@ -163,7 +163,7 @@ async fn run_filewatch<P: AsRef<Path>>(config_dir: P, evt_send: UnboundedSender<
     use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-    let mut watcher: RecommendedWatcher = Watcher::new(move |res: notify::Result<notify::Event>| match res {
+    let mut watcher: RecommendedWatcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| match res {
         Ok(notify::Event { kind: notify::EventKind::Modify(_), paths, .. }) => {
             let relevant_files_changed = paths.iter().any(|path| {
                 let ext = path.extension().unwrap_or_default();
