@@ -933,7 +933,6 @@ fn build_gtk_calendar(bargs: &mut BuilderArgs) -> Result<gtk::Calendar> {
         // @prop timeout - timeout of the command
         prop(timeout: as_duration = Duration::from_millis(200), onclick: as_string) {
             connect_signal_handler!(gtk_widget, gtk_widget.connect_day_selected(move |w| {
-                log::warn!("BREAKING CHANGE: The date is now provided via three values, set by the placeholders {{0}}, {{1}} and {{2}}. If you're currently using the onclick date, you will need to change this.");
                 run_command(
                     timeout,
                     &onclick,
