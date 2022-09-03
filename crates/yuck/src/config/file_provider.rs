@@ -4,7 +4,7 @@ use codespan_reporting::files::{Files, SimpleFile, SimpleFiles};
 use eww_shared_util::Span;
 
 use crate::{
-    error::{AstError, AstResult},
+    error::{DiagError, DiagResult},
     parser::ast::Ast,
 };
 
@@ -14,7 +14,7 @@ pub enum FilesError {
     IoError(#[from] std::io::Error),
 
     #[error(transparent)]
-    AstError(#[from] AstError),
+    DiagError(#[from] DiagError),
 }
 
 #[derive(Clone, Debug)]
@@ -93,7 +93,7 @@ impl YuckFiles {
         Ok(crate::parser::parse_toplevel(file_id, file_content)?)
     }
 
-    pub fn load_str(&mut self, name: String, content: String) -> Result<(Span, Vec<Ast>), AstError> {
+    pub fn load_str(&mut self, name: String, content: String) -> Result<(Span, Vec<Ast>), DiagError> {
         let line_starts = codespan_reporting::files::line_starts(&content).collect();
         let yuck_file =
             YuckFile { name, line_starts, source_len_bytes: content.len(), source: YuckSource::Literal(content.to_string()) };

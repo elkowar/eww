@@ -53,7 +53,7 @@ SimplExpr: SimplExpr = {
         let parser = simplexpr::simplexpr_parser::ExprParser::new();
         parser.parse(file_id, x.into_iter().map(Ok))
             .map_err(|e| ParseError::User {
-                error: parse_error::ParseError::SimplExpr(simplexpr::error::Error::from_parse_error(file_id, e))
+                error: parse_error::ParseError::SimplExpr(simplexpr::error::ParseError::from_parse_error(file_id, e))
             })
    }
 }

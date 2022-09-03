@@ -10,7 +10,7 @@ use simplexpr::{
 };
 
 use crate::{
-    error::AstError,
+    error::DiagError,
     parser::{ast::Ast, from_ast::FromAst},
 };
 use eww_shared_util::{AttrName, Span, Spanned, VarName};
@@ -37,12 +37,6 @@ impl Spanned for AttrError {
     }
 }
 
-#[derive(Debug)]
-pub struct UnusedAttrs {
-    definition_span: Span,
-    attrs: Vec<(Span, AttrName)>,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct AttrEntry {
     pub key_span: Span,
@@ -67,7 +61,7 @@ impl Attributes {
         Attributes { span, attrs }
     }
 
-    pub fn ast_required<T: FromAst>(&mut self, key: &str) -> Result<T, AstError> {
+    pub fn ast_required<T: FromAst>(&mut self, key: &str) -> Result<T, DiagError> {
         let key = AttrName(key.to_string());
         match self.attrs.remove(&key) {
             Some(AttrEntry { key_span, value }) => T::from_ast(value),
@@ -75,7 +69,7 @@ impl Attributes {
         }
     }
 
-    pub fn ast_optional<T: FromAst>(&mut self, key: &str) -> Result<Option<T>, AstError> {
+    pub fn ast_optional<T: FromAst>(&mut self, key: &str) -> Result<Option<T>, DiagError> {
         match self.attrs.remove(&AttrName(key.to_string())) {
             Some(AttrEntry { key_span, value }) => T::from_ast(value).map(Some),
             None => Ok(None),
@@ -84,7 +78,7 @@ impl Attributes {
 
     /// Retrieve a required attribute from the set which _must not_ reference any variables,
     /// and is thus known to be static.
-    pub fn primitive_required<T, E>(&mut self, key: &str) -> Result<T, AstError>
+    pub fn primitive_required<T, E>(&mut self, key: &str) -> Result<T, DiagError>
     where
         E: std::error::Error + 'static + Sync + Send,
         T: FromDynVal<Err = E>,
@@ -99,7 +93,7 @@ impl Attributes {
 
     /// Retrieve an optional attribute from the set which _must not_ reference any variables,
     /// and is thus known to be static.
-    pub fn primitive_optional<T, E>(&mut self, key: &str) -> Result<Option<T>, AstError>
+    pub fn primitive_optional<T, E>(&mut self, key: &str) -> Result<Option<T>, DiagError>
     where
         E: std::error::Error + 'static + Sync + Send,
         T: FromDynVal<Err = E>,
@@ -117,8 +111,8 @@ impl Attributes {
     }
 
     /// Consumes the attributes to return a list of unused attributes which may be used to emit a warning.
-    /// TODO actually use this and implement warnings,... lol
-    pub fn get_unused(self, definition_span: Span) -> UnusedAttrs {
-        UnusedAttrs { definition_span, attrs: self.attrs.into_iter().map(|(k, v)| (v.key_span.to(v.value.span()), k)).collect() }
+    /// TODO actually use this and emit warnings
+    pub fn get_unused(self) -> impl Iterator<Item = (Span, AttrName)> {
+        self.attrs.into_iter().map(|(k, v)| (v.key_span.to(v.value.span()), k))
     }
 }

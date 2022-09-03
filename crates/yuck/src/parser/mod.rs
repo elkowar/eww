@@ -1,7 +1,9 @@
-use eww_shared_util::Span;
+use eww_shared_util::{Span, Spanned};
 use lalrpop_util::lalrpop_mod;
 
-use super::error::{AstError, AstResult};
+use crate::gen_diagnostic;
+
+use super::error::{DiagError, DiagResult};
 use ast::Ast;
 
 use std::{fmt::Display, ops::Deref};
@@ -20,25 +22,32 @@ lalrpop_mod!(
     "/parser/parser.rs"
 );
 
-pub fn parse_string(file_id: usize, s: &str) -> AstResult<Ast> {
+pub fn parse_string(file_id: usize, s: &str) -> DiagResult<Ast> {
     let lexer = lexer::Lexer::new(file_id, s.to_string());
     let parser = parser::AstParser::new();
-    parser.parse(file_id, lexer).map_err(|e| AstError::from_parse_error(file_id, e))
+    parser.parse(file_id, lexer).map_err(|e| DiagError::from_parse_error(file_id, e))
 }
 
 /// Parse multiple toplevel nodes into a list of [Ast]
-pub fn parse_toplevel(file_id: usize, s: String) -> AstResult<(Span, Vec<Ast>)> {
+pub fn parse_toplevel(file_id: usize, s: String) -> DiagResult<(Span, Vec<Ast>)> {
     let lexer = lexer::Lexer::new(file_id, s);
     let parser = parser::ToplevelParser::new();
-    parser.parse(file_id, lexer).map_err(|e| AstError::from_parse_error(file_id, e))
+    parser.parse(file_id, lexer).map_err(|e| DiagError::from_parse_error(file_id, e))
 }
 
 /// get a single ast node from a list of asts, returning an Err if the length is not exactly 1.
-pub fn require_single_toplevel(span: Span, mut asts: Vec<Ast>) -> AstResult<Ast> {
+pub fn require_single_toplevel(span: Span, mut asts: Vec<Ast>) -> DiagResult<Ast> {
     match asts.len() {
-        0 => Err(AstError::MissingNode(span)),
         1 => Ok(asts.remove(0)),
-        _ => Err(AstError::TooManyNodes(asts.get(1).unwrap().span().to(asts.last().unwrap().span()), 1)),
+        0 => Err(DiagError(gen_diagnostic! {
+            msg = "Expected exactly one element, but got none",
+            label = span
+        })),
+        n => Err(DiagError(gen_diagnostic! {
+            msg = "Expected exactly one element, but but got {n}",
+            label = asts.get(1).unwrap().span().to(asts.last().unwrap().span()) => "these elements must not be here",
+            note = "Consider wrapping the elements in some container element",
+        })),
     }
 }
 

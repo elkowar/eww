@@ -4,7 +4,7 @@ use anyhow::{anyhow, Result};
 
 use crate::{
     enum_parse,
-    error::AstResult,
+    error::DiagResult,
     parser::{ast::Ast, ast_iterator::AstIterator, from_ast::FromAstElementContent},
     value::NumWithUnit,
 };
@@ -16,6 +16,11 @@ pub use backend::*;
 
 #[cfg(feature = "x11")]
 mod backend {
+    use crate::{
+        error::{DiagError, DiagResultExt},
+        format_diagnostic::ToDiagnostic,
+    };
+
     use super::*;
 
     #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -27,7 +32,7 @@ mod backend {
     }
 
     impl BackendWindowOptions {
-        pub fn from_attrs(attrs: &mut Attributes) -> AstResult<Self> {
+        pub fn from_attrs(attrs: &mut Attributes) -> DiagResult<Self> {
             let struts = attrs.ast_optional("reserve")?;
             let window_type = attrs.primitive_optional("windowtype")?;
             Ok(Self {
@@ -98,9 +103,9 @@ mod backend {
     impl FromAstElementContent for StrutDefinition {
         const ELEMENT_NAME: &'static str = "struts";
 
-        fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> AstResult<Self> {
+        fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> DiagResult<Self> {
             let mut attrs = iter.expect_key_values()?;
-            iter.expect_done().map_err(|e| e.note("Check if you are missing a colon in front of a key"))?;
+            iter.expect_done().map_err(DiagError::from).note("Check if you are missing a colon in front of a key")?;
             Ok(StrutDefinition { side: attrs.primitive_required("side")?, dist: attrs.primitive_required("distance")? })
         }
     }
@@ -115,7 +120,7 @@ mod backend {
         pub focusable: bool,
     }
     impl BackendWindowOptions {
-        pub fn from_attrs(attrs: &mut Attributes) -> AstResult<Self> {
+        pub fn from_attrs(attrs: &mut Attributes) -> DiagResult<Self> {
             Ok(Self {
                 exclusive: attrs.primitive_optional("exclusive")?.unwrap_or(false),
                 focusable: attrs.primitive_optional("focusable")?.unwrap_or(false),
@@ -130,7 +135,7 @@ mod backend {
     #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
     pub struct BackendWindowOptions;
     impl BackendWindowOptions {
-        pub fn from_attrs(attrs: &mut Attributes) -> AstResult<Self> {
+        pub fn from_attrs(attrs: &mut Attributes) -> DiagResult<Self> {
             Ok(Self)
         }
     }

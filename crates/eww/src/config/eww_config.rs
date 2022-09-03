@@ -6,7 +6,8 @@ use yuck::{
         file_provider::YuckFiles, script_var_definition::ScriptVarDefinition, validate::ValidationError,
         widget_definition::WidgetDefinition, window_definition::WindowDefinition, Config,
     },
-    error::AstError,
+    error::DiagError,
+    format_diagnostic::ToDiagnostic,
 };
 
 use simplexpr::dynval::DynVal;
@@ -67,7 +68,7 @@ impl EwwConfig {
         for (name, def) in &config.widget_definitions {
             if widget_definitions::BUILTIN_WIDGET_NAMES.contains(&name.as_str()) {
                 return Err(
-                    AstError::ValidationError(ValidationError::AccidentalBuiltinOverride(def.span, name.to_string())).into()
+                    DiagError(ValidationError::AccidentalBuiltinOverride(def.span, name.to_string()).to_diagnostic()).into()
                 );
             }
         }

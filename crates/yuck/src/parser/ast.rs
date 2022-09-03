@@ -2,13 +2,14 @@ use itertools::Itertools;
 use simplexpr::{ast::SimplExpr, dynval::DynVal};
 use std::collections::HashMap;
 
-use eww_shared_util::{Span, VarName};
+use eww_shared_util::{Span, Spanned, VarName};
 use std::fmt::Display;
 
 use super::{ast_iterator::AstIterator, from_ast::FromAst};
 use crate::{
+    ast_error::AstError,
     config::attributes::{AttrEntry, Attributes},
-    error::{AstError, AstResult, OptionAstErrorExt},
+    error::{DiagError, DiagResult},
 };
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -36,11 +37,17 @@ impl Display for AstType {
 
 #[derive(PartialEq, Eq, Clone, serde::Serialize)]
 pub enum Ast {
+    /// I.e.: `(foo bar baz)`
     List(Span, Vec<Ast>),
+    /// I.e.: `[foo bar baz]`
     Array(Span, Vec<Ast>),
+    /// I.e.: `:foo`
     Keyword(Span, String),
+    /// I.e.: `foo`
     Symbol(Span, String),
+    /// I.e.: `{1 + 2}`
     SimplExpr(Span, SimplExpr),
+    /// I.e.: `// foo`
     Comment(Span),
 }
 
@@ -80,18 +87,7 @@ impl Ast {
         }
     }
 
-    pub fn span(&self) -> Span {
-        match self {
-            Ast::List(span, _) => *span,
-            Ast::Array(span, _) => *span,
-            Ast::Keyword(span, _) => *span,
-            Ast::Symbol(span, _) => *span,
-            Ast::SimplExpr(span, _) => *span,
-            Ast::Comment(span) => *span,
-        }
-    }
-
-    pub fn as_simplexpr(&self) -> AstResult<SimplExpr> {
+    pub fn as_simplexpr(&self) -> Result<SimplExpr, AstError> {
         match self {
             // TODO do I do this?
             // Ast::Array(span, elements) => todo!()
@@ -101,7 +97,7 @@ impl Ast {
         }
     }
 
-    pub fn try_ast_iter(self) -> AstResult<AstIterator<impl Iterator<Item = Ast>>> {
+    pub fn try_ast_iter(self) -> Result<AstIterator<impl Iterator<Item = Ast>>, AstError> {
         let span = self.span();
         let list = self.as_list()?;
         Ok(AstIterator::new(span, list.into_iter()))
@@ -125,5 +121,18 @@ impl std::fmt::Display for Ast {
 impl std::fmt::Debug for Ast {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self)
+    }
+}
+
+impl Spanned for Ast {
+    fn span(&self) -> Span {
+        match self {
+            Ast::List(span, _) => *span,
+            Ast::Array(span, _) => *span,
+            Ast::Keyword(span, _) => *span,
+            Ast::Symbol(span, _) => *span,
+            Ast::SimplExpr(span, _) => *span,
+            Ast::Comment(span) => *span,
+        }
     }
 }

@@ -4,7 +4,9 @@ use simplexpr::SimplExpr;
 
 use crate::{
     config::attributes::AttrEntry,
-    error::{AstError, AstResult, AstResultExt, FormFormatError},
+    error::{DiagError, DiagResult, DiagResultExt},
+    format_diagnostic::{DiagnosticExt, ToDiagnostic},
+    gen_diagnostic,
     parser::{
         ast::Ast,
         ast_iterator::AstIterator,
@@ -60,9 +62,9 @@ impl BasicWidgetUse {
         name: String,
         name_span: Span,
         mut iter: AstIterator<I>,
-    ) -> AstResult<Self> {
+    ) -> DiagResult<Self> {
         let attrs = iter.expect_key_values()?;
-        let children = iter.map(WidgetUse::from_ast).collect::<AstResult<Vec<_>>>()?;
+        let children = iter.map(WidgetUse::from_ast).collect::<DiagResult<Vec<_>>>()?;
         Ok(Self { name, attrs, children, span, name_span })
     }
 }
@@ -70,14 +72,17 @@ impl BasicWidgetUse {
 impl FromAstElementContent for LoopWidgetUse {
     const ELEMENT_NAME: &'static str = "for";
 
-    fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> AstResult<Self> {
+    fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> DiagResult<Self> {
         let (element_name_span, element_name) = iter.expect_symbol()?;
         let (in_string_span, in_string) = iter.expect_symbol()?;
         if in_string != "in" {
-            return Err(AstError::FormFormatError(FormFormatError::ExpectedInInForLoop(in_string_span, in_string)));
+            return Err(DiagError(gen_diagnostic! {
+                msg = "Expected 'in' in this position, but got '{in_string}'",
+                label = in_string_span
+            }));
         }
         let (elements_span, elements_expr) = iter.expect_simplexpr()?;
-        let body = iter.expect_any().note("Expected a loop body").and_then(WidgetUse::from_ast)?;
+        let body = iter.expect_any().map_err(DiagError::from).note("Expected a loop body").and_then(WidgetUse::from_ast)?;
         iter.expect_done()?;
         Ok(Self {
             element_name: VarName(element_name),
@@ -92,7 +97,7 @@ impl FromAstElementContent for LoopWidgetUse {
 impl FromAstElementContent for ChildrenWidgetUse {
     const ELEMENT_NAME: &'static str = "children";
 
-    fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> AstResult<Self> {
+    fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> DiagResult<Self> {
         let mut attrs = iter.expect_key_values()?;
         let nth_expr = attrs.ast_optional("nth")?;
         iter.expect_done()?;
@@ -101,7 +106,7 @@ impl FromAstElementContent for ChildrenWidgetUse {
 }
 
 impl FromAst for WidgetUse {
-    fn from_ast(e: Ast) -> AstResult<Self> {
+    fn from_ast(e: Ast) -> DiagResult<Self> {
         let span = e.span();
         if let Ok(value) = e.clone().as_simplexpr() {
             Ok(WidgetUse::Basic(label_from_simplexpr(value, span)))

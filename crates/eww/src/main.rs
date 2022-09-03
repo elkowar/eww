@@ -4,6 +4,7 @@
 #![feature(box_patterns)]
 #![feature(slice_concat_trait)]
 #![feature(try_blocks)]
+#![feature(hash_drain_filter)]
 #![allow(rustdoc::private_intra_doc_links)]
 
 extern crate gtk;
@@ -24,7 +25,6 @@ mod client;
 mod config;
 mod daemon_response;
 mod display_backend;
-mod error;
 mod error_handling_ctx;
 mod geometry;
 mod ipc_server;

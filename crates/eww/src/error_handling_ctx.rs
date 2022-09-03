@@ -12,11 +12,9 @@ use once_cell::sync::Lazy;
 use simplexpr::{dynval::ConversionError, eval::EvalError};
 use yuck::{
     config::{file_provider::YuckFiles, validate::ValidationError},
-    error::AstError,
+    error::DiagError,
     format_diagnostic::ToDiagnostic,
 };
-
-use crate::error::DiagError;
 
 pub static YUCK_FILES: Lazy<Arc<RwLock<YuckFiles>>> = Lazy::new(|| Arc::new(RwLock::new(YuckFiles::new())));
 
@@ -49,9 +47,7 @@ pub fn format_error(err: &anyhow::Error) -> String {
 
 pub fn anyhow_err_to_diagnostic(err: &anyhow::Error) -> Option<Diagnostic<usize>> {
     if let Some(err) = err.downcast_ref::<DiagError>() {
-        Some(err.diag.clone())
-    } else if let Some(err) = err.downcast_ref::<AstError>() {
-        Some(err.to_diagnostic())
+        Some(err.0.clone())
     } else if let Some(err) = err.downcast_ref::<ConversionError>() {
         Some(err.to_diagnostic())
     } else if let Some(err) = err.downcast_ref::<ValidationError>() {

@@ -6,13 +6,12 @@ use eww_shared_util::{Span, VarName};
 use simplexpr::dynval::DynVal;
 use yuck::{
     config::script_var_definition::{ScriptVarDefinition, VarSource},
+    error::DiagError,
     gen_diagnostic,
 };
 
-use crate::error::DiagError;
-
 pub fn create_script_var_failed_warn(span: Span, var_name: &VarName, error_output: &str) -> DiagError {
-    DiagError::new(gen_diagnostic! {
+    DiagError(gen_diagnostic! {
         kind = Severity::Warning,
         msg = format!("The script for the `{}`-variable exited unsuccessfully", var_name),
         label = span => "Defined here",
