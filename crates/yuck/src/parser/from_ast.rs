@@ -2,8 +2,8 @@ use super::{
     ast::{Ast, AstType},
     ast_iterator::AstIterator,
 };
-use crate::{error::*, parser};
-use eww_shared_util::{AttrName, Span, VarName};
+use crate::{error::*, gen_diagnostic, parser};
+use eww_shared_util::{AttrName, Span, Spanned, VarName};
 use itertools::Itertools;
 use simplexpr::{ast::SimplExpr, dynval::DynVal};
 use std::{
@@ -41,7 +41,11 @@ impl<T: FromAstElementContent> FromAst for T {
         let mut iter = e.try_ast_iter()?;
         let (element_name_span, element_name) = iter.expect_symbol()?;
         if Self::ELEMENT_NAME != element_name {
-            return Err(AstError::MismatchedElementName(element_name_span, Self::ELEMENT_NAME.to_string(), element_name));
+            return Err(AstError::AdHoc(gen_diagnostic! {
+                msg = format!("Expected element `{}`, but found `{element_name}`", Self::ELEMENT_NAME),
+                label = element_name_span => format!("Expected `{}` here", Self::ELEMENT_NAME),
+                note = format!("Expected: {}\n     Got: {element_name}", Self::ELEMENT_NAME),
+            }));
         }
         Self::from_tail(span, iter)
     }
@@ -52,7 +56,11 @@ impl FromAst for SimplExpr {
         match e {
             Ast::Symbol(span, x) => Ok(SimplExpr::var_ref(span, x)),
             Ast::SimplExpr(span, x) => Ok(x),
-            _ => Err(AstError::NotAValue(e.span(), e.expr_type())),
+            _ => Err(AstError::AdHoc(gen_diagnostic! {
+                msg = format!("Expected value, but got `{}`", e.expr_type()),
+                label = e.span() => "Expected some value here",
+                note = format!("Got: {}", e.expr_type()),
+            })),
         }
     }
 }

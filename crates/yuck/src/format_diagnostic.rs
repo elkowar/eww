@@ -1,5 +1,4 @@
 use codespan_reporting::{diagnostic, files};
-use config::TOP_LEVEL_DEFINITION_NAMES;
 use itertools::Itertools;
 use simplexpr::dynval;
 
@@ -7,19 +6,28 @@ use diagnostic::*;
 
 use crate::{
     config::{attributes::AttrError, config, validate::ValidationError},
-    error::{get_parse_error_span, AstError, FormFormatError},
+    error::{get_parse_error_span, AstError},
 };
 
 use super::parser::parse_error;
 use eww_shared_util::{AttrName, Span, Spanned, VarName};
 
-fn span_to_primary_label(span: Span) -> Label<usize> {
+pub fn span_to_primary_label(span: Span) -> Label<usize> {
     Label::primary(span.2, span.0..span.1)
 }
-fn span_to_secondary_label(span: Span) -> Label<usize> {
+pub fn span_to_secondary_label(span: Span) -> Label<usize> {
     Label::secondary(span.2, span.0..span.1)
 }
 
+/// Generate a nicely formatted diagnostic
+/// ```rs
+/// gen_diagnostic! {
+///     kind = Severity::Error,
+///     msg = format!("Expected value, but got `{}`", actual),
+///     label = span => "Expected some value here",
+///     note = format!("Got: {}", actual),
+/// }
+/// ```
 #[macro_export]
 macro_rules! gen_diagnostic {
     ( $(kind = $kind:expr,)?
@@ -77,58 +85,15 @@ impl ToDiagnostic for Diagnostic<usize> {
 impl ToDiagnostic for AstError {
     fn to_diagnostic(&self) -> Diagnostic<usize> {
         match self {
-            AstError::UnknownToplevel(span, name) => gen_diagnostic! {
-                msg = self,
-                label = span,
-                note = format!("Must be one of: {}", TOP_LEVEL_DEFINITION_NAMES.iter().join(", "))
-            },
-            AstError::MissingNode(span) => gen_diagnostic! {
-                msg = "Expected another element",
-                label = span => "Expected another element here",
-            },
             AstError::WrongExprType(span, expected, actual) => gen_diagnostic! {
                 msg = "Wrong type of expression",
                 label = span => format!("Expected a `{}` here", expected),
                 note = format!("Expected: {}\n     Got: {}", expected, actual),
             },
-            AstError::NotAValue(span, actual) => gen_diagnostic! {
-                msg = format!("Expected value, but got `{}`", actual),
-                label = span => "Expected some value here",
-                note = format!("Got: {}", actual),
-            },
-
-            AstError::ParseError { file_id, source } => lalrpop_error_to_diagnostic(source, *file_id),
-            AstError::MismatchedElementName(span, expected, got) => gen_diagnostic! {
-                msg = format!("Expected element `{}`, but found `{}`", expected, got),
-                label = span => format!("Expected `{}` here", expected),
-                note = format!("Expected: {}\n     Got: {}", expected, got),
-            },
-            AstError::ErrorContext { label_span, context, main_err } => {
-                main_err.to_diagnostic().with_label(span_to_secondary_label(*label_span).with_message(context))
-            }
-
             AstError::ConversionError(source) => source.to_diagnostic(),
-            AstError::Other(span, source) => gen_diagnostic!(source, span),
-            AstError::AttrError(source) => source.to_diagnostic(),
-            AstError::IncludedFileNotFound(include) => gen_diagnostic!(
-                msg = format!("Included file `{}` not found", include.path),
-                label = include.path_span => "Included here",
-            ),
-
-            AstError::TooManyNodes(extra_nodes_span, expected) => gen_diagnostic! {
-                msg = self,
-                label = extra_nodes_span => "these elements must not be here",
-                note = "Consider wrapping the elements in some container element",
-            },
-            AstError::DanglingKeyword(span, keyword) => gen_diagnostic! {
-                msg = self,
-                label = span => "No value provided for this",
-            },
             AstError::ErrorNote(note, source) => source.to_diagnostic().with_notes(vec![note.to_string()]),
-            AstError::ValidationError(source) => source.to_diagnostic(),
-            AstError::NoMoreElementsExpected(span) => gen_diagnostic!(self, span),
             AstError::SimplExpr(source) => source.to_diagnostic(),
-            AstError::FormFormatError(error) => error.to_diagnostic(),
+            AstError::AdHoc(diag) => diag.clone(),
         }
     }
 }
@@ -157,10 +122,6 @@ impl ToDiagnostic for AttrError {
 impl ToDiagnostic for ValidationError {
     fn to_diagnostic(&self) -> Diagnostic<usize> {
         match self {
-            ValidationError::UnknownWidget(span, name) => gen_diagnostic! {
-                msg = self,
-                label = span => "Used here",
-            },
             ValidationError::MissingAttr { widget_name, arg_name, arg_list_span, use_span } => {
                 let mut diag = Diagnostic::error()
                     .with_message(self.to_string())
@@ -199,10 +160,6 @@ impl ToDiagnostic for ValidationError {
                 label = span => "Defined here",
                 note = "Hint: Give your widget a different name. You could call it \"John\" for example. That's a cool name."
             },
-            ValidationError::VariableDefinedTwice { span, name } => gen_diagnostic! {
-                msg = self,
-                label = span => "Defined again here"
-            },
         }
     }
 }
@@ -212,7 +169,7 @@ fn variable_deprecation_note(var_name: String) -> Option<String> {
         .then(|| "Note: EWW_CPU_USAGE has recently been removed, and has now been renamed to EWW_CPU".to_string())
 }
 
-fn lalrpop_error_to_diagnostic<T: std::fmt::Display, E: Spanned + ToDiagnostic>(
+pub fn lalrpop_error_to_diagnostic<T: std::fmt::Display, E: Spanned + ToDiagnostic>(
     error: &lalrpop_util::ParseError<usize, T, E>,
     file_id: usize,
 ) -> Diagnostic<usize> {
@@ -288,29 +245,5 @@ fn generate_lexical_error_diagnostic(span: Span) -> Diagnostic<usize> {
     gen_diagnostic! {
         msg = "Invalid token",
         label = span => "Invalid token"
-    }
-}
-
-impl ToDiagnostic for FormFormatError {
-    fn to_diagnostic(&self) -> diagnostic::Diagnostic<usize> {
-        match self {
-            FormFormatError::WidgetDefArglistMissing(span) => gen_diagnostic! {
-                msg = self,
-                label = span => "Insert the argument list (e.g.: `[]`) here",
-                note = "This list will in the future need to declare all the non-global variables / attributes used in this widget.\n\
-                        This is not yet neccessary, but is still considered good style.",
-            },
-            FormFormatError::WidgetDefMultipleChildren(span) => gen_diagnostic! {
-                msg = self,
-                label = span => "Found more than one child element here.",
-                note = "A widget-definition may only contain one child element.\n\
-                        To include multiple elements, wrap these elements in a single container widget such as `box`.\n\
-                        This is necessary as eww can't know how you want these elements to be layed out otherwise."
-            },
-            FormFormatError::ExpectedInInForLoop(span, got) => gen_diagnostic! {
-                msg = self,
-                label = span,
-            },
-        }
     }
 }

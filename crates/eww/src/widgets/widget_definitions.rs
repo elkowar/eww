@@ -25,8 +25,8 @@ use std::{
     time::Duration,
 };
 use yuck::{
-    config::validate::ValidationError,
     error::{AstError, AstResult},
+    format_diagnostic::{span_to_secondary_label, DiagnosticExt},
     gen_diagnostic,
     parser::from_ast::FromAst,
 };
@@ -109,10 +109,10 @@ pub(super) fn widget_use_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::W
         WIDGET_NAME_SCROLL => build_gtk_scrolledwindow(bargs)?.upcast(),
         WIDGET_NAME_OVERLAY => build_gtk_overlay(bargs)?.upcast(),
         _ => {
-            return Err(AstError::ValidationError(ValidationError::UnknownWidget(
-                bargs.widget_use.name_span,
-                bargs.widget_use.name.to_string(),
-            ))
+            return Err(AstError::AdHoc(gen_diagnostic! {
+                msg = format!("referenced unknown widget `{}`", bargs.widget_use.name),
+                label = bargs.widget_use.name_span => "Used here",
+            })
             .into())
         }
     };
@@ -884,10 +884,11 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
 
                 // TODO a literal should create a new scope, that I'm not even sure should inherit from root
                 let child_widget = build_gtk_widget(scope_graph, widget_defs.clone(), calling_scope, content_widget_use, None)
-                    .map_err(|e| AstError::ErrorContext {
-                        label_span: literal_use_span,
-                        context: "Error in the literal used here".to_string(),
-                        main_err: Box::new(error_handling_ctx::anyhow_err_to_diagnostic(&e).unwrap_or_else(|| gen_diagnostic!(e)))
+                    .map_err(|e| {
+                        let diagnostic = error_handling_ctx::anyhow_err_to_diagnostic(&e)
+                            .unwrap_or_else(|| gen_diagnostic!(e))
+                            .with_label(span_to_secondary_label(literal_use_span).with_message("Error in the literal used here"));
+                        AstError::AdHoc(diagnostic)
                     })?;
                 gtk_widget.add(&child_widget);
                 child_widget.show();

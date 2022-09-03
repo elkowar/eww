@@ -4,6 +4,7 @@ use std::{
 };
 
 use codespan_reporting::files::SimpleFiles;
+use itertools::Itertools;
 use simplexpr::SimplExpr;
 
 use super::{
@@ -18,15 +19,17 @@ use super::{
 use crate::{
     config::script_var_definition::{ListenScriptVar, PollScriptVar},
     error::{AstError, AstResult, OptionAstErrorExt},
+    format_diagnostic::ToDiagnostic,
+    gen_diagnostic,
     parser::{
         ast::Ast,
         ast_iterator::AstIterator,
         from_ast::{FromAst, FromAstElementContent},
     },
 };
-use eww_shared_util::{AttrName, Span, VarName};
+use eww_shared_util::{AttrName, Span, Spanned, VarName};
 
-pub static TOP_LEVEL_DEFINITION_NAMES: &[&str] = &[
+static TOP_LEVEL_DEFINITION_NAMES: &[&str] = &[
     WidgetDefinition::ELEMENT_NAME,
     WindowDefinition::ELEMENT_NAME,
     VarDefinition::ELEMENT_NAME,
@@ -75,7 +78,13 @@ impl FromAst for TopLevel {
                 Self::ScriptVarDefinition(ScriptVarDefinition::Listen(ListenScriptVar::from_tail(span, iter)?))
             }
             x if x == WindowDefinition::ELEMENT_NAME => Self::WindowDefinition(WindowDefinition::from_tail(span, iter)?),
-            x => return Err(AstError::UnknownToplevel(sym_span, x.to_string())),
+            x => {
+                return Err(AstError::AdHoc(gen_diagnostic! {
+                    msg = format!("Unknown toplevel declaration `{x}`"),
+                    label = sym_span,
+                    note = format!("Must be one of: {}", TOP_LEVEL_DEFINITION_NAMES.iter().join(", ")),
+                }))
+            }
         })
     }
 }
@@ -93,9 +102,9 @@ impl Config {
         match toplevel {
             TopLevel::VarDefinition(x) => {
                 if self.var_definitions.contains_key(&x.name) || self.script_vars.contains_key(&x.name) {
-                    return Err(AstError::ValidationError(ValidationError::VariableDefinedTwice {
-                        name: x.name.clone(),
-                        span: x.span,
+                    return Err(AstError::AdHoc(gen_diagnostic! {
+                        msg = format!("Variable {} defined twice", x.name),
+                        label = x.span => "defined again here",
                     }));
                 } else {
                     self.var_definitions.insert(x.name.clone(), x);
@@ -103,9 +112,9 @@ impl Config {
             }
             TopLevel::ScriptVarDefinition(x) => {
                 if self.var_definitions.contains_key(x.name()) || self.script_vars.contains_key(x.name()) {
-                    return Err(AstError::ValidationError(ValidationError::VariableDefinedTwice {
-                        name: x.name().clone(),
-                        span: x.name_span(),
+                    return Err(AstError::AdHoc(gen_diagnostic! {
+                        msg = format!("Variable {} defined twice", x.name()),
+                        label = x.name_span() => "defined again here",
                     }));
                 } else {
                     self.script_vars.insert(x.name().clone(), x);
@@ -119,7 +128,10 @@ impl Config {
             }
             TopLevel::Include(include) => {
                 let (file_id, toplevels) = files.load_file(PathBuf::from(&include.path)).map_err(|err| match err {
-                    FilesError::IoError(_) => AstError::IncludedFileNotFound(include),
+                    FilesError::IoError(_) => AstError::AdHoc(gen_diagnostic! {
+                        msg = format!("Included file `{}` not found", include.path),
+                        label = include.path_span => "Included here",
+                    }),
                     FilesError::AstError(x) => x,
                 })?;
                 for element in toplevels {
@@ -145,7 +157,7 @@ impl Config {
 
     pub fn generate_from_main_file(files: &mut YuckFiles, path: impl AsRef<Path>) -> AstResult<Self> {
         let (span, top_levels) = files.load_file(path.as_ref().to_path_buf()).map_err(|err| match err {
-            FilesError::IoError(err) => AstError::Other(Span::DUMMY, Box::new(err)),
+            FilesError::IoError(err) => AstError::AdHoc(gen_diagnostic!(err)),
             FilesError::AstError(x) => x,
         })?;
         Self::generate(files, top_levels)

@@ -1,5 +1,7 @@
-use eww_shared_util::Span;
+use eww_shared_util::{Span, Spanned};
 use lalrpop_util::lalrpop_mod;
+
+use crate::gen_diagnostic;
 
 use super::error::{AstError, AstResult};
 use ast::Ast;
@@ -36,9 +38,16 @@ pub fn parse_toplevel(file_id: usize, s: String) -> AstResult<(Span, Vec<Ast>)> 
 /// get a single ast node from a list of asts, returning an Err if the length is not exactly 1.
 pub fn require_single_toplevel(span: Span, mut asts: Vec<Ast>) -> AstResult<Ast> {
     match asts.len() {
-        0 => Err(AstError::MissingNode(span)),
         1 => Ok(asts.remove(0)),
-        _ => Err(AstError::TooManyNodes(asts.get(1).unwrap().span().to(asts.last().unwrap().span()), 1)),
+        0 => Err(AstError::AdHoc(gen_diagnostic! {
+            msg = "Expected exactly one element, but got none",
+            label = span
+        })),
+        n => Err(AstError::AdHoc(gen_diagnostic! {
+            msg = "Expected exactly one element, but but got {n}",
+            label = asts.get(1).unwrap().span().to(asts.last().unwrap().span()) => "these elements must not be here",
+            note = "Consider wrapping the elements in some container element",
+        })),
     }
 }
 

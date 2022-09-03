@@ -4,7 +4,8 @@ use simplexpr::SimplExpr;
 
 use crate::{
     config::attributes::AttrEntry,
-    error::{AstError, AstResult, AstResultExt, FormFormatError},
+    error::{AstError, AstResult, AstResultExt},
+    gen_diagnostic,
     parser::{
         ast::Ast,
         ast_iterator::AstIterator,
@@ -74,7 +75,10 @@ impl FromAstElementContent for LoopWidgetUse {
         let (element_name_span, element_name) = iter.expect_symbol()?;
         let (in_string_span, in_string) = iter.expect_symbol()?;
         if in_string != "in" {
-            return Err(AstError::FormFormatError(FormFormatError::ExpectedInInForLoop(in_string_span, in_string)));
+            return Err(AstError::AdHoc(gen_diagnostic! {
+                msg = "Expected 'in' in this position, but got '{in_string}'",
+                label = in_string_span
+            }));
         }
         let (elements_span, elements_expr) = iter.expect_simplexpr()?;
         let body = iter.expect_any().note("Expected a loop body").and_then(WidgetUse::from_ast)?;

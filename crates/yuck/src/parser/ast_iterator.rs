@@ -11,8 +11,25 @@ use super::{
 use crate::{
     config::attributes::{AttrEntry, Attributes},
     error::{AstError, AstResult, OptionAstErrorExt},
+    format_diagnostic::ToDiagnostic,
+    gen_diagnostic,
 };
-use eww_shared_util::{AttrName, Span, VarName};
+use eww_shared_util::{AttrName, Span, VarName, Spanned};
+
+#[derive(Debug, thiserror::Error)]
+#[error("Did not expect any further elements here. Make sure your format is correct")]
+pub struct NoMoreElementsExpected(Span);
+impl ToDiagnostic for NoMoreElementsExpected {
+    fn to_diagnostic(&self) -> codespan_reporting::diagnostic::Diagnostic<usize> {
+        gen_diagnostic!(self, self.0)
+    }
+}
+
+impl eww_shared_util::Spanned for NoMoreElementsExpected {
+    fn span(&self) -> Span {
+        self.0
+    }
+}
 
 pub struct AstIterator<I: Iterator<Item = Ast>> {
     remaining_span: Span,
@@ -24,6 +41,7 @@ macro_rules! return_or_put_back {
         $(
             pub fn $name(&mut self) -> AstResult<$t> {
                 let expr_type = $expr_type;
+                use eww_shared_util::Spanned;
                 match self.expect_any()? {
                     $p => Ok($ret),
                     other => {
@@ -81,10 +99,10 @@ impl<I: Iterator<Item = Ast>> AstIterator<I> {
         }
     }
 
-    pub fn expect_done(&mut self) -> AstResult<()> {
+    pub fn expect_done(&mut self) -> Result<(), NoMoreElementsExpected> {
         if let Some(next) = self.next() {
             self.put_back(next);
-            Err(AstError::NoMoreElementsExpected(self.remaining_span))
+            Err(NoMoreElementsExpected(self.remaining_span))
         } else {
             Ok(())
         }
@@ -125,7 +143,10 @@ fn parse_key_values(iter: &mut AstIterator<impl Iterator<Item = Ast>>, fail_on_d
                 }
                 None => {
                     if fail_on_dangling_kw {
-                        return Err(AstError::DanglingKeyword(key_span, kw));
+                        return Err(AstError::AdHoc(gen_diagnostic! {
+                            msg = "{kw} is missing a value",
+                            label = key_span => "No value provided for this",
+                        }));
                     } else {
                         iter.iter.put_back(Ast::Keyword(key_span, kw));
                         attrs_span.1 = iter.remaining_span.0;

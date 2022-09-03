@@ -2,7 +2,7 @@ use itertools::Itertools;
 use simplexpr::{ast::SimplExpr, dynval::DynVal};
 use std::collections::HashMap;
 
-use eww_shared_util::{Span, VarName};
+use eww_shared_util::{Span, Spanned, VarName};
 use std::fmt::Display;
 
 use super::{ast_iterator::AstIterator, from_ast::FromAst};
@@ -80,17 +80,6 @@ impl Ast {
         }
     }
 
-    pub fn span(&self) -> Span {
-        match self {
-            Ast::List(span, _) => *span,
-            Ast::Array(span, _) => *span,
-            Ast::Keyword(span, _) => *span,
-            Ast::Symbol(span, _) => *span,
-            Ast::SimplExpr(span, _) => *span,
-            Ast::Comment(span) => *span,
-        }
-    }
-
     pub fn as_simplexpr(&self) -> AstResult<SimplExpr> {
         match self {
             // TODO do I do this?
@@ -125,5 +114,18 @@ impl std::fmt::Display for Ast {
 impl std::fmt::Debug for Ast {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self)
+    }
+}
+
+impl Spanned for Ast {
+    fn span(&self) -> Span {
+        match self {
+            Ast::List(span, _) => *span,
+            Ast::Array(span, _) => *span,
+            Ast::Keyword(span, _) => *span,
+            Ast::Symbol(span, _) => *span,
+            Ast::SimplExpr(span, _) => *span,
+            Ast::Comment(span) => *span,
+        }
     }
 }

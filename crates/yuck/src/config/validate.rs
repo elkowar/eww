@@ -16,9 +16,6 @@ use eww_shared_util::{AttrName, Span, Spanned, VarName};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ValidationError {
-    #[error("Unknown widget `{1}` referenced")]
-    UnknownWidget(Span, String),
-
     #[error("There is already a builtin widget called `{1}`")]
     AccidentalBuiltinOverride(Span, String),
 
@@ -32,16 +29,11 @@ pub enum ValidationError {
         /// True if the error occurred inside a widget definition, false if it occurred in a window definition
         in_definition: bool,
     },
-
-    #[error("Variable named `{name}` defined twice")]
-    VariableDefinedTwice { span: Span, name: VarName },
 }
 
 impl Spanned for ValidationError {
     fn span(&self) -> Span {
         match self {
-            ValidationError::UnknownWidget(span, _) => *span,
-            ValidationError::VariableDefinedTwice { span, .. } => *span,
             ValidationError::MissingAttr { use_span, .. } => *use_span,
             ValidationError::UnknownVariable { span, .. } => *span,
             ValidationError::AccidentalBuiltinOverride(span, ..) => *span,

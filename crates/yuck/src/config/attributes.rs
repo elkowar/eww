@@ -37,12 +37,6 @@ impl Spanned for AttrError {
     }
 }
 
-#[derive(Debug)]
-pub struct UnusedAttrs {
-    definition_span: Span,
-    attrs: Vec<(Span, AttrName)>,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct AttrEntry {
     pub key_span: Span,
@@ -117,8 +111,8 @@ impl Attributes {
     }
 
     /// Consumes the attributes to return a list of unused attributes which may be used to emit a warning.
-    /// TODO actually use this and implement warnings,... lol
-    pub fn get_unused(self, definition_span: Span) -> UnusedAttrs {
-        UnusedAttrs { definition_span, attrs: self.attrs.into_iter().map(|(k, v)| (v.key_span.to(v.value.span()), k)).collect() }
+    /// TODO actually use this and emit warnings
+    pub fn get_unused(self) -> impl Iterator<Item = (Span, AttrName)> {
+        self.attrs.into_iter().map(|(k, v)| (v.key_span.to(v.value.span()), k))
     }
 }
