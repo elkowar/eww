@@ -1,7 +1,6 @@
-use anyhow::{anyhow, Context, Result};
 use extend::ext;
 use itertools::Itertools;
-use std::{fmt::Write, path::Path};
+use std::fmt::Write;
 
 #[macro_export]
 macro_rules! try_logging_errors {
@@ -81,17 +80,6 @@ pub fn list_difference<'a, 'b, T: PartialEq>(a: &'a [T], b: &'b [T]) -> (Vec<&'a
         }
     }
     (missing, new)
-}
-
-/// read an scss file, replace all environment variable references within it and
-/// then parse it into css.
-pub fn parse_scss_from_file(path: &Path) -> Result<String> {
-    let config_dir = path.parent().context("Given SCSS file has no parent directory?!")?;
-    let scss_file_content =
-        std::fs::read_to_string(path).with_context(|| format!("Given SCSS File Doesnt Exist! {}", path.display()))?;
-    let file_content = replace_env_var_references(scss_file_content);
-    let grass_config = grass::Options::default().load_path(config_dir);
-    grass::from_string(file_content, &grass_config).map_err(|err| anyhow!("Encountered SCSS parsing error: {:?}", err))
 }
 
 #[ext(pub, name = StringExt)]

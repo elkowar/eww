@@ -139,7 +139,7 @@ impl App {
                     if let Err(e) = config_result.and_then(|new_config| self.load_config(new_config)) {
                         errors.push(e)
                     }
-                    let css_result = crate::util::parse_scss_from_file(&self.paths.get_eww_scss_path());
+                    let css_result = crate::config::scss::parse_scss_from_file(&self.paths.get_eww_scss_path());
                     if let Err(e) = css_result.and_then(|css| self.load_css(&css)) {
                         errors.push(e)
                     }

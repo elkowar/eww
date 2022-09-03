@@ -2,7 +2,7 @@ use crate::{
     app::{self, DaemonCommand},
     config, daemon_response, error_handling_ctx, ipc_server, script_var_handler,
     state::scope_graph::ScopeGraph,
-    util, EwwPaths,
+    EwwPaths,
 };
 use anyhow::{Context, Result};
 
@@ -83,7 +83,7 @@ pub fn initialize_server(paths: EwwPaths, action: Option<DaemonCommand>, should_
         gtk::StyleContext::add_provider_for_screen(&screen, &app.css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
     }
 
-    if let Ok(eww_css) = util::parse_scss_from_file(&app.paths.get_eww_scss_path()) {
+    if let Ok(eww_css) = config::scss::parse_scss_from_file(&app.paths.get_eww_scss_path()) {
         app.load_css(&eww_css)?;
     }
 
