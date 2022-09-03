@@ -6,6 +6,7 @@ use std::{
 
 use anyhow::{bail, Result};
 
+/// Stores references to all the paths relevant to eww, and abstracts access to these files and directories
 #[derive(Debug, Clone)]
 pub struct EwwPaths {
     pub log_file: PathBuf,

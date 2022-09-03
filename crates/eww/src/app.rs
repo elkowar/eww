@@ -71,16 +71,20 @@ pub enum DaemonCommand {
     PrintWindows(DaemonResponseSender),
 }
 
+/// An opened window.
 #[derive(Debug)]
 pub struct EwwWindow {
     pub name: String,
-    pub definition: yuck::config::window_definition::WindowDefinition,
     pub scope_index: ScopeIndex,
     pub gtk_window: gtk::Window,
     pub destroy_event_handler_id: Option<glib::SignalHandlerId>,
 }
 
 impl EwwWindow {
+    /// Close the GTK window and disconnect the destroy event-handler.
+    ///
+    /// You need to make sure that the scope get's properly cleaned from the state graph
+    /// and that script-vars get cleaned up properly
     pub fn close(self) {
         log::info!("Closing gtk window {}", self.name);
         self.gtk_window.close();
@@ -93,12 +97,14 @@ impl EwwWindow {
 pub struct App {
     pub scope_graph: Rc<RefCell<ScopeGraph>>,
     pub eww_config: config::EwwConfig,
+    /// Map of all currently open windows
     pub open_windows: HashMap<String, EwwWindow>,
     /// Window names that are supposed to be open, but failed.
     /// When reloading the config, these should be opened again.
     pub failed_windows: HashSet<String>,
     pub css_provider: gtk::CssProvider,
 
+    /// Sender to send [`DaemonCommand`]s
     pub app_evt_send: UnboundedSender<DaemonCommand>,
     pub script_var_handler: ScriptVarHandlerHandle,
 
@@ -118,7 +124,7 @@ impl std::fmt::Debug for App {
 }
 
 impl App {
-    /// Handle a [DaemonCommand] event.
+    /// Handle a [`DaemonCommand`] event.
     pub fn handle_command(&mut self, event: DaemonCommand) {
         log::debug!("Handling event: {:?}", &event);
         let result: Result<_> = try {
@@ -188,8 +194,7 @@ impl App {
                     let scope_graph = self.scope_graph.borrow();
                     let used_globals_names = scope_graph.currently_used_globals();
                     let output = scope_graph
-                        .scope_at(scope_graph.root_index)
-                        .expect("No global scope in scopegraph")
+                        .global_scope()
                         .data
                         .iter()
                         .filter(|(key, _)| all || used_globals_names.contains(*key))
@@ -199,7 +204,7 @@ impl App {
                 }
                 DaemonCommand::GetVar { name, sender } => {
                     let scope_graph = &*self.scope_graph.borrow();
-                    let vars = &scope_graph.scope_at(scope_graph.root_index).expect("No root scope in graph").data;
+                    let vars = &scope_graph.global_scope().data;
                     match vars.get(name.as_str()) {
                         Some(x) => sender.send_success(x.to_string())?,
                         None => sender.send_failure(format!("Variable not found \"{}\"", name))?,
@@ -275,6 +280,7 @@ impl App {
         }
     }
 
+    /// Close a window and do all the required cleanups in the scope_graph and script_var_handler
     fn close_window(&mut self, window_name: &str) -> Result<()> {
         let eww_window = self
             .open_windows
@@ -446,13 +452,7 @@ fn initialize_window(
 
     window.show_all();
 
-    Ok(EwwWindow {
-        name: window_def.name.clone(),
-        definition: window_def,
-        gtk_window: window,
-        scope_index: window_scope,
-        destroy_event_handler_id: None,
-    })
+    Ok(EwwWindow { name: window_def.name.clone(), gtk_window: window, scope_index: window_scope, destroy_event_handler_id: None })
 }
 
 /// Apply the provided window-positioning rules to the window.

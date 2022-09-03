@@ -124,12 +124,15 @@ impl ScopeGraph {
 
     pub fn currently_unused_globals(&self) -> HashSet<VarName> {
         let used_variables = self.currently_used_globals();
-        let global_scope = self.graph.scope_at(self.root_index).expect("No root scope in graph");
-        global_scope.data.keys().cloned().collect::<HashSet<_>>().difference(&used_variables).cloned().collect()
+        self.global_scope().data.keys().cloned().collect::<HashSet<_>>().difference(&used_variables).cloned().collect()
     }
 
     pub fn scope_at(&self, index: ScopeIndex) -> Option<&Scope> {
         self.graph.scope_at(index)
+    }
+
+    pub fn global_scope(&self) -> &Scope {
+        self.graph.scope_at(self.root_index).expect("No root scope in graph")
     }
 
     /// Evaluate a [SimplExpr] in a given scope. This will return `Err` if any referenced variables
