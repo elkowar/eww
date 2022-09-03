@@ -4,6 +4,7 @@
 #![feature(box_patterns)]
 #![feature(slice_concat_trait)]
 #![feature(try_blocks)]
+#![feature(hash_drain_filter)]
 #![allow(rustdoc::private_intra_doc_links)]
 
 extern crate gtk;

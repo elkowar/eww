@@ -12,6 +12,7 @@ use simplexpr::{dynval::DynVal, SimplExpr};
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 use yuck::{
     config::{
+        attributes::AttrEntry,
         widget_definition::WidgetDefinition,
         widget_use::{BasicWidgetUse, ChildrenWidgetUse, LoopWidgetUse, WidgetUse},
     },
@@ -34,7 +35,7 @@ pub struct BuilderArgs<'a> {
     pub calling_scope: ScopeIndex,
     pub widget_use: BasicWidgetUse,
     pub scope_graph: &'a mut ScopeGraph,
-    pub unhandled_attrs: Vec<AttrName>,
+    pub unhandled_attrs: HashMap<AttrName, AttrEntry>,
     pub widget_defs: Rc<HashMap<String, WidgetDefinition>>,
     pub custom_widget_invocation: Option<Rc<CustomWidgetInvocation>>,
 }
@@ -127,7 +128,7 @@ fn build_builtin_gtk_widget(
     custom_widget_invocation: Option<Rc<CustomWidgetInvocation>>,
 ) -> Result<gtk::Widget> {
     let mut bargs = BuilderArgs {
-        unhandled_attrs: widget_use.attrs.attrs.keys().cloned().collect(),
+        unhandled_attrs: widget_use.attrs.attrs.clone(),
         scope_graph: graph,
         calling_scope,
         widget_use,
@@ -161,11 +162,11 @@ fn build_builtin_gtk_widget(
     };
     resolve_widget_attrs(&mut bargs, &gtk_widget)?;
 
-    if !bargs.unhandled_attrs.is_empty() {
+    for (attr_name, attr_entry) in bargs.unhandled_attrs {
         let diag = error_handling_ctx::stringify_diagnostic(gen_diagnostic! {
             kind =  Severity::Warning,
-            msg = format!("Unknown attributes {}", bargs.unhandled_attrs.iter().map(|x| x.to_string()).join(", ")),
-            label = bargs.widget_use.span => "Found in here"
+            msg = format!("Unknown attribute {attr_name}"),
+            label = attr_entry.key_span => "given here"
         })?;
         eprintln!("{}", diag);
     }
