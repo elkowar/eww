@@ -4,7 +4,8 @@ use simplexpr::{dynval::DynVal, SimplExpr};
 
 use crate::{
     config::monitor::MonitorIdentifier,
-    error::{AstError, AstResult},
+    error::{DiagError, DiagResult},
+    format_diagnostic::ToDiagnostic,
     parser::{
         ast::Ast,
         ast_iterator::AstIterator,
@@ -30,7 +31,7 @@ pub struct WindowDefinition {
 impl FromAstElementContent for WindowDefinition {
     const ELEMENT_NAME: &'static str = "defwindow";
 
-    fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> AstResult<Self> {
+    fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> DiagResult<Self> {
         let (_, name) = iter.expect_symbol()?;
         let mut attrs = iter.expect_key_values()?;
         let monitor = attrs.primitive_optional("monitor")?;
@@ -38,7 +39,7 @@ impl FromAstElementContent for WindowDefinition {
         let stacking = attrs.primitive_optional("stacking")?.unwrap_or(WindowStacking::Foreground);
         let geometry = attrs.ast_optional("geometry")?;
         let backend_options = BackendWindowOptions::from_attrs(&mut attrs)?;
-        let widget = iter.expect_any().and_then(WidgetUse::from_ast)?;
+        let widget = iter.expect_any().map_err(DiagError::from).and_then(WidgetUse::from_ast)?;
         iter.expect_done()?;
         Ok(Self { name, monitor, resizable, widget, stacking, geometry, backend_options })
     }

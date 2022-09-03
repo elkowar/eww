@@ -1,9 +1,7 @@
 #![allow(clippy::option_map_unit_fn)]
 use super::{build_widget::BuilderArgs, circular_progressbar::*, run_command, transform::*};
 use crate::{
-    def_widget, enum_parse,
-    error::DiagError,
-    error_handling_ctx,
+    def_widget, enum_parse, error_handling_ctx,
     util::{list_difference, unindent},
     widgets::build_widget::build_gtk_widget,
 };
@@ -25,7 +23,7 @@ use std::{
     time::Duration,
 };
 use yuck::{
-    error::{AstError, AstResult},
+    error::{DiagError, DiagResult},
     format_diagnostic::{span_to_secondary_label, DiagnosticExt},
     gen_diagnostic,
     parser::from_ast::FromAst,
@@ -109,7 +107,7 @@ pub(super) fn widget_use_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::W
         WIDGET_NAME_SCROLL => build_gtk_scrolledwindow(bargs)?.upcast(),
         WIDGET_NAME_OVERLAY => build_gtk_overlay(bargs)?.upcast(),
         _ => {
-            return Err(AstError::AdHoc(gen_diagnostic! {
+            return Err(DiagError(gen_diagnostic! {
                 msg = format!("referenced unknown widget `{}`", bargs.widget_use.name),
                 label = bargs.widget_use.name_span => "Used here",
             })
@@ -546,7 +544,7 @@ fn build_gtk_overlay(bargs: &mut BuilderArgs) -> Result<gtk::Overlay> {
 
     match bargs.widget_use.children.len().cmp(&1) {
         Ordering::Less => {
-            Err(DiagError::new(gen_diagnostic!("overlay must contain at least one element", bargs.widget_use.span)).into())
+            Err(DiagError(gen_diagnostic!("overlay must contain at least one element", bargs.widget_use.span)).into())
         }
         Ordering::Greater | Ordering::Equal => {
             let mut children = bargs.widget_use.children.iter().map(|child| {
@@ -585,18 +583,15 @@ fn build_center_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
 
     match bargs.widget_use.children.len().cmp(&3) {
         Ordering::Less => {
-            Err(DiagError::new(gen_diagnostic!("centerbox must contain exactly 3 elements", bargs.widget_use.span)).into())
+            Err(DiagError(gen_diagnostic!("centerbox must contain exactly 3 elements", bargs.widget_use.span)).into())
         }
         Ordering::Greater => {
             let (_, additional_children) = bargs.widget_use.children.split_at(3);
             // we know that there is more than three children, so unwrapping on first and left here is fine.
             let first_span = additional_children.first().unwrap().span();
             let last_span = additional_children.last().unwrap().span();
-            Err(DiagError::new(gen_diagnostic!(
-                "centerbox must contain exactly 3 elements, but got more",
-                first_span.to(last_span)
-            ))
-            .into())
+            Err(DiagError(gen_diagnostic!("centerbox must contain exactly 3 elements, but got more", first_span.to(last_span)))
+                .into())
         }
         Ordering::Equal => {
             let mut children = bargs.widget_use.children.iter().map(|child| {
@@ -868,7 +863,7 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
         prop(content: as_string) {
             gtk_widget.children().iter().for_each(|w| gtk_widget.remove(w));
             if !content.is_empty() {
-                let content_widget_use: AstResult<_> = try {
+                let content_widget_use: DiagResult<_> = try {
                     let ast = {
                         let mut yuck_files = error_handling_ctx::YUCK_FILES.write().unwrap();
                         let (span, asts) = yuck_files.load_str("<literal-content>".to_string(), content)?;
@@ -888,7 +883,7 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
                         let diagnostic = error_handling_ctx::anyhow_err_to_diagnostic(&e)
                             .unwrap_or_else(|| gen_diagnostic!(e))
                             .with_label(span_to_secondary_label(literal_use_span).with_message("Error in the literal used here"));
-                        AstError::AdHoc(diagnostic)
+                        DiagError(diagnostic)
                     })?;
                 gtk_widget.add(&child_widget);
                 child_widget.show();
@@ -1002,8 +997,8 @@ fn build_graph(bargs: &mut BuilderArgs) -> Result<super::graph::Graph> {
         // @prop max - the maximum value to show
         prop(min: as_f64 = 0, max: as_f64 = 100) {
             if min > max {
-                return Err(DiagError::new(gen_diagnostic!(
-                    format!("Graph's min ({}) should never be higher than max ({})",  min, max)
+                return Err(DiagError(gen_diagnostic!(
+                    format!("Graph's min ({min}) should never be higher than max ({max})")
                 )).into());
             }
             w.set_property("min", &min);

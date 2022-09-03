@@ -6,7 +6,7 @@ use yuck::{
         file_provider::YuckFiles, script_var_definition::ScriptVarDefinition, validate::ValidationError,
         widget_definition::WidgetDefinition, window_definition::WindowDefinition, Config,
     },
-    error::AstError,
+    error::DiagError,
     format_diagnostic::ToDiagnostic,
 };
 
@@ -67,10 +67,9 @@ impl EwwConfig {
 
         for (name, def) in &config.widget_definitions {
             if widget_definitions::BUILTIN_WIDGET_NAMES.contains(&name.as_str()) {
-                return Err(AstError::AdHoc(
-                    ValidationError::AccidentalBuiltinOverride(def.span, name.to_string()).to_diagnostic(),
-                )
-                .into());
+                return Err(
+                    DiagError(ValidationError::AccidentalBuiltinOverride(def.span, name.to_string()).to_diagnostic()).into()
+                );
             }
         }
 

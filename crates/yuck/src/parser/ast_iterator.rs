@@ -10,26 +10,11 @@ use super::{
 };
 use crate::{
     config::attributes::{AttrEntry, Attributes},
-    error::{AstError, AstResult, OptionAstErrorExt},
+    error::{AstError, DiagError, DiagResult},
     format_diagnostic::ToDiagnostic,
     gen_diagnostic,
 };
-use eww_shared_util::{AttrName, Span, VarName, Spanned};
-
-#[derive(Debug, thiserror::Error)]
-#[error("Did not expect any further elements here. Make sure your format is correct")]
-pub struct NoMoreElementsExpected(Span);
-impl ToDiagnostic for NoMoreElementsExpected {
-    fn to_diagnostic(&self) -> codespan_reporting::diagnostic::Diagnostic<usize> {
-        gen_diagnostic!(self, self.0)
-    }
-}
-
-impl eww_shared_util::Spanned for NoMoreElementsExpected {
-    fn span(&self) -> Span {
-        self.0
-    }
-}
+use eww_shared_util::{AttrName, Span, Spanned, VarName};
 
 pub struct AstIterator<I: Iterator<Item = Ast>> {
     remaining_span: Span,
@@ -39,7 +24,7 @@ pub struct AstIterator<I: Iterator<Item = Ast>> {
 macro_rules! return_or_put_back {
     ($(fn $name:ident -> $expr_type:expr, $t:ty = $p:pat => $ret:expr)*) => {
         $(
-            pub fn $name(&mut self) -> AstResult<$t> {
+            pub fn $name(&mut self) -> Result<$t, AstError> {
                 let expr_type = $expr_type;
                 use eww_shared_util::Spanned;
                 match self.expect_any()? {
@@ -63,11 +48,11 @@ impl<I: Iterator<Item = Ast>> AstIterator<I> {
         fn expect_array     -> AstType::Array,     (Span, Vec<Ast>)  = Ast::Array(span, x)     => (span, x)
     }
 
-    pub fn expect_literal(&mut self) -> AstResult<(Span, DynVal)> {
+    pub fn expect_literal(&mut self) -> Result<(Span, DynVal), AstError> {
         // TODO add some others
         match self.expect_any()? {
             // Ast::Array(_, _) => todo!(),
-            Ast::SimplExpr(span, expr) => Ok((span, expr.eval_no_vars().map_err(|e| AstError::SimplExpr(e.into()))?)),
+            Ast::SimplExpr(span, expr) => Ok((span, expr.eval_no_vars()?)),
             other => {
                 let span = other.span();
                 let actual_type = other.expr_type();
@@ -81,11 +66,11 @@ impl<I: Iterator<Item = Ast>> AstIterator<I> {
         AstIterator { remaining_span: span, iter: itertools::put_back(iter) }
     }
 
-    pub fn expect_any(&mut self) -> AstResult<Ast> {
-        self.next().or_missing(self.remaining_span.point_span())
+    pub fn expect_any(&mut self) -> Result<Ast, AstError> {
+        self.next().ok_or_else(|| AstError::TooFewElements(self.remaining_span.point_span()))
     }
 
-    pub fn expect_simplexpr(&mut self) -> AstResult<(Span, SimplExpr)> {
+    pub fn expect_simplexpr(&mut self) -> Result<(Span, SimplExpr), AstError> {
         let expr_type = AstType::SimplExpr;
         match self.expect_any()? {
             Ast::SimplExpr(span, expr) => Ok((span, expr)),
@@ -99,16 +84,16 @@ impl<I: Iterator<Item = Ast>> AstIterator<I> {
         }
     }
 
-    pub fn expect_done(&mut self) -> Result<(), NoMoreElementsExpected> {
+    pub fn expect_done(&mut self) -> Result<(), AstError> {
         if let Some(next) = self.next() {
             self.put_back(next);
-            Err(NoMoreElementsExpected(self.remaining_span))
+            Err(AstError::NoMoreElementsExpected(self.remaining_span))
         } else {
             Ok(())
         }
     }
 
-    pub fn expect_key_values(&mut self) -> AstResult<Attributes> {
+    pub fn expect_key_values(&mut self) -> Result<Attributes, AstError> {
         parse_key_values(self, true)
     }
 
@@ -130,7 +115,10 @@ impl<I: Iterator<Item = Ast>> Iterator for AstIterator<I> {
 }
 
 /// Parse consecutive `:keyword value` pairs from an expression iterator into an [Attributes].
-fn parse_key_values(iter: &mut AstIterator<impl Iterator<Item = Ast>>, fail_on_dangling_kw: bool) -> AstResult<Attributes> {
+fn parse_key_values(
+    iter: &mut AstIterator<impl Iterator<Item = Ast>>,
+    fail_on_dangling_kw: bool,
+) -> Result<Attributes, AstError> {
     let mut data = HashMap::new();
     let mut attrs_span = iter.remaining_span.point_span();
     loop {
@@ -143,10 +131,7 @@ fn parse_key_values(iter: &mut AstIterator<impl Iterator<Item = Ast>>, fail_on_d
                 }
                 None => {
                     if fail_on_dangling_kw {
-                        return Err(AstError::AdHoc(gen_diagnostic! {
-                            msg = "{kw} is missing a value",
-                            label = key_span => "No value provided for this",
-                        }));
+                        return Err(AstError::DanglingKeyword(key_span, kw.into()));
                     } else {
                         iter.iter.put_back(Ast::Keyword(key_span, kw));
                         attrs_span.1 = iter.remaining_span.0;

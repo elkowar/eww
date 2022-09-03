@@ -8,7 +8,7 @@ use std::fmt::Display;
 use super::{ast_iterator::AstIterator, from_ast::FromAst};
 use crate::{
     config::attributes::{AttrEntry, Attributes},
-    error::{AstError, AstResult, OptionAstErrorExt},
+    error::{AstError, DiagError, DiagResult},
 };
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -80,7 +80,7 @@ impl Ast {
         }
     }
 
-    pub fn as_simplexpr(&self) -> AstResult<SimplExpr> {
+    pub fn as_simplexpr(&self) -> Result<SimplExpr, AstError> {
         match self {
             // TODO do I do this?
             // Ast::Array(span, elements) => todo!()
@@ -90,7 +90,7 @@ impl Ast {
         }
     }
 
-    pub fn try_ast_iter(self) -> AstResult<AstIterator<impl Iterator<Item = Ast>>> {
+    pub fn try_ast_iter(self) -> Result<AstIterator<impl Iterator<Item = Ast>>, AstError> {
         let span = self.span();
         let list = self.as_list()?;
         Ok(AstIterator::new(span, list.into_iter()))

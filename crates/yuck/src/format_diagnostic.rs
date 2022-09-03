@@ -6,7 +6,7 @@ use diagnostic::*;
 
 use crate::{
     config::{attributes::AttrError, config, validate::ValidationError},
-    error::{get_parse_error_span, AstError},
+    error::{get_parse_error_span, DiagError},
 };
 
 use super::parser::parse_error;
@@ -62,11 +62,16 @@ macro_rules! gen_diagnostic {
 
 pub trait DiagnosticExt: Sized {
     fn with_label(self, label: Label<usize>) -> Self;
+    fn with_note(self, note: String) -> Self;
 }
 
 impl DiagnosticExt for Diagnostic<usize> {
     fn with_label(self, label: Label<usize>) -> Self {
         self.with_labels(vec![label])
+    }
+
+    fn with_note(self, note: String) -> Self {
+        self.with_notes(vec![note])
     }
 }
 
@@ -82,26 +87,11 @@ impl ToDiagnostic for Diagnostic<usize> {
         self.clone()
     }
 }
-impl ToDiagnostic for AstError {
-    fn to_diagnostic(&self) -> Diagnostic<usize> {
-        match self {
-            AstError::WrongExprType(span, expected, actual) => gen_diagnostic! {
-                msg = "Wrong type of expression",
-                label = span => format!("Expected a `{}` here", expected),
-                note = format!("Expected: {}\n     Got: {}", expected, actual),
-            },
-            AstError::ConversionError(source) => source.to_diagnostic(),
-            AstError::ErrorNote(note, source) => source.to_diagnostic().with_notes(vec![note.to_string()]),
-            AstError::SimplExpr(source) => source.to_diagnostic(),
-            AstError::AdHoc(diag) => diag.clone(),
-        }
-    }
-}
 
 impl ToDiagnostic for parse_error::ParseError {
     fn to_diagnostic(&self) -> Diagnostic<usize> {
         match self {
-            parse_error::ParseError::SimplExpr(error) => error.to_diagnostic(),
+            parse_error::ParseError::SimplExpr(source) => lalrpop_error_to_diagnostic(&source.source, source.file_id),
             parse_error::ParseError::LexicalError(span) => generate_lexical_error_diagnostic(*span),
         }
     }
@@ -186,19 +176,6 @@ pub fn lalrpop_error_to_diagnostic<T: std::fmt::Display, E: Spanned + ToDiagnost
         },
         ExtraToken { token } => gen_diagnostic!(format!("Extra token encountered: `{}`", token.1)),
         User { error } => error.to_diagnostic(),
-    }
-}
-
-impl ToDiagnostic for simplexpr::error::Error {
-    fn to_diagnostic(&self) -> Diagnostic<usize> {
-        use simplexpr::error::Error::*;
-        match self {
-            ParseError { source, file_id } => lalrpop_error_to_diagnostic(source, *file_id),
-            ConversionError(error) => error.to_diagnostic(),
-            Eval(error) => error.to_diagnostic(),
-            Other(error) => gen_diagnostic!(error),
-            Spanned(span, error) => error.to_diagnostic().with_label(span_to_primary_label(*span)),
-        }
     }
 }
 

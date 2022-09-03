@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use simplexpr::SimplExpr;
 
 use crate::{
-    error::AstResult,
+    error::DiagResult,
     parser::{ast::Ast, ast_iterator::AstIterator, from_ast::FromAst},
 };
 

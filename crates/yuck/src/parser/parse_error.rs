@@ -3,7 +3,7 @@ use eww_shared_util::{AttrName, Span, Spanned, VarName};
 #[derive(Debug, thiserror::Error)]
 pub enum ParseError {
     #[error("{0}")]
-    SimplExpr(simplexpr::error::Error),
+    SimplExpr(simplexpr::error::ParseError),
     #[error("Unknown token")]
     LexicalError(Span),
 }

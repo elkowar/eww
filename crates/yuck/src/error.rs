@@ -1,6 +1,6 @@
 use crate::{
     config::{attributes::AttrError, config::Include, validate::ValidationError},
-    format_diagnostic::{lalrpop_error_to_diagnostic, ToDiagnostic},
+    format_diagnostic::{lalrpop_error_to_diagnostic, DiagnosticExt, ToDiagnostic},
     gen_diagnostic,
     parser::{
         ast::{Ast, AstType},
@@ -12,68 +12,32 @@ use eww_shared_util::{AttrName, Span, Spanned, VarName};
 use simplexpr::dynval;
 use thiserror::Error;
 
-pub type AstResult<T> = Result<T, AstError>;
+pub type DiagResult<T> = Result<T, DiagError>;
 
 #[derive(Debug, Error)]
-pub enum AstError {
-    #[error("Wrong type of expression: Expected {1} but got {2}")]
-    WrongExprType(Span, AstType, AstType),
+#[error("{}", .0.to_message())]
+pub struct DiagError(pub diagnostic::Diagnostic<usize>);
 
-    #[error("{1}")]
-    ErrorNote(String, #[source] Box<AstError>),
-
-    #[error(transparent)]
-    SimplExpr(#[from] simplexpr::error::Error),
-
-    #[error(transparent)]
-    ConversionError(#[from] dynval::ConversionError),
-
-    #[error("{}", .0.to_message())]
-    AdHoc(diagnostic::Diagnostic<usize>),
-}
-
-static_assertions::assert_impl_all!(AstError: Send, Sync);
+static_assertions::assert_impl_all!(DiagError: Send, Sync);
 static_assertions::assert_impl_all!(dynval::ConversionError: Send, Sync);
 static_assertions::assert_impl_all!(lalrpop_util::ParseError < usize, lexer::Token, parse_error::ParseError>: Send, Sync);
 
-impl From<diagnostic::Diagnostic<usize>> for AstError {
-    fn from(d: diagnostic::Diagnostic<usize>) -> Self {
-        Self::AdHoc(d)
+impl<T: ToDiagnostic> From<T> for DiagError {
+    fn from(x: T) -> Self {
+        Self(x.to_diagnostic())
     }
 }
 
-impl From<crate::parser::ast_iterator::NoMoreElementsExpected> for AstError {
-    fn from(e: crate::parser::ast_iterator::NoMoreElementsExpected) -> Self {
-        Self::AdHoc(e.to_diagnostic())
-    }
-}
-
-impl From<AttrError> for AstError {
-    fn from(e: AttrError) -> Self {
-        Self::AdHoc(e.to_diagnostic())
-    }
-}
-
-impl AstError {
+impl DiagError {
     pub fn note(self, note: &str) -> Self {
-        AstError::ErrorNote(note.to_string(), Box::new(self))
+        DiagError(self.0.with_note(note.to_string()))
     }
 
     pub fn from_parse_error(
         file_id: usize,
         err: lalrpop_util::ParseError<usize, lexer::Token, parse_error::ParseError>,
-    ) -> AstError {
-        AstError::AdHoc(lalrpop_error_to_diagnostic(&err, file_id))
-    }
-
-    pub fn wrong_expr_type_to<T: Into<AstError>>(self, f: impl FnOnce(Span, AstType) -> Option<T>) -> AstError {
-        match self {
-            AstError::WrongExprType(span, expected, got) => {
-                f(span.point_span(), got).map(|x| x.into()).unwrap_or_else(|| AstError::WrongExprType(span, expected, got))
-            }
-            AstError::ErrorNote(s, err) => AstError::ErrorNote(s, Box::new(err.wrong_expr_type_to(f))),
-            other => other,
-        }
+    ) -> DiagError {
+        DiagError(lalrpop_error_to_diagnostic(&err, file_id))
     }
 }
 
@@ -88,32 +52,87 @@ pub fn get_parse_error_span<T, E: Spanned>(file_id: usize, err: &lalrpop_util::P
     }
 }
 
-pub trait OptionAstErrorExt<T> {
-    fn or_missing(self, span: Span) -> Result<T, AstError>;
+pub trait DiagResultExt<T> {
+    fn note(self, note: &str) -> DiagResult<T>;
 }
-impl<T> OptionAstErrorExt<T> for Option<T> {
-    fn or_missing(self, span: Span) -> Result<T, AstError> {
-        self.ok_or(AstError::AdHoc(gen_diagnostic! {
-            msg = "Expected another element",
-            label = span => "Expected another element here"
-        }))
+
+impl<T> DiagResultExt<T> for DiagResult<T> {
+    fn note(self, note: &str) -> DiagResult<T> {
+        self.map_err(|e| e.note(note))
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum AstError {
+    #[error("Did not expect any further elements here. Make sure your format is correct")]
+    NoMoreElementsExpected(Span),
+
+    #[error("Expected more elements")]
+    TooFewElements(Span),
+
+    #[error("Wrong type of expression: Expected {1} but got {2}")]
+    WrongExprType(Span, AstType, AstType),
+
+    #[error("'{0}' is missing a value")]
+    DanglingKeyword(Span, AttrName),
+
+    #[error(transparent)]
+    EvalError(#[from] simplexpr::eval::EvalError),
+}
+
+impl AstError {
+    pub fn wrong_expr_type_to<T: Into<DiagError>>(self, f: impl FnOnce(Span, AstType) -> Option<T>) -> DiagError {
+        match self {
+            AstError::WrongExprType(span, expected, got) => {
+                f(span.point_span(), got).map(|x| x.into()).unwrap_or_else(|| self.into())
+            }
+            other => other.into(),
+        }
     }
 }
 
 pub trait AstResultExt<T> {
-    fn note(self, note: &str) -> AstResult<T>;
-
-    /// Map any [AstError::WrongExprType]s error to any other Into<AstError> (such as a [FormFormatError])
+    /// Map any [AstIteratorError::WrongExprType]s error to any other Into<AstError> (such as a [FormFormatError])
     /// If the provided closure returns `None`, the error will be kept unmodified
-    fn wrong_expr_type_to<E: Into<AstError>>(self, f: impl FnOnce(Span, AstType) -> Option<E>) -> AstResult<T>;
+    fn wrong_expr_type_to<E: Into<DiagError>>(self, f: impl FnOnce(Span, AstType) -> Option<E>) -> DiagResult<T>;
 }
 
-impl<T> AstResultExt<T> for AstResult<T> {
-    fn note(self, note: &str) -> AstResult<T> {
-        self.map_err(|e| e.note(note))
-    }
-
-    fn wrong_expr_type_to<E: Into<AstError>>(self, f: impl FnOnce(Span, AstType) -> Option<E>) -> AstResult<T> {
+impl<T> AstResultExt<T> for Result<T, AstError> {
+    fn wrong_expr_type_to<E: Into<DiagError>>(self, f: impl FnOnce(Span, AstType) -> Option<E>) -> DiagResult<T> {
         self.map_err(|err| err.wrong_expr_type_to(f))
+    }
+}
+
+impl ToDiagnostic for AstError {
+    fn to_diagnostic(&self) -> codespan_reporting::diagnostic::Diagnostic<usize> {
+        match self {
+            AstError::NoMoreElementsExpected(span) => gen_diagnostic!(self, span),
+            AstError::TooFewElements(span) => gen_diagnostic! {
+                msg = self,
+                label = span => "Expected another element here"
+            },
+            AstError::WrongExprType(span, expected, actual) => gen_diagnostic! {
+                msg = "Wrong type of expression",
+                label = span => format!("Expected a `{expected}` here"),
+                note = format!("Expected: {expected}\n     Got: {actual}"),
+            },
+            AstError::DanglingKeyword(span, kw) => gen_diagnostic! {
+                msg = "{kw} is missing a value",
+                label = span => "No value provided for this",
+            },
+            AstError::EvalError(e) => e.to_diagnostic(),
+        }
+    }
+}
+
+impl eww_shared_util::Spanned for AstError {
+    fn span(&self) -> Span {
+        match self {
+            AstError::NoMoreElementsExpected(span) => *span,
+            AstError::TooFewElements(span) => *span,
+            AstError::WrongExprType(span, ..) => *span,
+            AstError::DanglingKeyword(span, _) => *span,
+            AstError::EvalError(e) => e.span(),
+        }
     }
 }

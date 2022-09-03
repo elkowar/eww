@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use simplexpr::{dynval::DynVal, SimplExpr};
 
 use crate::{
-    error::{AstError, AstResult, AstResultExt},
+    error::{DiagError, DiagResult, DiagResultExt},
+    format_diagnostic::ToDiagnostic,
     parser::{
         ast::Ast,
         ast_iterator::AstIterator,
@@ -65,12 +66,13 @@ pub struct PollScriptVar {
 impl FromAstElementContent for PollScriptVar {
     const ELEMENT_NAME: &'static str = "defpoll";
 
-    fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> AstResult<Self> {
-        let result: AstResult<_> = try {
+    fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> DiagResult<Self> {
+        let result: DiagResult<_> = try {
             let (name_span, name) = iter.expect_symbol()?;
             let mut attrs = iter.expect_key_values()?;
             let initial_value = Some(attrs.primitive_optional("initial")?.unwrap_or_else(|| DynVal::from_string(String::new())));
-            let interval = attrs.primitive_required::<DynVal, _>("interval")?.as_duration()?;
+            let interval =
+                attrs.primitive_required::<DynVal, _>("interval")?.as_duration().map_err(|e| DiagError(e.to_diagnostic()))?;
             let (script_span, script) = iter.expect_literal()?;
 
             let run_while_expr =
@@ -101,8 +103,8 @@ pub struct ListenScriptVar {
 impl FromAstElementContent for ListenScriptVar {
     const ELEMENT_NAME: &'static str = "deflisten";
 
-    fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> AstResult<Self> {
-        let result: AstResult<_> = try {
+    fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> DiagResult<Self> {
+        let result: DiagResult<_> = try {
             let (name_span, name) = iter.expect_symbol()?;
             let mut attrs = iter.expect_key_values()?;
             let initial_value = attrs.primitive_optional("initial")?.unwrap_or_else(|| DynVal::from_string(String::new()));

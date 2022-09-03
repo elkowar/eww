@@ -15,11 +15,11 @@ use yuck::{
         widget_definition::WidgetDefinition,
         widget_use::{BasicWidgetUse, ChildrenWidgetUse, LoopWidgetUse, WidgetUse},
     },
+    error::DiagError,
     gen_diagnostic,
 };
 
 use crate::{
-    error::DiagError,
     error_handling_ctx,
     state::{
         scope::Listener,
@@ -56,7 +56,7 @@ pub fn build_gtk_widget(
         WidgetUse::Basic(widget_use) => {
             build_basic_gtk_widget(graph, widget_defs, calling_scope, widget_use, custom_widget_invocation)
         }
-        WidgetUse::Loop(_) | WidgetUse::Children(_) => Err(anyhow::anyhow!(DiagError::new(gen_diagnostic! {
+        WidgetUse::Loop(_) | WidgetUse::Children(_) => Err(anyhow::anyhow!(DiagError(gen_diagnostic! {
             msg = "This widget can only be used as a child of some container widget such as box",
             label = widget_use.span(),
             note = "Hint: try wrapping this in a `box`"
@@ -347,7 +347,7 @@ fn validate_container_children_count(container: &gtk::Container, widget_use: &Ba
     }
 
     if container.dynamic_cast_ref::<gtk::Bin>().is_some() && widget_use.children.len() > 1 {
-        Err(DiagError::new(gen_diagnostic! {
+        Err(DiagError(gen_diagnostic! {
             kind =  Severity::Error,
             msg = format!("{} can only have one child", widget_use.name),
             label = widget_use.children_span() => format!("Was given {} children here", widget_use.children.len())

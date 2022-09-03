@@ -24,7 +24,6 @@ mod client;
 mod config;
 mod daemon_response;
 mod display_backend;
-mod error;
 mod error_handling_ctx;
 mod geometry;
 mod ipc_server;
