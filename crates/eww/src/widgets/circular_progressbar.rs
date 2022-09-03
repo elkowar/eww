@@ -180,8 +180,11 @@ impl WidgetImpl for CircProgPriv {
             // Padding is not supported yet
             let fg_color: gdk::RGBA = styles.color(gtk::StateFlags::NORMAL);
             let bg_color: gdk::RGBA = styles.style_property_for_state("background-color", gtk::StateFlags::NORMAL).get()?;
-            let (start_angle, end_angle) =
-                if clockwise { (0.0, perc_to_rad(value as f64)) } else { (perc_to_rad(100.0 - value as f64), 0.0) };
+            let (start_angle, end_angle) = if clockwise {
+                (0.0, perc_to_rad(value as f64))
+            } else {
+                (perc_to_rad(100.0 - value as f64), 2f64 * std::f64::consts::PI)
+            };
 
             let total_width = widget.allocated_width() as f64;
             let total_height = widget.allocated_height() as f64;
