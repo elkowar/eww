@@ -9,8 +9,9 @@ use super::{
     from_ast::FromAst,
 };
 use crate::{
+    ast_error::AstError,
     config::attributes::{AttrEntry, Attributes},
-    error::{AstError, DiagError, DiagResult},
+    error::{DiagError, DiagResult},
     format_diagnostic::ToDiagnostic,
     gen_diagnostic,
 };

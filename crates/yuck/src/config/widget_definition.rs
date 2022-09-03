@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use simplexpr::SimplExpr;
 
 use crate::{
-    error::{AstResultExt, DiagError, DiagResult, DiagResultExt},
+    error::{DiagError, DiagResult, DiagResultExt},
     format_diagnostic::{DiagnosticExt, ToDiagnostic},
     gen_diagnostic,
     parser::{
@@ -48,13 +48,15 @@ impl FromAstElementContent for WidgetDefinition {
         let (name_span, name) = iter.expect_symbol().map_err(DiagError::from).note(EXPECTED_WIDGET_DEF_FORMAT)?;
         let (args_span, expected_args) = iter
             .expect_array()
-            .wrong_expr_type_to(|_, _| {
-                Some(DiagError(gen_diagnostic! {
-                    msg = "Widget definition missing argument list",
-                    label = name_span.point_span_at_end() => "Insert the argument list (e.g.: `[]`) here",
-                    note = "This list will in the future need to declare all the non-global variables / attributes used in this widget.\n\
-                            This is not yet neccessary, but is still considered good style.",
-                }))
+            .map_err(|e| {
+                DiagError(match e {
+                    crate::ast_error::AstError::WrongExprType(span, expected, actual) => gen_diagnostic! {
+                        msg = "Widget definition missing argument list",
+                        label = name_span.point_span_at_end() => "Insert the argument list (e.g.: `[]`) here",
+                        note = "This list needs to declare all the non-global variables / attributes used in this widget."
+                    },
+                    other => other.to_diagnostic(),
+                })
             })
             .note(EXPECTED_WIDGET_DEF_FORMAT)?;
         let expected_args = expected_args.into_iter().map(AttrSpec::from_ast).collect::<DiagResult<_>>()?;

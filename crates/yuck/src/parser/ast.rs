@@ -7,8 +7,9 @@ use std::fmt::Display;
 
 use super::{ast_iterator::AstIterator, from_ast::FromAst};
 use crate::{
+    ast_error::AstError,
     config::attributes::{AttrEntry, Attributes},
-    error::{AstError, DiagError, DiagResult},
+    error::{DiagError, DiagResult},
 };
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -36,11 +37,17 @@ impl Display for AstType {
 
 #[derive(PartialEq, Eq, Clone, serde::Serialize)]
 pub enum Ast {
+    /// I.e.: `(foo bar baz)`
     List(Span, Vec<Ast>),
+    /// I.e.: `[foo bar baz]`
     Array(Span, Vec<Ast>),
+    /// I.e.: `:foo`
     Keyword(Span, String),
+    /// I.e.: `foo`
     Symbol(Span, String),
+    /// I.e.: `{1 + 2}`
     SimplExpr(Span, SimplExpr),
+    /// I.e.: `// foo`
     Comment(Span),
 }
 
