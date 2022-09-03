@@ -5,6 +5,9 @@ All notable changes to eww will be listed here, starting at changes since versio
 
 ## [Unreleased]
 
+### BREAKING CHANGES
+- Change `calendar`-widget to index months starting at 1 rather than indexed from 0
+
 ### Features
 - Add support for output names in X11 to select `:monitor`.
 
