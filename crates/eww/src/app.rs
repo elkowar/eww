@@ -9,9 +9,11 @@ use crate::{
     *,
 };
 use anyhow::anyhow;
-use eww_shared_util::VarName;
+use codespan_reporting::files::Files;
+use eww_shared_util::{Span, VarName};
 use glib::ObjectExt;
 use itertools::Itertools;
+use once_cell::sync::Lazy;
 use simplexpr::dynval::DynVal;
 use std::{
     cell::RefCell,
@@ -26,6 +28,8 @@ use yuck::{
         window_definition::WindowDefinition,
         window_geometry::{AnchorPoint, WindowGeometry},
     },
+    error::DiagError,
+    gen_diagnostic,
     value::Coords,
 };
 
@@ -145,9 +149,15 @@ impl App {
                     if let Err(e) = config_result.and_then(|new_config| self.load_config(new_config)) {
                         errors.push(e)
                     }
-                    let css_result = crate::config::scss::parse_scss_from_file(&self.paths.get_eww_scss_path());
-                    if let Err(e) = css_result.and_then(|css| self.load_css(&css)) {
-                        errors.push(e)
+                    match crate::config::scss::parse_scss_from_file(&self.paths.get_eww_scss_path()) {
+                        Ok((file_id, css)) => {
+                            if let Err(e) = self.load_css(file_id, &css) {
+                                errors.push(anyhow!(e));
+                            }
+                        }
+                        Err(e) => {
+                            errors.push(e);
+                        }
                     }
 
                     sender.respond_with_error_list(errors)?;
@@ -400,9 +410,26 @@ impl App {
         Ok(())
     }
 
-    pub fn load_css(&mut self, css: &str) -> Result<()> {
-        self.css_provider.load_from_data(css.as_bytes())?;
-        Ok(())
+    /// Load a given CSS string into the gtk css provider, returning a nicely formatted [`DiagError`] when GTK errors out
+    pub fn load_css(&mut self, file_id: usize, css: &str) -> Result<()> {
+        if let Err(err) = self.css_provider.load_from_data(css.as_bytes()) {
+            static PATTERN: Lazy<regex::Regex> = Lazy::new(|| regex::Regex::new(r"[^:]*:(\d+):(\d+)(.*)$").unwrap());
+            let nice_error_option: Option<_> = try {
+                let captures = PATTERN.captures(&err.message())?;
+                let line = captures.get(1).unwrap().as_str().parse::<usize>().ok()?;
+                let msg = captures.get(3).unwrap().as_str();
+                let db = error_handling_ctx::FILE_DATABASE.read().ok()?;
+                let line_range = db.line_range(file_id, line - 1).ok()?;
+                let span = Span(line_range.start, line_range.end - 1, file_id);
+                DiagError(gen_diagnostic!(msg, span))
+            };
+            match nice_error_option {
+                Some(error) => Err(anyhow!(error)),
+                None => Err(anyhow!("CSS error: {}", err.message())),
+            }
+        } else {
+            Ok(())
+        }
     }
 }
 

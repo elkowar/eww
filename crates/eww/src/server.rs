@@ -83,8 +83,10 @@ pub fn initialize_server(paths: EwwPaths, action: Option<DaemonCommand>, should_
         gtk::StyleContext::add_provider_for_screen(&screen, &app.css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
     }
 
-    if let Ok(eww_css) = config::scss::parse_scss_from_file(&app.paths.get_eww_scss_path()) {
-        app.load_css(&eww_css)?;
+    if let Ok((file_id, css)) = config::scss::parse_scss_from_file(&app.paths.get_eww_scss_path()) {
+        if let Err(e) = app.load_css(file_id, &css) {
+            error_handling_ctx::print_error(e);
+        }
     }
 
     // initialize all the handlers and tasks running asyncronously

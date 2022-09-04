@@ -3,8 +3,8 @@ use eww_shared_util::VarName;
 use std::collections::HashMap;
 use yuck::{
     config::{
-        file_provider::YuckFiles, script_var_definition::ScriptVarDefinition, validate::ValidationError,
-        widget_definition::WidgetDefinition, window_definition::WindowDefinition, Config,
+        script_var_definition::ScriptVarDefinition, validate::ValidationError, widget_definition::WidgetDefinition,
+        window_definition::WindowDefinition, Config,
     },
     error::DiagError,
     format_diagnostic::ToDiagnostic,
@@ -12,7 +12,7 @@ use yuck::{
 
 use simplexpr::dynval::DynVal;
 
-use crate::{config::inbuilt, error_handling_ctx, paths::EwwPaths, widgets::widget_definitions};
+use crate::{config::inbuilt, error_handling_ctx, file_database::FileDatabase, paths::EwwPaths, widgets::widget_definitions};
 
 use super::script_var;
 
@@ -20,7 +20,7 @@ use super::script_var;
 /// resetting and applying the global YuckFiles object in [`crate::error_handling_ctx`].
 pub fn read_from_eww_paths(eww_paths: &EwwPaths) -> Result<EwwConfig> {
     error_handling_ctx::clear_files();
-    EwwConfig::read_from_dir(&mut error_handling_ctx::YUCK_FILES.write().unwrap(), eww_paths)
+    EwwConfig::read_from_dir(&mut error_handling_ctx::FILE_DATABASE.write().unwrap(), eww_paths)
 }
 
 /// Eww configuration structure.
@@ -49,7 +49,7 @@ impl Default for EwwConfig {
 
 impl EwwConfig {
     /// Load an [`EwwConfig`] from the config dir of the given [`crate::EwwPaths`], reading the main config file.
-    pub fn read_from_dir(files: &mut YuckFiles, eww_paths: &EwwPaths) -> Result<Self> {
+    pub fn read_from_dir(files: &mut FileDatabase, eww_paths: &EwwPaths) -> Result<Self> {
         let yuck_path = eww_paths.get_yuck_path();
         if !yuck_path.exists() {
             bail!("The configuration file `{}` does not exist", yuck_path.display());

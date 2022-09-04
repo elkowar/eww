@@ -26,6 +26,7 @@ mod config;
 mod daemon_response;
 mod display_backend;
 mod error_handling_ctx;
+mod file_database;
 mod geometry;
 mod ipc_server;
 mod opts;

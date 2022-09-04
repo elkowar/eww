@@ -23,6 +23,7 @@ use std::{
     time::Duration,
 };
 use yuck::{
+    config::file_provider::YuckFileProvider,
     error::{DiagError, DiagResult},
     format_diagnostic::{span_to_secondary_label, DiagnosticExt},
     gen_diagnostic,
@@ -868,8 +869,8 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
             if !content.is_empty() {
                 let content_widget_use: DiagResult<_> = try {
                     let ast = {
-                        let mut yuck_files = error_handling_ctx::YUCK_FILES.write().unwrap();
-                        let (span, asts) = yuck_files.load_str("<literal-content>".to_string(), content)?;
+                        let mut yuck_files = error_handling_ctx::FILE_DATABASE.write().unwrap();
+                        let (span, asts) = yuck_files.load_yuck_str("<literal-content>".to_string(), content)?;
                         if let Some(file_id) = literal_file_id.replace(Some(span.2)) {
                             yuck_files.unload(file_id);
                         }

@@ -4,8 +4,6 @@ pub mod config;
 pub mod file_provider;
 pub mod monitor;
 pub mod script_var_definition;
-#[cfg(test)]
-mod test;
 pub mod validate;
 pub mod var_definition;
 pub mod widget_definition;

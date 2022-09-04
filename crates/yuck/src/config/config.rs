@@ -8,7 +8,7 @@ use itertools::Itertools;
 use simplexpr::SimplExpr;
 
 use super::{
-    file_provider::{FilesError, YuckFiles},
+    file_provider::{FilesError, YuckFileProvider},
     script_var_definition::ScriptVarDefinition,
     validate::ValidationError,
     var_definition::VarDefinition,
@@ -98,7 +98,7 @@ pub struct Config {
 }
 
 impl Config {
-    fn append_toplevel(&mut self, files: &mut YuckFiles, toplevel: TopLevel) -> DiagResult<()> {
+    fn append_toplevel(&mut self, files: &mut impl YuckFileProvider, toplevel: TopLevel) -> DiagResult<()> {
         match toplevel {
             TopLevel::VarDefinition(x) => {
                 if self.var_definitions.contains_key(&x.name) || self.script_vars.contains_key(&x.name) {
@@ -127,7 +127,7 @@ impl Config {
                 self.window_definitions.insert(x.name.clone(), x);
             }
             TopLevel::Include(include) => {
-                let (file_id, toplevels) = files.load_file(PathBuf::from(&include.path)).map_err(|err| match err {
+                let (file_id, toplevels) = files.load_yuck_file(PathBuf::from(&include.path)).map_err(|err| match err {
                     FilesError::IoError(_) => DiagError(gen_diagnostic! {
                         msg = format!("Included file `{}` not found", include.path),
                         label = include.path_span => "Included here",
@@ -142,7 +142,7 @@ impl Config {
         Ok(())
     }
 
-    pub fn generate(files: &mut YuckFiles, elements: Vec<Ast>) -> DiagResult<Self> {
+    pub fn generate(files: &mut impl YuckFileProvider, elements: Vec<Ast>) -> DiagResult<Self> {
         let mut config = Self {
             widget_definitions: HashMap::new(),
             window_definitions: HashMap::new(),
@@ -155,8 +155,8 @@ impl Config {
         Ok(config)
     }
 
-    pub fn generate_from_main_file(files: &mut YuckFiles, path: impl AsRef<Path>) -> DiagResult<Self> {
-        let (span, top_levels) = files.load_file(path.as_ref().to_path_buf()).map_err(|err| match err {
+    pub fn generate_from_main_file(files: &mut impl YuckFileProvider, path: impl AsRef<Path>) -> DiagResult<Self> {
+        let (span, top_levels) = files.load_yuck_file(path.as_ref().to_path_buf()).map_err(|err| match err {
             FilesError::IoError(err) => DiagError(gen_diagnostic!(err)),
             FilesError::DiagError(x) => x,
         })?;
