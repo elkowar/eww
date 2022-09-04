@@ -5,14 +5,22 @@ All notable changes to eww will be listed here, starting at changes since versio
 
 ## [Unreleased]
 
+## [0.4.0] (04.09.2022)
+
 ### BREAKING CHANGES
 - Change `calendar`-widget to index months starting at 1 rather than indexed from 0
 
 ### Features
 - Add support for output names in X11 to select `:monitor`.
+- Add support for `:active`-pseudoselector on eventbox (By: viandoxdev)
+- Add support for `:password` on input (By: viandoxdev)
 
 ### Notable fixes and other changes
 - Scale now only runs the onchange command on changes caused by user-interaction
+- Improve CSS error reporting
+- Fix deflisten scripts not always getting cleaned up properly
+- Add `:round-digits` to scale widget (By: gavynriebau)
+- Fix cirular-progress not properly displaying 100% values when clockwise is false
 
 
 ## 0.3.0 (26.05.2022)
@@ -46,7 +54,6 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add `:onaccept` to input field, add `:onclick` to eventbox
 - Add `EWW_CMD`, `EWW_CONFIG_DIR`, `EWW_EXECUTABLE` magic variables
 - Add `overlay` widget (By: viandoxdev)
-- Add `:round-digits` to scale widget (By: gavynriebau)
 
 ### Notable Internal changes
 - Rework state management completely, now making local state and dynamic widget hierarchy changes possible.
