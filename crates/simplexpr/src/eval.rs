@@ -223,21 +223,25 @@ impl SimplExpr {
             SimplExpr::JsonAccess(span, safe, val, index) => {
                 let val = val.eval(values)?;
                 let index = index.eval(values)?;
-                match val.as_json_value()? {
-                    serde_json::Value::Array(val) => {
-                        let index = index.as_i32()?;
-                        let indexed_value = val.get(index as usize).unwrap_or(&serde_json::Value::Null);
-                        Ok(DynVal::from(indexed_value).at(*span))
+
+                if *safe == AccessType::Safe && val.0.is_empty() {
+                    Ok(DynVal::from(&serde_json::Value::Null).at(*span))
+                } else {
+                    match val.as_json_value()? {
+                        serde_json::Value::Array(val) => {
+                            let index = index.as_i32()?;
+                            let indexed_value = val.get(index as usize).unwrap_or(&serde_json::Value::Null);
+                            Ok(DynVal::from(indexed_value).at(*span))
+                        }
+                        serde_json::Value::Object(val) => {
+                            let indexed_value = val
+                                .get(&index.as_string()?)
+                                .or_else(|| val.get(&index.as_i32().ok()?.to_string()))
+                                .unwrap_or(&serde_json::Value::Null);
+                            Ok(DynVal::from(indexed_value).at(*span))
+                        }
+                        _ => Err(EvalError::CannotIndex(format!("{}", val)).at(*span)),
                     }
-                    serde_json::Value::Object(val) => {
-                        let indexed_value = val
-                            .get(&index.as_string()?)
-                            .or_else(|| val.get(&index.as_i32().ok()?.to_string()))
-                            .unwrap_or(&serde_json::Value::Null);
-                        Ok(DynVal::from(indexed_value).at(*span))
-                    }
-                    _ if *safe == AccessType::Safe => Ok(DynVal::from(&serde_json::Value::Null).at(*span)),
-                    _ => Err(EvalError::CannotIndex(format!("{}", val)).at(*span)),
                 }
             }
             SimplExpr::FunctionCall(span, function_name, args) => {
