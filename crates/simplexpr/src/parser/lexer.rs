@@ -112,8 +112,8 @@ regex_rules! {
     r"\."     => |_| Token::Dot,
     r"="     => |_| Token::Assign,
 
-    r"true"  => |_| Token::True,
-    r"false" => |_| Token::False,
+    r"\btrue\b"  => |_| Token::True,
+    r"\bfalse\b" => |_| Token::False,
 
     r"\blet\b" => |_| Token::Let,
     r"\bin\b" => |_| Token::In,
