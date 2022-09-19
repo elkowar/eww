@@ -17,6 +17,21 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add support for output names in X11 to select `:monitor`.
 - Add support for `:active`-pseudoselector on eventbox (By: viandoxdev)
 - Add support for `:password` on input (By: viandoxdev)
+- Add let-in syntax to simplexpr  
+  ```ocaml
+  (def-widget dataView [login]
+    (label
+      :text {
+      let
+        user = global_data.users[login]
+        email = user.email
+        first = user.name[0]
+        last = user.name[2]
+      in
+        "${first} ${last} <${email}>"
+      end
+      }))
+  ```
 
 ### Notable fixes and other changes
 - Scale now only runs the onchange command on changes caused by user-interaction
