@@ -457,5 +457,17 @@ mod tests {
               end
             end
             "#) => Ok(DynVal::from(String::from("Hello, World!"))),
+        pathological_let_in_2(
+            r#"
+            let
+              value = "Hello",
+              value = value + ", ",
+              value = value + "Wor",
+              value = value + "ld!"
+            in
+              value
+            end
+            "#
+        ) => Ok(DynVal::from(String::from("Hello, World!"))),
     }
 }
