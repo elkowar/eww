@@ -320,5 +320,6 @@ mod test {
             "${ {"hi": "ho"}.hi }".hi
         "#),
         empty_interpolation   => v!(r#""${}""#),
+        safe_interpolation   => v!(r#""${ { "key": "value" }.key1?.key2 ?: "Recovery" }""#),
     }
 }

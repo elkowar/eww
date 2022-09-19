@@ -1,7 +1,7 @@
 use itertools::Itertools;
 
 use crate::{
-    ast::{BinOp, SimplExpr, UnaryOp},
+    ast::{AccessType, BinOp, SimplExpr, UnaryOp},
     dynval::{ConversionError, DynVal},
 };
 use eww_shared_util::{Span, Spanned, VarName};
@@ -221,7 +221,6 @@ impl SimplExpr {
                 }
             }
             SimplExpr::JsonAccess(span, safe, val, index) => {
-                // TODO(josiah) Recover as empty string in the case that call is safe
                 let val = val.eval(values)?;
                 let index = index.eval(values)?;
                 match val.as_json_value()? {
@@ -237,6 +236,7 @@ impl SimplExpr {
                             .unwrap_or(&serde_json::Value::Null);
                         Ok(DynVal::from(indexed_value).at(*span))
                     }
+                    _ if *safe == AccessType::Safe => Ok(DynVal::from(&serde_json::Value::Null).at(*span)),
                     _ => Err(EvalError::CannotIndex(format!("{}", val)).at(*span)),
                 }
             }

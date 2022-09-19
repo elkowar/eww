@@ -1,0 +1,5 @@
+---
+source: crates/simplexpr/src/parser/lexer.rs
+expression: "v!(r#\"\"${ { \"key\": \"value\" }.key1?.key2 ?: \"Recovery\" }\"\"#)"
+---
+(0, StringLit([(0, Literal(""), 3), (3, Interp([(4, LCurl, 5), (6, StringLit([(6, Literal("key"), 11)]), 11), (11, Colon, 12), (13, StringLit([(13, Literal("value"), 20)]), 20), (21, RCurl, 22), (22, Dot, 23), (23, Ident("key1"), 27), (27, SafeAccess, 29), (29, Ident("key2"), 33), (34, Elvis, 36), (37, StringLit([(37, Literal("Recovery"), 47)]), 47)]), 48), (48, Literal(""), 50)]), 50)

@@ -33,7 +33,7 @@ pub enum UnaryOp {
     Negative,
 }
 
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AccessType {
     Assert,
     Safe,
