@@ -75,7 +75,9 @@ impl SimplExpr {
             IfElse(span, box a, box b, box c) => {
                 IfElse(span, box a.try_map_var_refs(f)?, box b.try_map_var_refs(f)?, box c.try_map_var_refs(f)?)
             }
-            JsonAccess(span, box a, box b) => JsonAccess(span, box a.try_map_var_refs(f)?, box b.try_map_var_refs(f)?),
+            JsonAccess(span, safe, box a, box b) => {
+                JsonAccess(span, safe, box a.try_map_var_refs(f)?, box b.try_map_var_refs(f)?)
+            }
             FunctionCall(span, name, args) => {
                 FunctionCall(span, name, args.into_iter().map(|x| x.try_map_var_refs(f)).collect::<Result<_, _>>()?)
             }
@@ -124,7 +126,7 @@ impl SimplExpr {
             Literal(..) => Vec::new(),
             VarRef(span, name) => vec![(*span, name)],
             Concat(_, elems) => elems.iter().flat_map(|x| x.var_refs_with_span().into_iter()).collect(),
-            BinOp(_, box a, _, box b) | JsonAccess(_, box a, box b) => {
+            BinOp(_, box a, _, box b) | JsonAccess(_, _, box a, box b) => {
                 let mut refs = a.var_refs_with_span();
                 refs.extend(b.var_refs_with_span().iter());
                 refs
@@ -218,7 +220,8 @@ impl SimplExpr {
                     no.eval(values)
                 }
             }
-            SimplExpr::JsonAccess(span, val, index) => {
+            SimplExpr::JsonAccess(span, safe, val, index) => {
+                // TODO(josiah) Recover as empty string in the case that call is safe
                 let val = val.eval(values)?;
                 let index = index.eval(values)?;
                 match val.as_json_value()? {

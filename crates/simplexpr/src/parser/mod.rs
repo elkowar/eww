@@ -41,6 +41,7 @@ mod tests {
             "foo.bar[2 + 2] * asdf[foo.bar]",
             r#"[1, 2, 3 + 4, "bla", [blub, blo]]"#,
             r#"{ "key": "value", 5: 1+2, true: false }"#,
+            r#"{ "key": "value" }?.key?.does_not_exist"#,
         );
     }
 }

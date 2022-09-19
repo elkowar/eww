@@ -34,6 +34,12 @@ pub enum UnaryOp {
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum AccessType {
+    Assert,
+    Safe,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SimplExpr {
     Literal(DynVal),
     JsonArray(Span, Vec<SimplExpr>),
@@ -43,7 +49,7 @@ pub enum SimplExpr {
     BinOp(Span, Box<SimplExpr>, BinOp, Box<SimplExpr>),
     UnaryOp(Span, UnaryOp, Box<SimplExpr>),
     IfElse(Span, Box<SimplExpr>, Box<SimplExpr>, Box<SimplExpr>),
-    JsonAccess(Span, Box<SimplExpr>, Box<SimplExpr>),
+    JsonAccess(Span, AccessType, Box<SimplExpr>, Box<SimplExpr>),
     FunctionCall(Span, String, Vec<SimplExpr>),
 }
 
@@ -65,7 +71,8 @@ impl std::fmt::Display for SimplExpr {
             SimplExpr::BinOp(_, l, op, r) => write!(f, "({} {} {})", l, op, r),
             SimplExpr::UnaryOp(_, op, x) => write!(f, "{}{}", op, x),
             SimplExpr::IfElse(_, a, b, c) => write!(f, "({} ? {} : {})", a, b, c),
-            SimplExpr::JsonAccess(_, value, index) => write!(f, "{}[{}]", value, index),
+            SimplExpr::JsonAccess(_, AccessType::Assert, value, index) => write!(f, "{}[{}]", value, index),
+            SimplExpr::JsonAccess(_, AccessType::Safe, value, index) => write!(f, "{}?.[{}]", value, index),
             SimplExpr::FunctionCall(_, function_name, args) => {
                 write!(f, "{}({})", function_name, args.iter().join(", "))
             }
@@ -101,7 +108,7 @@ impl SimplExpr {
             Literal(_) => false,
             Concat(_, x) | FunctionCall(_, _, x) | JsonArray(_, x) => x.iter().any(|x| x.references_var(var)),
             JsonObject(_, x) => x.iter().any(|(k, v)| k.references_var(var) || v.references_var(var)),
-            JsonAccess(_, a, b) | BinOp(_, a, _, b) => a.references_var(var) || b.references_var(var),
+            JsonAccess(_, _, a, b) | BinOp(_, a, _, b) => a.references_var(var) || b.references_var(var),
             UnaryOp(_, _, x) => x.references_var(var),
             IfElse(_, a, b, c) => a.references_var(var) || b.references_var(var) || c.references_var(var),
             VarRef(_, x) => x == var,
@@ -113,7 +120,7 @@ impl SimplExpr {
         match self {
             VarRef(_, x) => dest.push(x.clone()),
             UnaryOp(_, _, x) => x.as_ref().collect_var_refs_into(dest),
-            BinOp(_, a, _, b) | JsonAccess(_, a, b) => {
+            BinOp(_, a, _, b) | JsonAccess(_, _, a, b) => {
                 a.as_ref().collect_var_refs_into(dest);
                 b.as_ref().collect_var_refs_into(dest);
             }

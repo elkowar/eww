@@ -1,0 +1,7 @@
+---
+source: crates/simplexpr/src/parser/mod.rs
+expression: "p.parse(0, Lexer::new(0, 0, r#\"{ \"key\": \"value\" }?.key?.does_not_exist\"#))"
+---
+Ok(
+    {"key": "value"}?.["key"]?.["does_not_exist"],
+)
