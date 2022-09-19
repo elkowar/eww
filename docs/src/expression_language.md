@@ -24,7 +24,14 @@ Supported currently are the following features:
 - comparisons (`==`, `!=`, `>`, `<`, `<=`, `>=`)
 - boolean operations (`||`, `&&`, `!`)
 - elvis operator (`?:`)
-    - if the left side is `""`, then returns the right side, otherwise evaluates to the left side.
+    - if the left side is `""` or a JSON `null`, then returns the right side,
+      otherwise evaluates to the left side.
+- Safe Access operator (`?.`)
+    - if the left side is `""` or a JSON `null`, then return `null`. Otherwise,
+      attempt to index.
+    - This can still cause an error to occur if the left hand side exists but is
+      not an object.
+      (`Number` or `String`).
 - conditionals (`condition ? 'value' : 'other value'`)
 - numbers, strings, booleans and variable references (`12`, `'hi'`, `true`, `some_variable`)
 - json access (`object.field`, `array[12]`, `object["field"]`)
