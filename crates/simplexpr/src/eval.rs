@@ -1,7 +1,7 @@
 use itertools::Itertools;
 
 use crate::{
-    ast::{AccessType, BinOp, DefinitionList, SimplExpr, UnaryOp},
+    ast::{BinOp, DefinitionList, SimplExpr, UnaryOp},
     dynval::{ConversionError, DynVal},
 };
 use eww_shared_util::{Span, Spanned, VarName};
