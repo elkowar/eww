@@ -17,7 +17,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add support for output names in X11 to select `:monitor`.
 - Add support for `:active`-pseudoselector on eventbox (By: viandoxdev)
 - Add support for `:password` on input (By: viandoxdev)
-- Add let-in syntax to simplexpr  
+- Add let-in syntax to simplexpr (By: oldwomanjosiah)  
   ```ocaml
   (def-widget dataView [login]
     (label
