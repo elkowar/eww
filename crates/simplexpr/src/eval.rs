@@ -1,7 +1,7 @@
 use itertools::Itertools;
 
 use crate::{
-    ast::{AccessType, BinOp, SimplExpr, UnaryOp},
+    ast::{AccessType, BinOp, DefinitionList, SimplExpr, UnaryOp},
     dynval::{ConversionError, DynVal},
 };
 use eww_shared_util::{Span, Spanned, VarName};
@@ -93,6 +93,9 @@ impl SimplExpr {
                     .collect::<Result<_, _>>()?,
             ),
             x @ Literal(..) => x,
+            LetIn(_, d, b) => {
+                todo!("Resolve Refs is unused, TODO(josiah)");
+            }
         })
     }
 
@@ -142,6 +145,17 @@ impl SimplExpr {
             JsonArray(_, values) => values.iter().flat_map(|v| v.var_refs_with_span()).collect(),
             JsonObject(_, entries) => {
                 entries.iter().flat_map(|(k, v)| k.var_refs_with_span().into_iter().chain(v.var_refs_with_span())).collect()
+            }
+            LetIn(_, defs, body) => {
+                let defvars = defs.collect_var_defs();
+
+                let mut body = body.var_refs_with_span();
+
+                body.retain(|it| !defvars.contains(it.1));
+
+                body.extend(defs.var_refs_with_span().into_iter());
+
+                body
             }
         }
     }
@@ -270,8 +284,33 @@ impl SimplExpr {
                     .collect::<Result<_, EvalError>>()?;
                 Ok(DynVal::try_from(serde_json::Value::Object(entries))?.at(*span))
             }
+            SimplExpr::LetIn(_, defs, body) => {
+                let child_env = defs.eval(values.clone())?;
+
+                body.eval(&child_env)
+            }
         };
         Ok(value?.at(span))
+    }
+}
+
+impl DefinitionList {
+    pub fn eval(&self, mut base_env: HashMap<VarName, DynVal>) -> Result<HashMap<VarName, DynVal>, EvalError> {
+        match self {
+            DefinitionList::Cons(_, n, e, r) => {
+                let output = e.eval(&base_env)?;
+                base_env.insert(n.clone(), output);
+
+                r.eval(base_env)
+            }
+            DefinitionList::End(_, n, e) => {
+                let output = e.eval(&base_env)?;
+
+                base_env.insert(n.clone(), output);
+
+                Ok(base_env)
+            }
+        }
     }
 }
 
@@ -395,5 +434,28 @@ mod tests {
         safe_access_to_missing(r#"{ "a": { "b": 2 } }.b?.b"#) => Ok(DynVal::from(&serde_json::Value::Null)),
         normal_access_to_existing(r#"{ "a": { "b": 2 } }.a.b"#) => Ok(DynVal::from(2)),
         normal_access_to_missing(r#"{ "a": { "b": 2 } }.b.b"#) => Err(super::EvalError::CannotIndex("null".to_string())),
+        assert_access_to_existing(r#"{ "a": { "b": 2 } }.a.b"#) => Ok(DynVal::from(2)),
+        assert_access_to_missing(r#"{ "a": { "b": 2 } }.b.b"#) => Err(super::EvalError::CannotIndex("null".to_string())),
+        let_in(r#"let name = 2 in name end"#) => Ok(DynVal::from(2)),
+        pathological_let_in(
+            r#"
+            let
+              name = let
+                name = let
+                  name = "World"
+                in
+                  { "name": name }
+                end
+              in
+                { "name": name }
+              end
+            in
+              let
+                name = name.name.name
+              in
+                "Hello, ${name}!"
+              end
+            end
+            "#) => Ok(DynVal::from(String::from("Hello, World!"))),
     }
 }
