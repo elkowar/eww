@@ -190,7 +190,17 @@ as well as within strings, inside string-interpolation blocks (<code>&quot;foo $
 <li>boolean operations (<code>||</code>, <code>&amp;&amp;</code>, <code>!</code>)</li>
 <li>elvis operator (<code>?:</code>)
 <ul>
-<li>if the left side is <code>&quot;&quot;</code>, then returns the right side, otherwise evaluates to the left side.</li>
+<li>if the left side is <code>&quot;&quot;</code> or a JSON <code>null</code>, then returns the right side,
+otherwise evaluates to the left side.</li>
+</ul>
+</li>
+<li>Safe Access operator (<code>?.</code>)
+<ul>
+<li>if the left side is <code>&quot;&quot;</code> or a JSON <code>null</code>, then return <code>null</code>. Otherwise,
+attempt to index.</li>
+<li>This can still cause an error to occur if the left hand side exists but is
+not an object.
+(<code>Number</code> or <code>String</code>).</li>
 </ul>
 </li>
 <li>conditionals (<code>condition ? 'value' : 'other value'</code>)</li>
