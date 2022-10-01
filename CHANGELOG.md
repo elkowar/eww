@@ -5,6 +5,9 @@ All notable changes to eww will be listed here, starting at changes since versio
 
 ## [Unreleased]
 
+### Features
+- Add support for safe access (`?.`) in simplexpr (By: oldwomanjosiah)
+
 ## [0.4.0] (04.09.2022)
 
 ### BREAKING CHANGES

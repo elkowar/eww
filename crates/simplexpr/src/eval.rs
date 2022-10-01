@@ -1,7 +1,7 @@
 use itertools::Itertools;
 
 use crate::{
-    ast::{BinOp, SimplExpr, UnaryOp},
+    ast::{AccessType, BinOp, SimplExpr, UnaryOp},
     dynval::{ConversionError, DynVal},
 };
 use eww_shared_util::{Span, Spanned, VarName};
@@ -75,7 +75,9 @@ impl SimplExpr {
             IfElse(span, box a, box b, box c) => {
                 IfElse(span, box a.try_map_var_refs(f)?, box b.try_map_var_refs(f)?, box c.try_map_var_refs(f)?)
             }
-            JsonAccess(span, box a, box b) => JsonAccess(span, box a.try_map_var_refs(f)?, box b.try_map_var_refs(f)?),
+            JsonAccess(span, safe, box a, box b) => {
+                JsonAccess(span, safe, box a.try_map_var_refs(f)?, box b.try_map_var_refs(f)?)
+            }
             FunctionCall(span, name, args) => {
                 FunctionCall(span, name, args.into_iter().map(|x| x.try_map_var_refs(f)).collect::<Result<_, _>>()?)
             }
@@ -124,7 +126,7 @@ impl SimplExpr {
             Literal(..) => Vec::new(),
             VarRef(span, name) => vec![(*span, name)],
             Concat(_, elems) => elems.iter().flat_map(|x| x.var_refs_with_span().into_iter()).collect(),
-            BinOp(_, box a, _, box b) | JsonAccess(_, box a, box b) => {
+            BinOp(_, box a, _, box b) | JsonAccess(_, _, box a, box b) => {
                 let mut refs = a.var_refs_with_span();
                 refs.extend(b.var_refs_with_span().iter());
                 refs
@@ -195,8 +197,14 @@ impl SimplExpr {
                     BinOp::LT => DynVal::from(a.as_f64()? < b.as_f64()?),
                     BinOp::GE => DynVal::from(a.as_f64()? >= b.as_f64()?),
                     BinOp::LE => DynVal::from(a.as_f64()? <= b.as_f64()?),
-                    #[allow(clippy::useless_conversion)]
-                    BinOp::Elvis => DynVal::from(if a.0.is_empty() { b } else { a }),
+                    BinOp::Elvis => {
+                        let is_null = matches!(serde_json::from_str(&a.0), Ok(serde_json::Value::Null));
+                        if a.0.is_empty() || is_null {
+                            b
+                        } else {
+                            a
+                        }
+                    }
                     BinOp::RegexMatch => {
                         let regex = regex::Regex::new(&b.as_string()?)?;
                         DynVal::from(regex.is_match(&a.as_string()?))
@@ -218,9 +226,12 @@ impl SimplExpr {
                     no.eval(values)
                 }
             }
-            SimplExpr::JsonAccess(span, val, index) => {
+            SimplExpr::JsonAccess(span, safe, val, index) => {
                 let val = val.eval(values)?;
                 let index = index.eval(values)?;
+
+                let is_safe = *safe == AccessType::Safe;
+
                 match val.as_json_value()? {
                     serde_json::Value::Array(val) => {
                         let index = index.as_i32()?;
@@ -234,6 +245,10 @@ impl SimplExpr {
                             .unwrap_or(&serde_json::Value::Null);
                         Ok(DynVal::from(indexed_value).at(*span))
                     }
+                    serde_json::Value::String(val) if val.is_empty() && is_safe => {
+                        Ok(DynVal::from(&serde_json::Value::Null).at(*span))
+                    }
+                    serde_json::Value::Null if is_safe => Ok(DynVal::from(&serde_json::Value::Null).at(*span)),
                     _ => Err(EvalError::CannotIndex(format!("{}", val)).at(*span)),
                 }
             }
@@ -328,5 +343,57 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
         },
 
         _ => Err(EvalError::UnknownFunction(name.to_string())),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::dynval::DynVal;
+
+    macro_rules! evals_as {
+        ($name:ident($simplexpr:expr) => $expected:expr $(,)?) => {
+            #[test]
+            fn $name() {
+                let expected: Result<$crate::dynval::DynVal, $crate::eval::EvalError> = $expected;
+
+                let parsed = match $crate::parser::parse_string(0, 0, $simplexpr.into()) {
+                    Ok(it) => it,
+                    Err(e) => {
+                        panic!("Could not parse input as SimpleExpr\nInput: {}\nReason: {}", stringify!($simplexpr), e);
+                    }
+                };
+
+                eprintln!("Parsed as {parsed:#?}");
+
+                let output = parsed.eval_no_vars();
+
+                match expected {
+                    Ok(expected) => {
+                        let actual = output.expect("Output was not Ok(_)");
+
+                        assert_eq!(expected, actual);
+                    }
+                    Err(expected) => {
+                        let actual = output.expect_err("Output was not Err(_)").to_string();
+                        let expected = expected.to_string();
+
+                        assert_eq!(expected, actual);
+                    }
+                }
+            }
+        };
+
+        ($name:ident($simplexpr:expr) => $expected:expr, $($tt:tt)+) => {
+            evals_as!($name($simplexpr) => $expected);
+            evals_as!($($tt)*);
+        }
+    }
+
+    evals_as! {
+        string_to_string(r#""Hello""#) => Ok(DynVal::from("Hello".to_string())),
+        safe_access_to_existing(r#"{ "a": { "b": 2 } }.a?.b"#) => Ok(DynVal::from(2)),
+        safe_access_to_missing(r#"{ "a": { "b": 2 } }.b?.b"#) => Ok(DynVal::from(&serde_json::Value::Null)),
+        normal_access_to_existing(r#"{ "a": { "b": 2 } }.a.b"#) => Ok(DynVal::from(2)),
+        normal_access_to_missing(r#"{ "a": { "b": 2 } }.b.b"#) => Err(super::EvalError::CannotIndex("null".to_string())),
     }
 }

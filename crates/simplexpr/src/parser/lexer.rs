@@ -28,6 +28,7 @@ pub enum Token {
     GT,
     LT,
     Elvis,
+    SafeAccess,
     RegexMatch,
 
     Not,
@@ -88,6 +89,7 @@ regex_rules! {
     r">"     => |_| Token::GT,
     r"<"     => |_| Token::LT,
     r"\?:"    => |_| Token::Elvis,
+    r"\?\."    => |_| Token::SafeAccess,
     r"=~"    => |_| Token::RegexMatch,
 
     r"!"     => |_| Token::Not,
@@ -318,5 +320,6 @@ mod test {
             "${ {"hi": "ho"}.hi }".hi
         "#),
         empty_interpolation   => v!(r#""${}""#),
+        safe_interpolation   => v!(r#""${ { "key": "value" }.key1?.key2 ?: "Recovery" }""#),
     }
 }

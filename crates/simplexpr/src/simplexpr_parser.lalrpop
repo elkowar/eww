@@ -1,4 +1,4 @@
-use crate::ast::{SimplExpr::{self, *}, BinOp::*, UnaryOp::*};
+use crate::ast::{SimplExpr::{self, *}, BinOp::*, UnaryOp::*, AccessType};
 use eww_shared_util::{Span, VarName};
 use crate::parser::lexer::{Token, LexicalError, StrLitSegment, Sp};
 use crate::parser::lalrpop_helpers::*;
@@ -25,6 +25,7 @@ extern {
     ">"  => Token::GT,
     "<"  => Token::LT,
     "?:" => Token::Elvis,
+    "?." => Token::SafeAccess,
     "=~" => Token::RegexMatch,
 
     "!"  => Token::Not,
@@ -75,10 +76,16 @@ pub Expr: SimplExpr = {
 
   #[precedence(level="1")] #[assoc(side="right")]
   <l:@L> <ident:"identifier"> "(" <args: Comma<ExprReset>> ")" <r:@R> => FunctionCall(Span(l, r, fid), ident, args),
-  <l:@L> <value:Expr>         "[" <index: ExprReset>       "]" <r:@R> => JsonAccess(Span(l, r, fid), b(value), b(index)),
+  <l:@L> <value:Expr>         "[" <index: ExprReset>       "]" <r:@R> => {
+    JsonAccess(Span(l, r, fid), AccessType::Normal, b(value), b(index))
+  },
 
   <l:@L> <value:Expr> "." <lit_l:@L> <index:"identifier"> <r:@R> => {
-    JsonAccess(Span(l, r, fid), b(value), b(Literal(index.into())))
+    JsonAccess(Span(l, r, fid), AccessType::Normal, b(value), b(Literal(index.into())))
+  },
+
+  <l:@L> <value:Expr> "?." <lit_l:@L> <index:"identifier"> <r:@R> => {
+    JsonAccess(Span(l, r, fid), AccessType::Safe, b(value), b(Literal(index.into())))
   },
 
   #[precedence(level="2")] #[assoc(side="right")]
