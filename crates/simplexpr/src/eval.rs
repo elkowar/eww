@@ -197,10 +197,14 @@ impl SimplExpr {
                     BinOp::LT => DynVal::from(a.as_f64()? < b.as_f64()?),
                     BinOp::GE => DynVal::from(a.as_f64()? >= b.as_f64()?),
                     BinOp::LE => DynVal::from(a.as_f64()? <= b.as_f64()?),
-                    #[allow(clippy::useless_conversion)]
-                    BinOp::Elvis => DynVal::from(
-                        if a.0.is_empty() || matches!(serde_json::from_str(&a.0), Ok(serde_json::Value::Null)) { b } else { a },
-                    ),
+                    BinOp::Elvis => {
+                        let is_null = matches!(serde_json::from_str(&a.0), Ok(serde_json::Value::Null));
+                        if a.0.is_empty() || is_null {
+                            b
+                        } else {
+                            a
+                        }
+                    }
                     BinOp::RegexMatch => {
                         let regex = regex::Regex::new(&b.as_string()?)?;
                         DynVal::from(regex.is_match(&a.as_string()?))
@@ -389,7 +393,7 @@ mod tests {
         string_to_string(r#""Hello""#) => Ok(DynVal::from("Hello".to_string())),
         safe_access_to_existing(r#"{ "a": { "b": 2 } }.a?.b"#) => Ok(DynVal::from(2)),
         safe_access_to_missing(r#"{ "a": { "b": 2 } }.b?.b"#) => Ok(DynVal::from(&serde_json::Value::Null)),
-        assert_access_to_existing(r#"{ "a": { "b": 2 } }.a.b"#) => Ok(DynVal::from(2)),
-        assert_access_to_missing(r#"{ "a": { "b": 2 } }.b.b"#) => Err(super::EvalError::CannotIndex("null".to_string())),
+        normal_access_to_existing(r#"{ "a": { "b": 2 } }.a.b"#) => Ok(DynVal::from(2)),
+        normal_access_to_missing(r#"{ "a": { "b": 2 } }.b.b"#) => Err(super::EvalError::CannotIndex("null".to_string())),
     }
 }

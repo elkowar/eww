@@ -5,6 +5,9 @@ All notable changes to eww will be listed here, starting at changes since versio
 
 ## [Unreleased]
 
+### Features
+- Add support for safe access (`?.`) in simplexpr (By: oldwomanjosiah)
+
 ## [0.4.0] (04.09.2022)
 
 ### BREAKING CHANGES
@@ -14,7 +17,6 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add support for output names in X11 to select `:monitor`.
 - Add support for `:active`-pseudoselector on eventbox (By: viandoxdev)
 - Add support for `:password` on input (By: viandoxdev)
-- Add support for safe access (`?.`) in simplexpr
 
 ### Notable fixes and other changes
 - Scale now only runs the onchange command on changes caused by user-interaction

@@ -33,9 +33,10 @@ pub enum UnaryOp {
     Negative,
 }
 
+/// Differenciates between regular field access (`foo.bar`) and null-safe field access (`foo?.bar`)
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AccessType {
-    Assert,
+    Normal,
     Safe,
 }
 
@@ -71,7 +72,7 @@ impl std::fmt::Display for SimplExpr {
             SimplExpr::BinOp(_, l, op, r) => write!(f, "({} {} {})", l, op, r),
             SimplExpr::UnaryOp(_, op, x) => write!(f, "{}{}", op, x),
             SimplExpr::IfElse(_, a, b, c) => write!(f, "({} ? {} : {})", a, b, c),
-            SimplExpr::JsonAccess(_, AccessType::Assert, value, index) => write!(f, "{}[{}]", value, index),
+            SimplExpr::JsonAccess(_, AccessType::Normal, value, index) => write!(f, "{}[{}]", value, index),
             SimplExpr::JsonAccess(_, AccessType::Safe, value, index) => write!(f, "{}?.[{}]", value, index),
             SimplExpr::FunctionCall(_, function_name, args) => {
                 write!(f, "{}({})", function_name, args.iter().join(", "))
