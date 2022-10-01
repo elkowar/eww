@@ -235,6 +235,7 @@ fn build_loop_special_widget(
                 let element_name = widget_use.element_name.clone();
                 let body: WidgetUse = widget_use.body.as_ref().clone();
                 let created_children = Rc::new(RefCell::new(Vec::<gtk::Widget>::new()));
+                let created_child_scopes = Rc::new(RefCell::new(Vec::<ScopeIndex>::new()));
                 let gtk_container = gtk_container.clone();
                 move |tree, values| {
                     let elements_value = elements_expr
@@ -249,6 +250,11 @@ fn build_loop_special_widget(
                     for old_child in created_children.drain(..) {
                         unsafe { old_child.destroy() };
                     }
+                    let mut created_child_scopes = created_child_scopes.borrow_mut();
+                    for child_scope in created_child_scopes.drain(..) {
+                        tree.remove_scope(child_scope);
+                    }
+
                     for element in elements_value {
                         let scope = tree.register_new_scope(
                             format!("for {} = {}", element_name.0, element),
@@ -258,6 +264,7 @@ fn build_loop_special_widget(
                                 element_name.clone().into() => SimplExpr::Literal(DynVal(element.0, elements_expr_span))
                             },
                         )?;
+                        created_child_scopes.push(scope);
                         let new_child_widget =
                             build_gtk_widget(tree, widget_defs.clone(), scope, body.clone(), custom_widget_invocation.clone())?;
                         gtk_container.add(&new_child_widget);
