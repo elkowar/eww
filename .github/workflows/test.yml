@@ -1,4 +1,4 @@
-name: build
+name: test
 
 on:
   workflow_dispatch:
@@ -11,7 +11,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  test:
     strategy:
       matrix:
         backend-flag: [ "--features=x11",  "--features=wayland", "" ]
@@ -27,7 +27,9 @@ jobs:
         toolchain: nightly
         override: true
         components: rustfmt
+    - name: Add Nextest
+      uses: taiki-e/install-action@nextest
     - uses: actions/checkout@v2
     - uses: Swatinem/rust-cache@v1
-    - name: Build
-      run: cargo check --no-default-features ${{ matrix.backend-flag }}
+    - name: Test
+      run: cargo nextest run --no-default-features ${{ matrix.backend-flag }}
