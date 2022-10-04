@@ -1,14 +1,14 @@
 name: build
 on:
-  pull_request_target:
+  pull_request:
     branches: [master]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  format:
-    name: rustfmt + cargo fix
+  cache:
+    name: Check + Build Cache
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
@@ -31,17 +31,8 @@ jobs:
       with:
         sharedKey: "ci-build"
 
-    - name: cargo fix
-      run: cargo fix
-
-    - name: cargo fmt
-      run: cargo fmt
-
-    - name: Commit back changes
-      uses: stefanzweifel/git-auto-commit-action@v4
-      with:
-        commit_message: ":sparkles: formatting :sparkles:"
-        repository: ${{ github.event.pull_request.head.repo.full_name }}
+    - name: cargo build
+      run: cargo build
 
   build:
     needs: [format]

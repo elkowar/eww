@@ -24,7 +24,11 @@ jobs:
       with:
         deno-version: "v1.x"
 
-    - run: deno run --allow-read --allow-write gen-docs.ts ./crates/eww/src/widgets/widget_definitions.rs ./crates/eww/src/config/inbuilt.rs
+    - run: |
+        deno run --allow-read \
+          --allow-write gen-docs.ts \
+          ./crates/eww/src/widgets/widget_definitions.rs \
+          ./crates/eww/src/config/inbuilt.rs
 
     - name: build mdBook page
       uses: peaceiris/actions-mdbook@v1
