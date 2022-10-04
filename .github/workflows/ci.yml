@@ -35,6 +35,11 @@ jobs:
     - name: cargo fmt
       run: cargo fmt
 
+    - name: Commit back changes
+      uses: stefanzweifel/git-auto-commit-action@v4
+      with:
+        commit_message: :sparkles: formatting :sparkles:
+
   build:
     needs: [format]
     strategy:
