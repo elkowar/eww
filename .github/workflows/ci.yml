@@ -1,6 +1,6 @@
 name: build
 on:
-  pull_request:
+  pull_request_target:
     branches: [master]
 
 env:
@@ -41,6 +41,7 @@ jobs:
       uses: stefanzweifel/git-auto-commit-action@v4
       with:
         commit_message: ":sparkles: formatting :sparkles:"
+        repository: ${{ github.event.pull_request.head.repo.full_name }}
 
   build:
     needs: [format]
