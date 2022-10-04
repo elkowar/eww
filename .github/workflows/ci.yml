@@ -28,6 +28,8 @@ jobs:
 
     - name: Cache
       uses: Swatinem/rust-cache@v1
+      with:
+        shared-key: "ci-build"
 
     - name: cargo fix
       run: cargo fix
@@ -63,6 +65,8 @@ jobs:
 
     - name: Cache
       uses: Swatinem/rust-cache@v1
+      with:
+        shared-key: "ci-build"
 
     - name: Build
       run: cargo check --no-default-features ${{ matrix.backend-flag }}
@@ -93,6 +97,8 @@ jobs:
 
     - name: Cache
       uses: Swatinem/rust-cache@v1
+      with:
+        shared-key: "ci-build"
 
     - name: Test
       run: cargo nextest run --no-default-features ${{ matrix.backend-flag }}
