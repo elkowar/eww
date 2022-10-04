@@ -1,10 +1,6 @@
 name: build
-
 on:
-  workflow_dispatch:
   pull_request:
-    branches: [master]
-  push:
     branches: [master]
 
 env:
