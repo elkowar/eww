@@ -35,7 +35,7 @@ jobs:
       run: cargo build
 
   build:
-    needs: [format]
+    needs: [cache]
     strategy:
       matrix:
         backend-flag: [ "--features=x11",  "--features=wayland", "" ]
@@ -64,7 +64,7 @@ jobs:
       run: cargo check --no-default-features ${{ matrix.backend-flag }}
 
   test:
-    needs: [format]
+    needs: [cache]
     strategy:
       matrix:
         backend-flag: [ "--features=x11",  "--features=wayland", "" ]
