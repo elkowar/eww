@@ -190,3 +190,13 @@ fn check_server_running(socket_path: impl AsRef<Path>) -> bool {
         .and_then(|mut stream| client::do_server_call(&mut stream, &opts::ActionWithServer::Ping).ok());
     response.is_some()
 }
+
+
+
+
+
+
+
+
+
+
