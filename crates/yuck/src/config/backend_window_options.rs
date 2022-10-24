@@ -23,7 +23,7 @@ mod backend {
 
     use super::*;
 
-    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+    #[derive(Debug, Clone, PartialEq, serde::Serialize)]
     pub struct BackendWindowOptions {
         pub wm_ignore: bool,
         pub sticky: bool,
@@ -94,7 +94,7 @@ mod backend {
     }
 
     // Surface definition if the backend for X11 is enable
-    #[derive(Debug, Clone, Copy, Eq, PartialEq, Default, serde::Serialize)]
+    #[derive(Debug, Clone, Copy, PartialEq, Default, serde::Serialize)]
     pub struct StrutDefinition {
         pub side: Side,
         pub dist: NumWithUnit,
