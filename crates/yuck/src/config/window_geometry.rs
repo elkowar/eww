@@ -110,7 +110,7 @@ impl std::str::FromStr for AnchorPoint {
     }
 }
 
-#[derive(Default, Debug, Clone, Copy, Eq, PartialEq, Serialize)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Serialize)]
 pub struct WindowGeometry {
     pub anchor_point: AnchorPoint,
     pub offset: Coords,

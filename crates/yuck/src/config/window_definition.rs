@@ -17,7 +17,7 @@ use eww_shared_util::{AttrName, Span, VarName};
 
 use super::{backend_window_options::BackendWindowOptions, widget_use::WidgetUse, window_geometry::WindowGeometry};
 
-#[derive(Debug, Clone, serde::Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, serde::Serialize, PartialEq)]
 pub struct WindowDefinition {
     pub name: String,
     pub geometry: Option<WindowGeometry>,

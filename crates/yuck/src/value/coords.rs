@@ -14,11 +14,11 @@ pub enum Error {
     MalformedCoords,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Display, DebugCustom, SmartDefault)]
+#[derive(Clone, Copy, PartialEq, Deserialize, Serialize, Display, DebugCustom, SmartDefault)]
 pub enum NumWithUnit {
     #[display(fmt = "{}%", .0)]
     #[debug(fmt = "{}%", .0)]
-    Percent(i32),
+    Percent(f32),
     #[display(fmt = "{}px", .0)]
     #[debug(fmt = "{}px", .0)]
     #[default]
@@ -33,10 +33,10 @@ impl NumWithUnit {
         }
     }
 
-    pub fn perc_relative_to(&self, max: i32) -> i32 {
+    pub fn perc_relative_to(&self, max: i32) -> f32 {
         match *self {
             NumWithUnit::Percent(n) => n,
-            NumWithUnit::Pixels(n) => ((n as f64 / max as f64) * 100.0) as i32,
+            NumWithUnit::Pixels(n) => ((n as f64 / max as f64) * 100.0) as f32,
         }
     }
 }
@@ -45,19 +45,19 @@ impl FromStr for NumWithUnit {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        static PATTERN: Lazy<regex::Regex> = Lazy::new(|| regex::Regex::new("^(-?\\d+)(.*)$").unwrap());
+        static PATTERN: Lazy<regex::Regex> = Lazy::new(|| regex::Regex::new("^(-?\\d+(?:.\\d+)?)(.*)$").unwrap());
 
         let captures = PATTERN.captures(s).ok_or_else(|| Error::NumParseFailed(s.to_string()))?;
-        let value = captures.get(1).unwrap().as_str().parse::<i32>().map_err(|_| Error::NumParseFailed(s.to_string()))?;
+        let value = captures.get(1).unwrap().as_str().parse::<f32>().map_err(|_| Error::NumParseFailed(s.to_string()))?;
         match captures.get(2).unwrap().as_str() {
-            "px" | "" => Ok(NumWithUnit::Pixels(value)),
+            "px" | "" => Ok(NumWithUnit::Pixels(value.floor() as i32)),
             "%" => Ok(NumWithUnit::Percent(value)),
             unit => Err(Error::InvalidUnit(unit.to_string())),
         }
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Display, Default)]
+#[derive(Clone, Copy, PartialEq, Deserialize, Serialize, Display, Default)]
 #[display(fmt = "{}*{}", x, y)]
 pub struct Coords {
     pub x: NumWithUnit,
@@ -106,7 +106,8 @@ mod test {
     fn test_parse_num_with_unit() {
         assert_eq!(NumWithUnit::Pixels(55), NumWithUnit::from_str("55").unwrap());
         assert_eq!(NumWithUnit::Pixels(55), NumWithUnit::from_str("55px").unwrap());
-        assert_eq!(NumWithUnit::Percent(55), NumWithUnit::from_str("55%").unwrap());
+        assert_eq!(NumWithUnit::Percent(55.0), NumWithUnit::from_str("55%").unwrap());
+        assert_eq!(NumWithUnit::Percent(55.5), NumWithUnit::from_str("55.5%").unwrap());
         assert!(NumWithUnit::from_str("55pp").is_err());
     }
 

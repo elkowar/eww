@@ -89,7 +89,7 @@ impl FromAst for TopLevel {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize)]
 pub struct Config {
     pub widget_definitions: HashMap<String, WidgetDefinition>,
     pub window_definitions: HashMap<String, WindowDefinition>,
