@@ -57,8 +57,7 @@ pub fn init(evt_send: UnboundedSender<DaemonCommand>) -> ScriptVarHandlerHandle 
             })
         })
         .expect("Failed to start script-var-handler thread");
-    let handle = ScriptVarHandlerHandle { msg_send, thread_handle };
-    handle
+    ScriptVarHandlerHandle { msg_send, thread_handle }
 }
 
 /// Handle to the script-var handling system.
@@ -229,7 +228,7 @@ impl ListenVarHandler {
         }
 
         let (cancel_send, mut cancel_recv) = cancellation::create();
-        self.listen_process_handles.insert(var.name.clone(), cancel_send.clone());
+        self.listen_process_handles.insert(var.name.clone(), cancel_send);
 
         let evt_send = self.evt_send.clone();
         tokio::spawn(async move {

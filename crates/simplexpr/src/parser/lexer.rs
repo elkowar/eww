@@ -111,8 +111,8 @@ regex_rules! {
     r"\s+" => |_| Token::Skip,
     r";.*"=> |_| Token::Comment,
 
-    r"[a-zA-Z_][a-zA-Z0-9_-]*" => |x| Token::Ident(x),
-    r"[+-]?(?:[0-9]+[.])?[0-9]+" => |x| Token::NumLit(x)
+    r"[a-zA-Z_][a-zA-Z0-9_-]*" => Token::Ident,
+    r"[+-]?(?:[0-9]+[.])?[0-9]+" => Token::NumLit
 }
 
 #[derive(Debug)]

@@ -65,7 +65,7 @@ pub enum Action {
     WithServer(ActionWithServer),
 }
 
-#[derive(Subcommand, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Subcommand, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ActionClientOnly {
     /// Print and watch the eww logs
     #[clap(name = "logs")]

@@ -11,10 +11,7 @@ pub enum MonitorIdentifier {
 
 impl MonitorIdentifier {
     pub fn is_numeric(&self) -> bool {
-        match self {
-            Self::Numeric(_) => true,
-            _ => false,
-        }
+        matches!(self, Self::Numeric(_))
     }
 }
 

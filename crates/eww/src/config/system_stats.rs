@@ -60,7 +60,7 @@ pub fn get_temperatures() -> String {
         "{{ {} }}",
         c.components()
             .iter()
-            .map(|c| format!(r#""{}": {}"#, c.label().to_uppercase().replace(" ", "_"), c.temperature()))
+            .map(|c| format!(r#""{}": {}"#, c.label().to_uppercase().replace(' ', "_"), c.temperature()))
             .join(",")
     )
 }

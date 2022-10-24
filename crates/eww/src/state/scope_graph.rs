@@ -568,7 +568,7 @@ mod internal {
                             ))
                             .collect::<Vec<_>>()
                     )
-                    .replace("\"", "'")
+                    .replace('\"', "'")
                 ));
                 if let Some(created_by) = scope.ancestor {
                     output.push_str(&format!("  \"{:?}\" -> \"{:?}\"[label=\"ancestor\"]\n", created_by, scope_index));
@@ -581,7 +581,7 @@ mod internal {
                         "  \"{:?}\" -> \"{:?}\" [color = \"red\", label = \"{}\"]\n",
                         parent,
                         child,
-                        format!(":{} `{:?}`", edge.attr_name, edge.expression).replace("\"", "'")
+                        format!(":{} `{:?}`", edge.attr_name, edge.expression).replace('\"', "'")
                     ));
                 }
             }
@@ -590,7 +590,7 @@ mod internal {
                     "  \"{:?}\" -> \"{:?}\" [color = \"blue\", label = \"{}\"]\n",
                     child,
                     parent,
-                    format!("inherits({:?})", edge.references).replace("\"", "'")
+                    format!("inherits({:?})", edge.references).replace('\"', "'")
                 ));
             }
 

@@ -228,10 +228,8 @@ fn build_loop_special_widget(
         Listener {
             needed_variables: widget_use.elements_expr.collect_var_refs(),
             f: Box::new({
-                let custom_widget_invocation = custom_widget_invocation.clone();
-                let widget_defs = widget_defs.clone();
                 let elements_expr = widget_use.elements_expr.clone();
-                let elements_expr_span = widget_use.elements_expr_span.clone();
+                let elements_expr_span = widget_use.elements_expr_span;
                 let element_name = widget_use.element_name.clone();
                 let body: WidgetUse = widget_use.body.as_ref().clone();
                 let created_children = Rc::new(RefCell::new(Vec::<gtk::Widget>::new()));
@@ -243,7 +241,7 @@ fn build_loop_special_widget(
                         .as_json_value()?
                         .as_array()
                         .context("Not an array value")?
-                        .into_iter()
+                        .iter()
                         .map(DynVal::from)
                         .collect_vec();
                     let mut created_children = created_children.borrow_mut();

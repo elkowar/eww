@@ -94,7 +94,6 @@ mod platform {
 #[cfg(feature = "x11")]
 mod platform {
     use anyhow::{Context, Result};
-    use gdkx11;
     use gtk::{self, prelude::*};
     use x11rb::protocol::xproto::ConnectionExt;
 

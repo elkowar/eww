@@ -123,7 +123,7 @@ pub fn replace_env_var_references(input: String) -> String {
 
 pub fn unindent(text: &str) -> String {
     // take all the lines of our text and skip over the first empty ones
-    let lines = text.lines().skip_while(|x| *x == "");
+    let lines = text.lines().skip_while(|x| x.is_empty());
     // find the smallest indentation
     let min = lines
         .clone()
