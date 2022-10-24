@@ -105,7 +105,7 @@ pub fn validate_variables_in_widget_use(
         }
 
         for child in widget.children.iter() {
-            let _ = validate_variables_in_widget_use(defs, variables, child, is_in_definition)?;
+            validate_variables_in_widget_use(defs, variables, child, is_in_definition)?;
         }
     } else if let WidgetUse::Loop(widget) = widget {
         let unknown_var = widget
@@ -120,7 +120,7 @@ pub fn validate_variables_in_widget_use(
         }
         let mut variables = variables.clone();
         variables.insert(widget.element_name.clone());
-        let _ = validate_variables_in_widget_use(defs, &variables, &widget.body, is_in_definition)?;
+        validate_variables_in_widget_use(defs, &variables, &widget.body, is_in_definition)?;
     }
 
     Ok(())

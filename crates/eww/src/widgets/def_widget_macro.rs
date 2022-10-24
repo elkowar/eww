@@ -40,7 +40,7 @@ macro_rules! def_widget {
 
                     $args.scope_graph.register_listener(
                         $args.calling_scope,
-                            crate::state::scope::Listener {
+                            $crate::state::scope::Listener {
                             needed_variables: required_vars,
                             f: Box::new({
                                 // create a weak reference to the widget, such that this listener doesn't prevent the actual widget from

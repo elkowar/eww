@@ -26,7 +26,7 @@ macro_rules! loop_select_exiting {
     ($($content:tt)*) => {
         loop {
             tokio::select! {
-                Ok(()) = crate::application_lifecycle::recv_exit() => {
+                Ok(()) = $crate::application_lifecycle::recv_exit() => {
                     break;
                 }
                 $($content)*

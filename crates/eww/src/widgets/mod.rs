@@ -45,7 +45,7 @@ where
 {
     if !args.is_empty() {
         let cmd = cmd.replace("{}", &format!("{}", args[0]));
-        args.iter().enumerate().fold(cmd.to_string(), |acc, (i, arg)| acc.replace(&format!("{{{}}}", i), &format!("{}", arg)))
+        args.iter().enumerate().fold(cmd, |acc, (i, arg)| acc.replace(&format!("{{{}}}", i), &format!("{}", arg)))
     } else {
         cmd.to_string()
     }

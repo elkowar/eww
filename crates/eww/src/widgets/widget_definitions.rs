@@ -272,7 +272,7 @@ pub(super) fn resolve_orientable_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk
 
 // concrete widgets
 
-const WIDGET_NAME_COMBO_BOX_TEXT: &'static str = "combo-box-text";
+const WIDGET_NAME_COMBO_BOX_TEXT: &str = "combo-box-text";
 /// @widget combo-box-text
 /// @desc A combo box allowing the user to choose between several items.
 fn build_gtk_combo_box_text(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText> {

@@ -137,22 +137,22 @@ impl WidgetImpl for TransformPriv {
             cr.save()?;
 
             let translate_x = match &*self.translate_x.borrow() {
-                Some(tx) => NumWithUnit::from_str(&tx)?.pixels_relative_to(total_width as i32) as f64,
+                Some(tx) => NumWithUnit::from_str(tx)?.pixels_relative_to(total_width as i32) as f64,
                 None => 0.0,
             };
 
             let translate_y = match &*self.translate_y.borrow() {
-                Some(ty) => NumWithUnit::from_str(&ty)?.pixels_relative_to(total_height as i32) as f64,
+                Some(ty) => NumWithUnit::from_str(ty)?.pixels_relative_to(total_height as i32) as f64,
                 None => 0.0,
             };
 
             let scale_x = match &*self.scale_x.borrow() {
-                Some(sx) => NumWithUnit::from_str(&sx)?.perc_relative_to(total_width as i32) as f64 / 100.0,
+                Some(sx) => NumWithUnit::from_str(sx)?.perc_relative_to(total_width as i32) as f64 / 100.0,
                 None => 1.0,
             };
 
             let scale_y = match &*self.scale_y.borrow() {
-                Some(sy) => NumWithUnit::from_str(&sy)?.perc_relative_to(total_height as i32) as f64 / 100.0,
+                Some(sy) => NumWithUnit::from_str(sy)?.perc_relative_to(total_height as i32) as f64 / 100.0,
                 None => 1.0,
             };
 
@@ -162,7 +162,7 @@ impl WidgetImpl for TransformPriv {
 
             // Children widget
             if let Some(child) = &*self.content.borrow() {
-                widget.propagate_draw(child, &cr);
+                widget.propagate_draw(child, cr);
             }
 
             cr.restore()?;

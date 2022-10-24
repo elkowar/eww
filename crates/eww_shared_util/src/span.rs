@@ -32,6 +32,7 @@ impl Span {
         self.0 = self.1;
         self
     }
+
     pub fn shifted(mut self, n: isize) -> Self {
         self.0 = isize::max(0, self.0 as isize + n) as usize;
         self.1 = isize::max(0, self.0 as isize + n) as usize;

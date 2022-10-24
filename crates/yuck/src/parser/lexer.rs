@@ -63,9 +63,9 @@ regex_rules! {
     r"\]" => |_| Token::RBrack,
     r"true"  => |_| Token::True,
     r"false" => |_| Token::False,
-    r#"[+-]?(?:[0-9]+[.])?[0-9]+"# => |x| Token::NumLit(x),
-    r#":[^\s\)\]}]+"# => |x| Token::Keyword(x),
-    r#"[a-zA-Z_!\?<>/\.\*-\+\-][^\s{}\(\)\[\](){}]*"# => |x| Token::Symbol(x),
+    r#"[+-]?(?:[0-9]+[.])?[0-9]+"# => Token::NumLit,
+    r#":[^\s\)\]}]+"# => Token::Keyword,
+    r#"[a-zA-Z_!\?<>/\.\*-\+\-][^\s{}\(\)\[\](){}]*"# => Token::Symbol,
     r#";.*"# => |_| Token::Comment,
     r"[ \t\n\f]+" => |_| Token::Skip
 }

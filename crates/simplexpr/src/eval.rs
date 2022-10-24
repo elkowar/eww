@@ -104,7 +104,7 @@ impl SimplExpr {
     /// If a var-ref links to another var-ref, that other var-ref is used.
     /// If a referenced variable is not found in the given hashmap, returns the var-ref unchanged.
     pub fn resolve_one_level(self, variables: &HashMap<VarName, SimplExpr>) -> Self {
-        self.map_var_refs(|span, name| variables.get(&name).cloned().unwrap_or_else(|| Self::VarRef(span, name)))
+        self.map_var_refs(|span, name| variables.get(&name).cloned().unwrap_or(Self::VarRef(span, name)))
     }
 
     /// resolve variable references in the expression. Fails if a variable cannot be resolved.
@@ -298,7 +298,7 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
                 let string = string.as_string()?;
                 let pattern = regex::Regex::new(&pattern.as_string()?)?;
                 let replacement = replacement.as_string()?;
-                Ok(DynVal::from(pattern.replace_all(&string, replacement.replace("$", "$$").replace("\\", "$")).into_owned()))
+                Ok(DynVal::from(pattern.replace_all(&string, replacement.replace('$', "$$").replace('\\', "$")).into_owned()))
             }
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },

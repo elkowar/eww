@@ -4,20 +4,7 @@ use serde::{Deserialize, Serialize};
 
 /// The name of a variable
 #[repr(transparent)]
-#[derive(
-    Clone,
-    Hash,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    AsRef,
-    From,
-    FromStr,
-    Display,
-    DebugCustom,
-    RefCast,
-)]
+#[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize, AsRef, From, FromStr, Display, DebugCustom, RefCast)]
 #[debug(fmt = "VarName({})", .0)]
 pub struct VarName(pub String);
 
@@ -47,20 +34,7 @@ impl From<AttrName> for VarName {
 
 /// The name of an attribute
 #[repr(transparent)]
-#[derive(
-    Clone,
-    Hash,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    AsRef,
-    From,
-    FromStr,
-    Display,
-    DebugCustom,
-    RefCast,
-)]
+#[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize, AsRef, From, FromStr, Display, DebugCustom, RefCast)]
 #[debug(fmt="AttrName({})", .0)]
 pub struct AttrName(pub String);
 

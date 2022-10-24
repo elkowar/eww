@@ -24,7 +24,7 @@ pub fn read_from_eww_paths(eww_paths: &EwwPaths) -> Result<EwwConfig> {
 }
 
 /// Eww configuration structure.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct EwwConfig {
     widgets: HashMap<String, WidgetDefinition>,
     windows: HashMap<String, WindowDefinition>,
@@ -33,18 +33,6 @@ pub struct EwwConfig {
 
     // map of variables to all pollvars which refer to them in their run-while-expression
     run_while_mentions: HashMap<VarName, Vec<VarName>>,
-}
-
-impl Default for EwwConfig {
-    fn default() -> Self {
-        Self {
-            widgets: HashMap::new(),
-            windows: HashMap::new(),
-            initial_variables: HashMap::new(),
-            script_vars: HashMap::new(),
-            run_while_mentions: HashMap::new(),
-        }
-    }
 }
 
 impl EwwConfig {
@@ -58,10 +46,10 @@ impl EwwConfig {
 
         // run some validations on the configuration
         let magic_globals: Vec<_> = inbuilt::INBUILT_VAR_NAMES
-            .into_iter()
+            .iter()
             .chain(inbuilt::MAGIC_CONSTANT_NAMES)
             .into_iter()
-            .map(|x| VarName::from(x.clone()))
+            .map(|x| VarName::from(*x))
             .collect();
         yuck::config::validate::validate(&config, magic_globals)?;
 
