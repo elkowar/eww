@@ -40,5 +40,5 @@ eww_shared_util = { version = "0.1.0", path = "../eww_shared_util" }
 lalrpop = "0.19.5"
 
 [dev-dependencies]
-insta = { version = "1.7", features = ["ron"]}
+insta = "1.7"
 pretty_assertions = "1.2"
