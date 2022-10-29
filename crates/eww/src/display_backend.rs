@@ -14,6 +14,7 @@ mod platform {
     use gdk;
     use gtk::prelude::*;
     use yuck::config::{
+        backend_window_options::ExclusiveZone,
         window_definition::{WindowDefinition, WindowStacking},
         window_geometry::AnchorAlignment,
     };
@@ -84,9 +85,12 @@ mod platform {
                 gtk_layer_shell::set_margin(&window, gtk_layer_shell::Edge::Top, yoffset);
             }
         }
-        if window_def.backend_options.exclusive {
-            gtk_layer_shell::auto_exclusive_zone_enable(&window);
-        }
+        match window_def.backend_options.exclusive {
+            ExclusiveZone::Exclusive => gtk_layer_shell::auto_exclusive_zone_enable(&window),
+            ExclusiveZone::Ignore => gtk_layer_shell::set_exclusive_zone(&window, -1),
+            // Normal means using the default value
+            ExclusiveZone::Normal => {}
+        };
         Some(window)
     }
 }
