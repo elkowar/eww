@@ -139,7 +139,7 @@ mod backend {
         type Err = EnumParseError;
 
         fn from_str(s: &str) -> Result<Self, Self::Err> {
-            enum_parse! { "window type", s,
+            enum_parse! { "exclusive zone", s,
                 "normal" => Self::Normal,
                 "ignore" => Self::Ignore,
                 "exclusive" => Self::Exclusive,
