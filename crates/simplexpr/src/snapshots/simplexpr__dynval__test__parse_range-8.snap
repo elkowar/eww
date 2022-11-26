@@ -1,0 +1,11 @@
+---
+source: crates/simplexpr/src/dynval.rs
+expression: "DynVal::from(\"1..-1\").as_range()"
+---
+Err(
+    ConversionError {
+        value: "1..-1",
+        target_type: "range",
+        source: None,
+    },
+)

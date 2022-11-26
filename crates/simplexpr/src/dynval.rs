@@ -1,13 +1,7 @@
 use eww_shared_util::{Span, Spanned};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use std::{
-    convert::TryFrom,
-    fmt,
-    iter::FromIterator,
-    ops::{Bound, RangeBounds},
-    str::FromStr,
-};
+use std::{convert::TryFrom, fmt, iter::FromIterator, ops::Bound, str::FromStr};
 
 pub type Result<T> = std::result::Result<T, ConversionError>;
 
@@ -253,6 +247,13 @@ impl DynVal {
             v if v.starts_with('=') => DynVal::from_str(&v[1..])?.as_f64().map(Bound::Included)?,
             v => DynVal::from_str(v)?.as_f64().map(Bound::Excluded)?,
         };
+        match (from, to) {
+            // TODO error message
+            (Bound::Included(from), Bound::Included(to) | Bound::Excluded(to)) if from > to => {
+                return Err(ConversionError { value: self.clone(), target_type: "range", source: None })
+            }
+            _ => {}
+        }
         Ok((from, to))
     }
 }
@@ -282,5 +283,17 @@ mod test {
         insta::assert_debug_snapshot!(DynVal::from("0.5m").as_duration());
         insta::assert_debug_snapshot!(DynVal::from("1h").as_duration());
         insta::assert_debug_snapshot!(DynVal::from("0.5h").as_duration());
+    }
+
+    #[test]
+    fn test_parse_range() {
+        insta::assert_debug_snapshot!(DynVal::from("..").as_range());
+        insta::assert_debug_snapshot!(DynVal::from("..=").as_range());
+        insta::assert_debug_snapshot!(DynVal::from("1..").as_range());
+        insta::assert_debug_snapshot!(DynVal::from("..-1").as_range());
+        insta::assert_debug_snapshot!(DynVal::from("..=-1").as_range());
+        insta::assert_debug_snapshot!(DynVal::from("1..2").as_range());
+        insta::assert_debug_snapshot!(DynVal::from("1..=2").as_range());
+        insta::assert_debug_snapshot!(DynVal::from("1..-1").as_range());
     }
 }
