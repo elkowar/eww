@@ -8,6 +8,7 @@ use eww_shared_util::{Span, Spanned, VarName};
 use std::{
     collections::HashMap,
     convert::{TryFrom, TryInto},
+    ops::RangeBounds,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -32,6 +33,10 @@ pub enum EvalError {
 
     #[error("Unable to index into value {0}")]
     CannotIndex(String),
+
+    // TODO useful error variant?
+    #[error("Function {0} failed: {1}")]
+    FunctionError(&'static str, String),
 
     #[error("Json operation failed: {0}")]
     SerdeError(#[from] serde_json::error::Error),
@@ -339,6 +344,31 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
         },
         "objectlength" => match args.as_slice() {
             [json] => Ok(DynVal::from(json.as_json_object()?.len() as i32)),
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
+        "range_select" => match args.as_slice() {
+            [value, map] => {
+                let value = value.as_f64()?;
+                let map = map.as_json_array()?;
+                for mapping in map {
+                    let mapping = DynVal::from(&mapping);
+                    let array = mapping.as_json_array()?;
+                    let [range, result] = array.as_slice() else {
+                        // TODO what error to use here
+                        // TODO we could also add `DynVal::as_tuple<const LENGTH: usize>()`
+                        return Err(ConversionError{
+                            value: mapping,
+                            target_type: "[string, string]",
+                            source: None
+                        }.into())
+                    };
+                    let range = DynVal::from(range).as_range()?;
+                    if range.contains(&value) {
+                        return Ok(result.into());
+                    }
+                }
+                Err(EvalError::FunctionError("range_select", format!("No entry matched value: {value}")))
+            }
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
 
