@@ -367,7 +367,7 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
                         return Ok(result.into());
                     }
                 }
-                Err(EvalError::FunctionError("range_select", format!("No entry matched value: {value}")))
+                Ok("null".into())
             }
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
@@ -378,8 +378,8 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
 
 #[cfg(test)]
 mod tests {
-    use crate::dynval::DynVal;
     use super::EvalError;
+    use crate::dynval::DynVal;
 
     macro_rules! evals_as {
         ($name:ident($simplexpr:expr) => $expected:expr $(,)?) => {
@@ -426,9 +426,9 @@ mod tests {
         safe_access_to_missing(r#"{ "a": { "b": 2 } }.b?.b"#) => Ok(DynVal::from(&serde_json::Value::Null)),
         normal_access_to_existing(r#"{ "a": { "b": 2 } }.a.b"#) => Ok(DynVal::from(2)),
         normal_access_to_missing(r#"{ "a": { "b": 2 } }.b.b"#) => Err(super::EvalError::CannotIndex("null".to_string())),
-        range_select_inclusive(r#"range_select(2, [["0..1", 1], ["1..=2", 2]])"#) => Ok(DynVal::from(2)),
-        range_select_exclusive(r#"range_select(2, [["0..1", 1], ["1..=2", 2]])"#) => Ok(DynVal::from(2)),
-        range_select_unbound(r#"range_select(10, [["..", 1]])"#) => Ok(DynVal::from(1)),
-        range_select_no_match(r#"range_select(10, [["..2", 1] ])"#) => Err(EvalError::FunctionError("range_select", "No entry matched value: 10".to_string()))
+        range_select_inclusive(r#"range_select(2, [["0..1", 1], ["1..=2", 2]])"#) => Ok(2.into()),
+        range_select_exclusive(r#"range_select(2, [["0..1", 1], ["1..=2", 2]])"#) => Ok(2.into()),
+        range_select_unbound(r#"range_select(10, [["..", 1]])"#) => Ok(1.into()),
+        range_select_no_match(r#"range_select(10, [["..2", 1] ])"#) => Ok("null".into())
     }
 }
