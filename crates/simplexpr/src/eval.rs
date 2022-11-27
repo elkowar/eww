@@ -393,6 +393,8 @@ mod tests {
         string_to_string(r#""Hello""#) => Ok(DynVal::from("Hello".to_string())),
         safe_access_to_existing(r#"{ "a": { "b": 2 } }.a?.b"#) => Ok(DynVal::from(2)),
         safe_access_to_missing(r#"{ "a": { "b": 2 } }.b?.b"#) => Ok(DynVal::from(&serde_json::Value::Null)),
+        safe_access_index_to_existing(r#"[1, 2]?.[1]"#) => Ok(DynVal::from(2)),
+        safe_access_index_to_missing(r#""null"?.[1]"#) => Ok(DynVal::from(&serde_json::Value::Null)),
         normal_access_to_existing(r#"{ "a": { "b": 2 } }.a.b"#) => Ok(DynVal::from(2)),
         normal_access_to_missing(r#"{ "a": { "b": 2 } }.b.b"#) => Err(super::EvalError::CannotIndex("null".to_string())),
     }
