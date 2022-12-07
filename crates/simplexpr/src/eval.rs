@@ -114,7 +114,7 @@ impl SimplExpr {
             Some(value) => Ok(Literal(value.clone())),
             None => {
                 let similar_ish =
-                    variables.keys().filter(|key| levenshtein::levenshtein(&key.0, &name.0) < 3).cloned().collect_vec();
+                    variables.keys().filter(|key| strsim::levenshtein(&key.0, &name.0) < 3).cloned().collect_vec();
                 Err(EvalError::UnknownVariable(name.clone(), similar_ish).at(span))
             }
         })
@@ -170,7 +170,7 @@ impl SimplExpr {
             }
             SimplExpr::VarRef(span, ref name) => {
                 let similar_ish =
-                    values.keys().filter(|keys| levenshtein::levenshtein(&keys.0, &name.0) < 3).cloned().collect_vec();
+                    values.keys().filter(|keys| strsim::levenshtein(&keys.0, &name.0) < 3).cloned().collect_vec();
                 Ok(values
                     .get(name)
                     .cloned()
