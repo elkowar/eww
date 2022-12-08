@@ -474,20 +474,24 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
     let gtk_widget = gtk::Button::new();
 
     def_widget!(bargs, _g, gtk_widget, {
+        // @prop onclick - command to run when the button is clicked using mouse or keyboard
+        // @prop timeout - timeout of the command
+        prop(timeout: as_duration = Duration::from_millis(200), onclick: as_string) {
+            connect_signal_handler!(gtk_widget, gtk_widget.connect_clicked(move |_| {
+                run_command(timeout, &onclick, &[] as &[&str]);
+            }));
+        },
         prop(
             // @prop timeout - timeout of the command
             timeout: as_duration = Duration::from_millis(200),
-            // @prop onclick - a command that get's run when the button is clicked
-            onclick: as_string = "",
-            // @prop onmiddleclick - a command that get's run when the button is middleclicked
+            // @prop onmiddleclick - command to run when the button is middleclicked
             onmiddleclick: as_string = "",
-            // @prop onrightclick - a command that get's run when the button is rightclicked
+            // @prop onrightclick - command to run when the button is rightclicked
             onrightclick: as_string = ""
         ) {
             gtk_widget.add_events(gdk::EventMask::BUTTON_PRESS_MASK);
             connect_signal_handler!(gtk_widget, gtk_widget.connect_button_press_event(move |_, evt| {
                 match evt.button() {
-                    1 => run_command(timeout, &onclick, &[] as &[&str]),
                     2 => run_command(timeout, &onmiddleclick, &[] as &[&str]),
                     3 => run_command(timeout, &onrightclick, &[] as &[&str]),
                     _ => {},
@@ -495,7 +499,6 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
                 gtk::Inhibit(false)
             }));
         }
-
     });
     Ok(gtk_widget)
 }
@@ -787,11 +790,11 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
         prop(
             // @prop timeout - timeout of the command
             timeout: as_duration = Duration::from_millis(200),
-            // @prop onclick - a command that get's run when the button is clicked
+            // @prop onclick - command to run when the widget is clicked
             onclick: as_string = "",
-            // @prop onmiddleclick - a command that get's run when the button is middleclicked
+            // @prop onmiddleclick - command to run when the widget is middleclicked
             onmiddleclick: as_string = "",
-            // @prop onrightclick - a command that get's run when the button is rightclicked
+            // @prop onrightclick - command to run when the widget is rightclicked
             onrightclick: as_string = ""
         ) {
             gtk_widget.add_events(gdk::EventMask::BUTTON_PRESS_MASK);
