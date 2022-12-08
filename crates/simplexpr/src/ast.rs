@@ -41,6 +41,103 @@ pub enum AccessType {
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DefinitionList {
+    Cons(Span, VarName, Box<SimplExpr>, Box<DefinitionList>),
+    End(Span, VarName, Box<SimplExpr>),
+}
+
+impl Spanned for DefinitionList {
+    fn span(&self) -> Span {
+        match self {
+            DefinitionList::Cons(span, ..) => *span,
+            DefinitionList::End(span, ..) => *span,
+        }
+    }
+}
+
+impl std::fmt::Display for DefinitionList {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DefinitionList::Cons(_, ident, body, rest) => write!(f, "{ident} = {body}; {rest}"),
+            DefinitionList::End(_, ident, body) => write!(f, "{ident} = {body}"),
+        }
+    }
+}
+
+impl DefinitionList {
+    pub fn references_var(&self, var: &VarName) -> bool {
+        match self {
+            DefinitionList::Cons(_, _, b, r) => b.references_var(var) || r.references_var(var),
+            DefinitionList::End(_, _, b) => b.references_var(var),
+        }
+    }
+
+    pub fn collect_var_refs_into(&self, refs: &mut Vec<VarName>) {
+        fn collect_undefined(body: &Box<SimplExpr>, defd: &Vec<&VarName>, refs: &mut Vec<VarName>) {
+            let mut body_refs = body.collect_var_refs();
+            body_refs.retain(|it| !defd.contains(&it));
+
+            for it in body_refs.into_iter() {
+                refs.push(it);
+            }
+        }
+
+        fn inner<'d>(it: &'d DefinitionList, mut defd: Vec<&'d VarName>, refs: &mut Vec<VarName>) {
+            match it {
+                DefinitionList::Cons(_, d, b, r) => {
+                    collect_undefined(b, &defd, refs);
+                    defd.push(d);
+                    inner(r, defd, refs);
+                }
+                DefinitionList::End(_, _, b) => {
+                    collect_undefined(b, &defd, refs);
+                }
+            }
+        }
+
+        inner(self, Vec::new(), refs);
+    }
+
+    pub fn collect_var_defs(&self) -> Vec<VarName> {
+        match self {
+            DefinitionList::Cons(_, d, _, r) => {
+                let mut it = r.collect_var_defs();
+                it.push(d.clone());
+                it
+            }
+            DefinitionList::End(_, d, _) => Vec::from([d.clone()]),
+        }
+    }
+
+    pub fn var_refs_with_span(&self) -> Vec<(Span, &VarName)> {
+        fn collect_undefined<'b>(body: &'b Box<SimplExpr>, defd: &Vec<&VarName>, refs: &mut Vec<(Span, &'b VarName)>) {
+            let mut body_refs = body.var_refs_with_span();
+
+            body_refs.retain(|it| !defd.contains(&it.1));
+
+            refs.extend(body_refs.into_iter());
+        }
+
+        fn inner<'d>(it: &'d DefinitionList, mut defd: Vec<&'d VarName>, refs: &mut Vec<(Span, &'d VarName)>) {
+            match it {
+                DefinitionList::Cons(_, n, e, r) => {
+                    collect_undefined(e, &defd, refs);
+                    defd.push(n);
+                    inner(r, defd, refs);
+                }
+                DefinitionList::End(_, _, e) => {
+                    collect_undefined(e, &defd, refs);
+                }
+            }
+        }
+
+        let mut result = Vec::new();
+        inner(self, Vec::new(), &mut result);
+        result
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SimplExpr {
     Literal(DynVal),
     JsonArray(Span, Vec<SimplExpr>),
@@ -52,6 +149,7 @@ pub enum SimplExpr {
     IfElse(Span, Box<SimplExpr>, Box<SimplExpr>, Box<SimplExpr>),
     JsonAccess(Span, AccessType, Box<SimplExpr>, Box<SimplExpr>),
     FunctionCall(Span, String, Vec<SimplExpr>),
+    LetIn(Span, DefinitionList, Box<SimplExpr>),
 }
 
 impl std::fmt::Display for SimplExpr {
@@ -80,6 +178,9 @@ impl std::fmt::Display for SimplExpr {
             SimplExpr::JsonArray(_, values) => write!(f, "[{}]", values.iter().join(", ")),
             SimplExpr::JsonObject(_, entries) => {
                 write!(f, "{{{}}}", entries.iter().map(|(k, v)| format!("{}: {}", k, v)).join(", "))
+            }
+            SimplExpr::LetIn(_, defs, body) => {
+                write!(f, "let {defs} in {body} end")
             }
         }
     }
@@ -113,6 +214,7 @@ impl SimplExpr {
             UnaryOp(_, _, x) => x.references_var(var),
             IfElse(_, a, b, c) => a.references_var(var) || b.references_var(var) || c.references_var(var),
             VarRef(_, x) => x == var,
+            LetIn(_, defs, body) => defs.references_var(var) || body.references_var(var),
         }
     }
 
@@ -136,6 +238,20 @@ impl SimplExpr {
                 v.collect_var_refs_into(dest);
             }),
             Literal(_) => {}
+            LetIn(_, defs, body) => {
+                let defvars = defs.collect_var_defs();
+
+                let mut refvars = body.collect_var_refs();
+
+                // Remove references which must be referring only to the inner scope
+                refvars.retain(|it| !defvars.contains(it));
+
+                defs.collect_var_refs_into(dest);
+
+                for it in refvars.into_iter() {
+                    dest.push(it);
+                }
+            }
         };
     }
 
@@ -159,6 +275,7 @@ impl Spanned for SimplExpr {
             SimplExpr::IfElse(span, ..) => *span,
             SimplExpr::JsonAccess(span, ..) => *span,
             SimplExpr::FunctionCall(span, ..) => *span,
+            SimplExpr::LetIn(span, ..) => *span,
         }
     }
 }

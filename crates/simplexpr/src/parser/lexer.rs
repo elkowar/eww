@@ -44,8 +44,13 @@ pub enum Token {
     LBrack,
     RBrack,
     Dot,
+    Assign,
+
     True,
     False,
+    Let,
+    In,
+    End,
 
     Ident(String),
     NumLit(String),
@@ -105,8 +110,14 @@ regex_rules! {
     r"\{"     => |_| Token::LCurl,
     r"\}"     => |_| Token::RCurl,
     r"\."     => |_| Token::Dot,
-    r"true"  => |_| Token::True,
-    r"false" => |_| Token::False,
+    r"="     => |_| Token::Assign,
+
+    r"\btrue\b"  => |_| Token::True,
+    r"\bfalse\b" => |_| Token::False,
+
+    r"\blet\b" => |_| Token::Let,
+    r"\bin\b" => |_| Token::In,
+    r"\bend\b" => |_| Token::End,
 
     r"\s+" => |_| Token::Skip,
     r";.*"=> |_| Token::Comment,

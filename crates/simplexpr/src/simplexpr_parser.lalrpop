@@ -1,4 +1,4 @@
-use crate::ast::{SimplExpr::{self, *}, BinOp::*, UnaryOp::*, AccessType};
+use crate::ast::{SimplExpr::{self, *}, BinOp::*, UnaryOp::*, AccessType, DefinitionList};
 use eww_shared_util::{Span, VarName};
 use crate::parser::lexer::{Token, LexicalError, StrLitSegment, Sp};
 use crate::parser::lalrpop_helpers::*;
@@ -40,9 +40,14 @@ extern {
     "{"  => Token::LCurl,
     "}"  => Token::RCurl,
     "."  => Token::Dot,
+    "="  => Token::Assign,
 
     "true"  => Token::True,
     "false" => Token::False,
+
+    "let" => Token::Let,
+    "in" => Token::In,
+    "end" => Token::End,
 
     "identifier" => Token::Ident(<String>),
     "number"     => Token::NumLit(<String>),
@@ -59,6 +64,15 @@ Comma<T>: Vec<T> = {
             v
         }
     }
+};
+
+pub DefList: DefinitionList = {
+	<l:@L> <ident:"identifier"> "=" <expr:Expr> <r:@R> => {
+		DefinitionList::End(Span(l, r, fid), VarName(ident.to_string()), b(expr))
+	},
+	<l:@L> <ident:"identifier"> "=" <expr:Expr> <r:@R> "," <rest:DefList> => {
+		DefinitionList::Cons(Span(l, r, fid), VarName(ident.to_string()), b(expr), b(rest))
+	}
 };
 
 pub Expr: SimplExpr = {
@@ -118,6 +132,10 @@ pub Expr: SimplExpr = {
   #[precedence(level="7")] #[assoc(side="right")]
   <l:@L> <cond:Expr> "?" <then:ExprReset> ":" <els:Expr> <r:@R> => {
     IfElse(Span(l, r, fid), b(cond), b(then), b(els))
+  },
+
+  <l:@L> "let" <defs:DefList> "in" <body:Expr> "end" <r:@R> => {
+	LetIn(Span(l, r, fid), defs, b(body))
   },
 };
 
