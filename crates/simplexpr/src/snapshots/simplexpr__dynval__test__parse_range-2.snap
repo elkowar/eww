@@ -1,0 +1,15 @@
+---
+source: crates/simplexpr/src/dynval.rs
+expression: "DynVal::from(\"..=\").as_range()"
+---
+Err(
+    ConversionError {
+        value: "",
+        target_type: "f64",
+        source: Some(
+            ParseFloatError {
+                kind: Empty,
+            },
+        ),
+    },
+)

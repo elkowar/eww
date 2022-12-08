@@ -1,0 +1,14 @@
+---
+source: crates/simplexpr/src/dynval.rs
+expression: "DynVal::from(\"1..2\").as_range()"
+---
+Ok(
+    (
+        Included(
+            1.0,
+        ),
+        Excluded(
+            2.0,
+        ),
+    ),
+)

@@ -8,6 +8,7 @@ use eww_shared_util::{Span, Spanned, VarName};
 use std::{
     collections::HashMap,
     convert::{TryFrom, TryInto},
+    ops::RangeBounds,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -32,6 +33,10 @@ pub enum EvalError {
 
     #[error("Unable to index into value {0}")]
     CannotIndex(String),
+
+    // TODO useful error variant?
+    #[error("Function {0} failed: {1}")]
+    FunctionError(&'static str, String),
 
     #[error("Json operation failed: {0}")]
     SerdeError(#[from] serde_json::error::Error),
@@ -341,6 +346,31 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
             [json] => Ok(DynVal::from(json.as_json_object()?.len() as i32)),
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
+        "range_select" => match args.as_slice() {
+            [value, map] => {
+                let value = value.as_f64()?;
+                let map = map.as_json_array()?;
+                for mapping in map {
+                    let mapping = DynVal::from(&mapping);
+                    let array = mapping.as_json_array()?;
+                    let [range, result] = array.as_slice() else {
+                        // TODO what error to use here
+                        // TODO we could also add `DynVal::as_tuple<const LENGTH: usize>()`
+                        return Err(ConversionError{
+                            value: mapping,
+                            target_type: "[string, string]",
+                            source: None
+                        }.into())
+                    };
+                    let range = DynVal::from(range).as_range()?;
+                    if range.contains(&value) {
+                        return Ok(result.into());
+                    }
+                }
+                Ok("null".into())
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
 
         _ => Err(EvalError::UnknownFunction(name.to_string())),
     }
@@ -348,6 +378,7 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
 
 #[cfg(test)]
 mod tests {
+    use super::EvalError;
     use crate::dynval::DynVal;
 
     macro_rules! evals_as {
@@ -395,5 +426,9 @@ mod tests {
         safe_access_to_missing(r#"{ "a": { "b": 2 } }.b?.b"#) => Ok(DynVal::from(&serde_json::Value::Null)),
         normal_access_to_existing(r#"{ "a": { "b": 2 } }.a.b"#) => Ok(DynVal::from(2)),
         normal_access_to_missing(r#"{ "a": { "b": 2 } }.b.b"#) => Err(super::EvalError::CannotIndex("null".to_string())),
+        range_select_inclusive(r#"range_select(2, [["0..1", 1], ["1..=2", 2]])"#) => Ok(2.into()),
+        range_select_exclusive(r#"range_select(2, [["0..1", 1], ["1..=2", 2]])"#) => Ok(2.into()),
+        range_select_unbound(r#"range_select(10, [["..", 1]])"#) => Ok(1.into()),
+        range_select_no_match(r#"range_select(10, [["..2", 1] ])"#) => Ok("null".into())
     }
 }
