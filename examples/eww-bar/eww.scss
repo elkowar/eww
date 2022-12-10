@@ -1,8 +1,8 @@
 * {
-  all: unset; //Unsets everything so you can style everything from scratch
+  all: unset; // Unsets everything so you can style everything from scratch
 }
 
-//Global Styles
+// Global Styles
 .bar {
   background-color: #3a3a3a;
   color: #b0b4bc;
@@ -22,6 +22,7 @@
   color: #000000;
   border-radius: 10px;
 }
+
 .metric scale trough {
   all: unset;
   background-color: #4e4e4e;
@@ -31,24 +32,11 @@
   margin-left: 10px;
   margin-right: 20px;
 }
-.metric scale trough highlight {
-  all: unset;
-  background-color: #D35D6E;
-  color: #000000;
-  border-radius: 10px;
-}
-.metric scale trough {
-  all: unset;
-  background-color: #4e4e4e;
-  border-radius: 50px;
-  min-height: 3px;
-  min-width: 50px;
-  margin-left: 10px;
-  margin-right: 20px;
-}
+
 .label-ram {
   font-size: large;
 }
+
 .workspaces button:hover {
   color: #D35D6E;
 }
