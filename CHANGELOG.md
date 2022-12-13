@@ -8,6 +8,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 ### Features
 - Add support for safe access (`?.`) in simplexpr (By: oldwomanjosiah)
 - Allow floating-point numbers in percentages for window-geometry
+- Add support for the `EWW_BATTERY` magic variable in FreeBSD, OpenBSD, and NetBSD (By: dangerdyke)
 
 ## [0.4.0] (04.09.2022)
 

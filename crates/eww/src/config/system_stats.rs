@@ -1,4 +1,4 @@
-use crate::util::IterAverage;
+use crate::{regex, util::IterAverage};
 use anyhow::{Context, Result};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
@@ -153,8 +153,54 @@ pub fn get_battery_capacity() -> Result<String> {
     Ok(json)
 }
 
+#[cfg(any(target_os = "netbsd", target_os = "freebsd", target_os = "openbsd"))]
+pub fn get_battery_capacity() -> Result<String> {
+    let batteries = String::from_utf8(
+        // I have only tested `apm` on FreeBSD, but it *should* work on all of the listed targets,
+        // based on what I can tell from their online man pages.
+        std::process::Command::new("apm")
+            .output()
+            .context("\nError while getting the battery values on bsd, with `apm`: ")?
+            .stdout,
+    )?;
+
+    // `apm` output should look something like this:
+    // $ apm
+    // ...
+    // Remaining battery life: 87%
+    // Remaining battery time: unknown
+    // Number of batteries: 1
+    // Battery 0
+    //         Battery Status: charging
+    //         Remaining battery life: 87%
+    //         Remaining battery time: unknown
+    // ...
+    // last 4 lines are repeated for each battery.
+    // see also:
+    // https://www.freebsd.org/cgi/man.cgi?query=apm&manpath=FreeBSD+13.1-RELEASE+and+Ports
+    // https://man.openbsd.org/amd64/apm.8
+    // https://man.netbsd.org/apm.8
+    let mut json = String::from('{');
+    let re_total = regex!(r"(?m)^Remaining battery life: (\d+)%");
+    let re_single = regex!(r"(?sm)^Battery (\d+):.*?Status: (\w+).*?(\d+)%");
+    for bat in re_single.captures_iter(&batteries) {
+        json.push_str(&format!(
+            r#""BAT{}": {{ "status": "{}", "capacity": {} }}, "#,
+            bat.get(1).unwrap().as_str(),
+            bat.get(2).unwrap().as_str(),
+            bat.get(3).unwrap().as_str(),
+        ))
+    }
+
+    json.push_str(&format!(r#""total_avg": {}}}"#, re_total.captures(&batteries).unwrap().get(1).unwrap().as_str()));
+    Ok(json)
+}
+
 #[cfg(not(target_os = "macos"))]
 #[cfg(not(target_os = "linux"))]
+#[cfg(not(target_os = "netbsd"))]
+#[cfg(not(target_os = "freebsd"))]
+#[cfg(not(target_os = "openbsd"))]
 pub fn get_battery_capacity() -> Result<String> {
     Err(anyhow::anyhow!("Eww doesn't support your OS for getting the battery capacity"))
 }
