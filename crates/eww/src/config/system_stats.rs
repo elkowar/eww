@@ -60,7 +60,13 @@ pub fn get_temperatures() -> String {
         "{{ {} }}",
         c.components()
             .iter()
-            .map(|c| format!(r#""{}": {}"#, c.label().to_uppercase().replace(' ', "_"), c.temperature()))
+            .map(|c| format!(
+                r#""{}": {}"#,
+                c.label().to_uppercase().replace(' ', "_"),
+                // It is common for temperatures to report a non-numeric value.
+                // Tolerate it by serializing it as the string "null"
+                c.temperature().to_string().replace("NaN", "\"null\"")
+            ))
             .join(",")
     )
 }
