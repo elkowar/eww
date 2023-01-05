@@ -114,7 +114,7 @@ impl SimplExpr {
             Some(value) => Ok(Literal(value.clone())),
             None => {
                 let similar_ish =
-                    variables.keys().filter(|key| levenshtein::levenshtein(&key.0, &name.0) < 3).cloned().collect_vec();
+                    variables.keys().filter(|key| strsim::levenshtein(&key.0, &name.0) < 3).cloned().collect_vec();
                 Err(EvalError::UnknownVariable(name.clone(), similar_ish).at(span))
             }
         })
@@ -170,7 +170,7 @@ impl SimplExpr {
             }
             SimplExpr::VarRef(span, ref name) => {
                 let similar_ish =
-                    values.keys().filter(|keys| levenshtein::levenshtein(&keys.0, &name.0) < 3).cloned().collect_vec();
+                    values.keys().filter(|keys| strsim::levenshtein(&keys.0, &name.0) < 3).cloned().collect_vec();
                 Ok(values
                     .get(name)
                     .cloned()
@@ -179,35 +179,43 @@ impl SimplExpr {
             }
             SimplExpr::BinOp(span, a, op, b) => {
                 let a = a.eval(values)?;
-                let b = b.eval(values)?;
+                let b = || b.eval(values);
+                // Lazy operators
                 let dynval = match op {
-                    BinOp::Equals => DynVal::from(a == b),
-                    BinOp::NotEquals => DynVal::from(a != b),
-                    BinOp::And => DynVal::from(a.as_bool()? && b.as_bool()?),
-                    BinOp::Or => DynVal::from(a.as_bool()? || b.as_bool()?),
-                    BinOp::Plus => match (a.as_f64(), b.as_f64()) {
-                        (Ok(a), Ok(b)) => DynVal::from(a + b),
-                        _ => DynVal::from(format!("{}{}", a.as_string()?, b.as_string()?)),
-                    },
-                    BinOp::Minus => DynVal::from(a.as_f64()? - b.as_f64()?),
-                    BinOp::Times => DynVal::from(a.as_f64()? * b.as_f64()?),
-                    BinOp::Div => DynVal::from(a.as_f64()? / b.as_f64()?),
-                    BinOp::Mod => DynVal::from(a.as_f64()? % b.as_f64()?),
-                    BinOp::GT => DynVal::from(a.as_f64()? > b.as_f64()?),
-                    BinOp::LT => DynVal::from(a.as_f64()? < b.as_f64()?),
-                    BinOp::GE => DynVal::from(a.as_f64()? >= b.as_f64()?),
-                    BinOp::LE => DynVal::from(a.as_f64()? <= b.as_f64()?),
+                    BinOp::And => DynVal::from(a.as_bool()? && b()?.as_bool()?),
+                    BinOp::Or => DynVal::from(a.as_bool()? || b()?.as_bool()?),
                     BinOp::Elvis => {
                         let is_null = matches!(serde_json::from_str(&a.0), Ok(serde_json::Value::Null));
                         if a.0.is_empty() || is_null {
-                            b
+                            b()?
                         } else {
                             a
                         }
                     }
-                    BinOp::RegexMatch => {
-                        let regex = regex::Regex::new(&b.as_string()?)?;
-                        DynVal::from(regex.is_match(&a.as_string()?))
+                    // Eager operators
+                    _ => {
+                        let b = b()?;
+                        match op {
+                            BinOp::Equals => DynVal::from(a == b),
+                            BinOp::NotEquals => DynVal::from(a != b),
+                            BinOp::Plus => match (a.as_f64(), b.as_f64()) {
+                                (Ok(a), Ok(b)) => DynVal::from(a + b),
+                                _ => DynVal::from(format!("{}{}", a.as_string()?, b.as_string()?)),
+                            },
+                            BinOp::Minus => DynVal::from(a.as_f64()? - b.as_f64()?),
+                            BinOp::Times => DynVal::from(a.as_f64()? * b.as_f64()?),
+                            BinOp::Div => DynVal::from(a.as_f64()? / b.as_f64()?),
+                            BinOp::Mod => DynVal::from(a.as_f64()? % b.as_f64()?),
+                            BinOp::GT => DynVal::from(a.as_f64()? > b.as_f64()?),
+                            BinOp::LT => DynVal::from(a.as_f64()? < b.as_f64()?),
+                            BinOp::GE => DynVal::from(a.as_f64()? >= b.as_f64()?),
+                            BinOp::LE => DynVal::from(a.as_f64()? <= b.as_f64()?),
+                            BinOp::RegexMatch => {
+                                let regex = regex::Regex::new(&b.as_string()?)?;
+                                DynVal::from(regex.is_match(&a.as_string()?))
+                            }
+                            _ => unreachable!("Lazy operators already handled"),
+                        }
                     }
                 };
                 Ok(dynval.at(*span))
@@ -398,5 +406,8 @@ mod tests {
         safe_access_index_to_non_indexable(r#"32?.[1]"#) => Err(super::EvalError::CannotIndex("32".to_string())),
         normal_access_to_existing(r#"{ "a": { "b": 2 } }.a.b"#) => Ok(DynVal::from(2)),
         normal_access_to_missing(r#"{ "a": { "b": 2 } }.b.b"#) => Err(super::EvalError::CannotIndex("null".to_string())),
+        lazy_evaluation_and(r#"false && "null".test"#) => Ok(DynVal::from(false)),
+        lazy_evaluation_or(r#"true || "null".test"#) => Ok(DynVal::from(true)),
+        lazy_evaluation_elvis(r#""test"?: "null".test"#) => Ok(DynVal::from("test")),
     }
 }
