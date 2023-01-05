@@ -76,8 +76,12 @@ pub Expr: SimplExpr = {
 
   #[precedence(level="1")] #[assoc(side="right")]
   <l:@L> <ident:"identifier"> "(" <args: Comma<ExprReset>> ")" <r:@R> => FunctionCall(Span(l, r, fid), ident, args),
+
   <l:@L> <value:Expr>         "[" <index: ExprReset>       "]" <r:@R> => {
     JsonAccess(Span(l, r, fid), AccessType::Normal, b(value), b(index))
+  },
+  <l:@L> <value:Expr>    "?." "[" <index: ExprReset>       "]" <r:@R> => {
+    JsonAccess(Span(l, r, fid), AccessType::Safe, b(value), b(index))
   },
 
   <l:@L> <value:Expr> "." <lit_l:@L> <index:"identifier"> <r:@R> => {

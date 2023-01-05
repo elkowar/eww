@@ -26,7 +26,7 @@ Supported currently are the following features:
 - elvis operator (`?:`)
     - if the left side is `""` or a JSON `null`, then returns the right side,
       otherwise evaluates to the left side.
-- Safe Access operator (`?.`)
+- Safe Access operator (`?.`) or (`?.[index]`)
     - if the left side is `""` or a JSON `null`, then return `null`. Otherwise,
       attempt to index.
     - This can still cause an error to occur if the left hand side exists but is
