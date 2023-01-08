@@ -77,10 +77,6 @@ impl EwwPaths {
     pub fn get_yuck_path(&self) -> PathBuf {
         self.config_dir.join("eww.yuck")
     }
-
-    pub fn get_eww_scss_path(&self) -> PathBuf {
-        self.config_dir.join("eww.scss")
-    }
 }
 
 impl std::fmt::Display for EwwPaths {

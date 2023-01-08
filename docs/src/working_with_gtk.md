@@ -3,7 +3,7 @@
 ## Gtk-theming
 
 Eww is styled in GTK CSS.
-To make theming even easier, it makes use of `SCSS` and then compiles that into CSS for you.
+You can use `Vanilla CSS` or `SCSS` to make theming even easier. The latter is compiled into CSS for you.
 If you don't know any way to style something check out the [GTK CSS Overview wiki](https://docs.gtk.org/gtk3/css-overview.html),
 the [GTK CSS Properties Overview wiki ](https://docs.gtk.org/gtk3/css-properties.html),
 or use the [GTK-Debugger](#gtk-debugger).

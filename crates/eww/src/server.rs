@@ -83,7 +83,7 @@ pub fn initialize_server(paths: EwwPaths, action: Option<DaemonCommand>, should_
         gtk::StyleContext::add_provider_for_screen(&screen, &app.css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
     }
 
-    if let Ok((file_id, css)) = config::scss::parse_scss_from_file(&app.paths.get_eww_scss_path()) {
+    if let Ok((file_id, css)) = config::scss::parse_scss_from_config(&app.paths.get_config_dir()) {
         if let Err(e) = app.load_css(file_id, &css) {
             error_handling_ctx::print_error(e);
         }
@@ -169,7 +169,7 @@ async fn run_filewatch<P: AsRef<Path>>(config_dir: P, evt_send: UnboundedSender<
         Ok(notify::Event { kind: notify::EventKind::Modify(_), paths, .. }) => {
             let relevant_files_changed = paths.iter().any(|path| {
                 let ext = path.extension().unwrap_or_default();
-                ext == "yuck" || ext == "scss"
+                ext == "yuck" || ext == "scss" || ext == "css"
             });
             if relevant_files_changed {
                 if let Err(err) = tx.send(()) {

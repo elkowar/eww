@@ -10,6 +10,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Allow floating-point numbers in percentages for window-geometry
 - Add support for safe access with index (`?.[n]`) (By: ModProg)
 - Made `and`, `or` and `?:` lazily evaluated in simplexpr (By: ModProg)
+- Add Vanilla CSS support (By: Ezequiel Ramis)
 
 ## [0.4.0] (04.09.2022)
 

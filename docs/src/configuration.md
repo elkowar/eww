@@ -10,13 +10,13 @@ If you're using VSCode, you can get syntax highlighting and formatting from [yuc
 It is also recommended to use [parinfer](https://shaunlebron.github.io/parinfer/),
 which makes working with S-expressions delightfully easy!
 
-Additionally, any styles are defined in SCSS (which is mostly just slightly improved CSS syntax).
+Additionally, any styles are defined in CSS or SCSS (which is mostly just slightly improved CSS syntax).
 While eww supports a significant portion of the CSS you know from the web,
 not everything is supported, as eww relies on GTK's own CSS engine.
 Notably, some animation features are unsupported,
 as well as most layout-related CSS properties such as flexbox, `float`, absolute position or `width`/`height`.
 
-To get started, you'll need to create two files: `eww.yuck` and `eww.scss`.
+To get started, you'll need to create two files: `eww.yuck` and `eww.scss` (or `eww.css`, if you prefer).
 These files must be placed under `$XDG_CONFIG_HOME/eww` (this is most likely `~/.config/eww`).
 
 Now that those files are created, you can start writing your first widget!
