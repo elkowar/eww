@@ -68,14 +68,33 @@ impl StatusNotifierWrapper {
 
 impl NotifierItem {
     fn get_icon(&self) -> Option<gtk::Image> {
-        self.item.icon_theme_path.as_ref().map(|path| {
-            let theme = gtk::IconTheme::new();
-            theme.append_search_path(&path);
-            let icon_name = self.item.icon_name.as_ref().unwrap();
-            let icon_info = theme.lookup_icon(icon_name, 24, IconLookupFlags::empty()).expect("Failed to lookup icon info");
+        let icon_name = self.item.icon_name.as_ref().unwrap();
 
-            gtk::Image::from_pixbuf(icon_info.load_icon().ok().as_ref())
-        })
+        if let Some(path) = self.item.icon_theme_path.as_ref() && !path.is_empty() {
+            // custom icon path specified, look there
+            let theme = gtk::IconTheme::new();
+            theme.prepend_search_path(path);
+
+            match theme.load_icon(icon_name, 24, IconLookupFlags::FORCE_SIZE) {
+                Err(e) => log::warn!("Could not find icon {:?} in path {:?}: {}", path, theme, e),
+                Ok(pb) => return Some(gtk::Image::from_pixbuf(pb.as_ref())),
+            }
+        }
+
+        // try default theme
+        let theme = gtk::IconTheme::default().expect("Could not get default gtk theme");
+        match theme.load_icon(icon_name, 24, IconLookupFlags::FORCE_SIZE) {
+            Err(e) => log::warn!("Could not find icon {:?} in default theme: {}", icon_name, e),
+            Ok(pb) => return Some(gtk::Image::from_pixbuf(pb.as_ref())),
+        }
+
+        // still no icon, use fallback image
+        match theme.load_icon("image-missing", 24, IconLookupFlags::FORCE_SIZE) {
+            Err(e) => log::error!("Could not find fallback icon \"image-missing\" in default theme: {}", e),
+            Ok(pb) => return Some(gtk::Image::from_pixbuf(pb.as_ref())),
+        }
+
+        None
     }
 }
 
