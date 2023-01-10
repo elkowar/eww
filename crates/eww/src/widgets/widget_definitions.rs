@@ -11,11 +11,9 @@ use eww_shared_util::Spanned;
 use gdk::{ModifierType, NotifyType};
 
 use glib::translate::FromGlib;
-use glib::signal::SignalHandlerId;
 use gtk::{self, glib, prelude::*, DestDefaults, TargetEntry, TargetList};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
-use std::hash::Hasher;
 
 use crate::widgets::system_tray::{spawn_local_handler, start_communication_thread};
 use std::{
