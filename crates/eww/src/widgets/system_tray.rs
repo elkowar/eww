@@ -8,7 +8,7 @@ use std::{collections::HashMap, sync::Mutex, thread};
 use stray::{
     message::{
         menu::{MenuType, TrayMenu},
-        tray::StatusNotifierItem,
+        tray::{StatusNotifierItem, Status},
         NotifierItemCommand, NotifierItemMessage,
     },
     StatusNotifierWatcher,

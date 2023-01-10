@@ -648,16 +648,26 @@ fn build_gtk_scrolledwindow(bargs: &mut BuilderArgs) -> Result<gtk::ScrolledWind
 const WIDGET_NAME_SYSTRAY: &str = "system-tray";
 /// @widget system-stray
 /// @desc a system-tray menubar.
-fn build_gtk_system_tray(_bargs: &mut BuilderArgs) -> Result<gtk::Box> {
+fn build_gtk_system_tray(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
+    // TODO why use a menubar instead of e.g. a box?
     let menu_bar = gtk::MenuBar::new();
-    let v_box = gtk::Box::builder().child(&menu_bar).build();
+
+    def_widget!(bargs, _g, menu_bar, {
+
+        prop(orientation: as_string) {},
+        // @prop pack-direction - how items are arranged in system tray
+        prop(pack_direction: as_string) { menu_bar.set_pack_direction(parse_packdirection(&pack_direction)?) },
+    });
+
+    // TODO why wrap in a box?
+    let boxed = gtk::Box::builder().child(&menu_bar).build();
+
     let (sender, receiver) = mpsc::channel(32);
     let (cmd_tx, cmd_rx) = mpsc::channel(32);
-
     spawn_local_handler(menu_bar, receiver, cmd_tx);
     start_communication_thread(sender, cmd_rx);
 
-    Ok(v_box)
+    Ok(boxed)
 }
 
 const WIDGET_NAME_EVENTBOX: &str = "eventbox";
@@ -1077,6 +1087,16 @@ fn parse_align(o: &str) -> Result<gtk::Align> {
         "center" => gtk::Align::Center,
         "start" => gtk::Align::Start,
         "end" => gtk::Align::End,
+    }
+}
+
+/// @var packdirection - "right", "ltr", "left", "rtl", "down", "ttb", "up", "btt"
+fn parse_packdirection(o: &str) -> Result<gtk::PackDirection> {
+    enum_parse! { "packdirection", o,
+        "right" | "ltr" => gtk::PackDirection::Ltr,
+        "left" | "rtl" => gtk::PackDirection::Rtl,
+        "down" | "ttb" => gtk::PackDirection::Ttb,
+        "up" | "btt" => gtk::PackDirection::Btt,
     }
 }
 
