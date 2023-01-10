@@ -134,11 +134,16 @@ pub fn spawn_local_handler(
                 }
             }
 
+            // FIXME don't recreate all icons on update, so menus don't get destroyed
             for child in v_box.children() {
                 v_box.remove(&child);
             }
 
             for (address, notifier_item) in state.iter() {
+                if let Status::Passive = notifier_item.item.status {
+                    continue // don't display; see documentation of Status
+                }
+
                 if let Some(icon) = notifier_item.get_icon() {
                     // Create the menu
 
