@@ -66,6 +66,10 @@
               pkg-config
               deno
               mdbook
+              # makes icon lookup work
+              glib
+              gdk-pixbuf
+              librsvg
             ];
 
             RUST_SRC_PATH = "${rust}/lib/rustlib/src/rust/library";
