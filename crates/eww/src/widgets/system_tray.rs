@@ -104,6 +104,8 @@ pub fn start_communication_thread(sender: mpsc::Sender<NotifierItemMessage>, cmd
 
          runtime.block_on(async {
              let tray = StatusNotifierWatcher::new(cmd_rx).await.unwrap();
+
+             // FIXME reloading widgets causes "thread 'tokio-runtime-worker' panicked at 'Unexpected StatusNotifierError : DbusError(NameTaken)'"
              let mut host = tray.create_notifier_host("MyHost").await.unwrap();
 
              while let Ok(message) = host.recv().await {
