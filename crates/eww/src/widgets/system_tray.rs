@@ -4,7 +4,7 @@ use gtk::{
     IconLookupFlags, Menu, MenuBar, MenuItem, Orientation, SeparatorMenuItem,
 };
 use once_cell::sync::Lazy;
-use std::{collections::HashMap, thread};
+use std::{collections::HashMap, thread, sync::atomic::AtomicBool};
 use stray::{
     message::{
         menu::{MenuType, TrayMenu},
@@ -157,7 +157,12 @@ impl NotifierItem {
     }
 }
 
-pub fn maintain_menubar(vbox: MenuBar) {
+#[derive(Default)]
+pub struct SystemTrayProps {
+    pub active_only: AtomicBool,
+}
+
+pub fn maintain_menubar(vbox: MenuBar, props: std::sync::Arc<SystemTrayProps>) {
     let fut = async move {
         let mut rx = NOTIFIER_SERVICE.state.clone();
         while let Ok(()) = rx.changed().await {
@@ -171,8 +176,9 @@ pub fn maintain_menubar(vbox: MenuBar) {
             for (address, notifier_item) in items.iter() {
                 // TODO bug in stray: they're parsed the wrong way around
                 if let Status::Active = notifier_item.item.status {
-                    // FIXME make this behaviour customisable
-                    continue // don't display; see documentation of Status
+                    if props.active_only.load(std::sync::atomic::Ordering::SeqCst) {
+                        continue // don't display; see documentation of Status
+                    }
                 }
 
                 if let Some(icon) = notifier_item.get_icon() {

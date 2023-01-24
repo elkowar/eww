@@ -15,7 +15,7 @@ use gtk::{self, glib, prelude::*, DestDefaults, TargetEntry, TargetList};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 
-use crate::widgets::system_tray::maintain_menubar;
+use crate::widgets::system_tray::{SystemTrayProps, maintain_menubar};
 use std::{
     cell::RefCell,
     cmp::Ordering,
@@ -650,15 +650,19 @@ const WIDGET_NAME_SYSTRAY: &str = "system-tray";
 fn build_gtk_system_tray(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
     // TODO why use a menubar instead of e.g. a box?
     let menu_bar = gtk::MenuBar::new();
+    let props = std::sync::Arc::new(SystemTrayProps::default());
+    let props2 = props.clone();
 
     def_widget!(bargs, _g, menu_bar, {
+        // @prop active-only - whether to hide passive icons or not
+        prop(active_only: as_bool = true) { props.active_only.store(active_only, std::sync::atomic::Ordering::SeqCst) },
         // @prop pack-direction - how items are arranged in system tray
         prop(pack_direction: as_string) { menu_bar.set_pack_direction(parse_packdirection(&pack_direction)?) },
     });
 
     // TODO why wrap in a box?
     let boxed = gtk::Box::builder().child(&menu_bar).build();
-    maintain_menubar(menu_bar);
+    maintain_menubar(menu_bar, props2);
 
     Ok(boxed)
 }
