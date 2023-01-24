@@ -653,8 +653,6 @@ fn build_gtk_system_tray(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
     let menu_bar = gtk::MenuBar::new();
 
     def_widget!(bargs, _g, menu_bar, {
-
-        prop(orientation: as_string) {},
         // @prop pack-direction - how items are arranged in system tray
         prop(pack_direction: as_string) { menu_bar.set_pack_direction(parse_packdirection(&pack_direction)?) },
     });

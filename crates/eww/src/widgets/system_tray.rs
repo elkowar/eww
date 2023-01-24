@@ -142,7 +142,9 @@ pub fn spawn_local_handler(
             }
 
             for (address, notifier_item) in state.iter() {
-                if let Status::Passive = notifier_item.item.status {
+                // TODO bug in stray: they're parsed the wrong way around
+                if let Status::Active = notifier_item.item.status {
+                    // FIXME make this behaviour customisable
                     continue // don't display; see documentation of Status
                 }
 
