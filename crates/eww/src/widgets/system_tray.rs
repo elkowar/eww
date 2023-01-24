@@ -4,7 +4,7 @@ use gtk::{
     IconLookupFlags, Menu, MenuBar, MenuItem, Orientation, SeparatorMenuItem,
 };
 use once_cell::sync::Lazy;
-use std::{collections::HashMap, sync::Mutex, thread};
+use std::{collections::HashMap, thread};
 use stray::{
     message::{
         menu::{MenuType, TrayMenu},
@@ -15,16 +15,75 @@ use stray::{
 };
 use tokio::{runtime::Runtime, sync::mpsc};
 
+use crate::loop_select;
+
+#[derive(Clone, Debug)]
 struct NotifierItem {
     item: StatusNotifierItem,
     menu: Option<TrayMenu>,
 }
 
+// FIXME dropping and whatnot
+struct NotifierService {
+    state: tokio::sync::watch::Receiver<HashMap<String, NotifierItem>>,
+    cmd_tx: mpsc::Sender<NotifierItemCommand>,
+    // exit: tokio::sync::oneshot::Sender<()>,
+}
+
+// FIXME only run this while we have a status bar
+static NOTIFIER_SERVICE: Lazy<NotifierService> = Lazy::new(|| NotifierService::spawn_new());
+
+impl NotifierService {
+    fn spawn_new() -> NotifierService {
+        let (cmd_tx, cmd_rx) = mpsc::channel(32);
+        let (watch_tx, watch_rx) = tokio::sync::watch::channel(HashMap::new());
+        // let (exit_tx, mut exit_rx) = tokio::sync::oneshot::channel();
+
+        thread::spawn(move || {
+            log::info!("Starting shared notifier tray service");
+            let mut items = HashMap::<String, NotifierItem>::new();
+
+            let runtime = Runtime::new().expect("Failed to create tokio runtime");
+            runtime.block_on(async {
+                let snw = StatusNotifierWatcher::new(cmd_rx).await.unwrap();
+                let mut host = snw.create_notifier_host("eww").await.unwrap();
+
+                loop_select! {
+                    msg = host.recv() => {
+                        match msg.unwrap() {
+                            NotifierItemMessage::Update { address, item, menu } => {
+                                log::info!(
+                                    "tray: Update id={:?} status={:?}",
+                                    item.id,
+                                    item.status,
+                                );
+                                items.insert(address, NotifierItem { item: *item, menu });
+                            },
+                            NotifierItemMessage::Remove { address } => {
+                                log::info!("tray: Remove id={:?}", items.get(&address).map(|i| i.item.id.clone()));
+                                items.remove(&address);
+                            },
+                        };
+                        watch_tx.send(items.clone()).unwrap();
+                    },
+                    // _ = &mut exit_rx => break,
+                }
+
+                // host.destroy().await.unwrap();
+            })
+        });
+
+        NotifierService {
+            state: watch_rx,
+            cmd_tx,
+            // exit: exit_tx,
+        }
+    }
+}
+
 pub struct StatusNotifierWrapper {
     menu: stray::message::menu::MenuItem,
 }
-
-static STATE: Lazy<Mutex<HashMap<String, NotifierItem>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 
 impl StatusNotifierWrapper {
     fn to_menu_item(self, sender: mpsc::Sender<NotifierItemCommand>, notifier_address: String, menu_path: String) -> MenuItem {
@@ -98,50 +157,18 @@ impl NotifierItem {
     }
 }
 
-pub fn start_communication_thread(sender: mpsc::Sender<NotifierItemMessage>, cmd_rx: mpsc::Receiver<NotifierItemCommand>) {
-    thread::spawn(move || {
-        let runtime = Runtime::new().expect("Failed to create tokio RT");
-
-         runtime.block_on(async {
-             let tray = StatusNotifierWatcher::new(cmd_rx).await.unwrap();
-
-             // FIXME reloading widgets causes "thread 'tokio-runtime-worker' panicked at 'Unexpected StatusNotifierError : DbusError(NameTaken)'"
-             let mut host = tray.create_notifier_host("MyHost").await.unwrap();
-
-             while let Ok(message) = host.recv().await {
-                 sender.send(message).await.expect("failed to send message to UI");
-             }
-
-             host.destroy().await.unwrap();
-         })
-    });
-}
-
-pub fn spawn_local_handler(
-    v_box: MenuBar,
-    mut receiver: mpsc::Receiver<NotifierItemMessage>,
-    cmd_tx: mpsc::Sender<NotifierItemCommand>,
-) {
-    let main_context = glib::MainContext::default();
-    let future = async move {
-        while let Some(item) = receiver.recv().await {
-            let mut state = STATE.lock().unwrap();
-
-            match item {
-                NotifierItemMessage::Update { address: id, item, menu } => {
-                    state.insert(id, NotifierItem { item: *item, menu });
-                }
-                NotifierItemMessage::Remove { address } => {
-                    state.remove(&address);
-                }
-            }
-
+pub fn maintain_menubar(vbox: MenuBar) {
+    let fut = async move {
+        let mut rx = NOTIFIER_SERVICE.state.clone();
+        while let Ok(()) = rx.changed().await {
             // FIXME don't recreate all icons on update, so menus don't get destroyed
-            for child in v_box.children() {
-                v_box.remove(&child);
+            let items = rx.borrow();
+
+            for child in vbox.children() {
+                vbox.remove(&child);
             }
 
-            for (address, notifier_item) in state.iter() {
+            for (address, notifier_item) in items.iter() {
                 // TODO bug in stray: they're parsed the wrong way around
                 if let Status::Active = notifier_item.item.status {
                     // FIXME make this behaviour customisable
@@ -165,7 +192,7 @@ pub fn spawn_local_handler(
                             .map(|item| {
                                 let menu_path = notifier_item.item.menu.as_ref().unwrap().to_string();
                                 let address = address.to_string();
-                                item.to_menu_item(cmd_tx.clone(), address, menu_path)
+                                item.to_menu_item(NOTIFIER_SERVICE.cmd_tx.clone(), address, menu_path)
                             })
                             .for_each(|item| menu.append(&item));
 
@@ -173,13 +200,13 @@ pub fn spawn_local_handler(
                             menu_item.set_submenu(Some(&menu));
                         }
                     }
-                    v_box.append(&menu_item);
+                    vbox.append(&menu_item);
                 };
 
-                v_box.show_all();
+                vbox.show_all();
             }
         }
     };
 
-    main_context.spawn_local(future);
+    glib::MainContext::default().spawn_local(fut);
 }

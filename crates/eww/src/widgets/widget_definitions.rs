@@ -15,7 +15,7 @@ use gtk::{self, glib, prelude::*, DestDefaults, TargetEntry, TargetList};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 
-use crate::widgets::system_tray::{spawn_local_handler, start_communication_thread};
+use crate::widgets::system_tray::maintain_menubar;
 use std::{
     cell::RefCell,
     cmp::Ordering,
@@ -23,7 +23,6 @@ use std::{
     rc::Rc,
     time::Duration,
 };
-use tokio::sync::mpsc;
 use yuck::{
     config::file_provider::YuckFileProvider,
     error::{DiagError, DiagResult},
@@ -659,11 +658,7 @@ fn build_gtk_system_tray(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
 
     // TODO why wrap in a box?
     let boxed = gtk::Box::builder().child(&menu_bar).build();
-
-    let (sender, receiver) = mpsc::channel(32);
-    let (cmd_tx, cmd_rx) = mpsc::channel(32);
-    spawn_local_handler(menu_bar, receiver, cmd_tx);
-    start_communication_thread(sender, cmd_rx);
+    maintain_menubar(menu_bar);
 
     Ok(boxed)
 }
