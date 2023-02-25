@@ -238,12 +238,12 @@ If you're using vim, you can make use of <a href="https://github.com/elkowar/yuc
 If you're using VSCode, you can get syntax highlighting and formatting from <a href="https://marketplace.visualstudio.com/items?itemName=eww-yuck.yuck">yuck-vscode</a>.
 It is also recommended to use <a href="https://shaunlebron.github.io/parinfer/">parinfer</a>,
 which makes working with S-expressions delightfully easy!</p>
-<p>Additionally, any styles are defined in SCSS (which is mostly just slightly improved CSS syntax).
+<p>Additionally, any styles are defined in CSS or SCSS (which is mostly just slightly improved CSS syntax).
 While eww supports a significant portion of the CSS you know from the web,
 not everything is supported, as eww relies on GTK's own CSS engine.
 Notably, some animation features are unsupported,
 as well as most layout-related CSS properties such as flexbox, <code>float</code>, absolute position or <code>width</code>/<code>height</code>.</p>
-<p>To get started, you'll need to create two files: <code>eww.yuck</code> and <code>eww.scss</code>.
+<p>To get started, you'll need to create two files: <code>eww.yuck</code> and <code>eww.scss</code> (or <code>eww.css</code>, if you prefer).
 These files must be placed under <code>$XDG_CONFIG_HOME/eww</code> (this is most likely <code>~/.config/eww</code>).</p>
 <p>Now that those files are created, you can start writing your first widget!</p>
 <h2 id="creating-your-first-window"><a class="header" href="#creating-your-first-window">Creating your first window</a></h2>
@@ -485,7 +485,7 @@ not an object.
 <div id="chapter_begin" style="break-before: page; page-break-before: always;"></div><h1 id="gtk"><a class="header" href="#gtk">GTK</a></h1>
 <h2 id="gtk-theming"><a class="header" href="#gtk-theming">Gtk-theming</a></h2>
 <p>Eww is styled in GTK CSS.
-To make theming even easier, it makes use of <code>SCSS</code> and then compiles that into CSS for you.
+You can use <code>Vanilla CSS</code> or <code>SCSS</code> to make theming even easier. The latter is compiled into CSS for you.
 If you don't know any way to style something check out the <a href="https://docs.gtk.org/gtk3/css-overview.html">GTK CSS Overview wiki</a>,
 the <a href="https://docs.gtk.org/gtk3/css-properties.html">GTK CSS Properties Overview wiki </a>,
 or use the <a href="working_with_gtk.html#gtk-debugger">GTK-Debugger</a>.</p>
@@ -769,7 +769,7 @@ or use the <a href="working_with_gtk.html#gtk-debugger">GTK-Debugger</a>.</p>
 </ol>
 <h2 id="my-configuration-is-not-loaded-correctly"><a class="header" href="#my-configuration-is-not-loaded-correctly">My configuration is not loaded correctly</a></h2>
 <ol>
-<li>Make sure the <code>eww.yuck</code> and <code>eww.scss</code> files are in the correct places.</li>
+<li>Make sure the <code>eww.yuck</code> and <code>eww.(s)css</code> files are in the correct places.</li>
 <li>Sometimes, eww might fail to load your configuration as a result of a configuration error. Make sure your configuration is valid.</li>
 </ol>
 <h2 id="something-isnt-styled-correctly"><a class="header" href="#something-isnt-styled-correctly">Something isn't styled correctly!</a></h2>
