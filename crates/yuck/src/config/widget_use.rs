@@ -1,11 +1,8 @@
-use std::collections::HashMap;
-
 use simplexpr::SimplExpr;
 
 use crate::{
     config::attributes::AttrEntry,
     error::{DiagError, DiagResult, DiagResultExt},
-    format_diagnostic::{DiagnosticExt, ToDiagnostic},
     gen_diagnostic,
     parser::{
         ast::Ast,
@@ -73,7 +70,7 @@ impl FromAstElementContent for LoopWidgetUse {
     const ELEMENT_NAME: &'static str = "for";
 
     fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> DiagResult<Self> {
-        let (element_name_span, element_name) = iter.expect_symbol()?;
+        let (_element_name_span, element_name) = iter.expect_symbol()?;
         let (in_string_span, in_string) = iter.expect_symbol()?;
         if in_string != "in" {
             return Err(DiagError(gen_diagnostic! {

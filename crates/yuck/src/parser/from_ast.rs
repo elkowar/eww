@@ -1,16 +1,8 @@
-use super::{
-    ast::{Ast, AstType},
-    ast_iterator::AstIterator,
-};
-use crate::{error::*, format_diagnostic::ToDiagnostic, gen_diagnostic, parser};
-use eww_shared_util::{AttrName, Span, Spanned, VarName};
-use itertools::Itertools;
-use simplexpr::{ast::SimplExpr, dynval::DynVal};
-use std::{
-    collections::{HashMap, LinkedList},
-    iter::FromIterator,
-    str::FromStr,
-};
+use super::{ast::Ast, ast_iterator::AstIterator};
+use crate::{error::*, format_diagnostic::ToDiagnostic, gen_diagnostic};
+use eww_shared_util::{Span, Spanned};
+
+use simplexpr::ast::SimplExpr;
 
 pub trait FromAst: Sized {
     fn from_ast(e: Ast) -> DiagResult<Self>;
@@ -55,7 +47,7 @@ impl FromAst for SimplExpr {
     fn from_ast(e: Ast) -> DiagResult<Self> {
         match e {
             Ast::Symbol(span, x) => Ok(SimplExpr::var_ref(span, x)),
-            Ast::SimplExpr(span, x) => Ok(x),
+            Ast::SimplExpr(_span, x) => Ok(x),
             _ => Err(DiagError(gen_diagnostic! {
                 msg = format!("Expected value, but got `{}`", e.expr_type()),
                 label = e.span() => "Expected some value here",

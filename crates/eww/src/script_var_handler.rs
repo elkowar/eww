@@ -100,6 +100,7 @@ impl ScriptVarHandlerHandle {
 
 /// Message enum used by the ScriptVarHandlerHandle to communicate to the ScriptVarHandler
 #[derive(Debug, Eq, PartialEq)]
+#[allow(clippy::large_enum_variant)]
 enum ScriptVarHandlerMsg {
     AddVar(ScriptVarDefinition),
     Stop(VarName),

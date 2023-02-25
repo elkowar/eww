@@ -1,21 +1,13 @@
-use std::collections::HashMap;
-
-use simplexpr::{dynval::DynVal, SimplExpr};
-
 use crate::{
     enum_parse,
-    error::{DiagError, DiagResult},
+    error::DiagResult,
     format_diagnostic::ToDiagnostic,
-    parser::{
-        ast::Ast,
-        ast_iterator::AstIterator,
-        from_ast::{FromAst, FromAstElementContent},
-    },
+    parser::{ast::Ast, ast_iterator::AstIterator, from_ast::FromAstElementContent},
     value::Coords,
 };
 
-use super::{widget_use::WidgetUse, window_definition::EnumParseError};
-use eww_shared_util::{AttrName, Span, VarName};
+use super::window_definition::EnumParseError;
+use eww_shared_util::Span;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, smart_default::SmartDefault, Serialize, Deserialize, strum::Display)]
@@ -120,7 +112,7 @@ pub struct WindowGeometry {
 impl FromAstElementContent for WindowGeometry {
     const ELEMENT_NAME: &'static str = "geometry";
 
-    fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> DiagResult<Self> {
+    fn from_tail<I: Iterator<Item = Ast>>(_span: Span, mut iter: AstIterator<I>) -> DiagResult<Self> {
         let mut attrs = iter.expect_key_values()?;
         iter.expect_done()
             .map_err(|e| e.to_diagnostic().with_notes(vec!["Check if you are missing a colon in front of a key".to_string()]))?;

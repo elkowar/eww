@@ -149,7 +149,7 @@ impl App {
                     if let Err(e) = config_result.and_then(|new_config| self.load_config(new_config)) {
                         errors.push(e)
                     }
-                    match crate::config::scss::parse_scss_from_config(&self.paths.get_config_dir()) {
+                    match crate::config::scss::parse_scss_from_config(self.paths.get_config_dir()) {
                         Ok((file_id, css)) => {
                             if let Err(e) = self.load_css(file_id, &css) {
                                 errors.push(anyhow!(e));

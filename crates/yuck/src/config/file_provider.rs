@@ -1,12 +1,6 @@
-use std::{collections::HashMap, path::PathBuf};
-
-use codespan_reporting::files::{Files, SimpleFile, SimpleFiles};
 use eww_shared_util::Span;
 
-use crate::{
-    error::{DiagError, DiagResult},
-    parser::ast::Ast,
-};
+use crate::{error::DiagError, parser::ast::Ast};
 
 #[derive(thiserror::Error, Debug)]
 pub enum FilesError {

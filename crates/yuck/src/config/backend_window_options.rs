@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 
 use crate::{
     enum_parse,
@@ -16,10 +16,7 @@ pub use backend::*;
 
 #[cfg(feature = "x11")]
 mod backend {
-    use crate::{
-        error::{DiagError, DiagResultExt},
-        format_diagnostic::ToDiagnostic,
-    };
+    use crate::error::{DiagError, DiagResultExt};
 
     use super::*;
 
@@ -103,7 +100,7 @@ mod backend {
     impl FromAstElementContent for StrutDefinition {
         const ELEMENT_NAME: &'static str = "struts";
 
-        fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> DiagResult<Self> {
+        fn from_tail<I: Iterator<Item = Ast>>(_span: Span, mut iter: AstIterator<I>) -> DiagResult<Self> {
             let mut attrs = iter.expect_key_values()?;
             iter.expect_done().map_err(DiagError::from).note("Check if you are missing a colon in front of a key")?;
             Ok(StrutDefinition { side: attrs.primitive_required("side")?, dist: attrs.primitive_required("distance")? })

@@ -2,16 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use simplexpr::SimplExpr;
 
-use crate::{
-    error::DiagResult,
-    parser::{ast::Ast, ast_iterator::AstIterator, from_ast::FromAst},
-};
-
-use super::{
-    widget_definition::WidgetDefinition,
-    widget_use::{BasicWidgetUse, WidgetUse},
-    Config,
-};
+use super::{widget_definition::WidgetDefinition, widget_use::WidgetUse, Config};
 use eww_shared_util::{AttrName, Span, Spanned, VarName};
 
 #[derive(Debug, thiserror::Error)]
@@ -93,7 +84,6 @@ pub fn validate_variables_in_widget_use(
         }
         let values = widget.attrs.attrs.values();
         let unknown_var = values.filter_map(|value| value.value.as_simplexpr().ok()).find_map(|expr: SimplExpr| {
-            let span = expr.span();
             expr.var_refs_with_span()
                 .iter()
                 .cloned()

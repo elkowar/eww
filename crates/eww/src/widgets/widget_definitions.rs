@@ -905,7 +905,7 @@ fn build_gtk_calendar(bargs: &mut BuilderArgs) -> Result<gtk::Calendar> {
     def_widget!(bargs, _g, gtk_widget, {
         // @prop day - the selected day
         prop(day: as_f64) {
-            if day < 1f64 || day > 31f64 {
+            if !(1f64..=31f64).contains(&day) {
                 log::warn!("Calendar day is not a number between 1 and 31");
             } else {
                 gtk_widget.set_day(day as i32)
@@ -913,7 +913,7 @@ fn build_gtk_calendar(bargs: &mut BuilderArgs) -> Result<gtk::Calendar> {
         },
         // @prop month - the selected month
         prop(month: as_f64) {
-            if month < 1f64 || month > 12f64 {
+            if !(1f64..=12f64).contains(&month) {
                 log::warn!("Calendar month is not a number between 1 and 12");
             } else {
                 gtk_widget.set_month(month as i32 - 1)

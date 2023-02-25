@@ -1,17 +1,11 @@
-use std::collections::HashMap;
-
 use simplexpr::{dynval::DynVal, SimplExpr};
 
 use crate::{
     error::{DiagError, DiagResult, DiagResultExt},
     format_diagnostic::ToDiagnostic,
-    parser::{
-        ast::Ast,
-        ast_iterator::AstIterator,
-        from_ast::{FromAst, FromAstElementContent},
-    },
+    parser::{ast::Ast, ast_iterator::AstIterator, from_ast::FromAstElementContent},
 };
-use eww_shared_util::{AttrName, Span, Spanned, VarName};
+use eww_shared_util::{Span, VarName};
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub enum ScriptVarDefinition {
@@ -66,7 +60,7 @@ pub struct PollScriptVar {
 impl FromAstElementContent for PollScriptVar {
     const ELEMENT_NAME: &'static str = "defpoll";
 
-    fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> DiagResult<Self> {
+    fn from_tail<I: Iterator<Item = Ast>>(_span: Span, mut iter: AstIterator<I>) -> DiagResult<Self> {
         let result: DiagResult<_> = try {
             let (name_span, name) = iter.expect_symbol()?;
             let mut attrs = iter.expect_key_values()?;
@@ -103,7 +97,7 @@ pub struct ListenScriptVar {
 impl FromAstElementContent for ListenScriptVar {
     const ELEMENT_NAME: &'static str = "deflisten";
 
-    fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> DiagResult<Self> {
+    fn from_tail<I: Iterator<Item = Ast>>(_span: Span, mut iter: AstIterator<I>) -> DiagResult<Self> {
         let result: DiagResult<_> = try {
             let (name_span, name) = iter.expect_symbol()?;
             let mut attrs = iter.expect_key_values()?;

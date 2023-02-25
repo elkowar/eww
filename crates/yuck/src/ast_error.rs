@@ -1,11 +1,6 @@
 use eww_shared_util::{AttrName, Span};
 
-use crate::{
-    error::{DiagError, DiagResult},
-    format_diagnostic::ToDiagnostic,
-    gen_diagnostic,
-    parser::ast::AstType,
-};
+use crate::{format_diagnostic::ToDiagnostic, gen_diagnostic, parser::ast::AstType};
 
 /// Error type representing errors that occur when trying to access parts of the AST specifically
 #[derive(Debug, thiserror::Error)]
@@ -41,7 +36,7 @@ impl ToDiagnostic for AstError {
                 note = format!("Expected: {expected}\n     Got: {actual}"),
             },
             AstError::DanglingKeyword(span, kw) => gen_diagnostic! {
-                msg = "{kw} is missing a value",
+                msg = format!("{kw} is missing a value"),
                 label = span => "No value provided for this",
             },
             AstError::EvalError(e) => e.to_diagnostic(),

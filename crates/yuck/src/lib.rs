@@ -1,5 +1,3 @@
-#![allow(unused_imports)]
-#![allow(unused)]
 #![allow(clippy::comparison_chain)]
 #![feature(try_blocks, box_patterns)]
 

@@ -38,6 +38,7 @@ pub fn format_error(err: &anyhow::Error) -> String {
 }
 
 pub fn anyhow_err_to_diagnostic(err: &anyhow::Error) -> Option<Diagnostic<usize>> {
+    #[allow(clippy::manual_map)]
     if let Some(err) = err.downcast_ref::<DiagError>() {
         Some(err.0.clone())
     } else if let Some(err) = err.downcast_ref::<ConversionError>() {

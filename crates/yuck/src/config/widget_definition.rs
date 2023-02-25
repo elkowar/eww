@@ -1,10 +1,6 @@
-use std::collections::HashMap;
-
-use simplexpr::SimplExpr;
-
 use crate::{
     error::{DiagError, DiagResult, DiagResultExt},
-    format_diagnostic::{DiagnosticExt, ToDiagnostic},
+    format_diagnostic::ToDiagnostic,
     gen_diagnostic,
     parser::{
         ast::Ast,
@@ -12,7 +8,7 @@ use crate::{
         from_ast::{FromAst, FromAstElementContent},
     },
 };
-use eww_shared_util::{AttrName, Span, Spanned, VarName};
+use eww_shared_util::{AttrName, Span, Spanned};
 
 use super::widget_use::WidgetUse;
 
@@ -50,7 +46,7 @@ impl FromAstElementContent for WidgetDefinition {
             .expect_array()
             .map_err(|e| {
                 DiagError(match e {
-                    crate::ast_error::AstError::WrongExprType(span, expected, actual) => gen_diagnostic! {
+                    crate::ast_error::AstError::WrongExprType(..) => gen_diagnostic! {
                         msg = "Widget definition missing argument list",
                         label = name_span.point_span_at_end() => "Insert the argument list (e.g.: `[]`) here",
                         note = "This list needs to declare all the non-global variables / attributes used in this widget."

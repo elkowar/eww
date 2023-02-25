@@ -1,14 +1,9 @@
 use crate::{
-    config::{attributes::AttrError, config::Include, validate::ValidationError},
     format_diagnostic::{lalrpop_error_to_diagnostic, DiagnosticExt, ToDiagnostic},
-    gen_diagnostic,
-    parser::{
-        ast::{Ast, AstType},
-        lexer, parse_error,
-    },
+    parser::{lexer, parse_error},
 };
-use codespan_reporting::{diagnostic, files};
-use eww_shared_util::{AttrName, Span, Spanned, VarName};
+use codespan_reporting::diagnostic;
+use eww_shared_util::{Span, Spanned};
 use simplexpr::dynval;
 use thiserror::Error;
 
@@ -45,8 +40,8 @@ pub fn get_parse_error_span<T, E: Spanned>(file_id: usize, err: &lalrpop_util::P
     use lalrpop_util::ParseError::*;
     match err {
         InvalidToken { location } => Span(*location, *location, file_id),
-        UnrecognizedEOF { location, expected } => Span(*location, *location, file_id),
-        UnrecognizedToken { token, expected } => Span(token.0, token.2, file_id),
+        UnrecognizedEOF { location, .. } => Span(*location, *location, file_id),
+        UnrecognizedToken { token, .. } => Span(token.0, token.2, file_id),
         ExtraToken { token } => Span(token.0, token.2, file_id),
         User { error } => error.span(),
     }

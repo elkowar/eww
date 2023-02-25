@@ -104,6 +104,12 @@ impl ObjectSubclass for CircProgPriv {
     }
 }
 
+impl Default for CircProg {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CircProg {
     pub fn new() -> Self {
         glib::Object::new::<Self>(&[]).expect("Failed to create CircularProgress Widget")

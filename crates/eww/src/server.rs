@@ -83,7 +83,7 @@ pub fn initialize_server(paths: EwwPaths, action: Option<DaemonCommand>, should_
         gtk::StyleContext::add_provider_for_screen(&screen, &app.css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
     }
 
-    if let Ok((file_id, css)) = config::scss::parse_scss_from_config(&app.paths.get_config_dir()) {
+    if let Ok((file_id, css)) = config::scss::parse_scss_from_config(app.paths.get_config_dir()) {
         if let Err(e) = app.load_css(file_id, &css) {
             error_handling_ctx::print_error(e);
         }

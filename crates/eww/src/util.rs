@@ -144,7 +144,6 @@ pub fn unindent(text: &str) -> String {
 #[cfg(test)]
 mod test {
     use super::{replace_env_var_references, unindent};
-    use std;
 
     #[test]
     fn test_replace_env_var_references() {

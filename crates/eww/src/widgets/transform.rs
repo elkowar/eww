@@ -108,6 +108,12 @@ impl ObjectSubclass for TransformPriv {
     }
 }
 
+impl Default for Transform {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Transform {
     pub fn new() -> Self {
         glib::Object::new::<Self>(&[]).expect("Failed to create Transform Widget")

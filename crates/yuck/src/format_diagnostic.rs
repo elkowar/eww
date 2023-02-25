@@ -1,16 +1,13 @@
-use codespan_reporting::{diagnostic, files};
+use codespan_reporting::diagnostic;
 use itertools::Itertools;
 use simplexpr::dynval;
 
 use diagnostic::*;
 
-use crate::{
-    config::{attributes::AttrError, config, validate::ValidationError},
-    error::{get_parse_error_span, DiagError},
-};
+use crate::config::{attributes::AttrError, validate::ValidationError};
 
 use super::parser::parse_error;
-use eww_shared_util::{AttrName, Span, Spanned, VarName};
+use eww_shared_util::{Span, Spanned};
 
 pub fn span_to_primary_label(span: Span) -> Label<usize> {
     Label::primary(span.2, span.0..span.1)
@@ -103,7 +100,7 @@ impl ToDiagnostic for AttrError {
             AttrError::MissingRequiredAttr(span, attr_name) => {
                 gen_diagnostic!(format!("Missing attribute `{}`", attr_name), span)
             }
-            AttrError::EvaluationError(span, source) => source.to_diagnostic(),
+            AttrError::EvaluationError(_span, source) => source.to_diagnostic(),
             AttrError::Other(span, source) => gen_diagnostic!(source, span),
         }
     }
@@ -145,7 +142,7 @@ impl ToDiagnostic for ValidationError {
 
                 diag.with_notes(extra_notes)
             }
-            ValidationError::AccidentalBuiltinOverride(span, widget_name) => gen_diagnostic! {
+            ValidationError::AccidentalBuiltinOverride(span, _widget_name) => gen_diagnostic! {
                 msg = self,
                 label = span => "Defined here",
                 note = "Hint: Give your widget a different name. You could call it \"John\" for example. That's a cool name."
@@ -166,11 +163,11 @@ pub fn lalrpop_error_to_diagnostic<T: std::fmt::Display, E: Spanned + ToDiagnost
     use lalrpop_util::ParseError::*;
     match error {
         InvalidToken { location } => gen_diagnostic!("Invalid token", Span::point(*location, file_id)),
-        UnrecognizedEOF { location, expected } => gen_diagnostic! {
+        UnrecognizedEOF { location, expected: _ } => gen_diagnostic! {
             msg = "Input ended unexpectedly. Check if you have any unclosed delimiters",
             label = Span::point(*location, file_id),
         },
-        UnrecognizedToken { token, expected } => gen_diagnostic! {
+        UnrecognizedToken { token, expected: _ } => gen_diagnostic! {
             msg = format!("Unexpected token `{}` encountered", token.1),
             label = Span(token.0, token.2, file_id) => "Token unexpected",
         },
@@ -189,7 +186,7 @@ impl ToDiagnostic for simplexpr::eval::EvalError {
     fn to_diagnostic(&self) -> Diagnostic<usize> {
         use simplexpr::eval::EvalError;
         match self {
-            EvalError::NoVariablesAllowed(name) => gen_diagnostic!(self),
+            EvalError::NoVariablesAllowed(_name) => gen_diagnostic!(self),
             EvalError::UnknownVariable(name, similar) => {
                 let mut notes = Vec::new();
                 if similar.len() == 1 {

@@ -1,16 +1,11 @@
 use itertools::Itertools;
-use simplexpr::{ast::SimplExpr, dynval::DynVal};
-use std::collections::HashMap;
+use simplexpr::ast::SimplExpr;
 
 use eww_shared_util::{Span, Spanned, VarName};
 use std::fmt::Display;
 
-use super::{ast_iterator::AstIterator, from_ast::FromAst};
-use crate::{
-    ast_error::AstError,
-    config::attributes::{AttrEntry, Attributes},
-    error::{DiagError, DiagResult},
-};
+use super::ast_iterator::AstIterator;
+use crate::ast_error::AstError;
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum AstType {
@@ -92,7 +87,7 @@ impl Ast {
             // TODO do I do this?
             // Ast::Array(span, elements) => todo!()
             Ast::Symbol(span, x) => Ok(SimplExpr::VarRef(*span, VarName(x.clone()))),
-            Ast::SimplExpr(span, x) => Ok(x.clone()),
+            Ast::SimplExpr(_span, x) => Ok(x.clone()),
             _ => Err(AstError::WrongExprType(self.span(), AstType::IntoPrimitive, self.expr_type())),
         }
     }

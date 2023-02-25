@@ -3,23 +3,18 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use codespan_reporting::files::SimpleFiles;
 use itertools::Itertools;
-use simplexpr::SimplExpr;
 
 use super::{
     file_provider::{FilesError, YuckFileProvider},
     script_var_definition::ScriptVarDefinition,
-    validate::ValidationError,
     var_definition::VarDefinition,
     widget_definition::WidgetDefinition,
-    widget_use::WidgetUse,
     window_definition::WindowDefinition,
 };
 use crate::{
     config::script_var_definition::{ListenScriptVar, PollScriptVar},
     error::{DiagError, DiagResult},
-    format_diagnostic::ToDiagnostic,
     gen_diagnostic,
     parser::{
         ast::Ast,
@@ -27,7 +22,7 @@ use crate::{
         from_ast::{FromAst, FromAstElementContent},
     },
 };
-use eww_shared_util::{AttrName, Span, Spanned, VarName};
+use eww_shared_util::{Span, Spanned, VarName};
 
 static TOP_LEVEL_DEFINITION_NAMES: &[&str] = &[
     WidgetDefinition::ELEMENT_NAME,
@@ -47,7 +42,7 @@ pub struct Include {
 impl FromAstElementContent for Include {
     const ELEMENT_NAME: &'static str = "include";
 
-    fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> DiagResult<Self> {
+    fn from_tail<I: Iterator<Item = Ast>>(_span: Span, mut iter: AstIterator<I>) -> DiagResult<Self> {
         let (path_span, path) = iter.expect_literal()?;
         iter.expect_done()?;
         Ok(Include { path: path.to_string(), path_span })
@@ -127,7 +122,7 @@ impl Config {
                 self.window_definitions.insert(x.name.clone(), x);
             }
             TopLevel::Include(include) => {
-                let (file_id, toplevels) = files.load_yuck_file(PathBuf::from(&include.path)).map_err(|err| match err {
+                let (_, toplevels) = files.load_yuck_file(PathBuf::from(&include.path)).map_err(|err| match err {
                     FilesError::IoError(_) => DiagError(gen_diagnostic! {
                         msg = format!("Included file `{}` not found", include.path),
                         label = include.path_span => "Included here",
@@ -156,7 +151,7 @@ impl Config {
     }
 
     pub fn generate_from_main_file(files: &mut impl YuckFileProvider, path: impl AsRef<Path>) -> DiagResult<Self> {
-        let (span, top_levels) = files.load_yuck_file(path.as_ref().to_path_buf()).map_err(|err| match err {
+        let (_span, top_levels) = files.load_yuck_file(path.as_ref().to_path_buf()).map_err(|err| match err {
             FilesError::IoError(err) => DiagError(gen_diagnostic!(err)),
             FilesError::DiagError(x) => x,
         })?;

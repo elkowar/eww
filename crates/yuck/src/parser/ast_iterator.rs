@@ -1,19 +1,10 @@
-use itertools::Itertools;
 use simplexpr::{ast::SimplExpr, dynval::DynVal};
 use std::collections::HashMap;
 
-use std::fmt::Display;
-
-use super::{
-    ast::{Ast, AstType},
-    from_ast::FromAst,
-};
+use super::ast::{Ast, AstType};
 use crate::{
     ast_error::AstError,
     config::attributes::{AttrEntry, Attributes},
-    error::{DiagError, DiagResult},
-    format_diagnostic::ToDiagnostic,
-    gen_diagnostic,
 };
 use eww_shared_util::{AttrName, Span, Spanned, VarName};
 

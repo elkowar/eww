@@ -1,19 +1,15 @@
-use std::{collections::HashMap, fmt::Display, str::FromStr};
-
-use simplexpr::{dynval::DynVal, SimplExpr};
+use std::fmt::Display;
 
 use crate::{
     config::monitor::MonitorIdentifier,
     error::{DiagError, DiagResult},
-    format_diagnostic::ToDiagnostic,
     parser::{
         ast::Ast,
         ast_iterator::AstIterator,
         from_ast::{FromAst, FromAstElementContent},
     },
-    value::NumWithUnit,
 };
-use eww_shared_util::{AttrName, Span, VarName};
+use eww_shared_util::Span;
 
 use super::{backend_window_options::BackendWindowOptions, widget_use::WidgetUse, window_geometry::WindowGeometry};
 
@@ -31,7 +27,7 @@ pub struct WindowDefinition {
 impl FromAstElementContent for WindowDefinition {
     const ELEMENT_NAME: &'static str = "defwindow";
 
-    fn from_tail<I: Iterator<Item = Ast>>(span: Span, mut iter: AstIterator<I>) -> DiagResult<Self> {
+    fn from_tail<I: Iterator<Item = Ast>>(_span: Span, mut iter: AstIterator<I>) -> DiagResult<Self> {
         let (_, name) = iter.expect_symbol()?;
         let mut attrs = iter.expect_key_values()?;
         let monitor = attrs.primitive_optional("monitor")?;
