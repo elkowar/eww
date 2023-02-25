@@ -32,7 +32,7 @@ struct RawOpt {
     #[arg(long = "debug", global = true)]
     log_debug: bool,
 
-    /// override path to configuration directory (directory that contains eww.yuck and eww.scss)
+    /// override path to configuration directory (directory that contains eww.yuck and eww.(s)css)
     #[arg(short, long, global = true)]
     config: Option<std::path::PathBuf>,
 
