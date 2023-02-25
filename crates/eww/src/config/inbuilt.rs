@@ -38,7 +38,7 @@ define_builtin_vars! { Duration::new(2, 0),
     // @prop { total_mem, free_mem, total_swap, free_swap, available_mem, used_mem, used_mem_perc }
     "EWW_RAM" => || Ok(DynVal::from(get_ram())),
 
-    // @desc EWW_DISK - Information on on all mounted partitions (Might report inaccurately on some filesystems, like btrfs)\nExample: `{EWW_DISK["/"]}`
+    // @desc EWW_DISK - Information on on all mounted partitions (Might report inaccurately on some filesystems, like btrfs and zfs) Example: `{EWW_DISK["/"]}`
     // @prop { <mount_point>: { name, total, free, used, used_perc } }
     "EWW_DISK" => || Ok(DynVal::from(get_disks())),
 
