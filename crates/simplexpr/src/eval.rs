@@ -1,3 +1,4 @@
+use cached::proc_macro::cached;
 use itertools::Itertools;
 
 use crate::{
@@ -8,7 +9,19 @@ use eww_shared_util::{Span, Spanned, VarName};
 use std::{
     collections::HashMap,
     convert::{TryFrom, TryInto},
+    sync::Arc,
 };
+
+#[derive(Debug, thiserror::Error)]
+pub struct JaqParseError(pub Option<jaq_core::parse::Error>);
+impl std::fmt::Display for JaqParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.0 {
+            Some(x) => write!(f, "Error parsing jq filter: {x}"),
+            None => write!(f, "Error parsing jq filter"),
+        }
+    }
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum EvalError {
@@ -36,13 +49,24 @@ pub enum EvalError {
     #[error("Json operation failed: {0}")]
     SerdeError(#[from] serde_json::error::Error),
 
+    #[error("Error in jq function: {0}")]
+    JaqError(String),
+
+    #[error(transparent)]
+    JaqParseError(JaqParseError),
+
     #[error("{1}")]
     Spanned(Span, Box<EvalError>),
 }
 
+static_assertions::assert_impl_all!(EvalError: Send, Sync);
+
 impl EvalError {
     pub fn at(self, span: Span) -> Self {
-        Self::Spanned(span, Box::new(self))
+        match self {
+            EvalError::Spanned(..) => self,
+            _ => EvalError::Spanned(span, Box::new(self)),
+        }
     }
 
     pub fn map_in_span(self, f: impl FnOnce(Self) -> Self) -> Self {
@@ -113,8 +137,7 @@ impl SimplExpr {
         self.try_map_var_refs(|span, name| match variables.get(&name) {
             Some(value) => Ok(Literal(value.clone())),
             None => {
-                let similar_ish =
-                    variables.keys().filter(|key| strsim::levenshtein(&key.0, &name.0) < 3).cloned().collect_vec();
+                let similar_ish = variables.keys().filter(|key| strsim::levenshtein(&key.0, &name.0) < 3).cloned().collect_vec();
                 Err(EvalError::UnknownVariable(name.clone(), similar_ish).at(span))
             }
         })
@@ -169,8 +192,7 @@ impl SimplExpr {
                 Ok(DynVal(output, *span))
             }
             SimplExpr::VarRef(span, ref name) => {
-                let similar_ish =
-                    values.keys().filter(|keys| strsim::levenshtein(&keys.0, &name.0) < 3).cloned().collect_vec();
+                let similar_ish = values.keys().filter(|keys| strsim::levenshtein(&keys.0, &name.0) < 3).cloned().collect_vec();
                 Ok(values
                     .get(name)
                     .cloned()
@@ -349,9 +371,46 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
             [json] => Ok(DynVal::from(json.as_json_object()?.len() as i32)),
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
+        "jq" => match args.as_slice() {
+            [json, code] => run_jaq_function(json.as_json_value()?, code.as_string()?)
+                .map_err(|e| EvalError::Spanned(code.span(), Box::new(e))),
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
 
         _ => Err(EvalError::UnknownFunction(name.to_string())),
     }
+}
+
+#[cached(size = 10, result = true, sync_writes = true)]
+fn prepare_jaq_filter(code: String) -> Result<Arc<jaq_core::Filter>, EvalError> {
+    let (filter, mut errors) = jaq_core::parse::parse(&code, jaq_core::parse::main());
+    let filter = match filter {
+        Some(x) => x,
+        None => return Err(EvalError::JaqParseError(JaqParseError(errors.pop()))),
+    };
+    let mut defs = jaq_core::Definitions::core();
+    for def in jaq_std::std() {
+        defs.insert(def, &mut errors);
+    }
+
+    let filter = defs.finish(filter, Vec::new(), &mut errors);
+
+    if let Some(error) = errors.pop() {
+        return Err(EvalError::JaqParseError(JaqParseError(Some(error))));
+    }
+    Ok(Arc::new(filter))
+}
+
+fn run_jaq_function(json: serde_json::Value, code: String) -> Result<DynVal, EvalError> {
+    let filter = prepare_jaq_filter(code)?;
+    let inputs = jaq_core::RcIter::new(std::iter::empty());
+    let out = filter
+        .run(jaq_core::Ctx::new([], &inputs), jaq_core::Val::from(json))
+        .map(|x| x.map(Into::<serde_json::Value>::into))
+        .map(|x| x.map(|x| DynVal::from_string(serde_json::to_string(&x).unwrap())))
+        .collect::<Result<_, _>>()
+        .map_err(|e| EvalError::JaqError(e.to_string()))?;
+    Ok(out)
 }
 
 #[cfg(test)]

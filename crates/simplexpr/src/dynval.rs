@@ -132,6 +132,13 @@ impl DynVal {
         self
     }
 
+    pub fn at_if_dummy(mut self, span: Span) -> Self {
+        if self.1.is_dummy() {
+            self.1 = span;
+        }
+        self
+    }
+
     pub fn from_string(s: String) -> Self {
         DynVal(s, Span::DUMMY)
     }

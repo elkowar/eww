@@ -187,10 +187,10 @@ impl ToDiagnostic for simplexpr::parser::lexer::LexicalError {
 
 impl ToDiagnostic for simplexpr::eval::EvalError {
     fn to_diagnostic(&self) -> Diagnostic<usize> {
-        use simplexpr::eval::EvalError::*;
+        use simplexpr::eval::EvalError;
         match self {
-            NoVariablesAllowed(name) => gen_diagnostic!(self),
-            UnknownVariable(name, similar) => {
+            EvalError::NoVariablesAllowed(name) => gen_diagnostic!(self),
+            EvalError::UnknownVariable(name, similar) => {
                 let mut notes = Vec::new();
                 if similar.len() == 1 {
                     notes.push(format!("Did you mean `{}`?", similar.first().unwrap()))
@@ -202,7 +202,22 @@ impl ToDiagnostic for simplexpr::eval::EvalError {
                 notes.push(format!("Hint: If you meant to use the literal value \"{}\", surround the value in quotes", name));
                 gen_diagnostic!(self).with_notes(notes)
             }
-            Spanned(span, error) => error.as_ref().to_diagnostic().with_label(span_to_primary_label(*span)),
+            EvalError::Spanned(span, box EvalError::JaqParseError(simplexpr::eval::JaqParseError(Some(err)))) => {
+                let span = span.new_relative(err.span().start, err.span().end).shifted(1);
+                let mut diag = gen_diagnostic!(self, span);
+
+                if let Some(label) = err.label() {
+                    diag = diag.with_label(span_to_secondary_label(span).with_message(label));
+                }
+
+                let expected: Vec<_> = err.expected().filter_map(|x| x.clone()).sorted().collect();
+                if !expected.is_empty() {
+                    let label = format!("Expected one of {} here", expected.join(", "));
+                    diag = diag.with_label(span_to_primary_label(span).with_message(label));
+                }
+                diag
+            }
+            EvalError::Spanned(span, error) => error.as_ref().to_diagnostic().with_label(span_to_primary_label(*span)),
             _ => gen_diagnostic!(self, self.span()),
         }
     }

@@ -1,3 +1,7 @@
+/// A span is made up of
+/// - the start location
+/// - the end location
+/// - the file id
 #[derive(Eq, PartialEq, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct Span(pub usize, pub usize, pub usize);
 
@@ -36,6 +40,12 @@ impl Span {
     pub fn shifted(mut self, n: isize) -> Self {
         self.0 = isize::max(0, self.0 as isize + n) as usize;
         self.1 = isize::max(0, self.0 as isize + n) as usize;
+        self
+    }
+
+    pub fn new_relative(mut self, other_start: usize, other_end: usize) -> Self {
+        self.0 += other_start;
+        self.1 += other_end;
         self
     }
 
