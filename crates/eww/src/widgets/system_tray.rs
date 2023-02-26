@@ -129,14 +129,16 @@ impl NotifierItem {
     fn get_icon(&self) -> Option<gtk::Image> {
         let icon_name = self.item.icon_name.as_ref().unwrap();
 
-        if let Some(path) = self.item.icon_theme_path.as_ref() && !path.is_empty() {
-            // custom icon path specified, look there
-            let theme = gtk::IconTheme::new();
-            theme.prepend_search_path(path);
+        if let Some(path) = self.item.icon_theme_path.as_ref() {
+            if !path.is_empty() {
+                // custom icon path specified, look there
+                let theme = gtk::IconTheme::new();
+                theme.prepend_search_path(path);
 
-            match theme.load_icon(icon_name, 24, IconLookupFlags::FORCE_SIZE) {
-                Err(e) => log::warn!("Could not find icon {:?} in path {:?}: {}", path, theme, e),
-                Ok(pb) => return Some(gtk::Image::from_pixbuf(pb.as_ref())),
+                match theme.load_icon(icon_name, 24, IconLookupFlags::FORCE_SIZE) {
+                    Err(e) => log::warn!("Could not find icon {:?} in path {:?}: {}", path, theme, e),
+                    Ok(pb) => return Some(gtk::Image::from_pixbuf(pb.as_ref())),
+                }
             }
         }
 
