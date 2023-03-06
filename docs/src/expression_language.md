@@ -23,6 +23,7 @@ Supported currently are the following features:
 - simple mathematical operations (`+`, `-`, `*`, `/`, `%`)
 - comparisons (`==`, `!=`, `>`, `<`, `<=`, `>=`)
 - boolean operations (`||`, `&&`, `!`)
+- regex match operator (`=~`)
 - elvis operator (`?:`)
     - if the left side is `""` or a JSON `null`, then returns the right side,
       otherwise evaluates to the left side.
