@@ -841,7 +841,11 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
         // @prop xalign - the alignment of the label text on the x axis (between 0 - 1, 0 -> left, 0.5 -> center, 1 -> right)
         prop(xalign: as_f64 = 0.5) { gtk_widget.set_xalign(xalign as f32) },
         // @prop yalign - the alignment of the label text on the y axis (between 0 - 1, 0 -> bottom, 0.5 -> center, 1 -> top)
-        prop(yalign: as_f64 = 0.5) { gtk_widget.set_yalign(yalign as f32) }
+        prop(yalign: as_f64 = 0.5) { gtk_widget.set_yalign(yalign as f32) },
+        // @prop justify - the justification of the label text (left, right, center, fill)
+        prop(justify: as_string = "left") {
+            gtk_widget.set_justify(parse_justification(&justify)?);
+        },
     });
     Ok(gtk_widget)
 }
@@ -1058,6 +1062,16 @@ fn parse_align(o: &str) -> Result<gtk::Align> {
         "center" => gtk::Align::Center,
         "start" => gtk::Align::Start,
         "end" => gtk::Align::End,
+    }
+}
+
+/// @var justification - "left", "right", "center", "fill"
+fn parse_justification(j: &str) -> Result<gtk::Justification> {
+    enum_parse! { "justification", j,
+        "left" => gtk::Justification::Left,
+        "right" => gtk::Justification::Right,
+        "center" => gtk::Justification::Center,
+        "fill" => gtk::Justification::Fill,
     }
 }
 
