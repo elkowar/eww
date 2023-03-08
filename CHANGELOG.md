@@ -12,6 +12,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Made `and`, `or` and `?:` lazily evaluated in simplexpr (By: ModProg)
 - Add Vanilla CSS support (By: Ezequiel Ramis)
 - Add `jq` function, offering jq-style json processing
+- Add support for the `EWW_BATTERY` magic variable in FreeBSD, OpenBSD, and NetBSD (By: dangerdyke)
 
 ## [0.4.0] (04.09.2022)
 
