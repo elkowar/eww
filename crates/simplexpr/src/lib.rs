@@ -1,6 +1,5 @@
 #![feature(box_patterns)]
 #![feature(pattern)]
-#![feature(box_syntax)]
 #![feature(try_blocks)]
 #![feature(unwrap_infallible)]
 #![feature(never_type)]

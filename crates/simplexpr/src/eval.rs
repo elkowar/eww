@@ -93,14 +93,14 @@ impl SimplExpr {
     pub fn try_map_var_refs<E, F: Fn(Span, VarName) -> Result<SimplExpr, E> + Copy>(self, f: F) -> Result<Self, E> {
         use SimplExpr::*;
         Ok(match self {
-            BinOp(span, box a, op, box b) => BinOp(span, box a.try_map_var_refs(f)?, op, box b.try_map_var_refs(f)?),
+            BinOp(span, box a, op, box b) => BinOp(span, Box::new(a.try_map_var_refs(f)?), op, Box::new(b.try_map_var_refs(f)?)),
             Concat(span, elems) => Concat(span, elems.into_iter().map(|x| x.try_map_var_refs(f)).collect::<Result<_, _>>()?),
-            UnaryOp(span, op, box a) => UnaryOp(span, op, box a.try_map_var_refs(f)?),
+            UnaryOp(span, op, box a) => UnaryOp(span, op, Box::new(a.try_map_var_refs(f)?)),
             IfElse(span, box a, box b, box c) => {
-                IfElse(span, box a.try_map_var_refs(f)?, box b.try_map_var_refs(f)?, box c.try_map_var_refs(f)?)
+                IfElse(span, Box::new(a.try_map_var_refs(f)?), Box::new(b.try_map_var_refs(f)?), Box::new(c.try_map_var_refs(f)?))
             }
             JsonAccess(span, safe, box a, box b) => {
-                JsonAccess(span, safe, box a.try_map_var_refs(f)?, box b.try_map_var_refs(f)?)
+                JsonAccess(span, safe, Box::new(a.try_map_var_refs(f)?), Box::new(b.try_map_var_refs(f)?))
             }
             FunctionCall(span, name, args) => {
                 FunctionCall(span, name, args.into_iter().map(|x| x.try_map_var_refs(f)).collect::<Result<_, _>>()?)
