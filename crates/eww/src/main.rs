@@ -1,6 +1,5 @@
 #![feature(trace_macros)]
 #![feature(drain_filter)]
-#![feature(box_syntax)]
 #![feature(box_patterns)]
 #![feature(slice_concat_trait)]
 #![feature(try_blocks)]
