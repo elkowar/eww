@@ -79,7 +79,7 @@ Depending on if you are using X11 or Wayland, some additional properties exist:
 |    Property | Description                                                  |
 | ----------: | ------------------------------------------------------------ |
 |  `stacking` | Where the window should appear in the stack. Possible values: `fg`, `bg`, `overlay`, `bottom`. |
-| `exclusive` | Whether the compositor should reserve space for the window automatically. |
+| `exclusive` | Specify if the compositor should reserve space for the window automatically or how the window should interact with windows that do. Possible values: `exclusive` (space should be reserved), `normal` (the window should move if occluding another), `ignore` (the window should not be moved). Default: `normal` |
 | `focusable` | Whether the window should be able to be focused. This is necessary for any widgets that use the keyboard to work. |
 
 

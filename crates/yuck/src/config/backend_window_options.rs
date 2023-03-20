@@ -113,15 +113,34 @@ mod backend {
     use super::*;
     #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
     pub struct BackendWindowOptions {
-        pub exclusive: bool,
+        pub exclusive: ExclusiveZone,
         pub focusable: bool,
     }
     impl BackendWindowOptions {
         pub fn from_attrs(attrs: &mut Attributes) -> DiagResult<Self> {
             Ok(Self {
-                exclusive: attrs.primitive_optional("exclusive")?.unwrap_or(false),
+                exclusive: attrs.primitive_optional("exclusive")?.unwrap_or(ExclusiveZone::Normal),
                 focusable: attrs.primitive_optional("focusable")?.unwrap_or(false),
             })
+        }
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, smart_default::SmartDefault, serde::Serialize)]
+    pub enum ExclusiveZone {
+        #[default]
+        Normal,
+        Ignore,
+        Exclusive,
+    }
+    impl FromStr for ExclusiveZone {
+        type Err = EnumParseError;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            enum_parse! { "exclusive zone", s,
+                "normal" => Self::Normal,
+                "ignore" => Self::Ignore,
+                "exclusive" => Self::Exclusive,
+            }
         }
     }
 }
