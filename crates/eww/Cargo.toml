@@ -65,3 +65,4 @@ codespan-reporting = "0.11"
 simplexpr = { version = "0.1.0", path = "../simplexpr" }
 eww_shared_util = { version = "0.1.0", path = "../eww_shared_util" }
 yuck = { version = "0.1.0", path = "../yuck", default-features = false}
+notifier_host = { version = "0.1.0", path = "../notifier_host" }

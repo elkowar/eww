@@ -3,7 +3,7 @@ use super::{build_widget::BuilderArgs, circular_progressbar::*, run_command, tra
 use crate::{
     def_widget, enum_parse, error_handling_ctx,
     util::{list_difference, unindent},
-    widgets::build_widget::build_gtk_widget,
+    widgets::{build_widget::build_gtk_widget, systray},
 };
 use anyhow::{anyhow, Context, Result};
 use codespan_reporting::diagnostic::Severity;
@@ -80,6 +80,7 @@ pub const BUILTIN_WIDGET_NAMES: &[&str] = &[
     WIDGET_NAME_REVEALER,
     WIDGET_NAME_SCROLL,
     WIDGET_NAME_OVERLAY,
+    WIDGET_NAME_SYSTRAY,
 ];
 
 //// widget definitions
@@ -107,6 +108,7 @@ pub(super) fn widget_use_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::W
         WIDGET_NAME_REVEALER => build_gtk_revealer(bargs)?.upcast(),
         WIDGET_NAME_SCROLL => build_gtk_scrolledwindow(bargs)?.upcast(),
         WIDGET_NAME_OVERLAY => build_gtk_overlay(bargs)?.upcast(),
+        WIDGET_NAME_SYSTRAY => build_systray(bargs)?.upcast(),
         _ => {
             return Err(DiagError(gen_diagnostic! {
                 msg = format!("referenced unknown widget `{}`", bargs.widget_use.name),
@@ -1042,6 +1044,21 @@ fn build_graph(bargs: &mut BuilderArgs) -> Result<super::graph::Graph> {
     Ok(w)
 }
 
+const WIDGET_NAME_SYSTRAY: &str = "systray";
+/// @widget systray
+/// @desc Tray for system notifier icons
+fn build_systray(bargs: &mut BuilderArgs) -> Result<gtk::MenuBar> {
+    let w = gtk::MenuBar::new();
+
+    def_widget!(bargs, _g, w, {
+        // @prop pack-direction - how to arrange tray items
+        prop(pack_direction: as_string) { w.set_pack_direction(parse_packdirection(&pack_direction)?); },
+    });
+
+    systray::maintain_menubar(w.clone());
+    Ok(w)
+}
+
 /// @var orientation - "vertical", "v", "horizontal", "h"
 fn parse_orientation(o: &str) -> Result<gtk::Orientation> {
     enum_parse! { "orientation", o,
@@ -1093,6 +1110,16 @@ fn parse_justification(j: &str) -> Result<gtk::Justification> {
         "right" => gtk::Justification::Right,
         "center" => gtk::Justification::Center,
         "fill" => gtk::Justification::Fill,
+    }
+}
+
+/// @var packdirection - "right", "ltr", "left", "rtl", "down", "ttb", "up", "btt"
+fn parse_packdirection(o: &str) -> Result<gtk::PackDirection> {
+    enum_parse! { "packdirection", o,
+        "right" | "ltr" => gtk::PackDirection::Ltr,
+        "left" | "rtl" => gtk::PackDirection::Rtl,
+        "down" | "ttb" => gtk::PackDirection::Ttb,
+        "up" | "btt" => gtk::PackDirection::Btt,
     }
 }
 

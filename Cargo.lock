@@ -894,6 +894,7 @@ dependencies = [
  "log",
  "maplit",
  "nix 0.26.2",
+ "notifier_host",
  "notify",
  "once_cell",
  "pretty_env_logger",
