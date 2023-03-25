@@ -819,14 +819,36 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
     def_widget!(bargs, _g, gtk_widget, {
         // @prop text - the text to display
         // @prop limit-width - maximum count of characters to display
+        // @prop truncate_left - whether to truncate on the left side
         // @prop show_truncated - show whether the text was truncated
-        prop(text: as_string, limit_width: as_i32 = i32::MAX, show_truncated: as_bool = true) {
-            let truncated = text.chars().count() > limit_width as usize;
-            let mut text = text.chars().take(limit_width as usize).collect::<String>();
+        prop(text: as_string, limit_width: as_i32 = i32::MAX, truncate_left: as_bool = false, show_truncated: as_bool = true) {
+            let show_truncation = |mut s: String, is_left: bool| -> String {
+                let delimiter = "...";
+                if is_left {
+                    s.insert_str(0, delimiter);
+                } else {
+                    s.push_str(delimiter);
+                }
+                s
+            };
 
-            if show_truncated && truncated {
-                text.push_str("...");
-            }
+            let limit_width = limit_width as usize;
+            let char_count = text.chars().count();
+            let truncated = char_count > limit_width;
+            let text = if truncated {
+                let slice = if truncate_left {
+                    text.chars().skip(char_count - limit_width).collect()
+                } else {
+                    text.chars().take(limit_width).collect()
+                };
+                if show_truncated {
+                    show_truncation(slice, truncate_left)
+                } else {
+                    slice
+                }
+            } else {
+                text
+            };
 
             let text = unescape::unescape(&text).context(format!("Failed to unescape label text {}", &text))?;
             let text = unindent(&text);
