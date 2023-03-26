@@ -34,6 +34,7 @@ impl BackendWindowOptions {
         let wayland = WlBackendWindowOptions {
             exclusive: attrs.primitive_optional("exclusive")?.unwrap_or(false),
             focusable: attrs.primitive_optional("focusable")?.unwrap_or(false),
+            namespace: attrs.primitive_optional("namespace")?,
         };
         Ok(Self { x11, wayland })
     }
@@ -51,6 +52,7 @@ pub struct X11BackendWindowOptions {
 pub struct WlBackendWindowOptions {
     pub exclusive: bool,
     pub focusable: bool,
+    pub namespace: Option<String>,
 }
 
 /// Window type of an x11 window
