@@ -6,6 +6,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 ## [Unreleased]
 
 ### Features
+- Add `truncate-left` property on `label` widgets (By: kawaki-san)
 - Add support for safe access (`?.`) in simplexpr (By: oldwomanjosiah)
 - Allow floating-point numbers in percentages for window-geometry
 - Add support for safe access with index (`?.[n]`) (By: ModProg)
