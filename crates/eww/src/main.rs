@@ -96,11 +96,11 @@ fn run<B: DisplayBackend>(opts: opts::Opt, eww_binary_name: String, display_back
         opts::Action::ClientOnly(_) => false,
     };
     if should_restart {
-        let response = handle_server_command(&paths, &ActionWithServer::KillServer, 1);
+        let response = handle_server_command(&paths, &ActionWithServer::KillServer, 5, 50);
         if let Ok(Some(response)) = response {
             handle_daemon_response(response);
         }
-        std::thread::sleep(std::time::Duration::from_millis(200));
+        std::thread::sleep(Duration::from_millis(200));
     }
 
     let would_show_logs = match opts.action {
@@ -126,7 +126,7 @@ fn run<B: DisplayBackend>(opts: opts::Opt, eww_binary_name: String, display_back
         }
 
         opts::Action::WithServer(ActionWithServer::KillServer) => {
-            if let Some(response) = handle_server_command(&paths, &ActionWithServer::KillServer, 1)? {
+            if let Some(response) = handle_server_command(&paths, &ActionWithServer::KillServer, 5, 50)? {
                 handle_daemon_response(response);
             }
             false
@@ -135,7 +135,7 @@ fn run<B: DisplayBackend>(opts: opts::Opt, eww_binary_name: String, display_back
         // a running daemon is necessary for this command
         opts::Action::WithServer(action) => {
             // attempt to just send the command to a running daemon
-            match handle_server_command(&paths, &action, 5) {
+            match handle_server_command(&paths, &action, 5, 100) {
                 Ok(Some(response)) => {
                     handle_daemon_response(response);
                     true
@@ -185,9 +185,15 @@ fn listen_for_daemon_response(mut recv: DaemonResponseReceiver) {
 }
 
 /// attempt to send a command to the daemon and send it the given action repeatedly.
-fn handle_server_command(paths: &EwwPaths, action: &ActionWithServer, connect_attempts: usize) -> Result<Option<DaemonResponse>> {
+fn handle_server_command(
+    paths: &EwwPaths,
+    action: &ActionWithServer,
+    connect_attempts: usize,
+    interval_ms: u64,
+) -> Result<Option<DaemonResponse>> {
     log::debug!("Trying to find server process at socket {}", paths.get_ipc_socket_file().display());
-    let mut stream = attempt_connect(&paths.get_ipc_socket_file(), connect_attempts).context("Failed to connect to daemon")?;
+    let mut stream =
+        attempt_connect(&paths.get_ipc_socket_file(), connect_attempts, interval_ms).context("Failed to connect to daemon")?;
     log::debug!("Connected to Eww server ({}).", &paths.get_ipc_socket_file().display());
     client::do_server_call(&mut stream, action).context("Error while forwarding command to server")
 }
@@ -202,22 +208,26 @@ fn handle_daemon_response(res: DaemonResponse) {
     }
 }
 
-fn attempt_connect(socket_path: impl AsRef<Path>, attempts: usize) -> Option<net::UnixStream> {
-    for _ in 0..attempts {
+fn attempt_connect(socket_path: impl AsRef<Path>, attempts: usize, interval_ms: u64) -> Option<net::UnixStream> {
+    for n in 0..attempts {
+        log::debug!("Attempting to connect to server ({}/{attempts})", n + 1);
         if let Ok(mut con) = net::UnixStream::connect(&socket_path) {
-            if client::do_server_call(&mut con, &opts::ActionWithServer::Ping).is_ok() {
-                return net::UnixStream::connect(&socket_path).ok();
+            match client::do_server_call(&mut con, &opts::ActionWithServer::Ping) {
+                Ok(Some(_)) => return Some(con),
+                Err(err) => log::warn!("Failed to send ping to server: {}", err),
+                Ok(None) => log::warn!("Failed to send ping to server: no response"),
             }
         }
-        std::thread::sleep(Duration::from_millis(200));
+        std::thread::sleep(Duration::from_millis(interval_ms));
     }
     None
 }
 
 /// Check if a eww server is currently running by trying to send a ping message to it.
 fn check_server_running(socket_path: impl AsRef<Path>) -> bool {
-    let response = net::UnixStream::connect(socket_path)
-        .ok()
-        .and_then(|mut stream| client::do_server_call(&mut stream, &opts::ActionWithServer::Ping).ok());
-    response.is_some()
+    if socket_path.as_ref().exists() {
+        attempt_connect(socket_path, 3, 50).is_some()
+    } else {
+        false
+    }
 }
