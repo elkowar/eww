@@ -29,4 +29,3 @@ jobs:
            run: cargo check --no-default-features --features=wayland
          - name: Build no-backend
            run: cargo check --no-default-features
-

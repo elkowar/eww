@@ -12,6 +12,7 @@ extern crate gtk_layer_shell as gtk_layer_shell;
 
 use anyhow::{Context, Result};
 use daemon_response::{DaemonResponse, DaemonResponseReceiver};
+use display_backend::DisplayBackend;
 use opts::ActionWithServer;
 use paths::EwwPaths;
 use std::{os::unix::net, path::Path, time::Duration};
@@ -47,96 +48,127 @@ fn main() {
         pretty_env_logger::formatted_timed_builder().filter(Some("eww"), log_level_filter).init();
     }
 
-    let result: Result<()> = try {
-        let paths = opts
-            .config_path
-            .map(EwwPaths::from_config_dir)
-            .unwrap_or_else(EwwPaths::default)
-            .context("Failed to initialize eww paths")?;
+    #[allow(unused)]
+    let use_wayland = opts.force_wayland || detect_wayland();
+    #[cfg(all(feature = "wayland", feature = "x11"))]
+    let result = if use_wayland {
+        run(opts, eww_binary_name, display_backend::WaylandBackend)
+    } else {
+        run(opts, eww_binary_name, display_backend::X11Backend)
+    };
 
-        let should_restart = match &opts.action {
-            opts::Action::Daemon => opts.restart,
-            opts::Action::WithServer(action) => opts.restart && action.can_start_daemon(),
-            opts::Action::ClientOnly(_) => false,
-        };
-        if should_restart {
-            let response = handle_server_command(&paths, &ActionWithServer::KillServer, 1);
-            if let Ok(Some(response)) = response {
-                handle_daemon_response(response);
-            }
-            std::thread::sleep(std::time::Duration::from_millis(200));
+    #[cfg(all(not(feature = "wayland"), feature = "x11"))]
+    let result = {
+        if use_wayland {
+            log::warn!("Eww compiled without wayland support. falling back to X11, eventhough wayland was requested.");
+        }
+        run(opts, eww_binary_name, display_backend::X11Backend)
+    };
+
+    #[cfg(all(feature = "wayland", not(feature = "x11")))]
+    let result = run(opts, eww_binary_name, display_backend::WaylandBackend);
+
+    #[cfg(not(any(feature = "wayland", feature = "x11")))]
+    let result = run(opts, eww_binary_name, display_backend::NoBackend);
+
+    if let Err(err) = result {
+        error_handling_ctx::print_error(err);
+        std::process::exit(1);
+    }
+}
+
+fn detect_wayland() -> bool {
+    let session_type = std::env::var("XDG_SESSION_TYPE").unwrap_or_default();
+    let wayland_display = std::env::var("WAYLAND_DISPLAY").unwrap_or_default();
+    session_type.contains("wayland") || (!wayland_display.is_empty() && !session_type.contains("x11"))
+}
+
+fn run<B: DisplayBackend>(opts: opts::Opt, eww_binary_name: String, display_backend: B) -> Result<()> {
+    let paths = opts
+        .config_path
+        .map(EwwPaths::from_config_dir)
+        .unwrap_or_else(EwwPaths::default)
+        .context("Failed to initialize eww paths")?;
+
+    let should_restart = match &opts.action {
+        opts::Action::Daemon => opts.restart,
+        opts::Action::WithServer(action) => opts.restart && action.can_start_daemon(),
+        opts::Action::ClientOnly(_) => false,
+    };
+    if should_restart {
+        let response = handle_server_command(&paths, &ActionWithServer::KillServer, 1);
+        if let Ok(Some(response)) = response {
+            handle_daemon_response(response);
+        }
+        std::thread::sleep(std::time::Duration::from_millis(200));
+    }
+
+    let would_show_logs = match opts.action {
+        opts::Action::ClientOnly(action) => {
+            client::handle_client_only_action(&paths, action)?;
+            false
         }
 
-        let would_show_logs = match opts.action {
-            opts::Action::ClientOnly(action) => {
-                client::handle_client_only_action(&paths, action)?;
-                false
-            }
+        // make sure that there isn't already a Eww daemon running.
+        opts::Action::Daemon if check_server_running(paths.get_ipc_socket_file()) => {
+            eprintln!("Eww server already running.");
+            true
+        }
+        opts::Action::Daemon => {
+            log::info!("Initializing Eww server. ({})", paths.get_ipc_socket_file().display());
+            let _ = std::fs::remove_file(paths.get_ipc_socket_file());
 
-            // make sure that there isn't already a Eww daemon running.
-            opts::Action::Daemon if check_server_running(paths.get_ipc_socket_file()) => {
-                eprintln!("Eww server already running.");
-                true
+            if !opts.show_logs {
+                println!("Run `{} logs` to see any errors while editing your configuration.", eww_binary_name);
             }
-            opts::Action::Daemon => {
-                log::info!("Initializing Eww server. ({})", paths.get_ipc_socket_file().display());
-                let _ = std::fs::remove_file(paths.get_ipc_socket_file());
+            let fork_result = server::initialize_server(paths.clone(), None, display_backend, !opts.no_daemonize)?;
+            opts.no_daemonize || fork_result == ForkResult::Parent
+        }
 
-                if !opts.show_logs {
-                    println!("Run `{} logs` to see any errors while editing your configuration.", eww_binary_name);
-                }
-                let fork_result = server::initialize_server(paths.clone(), None, !opts.no_daemonize)?;
-                opts.no_daemonize || fork_result == ForkResult::Parent
+        opts::Action::WithServer(ActionWithServer::KillServer) => {
+            if let Some(response) = handle_server_command(&paths, &ActionWithServer::KillServer, 1)? {
+                handle_daemon_response(response);
             }
+            false
+        }
 
-            opts::Action::WithServer(ActionWithServer::KillServer) => {
-                if let Some(response) = handle_server_command(&paths, &ActionWithServer::KillServer, 1)? {
+        // a running daemon is necessary for this command
+        opts::Action::WithServer(action) => {
+            // attempt to just send the command to a running daemon
+            match handle_server_command(&paths, &action, 5) {
+                Ok(Some(response)) => {
                     handle_daemon_response(response);
+                    true
                 }
-                false
-            }
+                Ok(None) => true,
 
-            // a running daemon is necessary for this command
-            opts::Action::WithServer(action) => {
-                // attempt to just send the command to a running daemon
-                match handle_server_command(&paths, &action, 5) {
-                    Ok(Some(response)) => {
-                        handle_daemon_response(response);
-                        true
+                Err(err) if action.can_start_daemon() && !opts.no_daemonize => {
+                    // connecting to the daemon failed. Thus, start the daemon here!
+                    log::warn!("Failed to connect to daemon: {}", err);
+                    log::info!("Initializing eww server. ({})", paths.get_ipc_socket_file().display());
+                    let _ = std::fs::remove_file(paths.get_ipc_socket_file());
+                    if !opts.show_logs {
+                        println!("Run `{} logs` to see any errors while editing your configuration.", eww_binary_name);
                     }
-                    Ok(None) => true,
 
-                    Err(err) if action.can_start_daemon() && !opts.no_daemonize => {
-                        // connecting to the daemon failed. Thus, start the daemon here!
-                        log::warn!("Failed to connect to daemon: {}", err);
-                        log::info!("Initializing eww server. ({})", paths.get_ipc_socket_file().display());
-                        let _ = std::fs::remove_file(paths.get_ipc_socket_file());
-                        if !opts.show_logs {
-                            println!("Run `{} logs` to see any errors while editing your configuration.", eww_binary_name);
-                        }
-
-                        let (command, response_recv) = action.into_daemon_command();
-                        // start the daemon and give it the command
-                        let fork_result = server::initialize_server(paths.clone(), Some(command), true)?;
-                        let is_parent = fork_result == ForkResult::Parent;
-                        if let (Some(recv), true) = (response_recv, is_parent) {
-                            listen_for_daemon_response(recv);
-                        }
-                        is_parent
+                    let (command, response_recv) = action.into_daemon_command();
+                    // start the daemon and give it the command
+                    let fork_result = server::initialize_server(paths.clone(), Some(command), display_backend, true)?;
+                    let is_parent = fork_result == ForkResult::Parent;
+                    if let (Some(recv), true) = (response_recv, is_parent) {
+                        listen_for_daemon_response(recv);
                     }
-                    Err(err) => Err(err)?,
+                    is_parent
                 }
+                Err(err) => Err(err)?,
             }
-        };
-        if would_show_logs && opts.show_logs {
-            client::handle_client_only_action(&paths, opts::ActionClientOnly::Logs)?;
         }
     };
 
-    if let Err(e) = result {
-        error_handling_ctx::print_error(e);
-        std::process::exit(1);
+    if would_show_logs && opts.show_logs {
+        client::handle_client_only_action(&paths, opts::ActionClientOnly::Logs)?;
     }
+    Ok(())
 }
 
 fn listen_for_daemon_response(mut recv: DaemonResponseReceiver) {

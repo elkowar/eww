@@ -10,11 +10,6 @@ homepage = "https://github.com/elkowar/eww"
 
 build = "build.rs"
 
-[features]
-default = ["x11"]
-x11 = []
-wayland = []
-
 [dependencies]
 lalrpop-util = "0.19.5"
 regex = "1.5.5"
