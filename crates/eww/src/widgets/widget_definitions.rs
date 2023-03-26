@@ -822,30 +822,22 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
         // @prop truncate_left - whether to truncate on the left side
         // @prop show_truncated - show whether the text was truncated
         prop(text: as_string, limit_width: as_i32 = i32::MAX, truncate_left: as_bool = false, show_truncated: as_bool = true) {
-            let show_truncation = |mut s: String, is_left: bool| -> String {
-                let delimiter = "...";
-                if is_left {
-                    s.insert_str(0, delimiter);
-                } else {
-                    s.push_str(delimiter);
-                }
-                s
-            };
-
             let limit_width = limit_width as usize;
             let char_count = text.chars().count();
-            let truncated = char_count > limit_width;
-            let text = if truncated {
-                let slice = if truncate_left {
+            let text = if char_count > limit_width {
+                let mut truncated: String = if truncate_left {
                     text.chars().skip(char_count - limit_width).collect()
                 } else {
                     text.chars().take(limit_width).collect()
                 };
                 if show_truncated {
-                    show_truncation(slice, truncate_left)
-                } else {
-                    slice
+                    if truncate_left {
+                        truncated.insert_str(0, "...");
+                    } else {
+                        truncated.push_str("...");
+                    }
                 }
+                truncated
             } else {
                 text
             };
