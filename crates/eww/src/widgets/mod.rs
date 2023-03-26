@@ -20,7 +20,7 @@ where
     std::thread::Builder::new()
         .name("command-execution-thread".to_string())
         .spawn(move || {
-            log::debug!("Running command from widget: {}", cmd);
+            log::debug!("Running command from widget [timeout: {}ms]: {}", timeout.as_millis(), cmd);
             let child = Command::new("/bin/sh").arg("-c").arg(&cmd).spawn();
             match child {
                 Ok(mut child) => match child.wait_timeout(timeout) {
