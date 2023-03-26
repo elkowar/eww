@@ -13,6 +13,10 @@ pub struct ConversionError {
     pub source: Option<Box<dyn std::error::Error + Sync + Send + 'static>>,
 }
 
+#[derive(Debug, thiserror::Error)]
+#[error("Failed to parse duration. Must be a number of milliseconds, or a string like \"150ms\"")]
+pub struct DurationParseError;
+
 impl ConversionError {
     pub fn new(value: DynVal, target_type: &'static str, source: impl std::error::Error + 'static + Sync + Send) -> Self {
         ConversionError { value, target_type, source: Some(Box::new(source)) }
@@ -188,8 +192,10 @@ impl DynVal {
         } else if s.ends_with('h') {
             let hours = s.trim_end_matches('h').parse::<f64>().map_err(|e| ConversionError::new(self.clone(), "number", e))?;
             Ok(Duration::from_secs(f64::floor(hours * 60f64 * 60f64) as u64))
+        } else if let Ok(millis) = s.parse() {
+            Ok(Duration::from_millis(millis))
         } else {
-            Err(ConversionError { value: self.clone(), target_type: "duration", source: None })
+            Err(ConversionError { value: self.clone(), target_type: "duration", source: Some(Box::new(DurationParseError)) })
         }
     }
 

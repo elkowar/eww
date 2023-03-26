@@ -244,7 +244,7 @@ pub(super) fn resolve_range_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Ran
         prop(min: as_f64) { gtk_widget.adjustment().set_lower(min)},
         // @prop max - the maximum value
         prop(max: as_f64) { gtk_widget.adjustment().set_upper(max)},
-        // @prop timeout - timeout of the command
+        // @prop timeout - timeout of the command. Default: "200ms"
         // @prop onchange - command executed once the value is changes. The placeholder `{}`, used in the command will be replaced by the new value.
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_string) {
             gtk_widget.set_sensitive(true);
@@ -285,7 +285,7 @@ fn build_gtk_combo_box_text(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText
                 gtk_widget.append_text(&i);
             }
         },
-        // @prop timeout - timeout of the command
+        // @prop timeout - timeout of the command: Default: "200ms"
         // @prop onchange - runs the code when a item was selected, replacing {} with the item as a string
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_string) {
             connect_signal_handler!(gtk_widget, gtk_widget.connect_changed(move |gtk_widget| {
@@ -320,7 +320,7 @@ fn build_gtk_revealer(bargs: &mut BuilderArgs) -> Result<gtk::Revealer> {
         prop(transition: as_string = "crossfade") { gtk_widget.set_transition_type(parse_transition(&transition)?); },
         // @prop reveal - sets if the child is revealed or not
         prop(reveal: as_bool) { gtk_widget.set_reveal_child(reveal); },
-        // @prop duration - the duration of the reveal transition
+        // @prop duration - the duration of the reveal transition. Default: "500ms"
         prop(duration: as_duration = Duration::from_millis(500)) { gtk_widget.set_transition_duration(duration.as_millis() as u32); },
     });
     Ok(gtk_widget)
@@ -332,7 +332,7 @@ const WIDGET_NAME_CHECKBOX: &str = "checkbox";
 fn build_gtk_checkbox(bargs: &mut BuilderArgs) -> Result<gtk::CheckButton> {
     let gtk_widget = gtk::CheckButton::new();
     def_widget!(bargs, _g, gtk_widget, {
-        // @prop timeout - timeout of the command
+        // @prop timeout - timeout of the command. Default: "200ms"
         // @prop onchecked - action (command) to be executed when checked by the user
         // @prop onunchecked - similar to onchecked but when the widget is unchecked
         prop(timeout: as_duration = Duration::from_millis(200), onchecked: as_string = "", onunchecked: as_string = "") {
@@ -355,7 +355,7 @@ fn build_gtk_color_button(bargs: &mut BuilderArgs) -> Result<gtk::ColorButton> {
         prop(use_alpha: as_bool) {gtk_widget.set_use_alpha(use_alpha);},
 
         // @prop onchange - runs the code when the color was selected
-        // @prop timeout - timeout of the command
+        // @prop timeout - timeout of the command. Default: "200ms"
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_string) {
             connect_signal_handler!(gtk_widget, gtk_widget.connect_color_set(move |gtk_widget| {
                 run_command(timeout, &onchange, &[gtk_widget.rgba()]);
@@ -376,7 +376,7 @@ fn build_gtk_color_chooser(bargs: &mut BuilderArgs) -> Result<gtk::ColorChooserW
         prop(use_alpha: as_bool) {gtk_widget.set_use_alpha(use_alpha);},
 
         // @prop onchange - runs the code when the color was selected
-        // @prop timeout - timeout of the command
+        // @prop timeout - timeout of the command. Default: "200ms"
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_string) {
             connect_signal_handler!(gtk_widget, gtk_widget.connect_color_activated(move |_a, color| {
                 run_command(timeout, &onchange, &[*color]);
@@ -446,14 +446,14 @@ fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
         },
 
         // @prop onchange - Command to run when the text changes. The placeholder `{}` will be replaced by the value
-        // @prop timeout - timeout of the command
+        // @prop timeout - timeout of the command. Default: "200ms"
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_string) {
             connect_signal_handler!(gtk_widget, gtk_widget.connect_changed(move |gtk_widget| {
                 run_command(timeout, &onchange, &[gtk_widget.text().to_string()]);
             }));
         },
         // @prop onaccept - Command to run when the user hits return in the input field. The placeholder `{}` will be replaced by the value
-        // @prop timeout - timeout of the command
+        // @prop timeout - timeout of the command. Default: "200ms"
         prop(timeout: as_duration = Duration::from_millis(200), onaccept: as_string) {
             connect_signal_handler!(gtk_widget, gtk_widget.connect_activate(move |gtk_widget| {
                 run_command(timeout, &onaccept, &[gtk_widget.text().to_string()]);
@@ -475,7 +475,7 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
 
     def_widget!(bargs, _g, gtk_widget, {
         prop(
-            // @prop timeout - timeout of the command
+            // @prop timeout - timeout of the command. Default: "200ms"
             timeout: as_duration = Duration::from_millis(200),
             // @prop onclick - a command that get's run when the button is clicked
             onclick: as_string = "",
@@ -675,7 +675,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
     });
 
     def_widget!(bargs, _g, gtk_widget, {
-        // @prop timeout - timeout of the command
+        // @prop timeout - timeout of the command. Default: "200ms"
         // @prop onscroll - event to execute when the user scrolls with the mouse over the widget. The placeholder `{}` used in the command will be replaced with either `up` or `down`.
         prop(timeout: as_duration = Duration::from_millis(200), onscroll: as_string) {
             gtk_widget.add_events(gdk::EventMask::SCROLL_MASK);
@@ -688,7 +688,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
                 gtk::Inhibit(false)
             }));
         },
-        // @prop timeout - timeout of the command
+        // @prop timeout - timeout of the command. Default: "200ms"
         // @prop onhover - event to execute when the user hovers over the widget
         prop(timeout: as_duration = Duration::from_millis(200), onhover: as_string) {
             gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
@@ -699,7 +699,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
                 gtk::Inhibit(false)
             }));
         },
-        // @prop timeout - timeout of the command
+        // @prop timeout - timeout of the command. Default: "200ms"
         // @prop onhoverlost - event to execute when the user losts hovers over the widget
         prop(timeout: as_duration = Duration::from_millis(200), onhoverlost: as_string) {
             gtk_widget.add_events(gdk::EventMask::LEAVE_NOTIFY_MASK);
@@ -735,7 +735,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
                 gtk::Inhibit(false)
             }));
         },
-        // @prop timeout - timeout of the command
+        // @prop timeout - timeout of the command. Default: "200ms"
         // @prop ondropped - Command to execute when something is dropped on top of this element. The placeholder `{}` used in the command will be replaced with the uri to the dropped thing.
         prop(timeout: as_duration = Duration::from_millis(200), ondropped: as_string) {
             gtk_widget.drag_dest_set(
@@ -785,7 +785,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
         // TODO the fact that we have the same code here as for button is ugly, as we want to keep consistency
 
         prop(
-            // @prop timeout - timeout of the command
+            // @prop timeout - timeout of the command. Default: "200ms"
             timeout: as_duration = Duration::from_millis(200),
             // @prop onclick - a command that get's run when the button is clicked
             onclick: as_string = "",
@@ -948,7 +948,7 @@ fn build_gtk_calendar(bargs: &mut BuilderArgs) -> Result<gtk::Calendar> {
         // @prop show-week-numbers - show week numbers
         prop(show_week_numbers: as_bool) { gtk_widget.set_show_week_numbers(show_week_numbers) },
         // @prop onclick - command to run when the user selects a date. The `{0}` placeholder will be replaced by the selected day, `{1}` will be replaced by the month, and `{2}` by the year.
-        // @prop timeout - timeout of the command
+        // @prop timeout - timeout of the command. Default: "200ms"
         prop(timeout: as_duration = Duration::from_millis(200), onclick: as_string) {
             connect_signal_handler!(gtk_widget, gtk_widget.connect_day_selected(move |w| {
                 run_command(
