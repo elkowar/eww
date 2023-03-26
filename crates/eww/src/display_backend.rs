@@ -54,6 +54,10 @@ mod platform_wayland {
                 WindowStacking::Overlay => gtk_layer_shell::set_layer(&window, gtk_layer_shell::Layer::Overlay),
             }
 
+            if let Some(namespace) = &window_def.backend_options.wayland.namespace {
+                gtk_layer_shell::set_namespace(&window, namespace);
+            }
+
             // Sets the keyboard interactivity
             gtk_layer_shell::set_keyboard_interactivity(&window, window_def.backend_options.wayland.focusable);
 

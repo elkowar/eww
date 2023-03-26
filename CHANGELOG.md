@@ -6,6 +6,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 ## [Unreleased]
 
 ### Features
+- Add `:namespace` window option
 - Default to building with x11 and wayland support simultaneously
 - Add `truncate-left` property on `label` widgets (By: kawaki-san)
 - Add support for safe access (`?.`) in simplexpr (By: oldwomanjosiah)
