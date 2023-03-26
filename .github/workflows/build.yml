@@ -23,9 +23,16 @@ jobs:
               components: rustfmt
          - uses: actions/checkout@v2
          - uses: Swatinem/rust-cache@v1
-         - name: Build x11
+         - uses: r7kamura/rust-problem-matchers@v1
+         - name: Check formatting
+           run: cargo fmt -- --check
+         - name: Check with default features
+           run: cargo check
+         - name: Run tests
+           run: cargo test
+         - name: Build x11 only
            run: cargo check --no-default-features --features=x11
-         - name: Build wayland
+         - name: Build wayland only
            run: cargo check --no-default-features --features=wayland
          - name: Build no-backend
            run: cargo check --no-default-features
