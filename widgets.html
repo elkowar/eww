@@ -191,7 +191,7 @@
 <p><strong>Properties</strong></p>
 <ul>
 <li><strong><code>items</code></strong>: <em><code>vec</code></em> Items that should be displayed in the combo box</li>
-<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command</li>
+<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command: Default: &quot;200ms&quot;</li>
 <li><strong><code>onchange</code></strong>: <em><code>string</code></em> runs the code when a item was selected, replacing {} with the item as a string</li>
 </ul>
 <h2 id="expander"><a class="header" href="#expander"><code>expander</code></a></h2>
@@ -207,13 +207,13 @@
 <ul>
 <li><strong><code>transition</code></strong>: <em><code>string</code></em> the name of the transition. Possible values: &quot;slideright&quot;, &quot;slideleft&quot;, &quot;slideup&quot;, &quot;slidedown&quot;, &quot;crossfade&quot;, &quot;none&quot;</li>
 <li><strong><code>reveal</code></strong>: <em><code>bool</code></em> sets if the child is revealed or not</li>
-<li><strong><code>duration</code></strong>: <em><code>duration</code></em> the duration of the reveal transition</li>
+<li><strong><code>duration</code></strong>: <em><code>duration</code></em> the duration of the reveal transition. Default: &quot;500ms&quot;</li>
 </ul>
 <h2 id="a-checkbox"><a class="header" href="#a-checkbox"><code>a checkbox</code></a></h2>
 <p>A checkbox that can trigger events on checked / unchecked.</p>
 <p><strong>Properties</strong></p>
 <ul>
-<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command</li>
+<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command. Default: &quot;200ms&quot;</li>
 <li><strong><code>onchecked</code></strong>: <em><code>string</code></em> action (command) to be executed when checked by the user</li>
 <li><strong><code>onunchecked</code></strong>: <em><code>string</code></em> similar to onchecked but when the widget is unchecked</li>
 </ul>
@@ -223,7 +223,7 @@
 <ul>
 <li><strong><code>use-alpha</code></strong>: <em><code>bool</code></em> bool to whether or not use alpha</li>
 <li><strong><code>onchange</code></strong>: <em><code>string</code></em> runs the code when the color was selected</li>
-<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command</li>
+<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command. Default: &quot;200ms&quot;</li>
 </ul>
 <h2 id="color-chooser"><a class="header" href="#color-chooser"><code>color-chooser</code></a></h2>
 <p>A color chooser widget</p>
@@ -231,7 +231,7 @@
 <ul>
 <li><strong><code>use-alpha</code></strong>: <em><code>bool</code></em> bool to wether or not use alpha</li>
 <li><strong><code>onchange</code></strong>: <em><code>string</code></em> runs the code when the color was selected</li>
-<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command</li>
+<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command. Default: &quot;200ms&quot;</li>
 </ul>
 <h2 id="scale"><a class="header" href="#scale"><code>scale</code></a></h2>
 <p>A slider.</p>
@@ -244,7 +244,7 @@
 <li><strong><code>value</code></strong>: <em><code>float</code></em> the value</li>
 <li><strong><code>min</code></strong>: <em><code>float</code></em> the minimum value</li>
 <li><strong><code>max</code></strong>: <em><code>float</code></em> the maximum value</li>
-<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command</li>
+<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command. Default: &quot;200ms&quot;</li>
 <li><strong><code>onchange</code></strong>: <em><code>string</code></em> command executed once the value is changes. The placeholder <code>{}</code>, used in the command will be replaced by the new value.</li>
 <li><strong><code>orientation</code></strong>: <em><code>string</code></em> orientation of the widget. Possible values: &quot;vertical&quot;, &quot;v&quot;, &quot;horizontal&quot;, &quot;h&quot;</li>
 </ul>
@@ -262,7 +262,7 @@
 <ul>
 <li><strong><code>value</code></strong>: <em><code>string</code></em> the content of the text field</li>
 <li><strong><code>onchange</code></strong>: <em><code>string</code></em> Command to run when the text changes. The placeholder <code>{}</code> will be replaced by the value</li>
-<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command</li>
+<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command. Default: &quot;200ms&quot;</li>
 <li><strong><code>onaccept</code></strong>: <em><code>string</code></em> Command to run when the user hits return in the input field. The placeholder <code>{}</code> will be replaced by the value</li>
 <li><strong><code>password</code></strong>: <em><code>bool</code></em> if the input is obscured</li>
 </ul>
@@ -270,7 +270,7 @@
 <p>A button</p>
 <p><strong>Properties</strong></p>
 <ul>
-<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command</li>
+<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command. Default: &quot;200ms&quot;</li>
 <li><strong><code>onclick</code></strong>: <em><code>string</code></em> a command that get's run when the button is clicked</li>
 <li><strong><code>onmiddleclick</code></strong>: <em><code>string</code></em> a command that get's run when the button is middleclicked</li>
 <li><strong><code>onrightclick</code></strong>: <em><code>string</code></em> a command that get's run when the button is rightclicked</li>
@@ -311,7 +311,7 @@
 <p>a container which can receive events and must contain exactly one child. Supports <code>:hover</code> and <code>:active</code> css selectors.</p>
 <p><strong>Properties</strong></p>
 <ul>
-<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command</li>
+<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command. Default: &quot;200ms&quot;</li>
 <li><strong><code>onscroll</code></strong>: <em><code>string</code></em> event to execute when the user scrolls with the mouse over the widget. The placeholder <code>{}</code> used in the command will be replaced with either <code>up</code> or <code>down</code>.</li>
 <li><strong><code>onhover</code></strong>: <em><code>string</code></em> event to execute when the user hovers over the widget</li>
 <li><strong><code>onhoverlost</code></strong>: <em><code>string</code></em> event to execute when the user losts hovers over the widget</li>
@@ -356,7 +356,7 @@
 <li><strong><code>show-day-names</code></strong>: <em><code>bool</code></em> show names of days</li>
 <li><strong><code>show-week-numbers</code></strong>: <em><code>bool</code></em> show week numbers</li>
 <li><strong><code>onclick</code></strong>: <em><code>string</code></em> command to run when the user selects a date. The <code>{0}</code> placeholder will be replaced by the selected day, <code>{1}</code> will be replaced by the month, and <code>{2}</code> by the year.</li>
-<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command</li>
+<li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command. Default: &quot;200ms&quot;</li>
 </ul>
 <h2 id="transform"><a class="header" href="#transform"><code>transform</code></a></h2>
 <p>A widget that applies transformations to its content. They are applied in the following</p>
