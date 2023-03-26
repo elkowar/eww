@@ -1,7 +1,8 @@
 use crate::{
     config,
     daemon_response::DaemonResponseSender,
-    display_backend, error_handling_ctx,
+    display_backend::DisplayBackend,
+    error_handling_ctx,
     gtk::prelude::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt},
     paths::EwwPaths,
     script_var_handler::ScriptVarHandlerHandle,
@@ -98,7 +99,8 @@ impl EwwWindow {
     }
 }
 
-pub struct App {
+pub struct App<B> {
+    pub display_backend: B,
     pub scope_graph: Rc<RefCell<ScopeGraph>>,
     pub eww_config: config::EwwConfig,
     /// Map of all currently open windows
@@ -115,7 +117,7 @@ pub struct App {
     pub paths: EwwPaths,
 }
 
-impl std::fmt::Debug for App {
+impl<B> std::fmt::Debug for App<B> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("App")
             .field("scope_graph", &*self.scope_graph.borrow())
@@ -127,7 +129,7 @@ impl std::fmt::Debug for App {
     }
 }
 
-impl App {
+impl<B: DisplayBackend> App<B> {
     /// Handle a [`DaemonCommand`] event.
     pub fn handle_command(&mut self, event: DaemonCommand) {
         log::debug!("Handling event: {:?}", &event);
@@ -351,7 +353,7 @@ impl App {
 
             let monitor_geometry = get_monitor_geometry(monitor.or_else(|| window_def.monitor.clone()))?;
 
-            let mut eww_window = initialize_window(monitor_geometry, root_widget, window_def, window_scope)?;
+            let mut eww_window = initialize_window::<B>(monitor_geometry, root_widget, window_def, window_scope)?;
             eww_window.gtk_window.style_context().add_class(window_name);
 
             // initialize script var handlers for variables. As starting a scriptvar with the script_var_handler is idempodent,
@@ -433,13 +435,13 @@ impl App {
     }
 }
 
-fn initialize_window(
+fn initialize_window<B: DisplayBackend>(
     monitor_geometry: gdk::Rectangle,
     root_widget: gtk::Widget,
     window_def: WindowDefinition,
     window_scope: ScopeIndex,
 ) -> Result<EwwWindow> {
-    let window = display_backend::initialize_window(&window_def, monitor_geometry)
+    let window = B::initialize_window(&window_def, monitor_geometry)
         .with_context(|| format!("monitor {} is unavailable", window_def.monitor.clone().unwrap()))?;
 
     window.set_title(&format!("Eww - {}", window_def.name));
@@ -467,7 +469,7 @@ fn initialize_window(
     {
         if let Some(geometry) = window_def.geometry {
             let _ = apply_window_position(geometry, monitor_geometry, &window);
-            if window_def.backend_options.window_type != yuck::config::backend_window_options::WindowType::Normal {
+            if window_def.backend_options.x11.window_type != yuck::config::backend_window_options::X11WindowType::Normal {
                 window.connect_configure_event(move |window, _| {
                     let _ = apply_window_position(geometry, monitor_geometry, window);
                     false
