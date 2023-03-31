@@ -29,16 +29,38 @@
             cargo = rust;
             rustc = rust;
           };
-        in
-        {
-          eww = (prev.eww.override { inherit rustPlatform; }).overrideAttrs (old: {
-            version = self.rev or "dirty";
-            src = builtins.path { name = "eww"; path = prev.lib.cleanSource ./.; };
-            cargoDeps = rustPlatform.importCargoLock { lockFile = ./Cargo.lock; };
-            patches = [ ];
-          });
 
-          eww-wayland = final.eww.override { withWayland = true; };
+          commonOverrides = {
+            version = self.rev or "dirty";
+            src = builtins.path {
+              name = "eww";
+              path = prev.lib.cleanSource ./.;
+            };
+            cargoDeps =
+              rustPlatform.importCargoLock { lockFile = ./Cargo.lock; };
+            patches = [ ];
+          };
+        in {
+
+          eww = (prev.eww.override { inherit rustPlatform; }).overrideAttrs
+            (old:
+              commonOverrides // {
+                buildInputs = old.buildInputs ++ [ final.gtk-layer-shell ];
+              });
+
+          eww-wayland = (prev.eww.override {
+            inherit rustPlatform;
+            withWayland = true;
+          }).overrideAttrs (_: commonOverrides);
+
+          eww-x11 = (prev.eww.override { inherit rustPlatform; }).overrideAttrs
+            (old:
+              commonOverrides // {
+                cargoBuildNoDefaultFeatures = true;
+                cargoBuildFeatures = [ "x11" ];
+                cargoCheckNoDefaultFeatures = true;
+                cargoCheckFeatures = [ "x11" ];
+              });
         };
 
       packages = nixpkgs.lib.genAttrs targetSystems (system:
