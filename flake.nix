@@ -61,6 +61,10 @@
               rust
               rust-analyzer-unwrapped
               gcc
+              glib
+              gdk-pixbuf
+              librsvg
+              libdbusmenu-gtk3
               gtk3
               gtk-layer-shell
               pkg-config
