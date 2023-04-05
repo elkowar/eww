@@ -48,11 +48,17 @@ impl notifier_host::Host for Host {
         let icon = gtk::Image::new();
         mi.add(&icon);
 
-        glib::MainContext::default().spawn_local(async move {
-            let img = item.icon(24).await.unwrap();
-            icon.set_from_pixbuf(Some(&img));
-        });
+        // other initialisation
+        glib::MainContext::default().spawn_local({
+            let mi = mi.clone();
+            async move {
+                let img = item.icon(24).await.unwrap();
+                icon.set_from_pixbuf(Some(&img));
 
+                let menu = item.menu().await.unwrap();
+                mi.set_submenu(Some(&menu));
+            }
+        });
         mi.show_all();
     }
     fn remove_item(&mut self, id: &str) {

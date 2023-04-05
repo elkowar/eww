@@ -712,6 +712,59 @@ dependencies = [
 ]
 
 [[package]]
+name = "dbusmenu-glib"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd1629dccc5775e0668eb9f07e78d1b88392a63efc34033a18c87ea44318b894"
+dependencies = [
+ "dbusmenu-glib-sys",
+ "glib",
+ "libc",
+]
+
+[[package]]
+name = "dbusmenu-glib-sys"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7ff9ed40330718c94342b953c997ac19d840db07a7710fe35b45a5d3a3a1d6eb"
+dependencies = [
+ "glib-sys",
+ "gobject-sys",
+ "libc",
+ "system-deps",
+]
+
+[[package]]
+name = "dbusmenu-gtk3"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b15e02bf53eed790cee4d6111643529bf2fdb82c9e61242407d254612f98436e"
+dependencies = [
+ "atk",
+ "dbusmenu-glib",
+ "dbusmenu-gtk3-sys",
+ "glib",
+ "gtk",
+ "libc",
+]
+
+[[package]]
+name = "dbusmenu-gtk3-sys"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6f30ba5f8aec0e38a84c579bc8ee3db6f6417b201e729fdd96a23d1f61cb6eca"
+dependencies = [
+ "dbusmenu-glib-sys",
+ "gdk-pixbuf-sys",
+ "gdk-sys",
+ "glib-sys",
+ "gobject-sys",
+ "gtk-sys",
+ "libc",
+ "system-deps",
+]
+
+[[package]]
 name = "derivative"
 version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1851,6 +1904,7 @@ dependencies = [
 name = "notifier_host"
 version = "0.1.0"
 dependencies = [
+ "dbusmenu-gtk3",
  "gtk",
  "log",
  "thiserror",

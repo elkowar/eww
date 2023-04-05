@@ -192,4 +192,10 @@ impl Item {
             Ok(pb) => return Ok(pb.unwrap()),
         }
     }
+
+    pub async fn menu(&self) -> Result<gtk::Menu> {
+        // TODO better handling if menu() method doesn't exist
+        let menu = dbusmenu_gtk3::Menu::new(self.sni.destination(), &self.sni.menu().await?);
+        Ok(menu.upcast())
+    }
 }

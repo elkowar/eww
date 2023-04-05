@@ -14,3 +14,4 @@ log = "0.4"
 thiserror = "1.0"
 tokio = { version = "1.31.0", features = ["full"] }
 zbus = { version = "3.7.0", default-features = false, features = ["tokio"] }
+dbusmenu-gtk3 = "0.1.0"
