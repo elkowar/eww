@@ -28,21 +28,21 @@ pub async fn serve(host: &mut dyn Host, id: &str) -> Result<()> {
     let snw = dbus::StatusNotifierWatcherProxy::new(&con).await?;
     snw.register_status_notifier_host(&wellknown_name).await?;
 
+    enum ItemEvent {
+        NewItem(dbus::StatusNotifierItemRegistered),
+        GoneItem(dbus::StatusNotifierItemUnregistered),
+    }
+
+    // start listening to these streams
+    let new_items = snw.receive_status_notifier_item_registered().await?;
+    let gone_items = snw.receive_status_notifier_item_unregistered().await?;
+
     // initial items first
     for svc in snw.registered_status_notifier_items().await? {
         let item = Item::from_address(&con, &svc).await?;
         host.add_item(&svc, item);
     }
 
-    // TODO this is a race condition? we might miss items that appear at this time
-
-    enum ItemEvent {
-        NewItem(dbus::StatusNotifierItemRegistered),
-        GoneItem(dbus::StatusNotifierItemUnregistered),
-    }
-
-    let new_items = snw.receive_status_notifier_item_registered().await?;
-    let gone_items = snw.receive_status_notifier_item_unregistered().await?;
     let mut ev_stream = ordered_stream::join(
         OrderedStreamExt::map(new_items, ItemEvent::NewItem),
         OrderedStreamExt::map(gone_items, ItemEvent::GoneItem),
