@@ -73,10 +73,12 @@ impl notifier_host::Host for Host {
 pub fn maintain_menubar(menubar: gtk::MenuBar) {
     menubar.show_all();
     glib::MainContext::default().spawn_local(async move {
+        let con = zbus::Connection::session().await.unwrap();
+
         let mut host = Host {
             menubar,
             items: std::collections::HashMap::new(),
         };
-        notifier_host::serve(&mut host, "eww").await.unwrap();
+        notifier_host::host_on(&mut host, &con).await.unwrap();
     });
 }

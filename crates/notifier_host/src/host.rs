@@ -7,10 +7,10 @@ pub trait Host {
     fn remove_item(&mut self, id: &str);
 }
 
-// Attach to dbus and forward events to Host.
-//
-// This task is blocking and won't return unless an error occurs.
-pub async fn serve(host: &mut dyn Host, id: &str) -> Result<()> {
+/// Attach to dbus and forward events to Host.
+///
+/// This async function won't complete unless an error occurs.
+pub async fn host_on(host: &mut dyn Host, con: &zbus::Connection) -> Result<()> {
     // From <https://www.freedesktop.org/wiki/Specifications/StatusNotifierItem/StatusNotifierHost/>:
     //
     // Instances of this service are registered on the Dbus session bus, under a name on the
@@ -18,11 +18,23 @@ pub async fn serve(host: &mut dyn Host, id: &str) -> Result<()> {
     // the names unique on the bus, such as the process-id of the application or another type
     // of identifier if more that one StatusNotifierHost is registered by the same process.
 
-    let wellknown_name = format!("org.freedesktop.StatusNotifierHost-{}-{}", std::process::id(), id);
-    let con = zbus::ConnectionBuilder::session()?
-        .name(wellknown_name.as_str())?
-        .build()
-        .await?;
+    // pick a new wellknown_name
+    let pid = std::process::id();
+    let mut i = 0;
+    let wellknown_name = loop {
+        let wellknown_name = format!("org.freedesktop.StatusNotifierHost-{}-{}", pid, i);
+        let flags = [zbus::fdo::RequestNameFlags::DoNotQueue];
+
+        use zbus::fdo::RequestNameReply::*;
+        match con.request_name_with_flags(wellknown_name.as_str(), flags.into_iter().collect()).await? {
+            PrimaryOwner => break wellknown_name,
+            Exists => {},
+            AlreadyOwner => {}, // we choose to not use an existing owner, is this correct?
+            InQueue => panic!("request_name_with_flags returned InQueue even though we specified DoNotQueue"),
+        };
+
+        i += 1;
+    };
 
     // register ourself to StatusNotifierWatcher
     let snw = dbus::StatusNotifierWatcherProxy::new(&con).await?;
