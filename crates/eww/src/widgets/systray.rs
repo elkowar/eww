@@ -75,6 +75,8 @@ pub fn maintain_menubar(menubar: gtk::MenuBar) {
     glib::MainContext::default().spawn_local(async move {
         let con = zbus::Connection::session().await.unwrap();
 
+        notifier_host::Watcher::new().run_on(&con).await.unwrap();
+
         let mut host = Host {
             menubar,
             items: std::collections::HashMap::new(),
