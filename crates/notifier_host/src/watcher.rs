@@ -5,13 +5,42 @@ use zbus::export::ordered_stream::OrderedStreamExt;
 pub const WATCHER_BUS_NAME: &'static str = "org.kde.StatusNotifierWatcher";
 pub const WATCHER_OBJECT_NAME: &'static str = "/StatusNotifierWatcher";
 
-fn parse_service(service: &str) -> (Option<zbus::names::BusName<'_>>, &str) {
+async fn parse_service<'a>(
+    service: &'a str,
+    hdr: zbus::MessageHeader<'_>,
+    con: &zbus::Connection,
+) -> zbus::fdo::Result<(zbus::names::UniqueName<'static>, &'a str)>
+{
     if service.starts_with("/") {
         // they sent us just the object path :(
-        (None, service)
+        if let Some(sender) = hdr.sender()? {
+            Ok((sender.to_owned(), service))
+        } else {
+            log::warn!("unknown sender");
+            Err(zbus::fdo::Error::InvalidArgs("Unknown bus address".into()))
+        }
     } else {
-        // should be a bus name
-        (service.try_into().ok(), "/StatusNotifierItem")
+        let busname: zbus::names::BusName = match service.try_into() {
+            Ok(x) => x,
+            Err(e) => {
+                log::warn!("received invalid bus name {:?}: {}", service, e);
+                return Err(zbus::fdo::Error::InvalidArgs(e.to_string()));
+            },
+        };
+
+        if let zbus::names::BusName::Unique(unique) = busname {
+            Ok((unique.to_owned(), "/StatusNotifierItem"))
+        } else {
+            // unwrap: we should always be able to access the dbus interface
+            let dbus = zbus::fdo::DBusProxy::new(&con).await.unwrap();
+            match dbus.get_name_owner(busname).await {
+                Ok(owner) => Ok((owner.into_inner(), "/StatusNotifierItem")),
+                Err(e) => {
+                    log::warn!("failed to get owner of {:?}: {}", service, e);
+                    Err(e)
+                }
+            }
+        }
     }
 }
 
@@ -56,15 +85,7 @@ impl Watcher {
         #[zbus(connection)] con: &zbus::Connection,
         #[zbus(signal_context)] ctxt: zbus::SignalContext<'_>,
     ) -> zbus::fdo::Result<()> {
-        let (service, _) = parse_service(service);
-        let service = if let Some(x) = service {
-            x.to_owned()
-        } else if let Some(sender) = hdr.sender()? {
-            sender.to_owned().into()
-        } else {
-            log::warn!("register_status_notifier_host: unknown sender");
-            return Err(zbus::fdo::Error::InvalidArgs("Unknown bus address".into()));
-        };
+        let (service, _) = parse_service(service, hdr, con).await?;
         log::info!("new host: {}", service);
 
         {
@@ -83,7 +104,7 @@ impl Watcher {
             let ctxt = ctxt.to_owned();
             let con = con.to_owned();
             async move {
-                wait_for_service_exit(con.clone(), service.as_ref()).await.unwrap();
+                wait_for_service_exit(con.clone(), service.as_ref().into()).await.unwrap();
                 log::info!("lost host: {}", service);
 
                 {
@@ -124,16 +145,7 @@ impl Watcher {
         #[zbus(connection)] con: &zbus::Connection,
         #[zbus(signal_context)] ctxt: zbus::SignalContext<'_>,
     ) -> zbus::fdo::Result<()> {
-        let (service, objpath) = parse_service(service);
-        let service: zbus::names::UniqueName<'_> = if let Some(x) = service {
-            let dbus = zbus::fdo::DBusProxy::new(&con).await?;
-            dbus.get_name_owner(x).await?.into_inner()
-        } else if let Some(sender) = hdr.sender()? {
-            sender.to_owned()
-        } else {
-            log::warn!("register_status_notifier_item: unknown sender");
-            return Err(zbus::fdo::Error::InvalidArgs("Unknown bus address".into()));
-        };
+        let (service, objpath) = parse_service(service, hdr, con).await?;
         let service = zbus::names::BusName::Unique(service);
 
         let item = format!("{}{}", service, objpath);
