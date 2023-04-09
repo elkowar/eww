@@ -51,10 +51,19 @@ pub async fn serve_host_forever_on(host: &mut dyn Host, snw: dbus::StatusNotifie
     let new_items = snw.receive_status_notifier_item_registered().await?;
     let gone_items = snw.receive_status_notifier_item_unregistered().await?;
 
+    let mut item_names = std::collections::HashSet::new();
+
     // initial items first
     for svc in snw.registered_status_notifier_items().await? {
-        let item = Item::from_address(snw.connection(), &svc).await?;
-        host.add_item(&svc, item);
+        match Item::from_address(snw.connection(), &svc).await {
+            Ok(item) => {
+                item_names.insert(svc.to_owned());
+                host.add_item(&svc, item);
+            },
+            Err(e) => {
+                log::warn!("Could not create StatusNotifierItem from address {:?}: {:?}", svc, e);
+            },
+        }
     }
 
     let mut ev_stream = ordered_stream::join(
@@ -64,16 +73,31 @@ pub async fn serve_host_forever_on(host: &mut dyn Host, snw: dbus::StatusNotifie
     while let Some(ev) = ev_stream.next().await {
         match ev {
             ItemEvent::NewItem(sig) => {
-                let args = sig.args()?;
-                let item = Item::from_address(snw.connection(), args.service).await?;
-                host.add_item(args.service, item);
+                let svc = sig.args()?.service;
+                if item_names.contains(svc) {
+                    log::warn!("Got duplicate new item: {:?}", svc);
+                } else {
+                    match Item::from_address(snw.connection(), svc).await {
+                        Ok(item) => {
+                            item_names.insert(svc.to_owned());
+                            host.add_item(svc, item);
+                        },
+                        Err(e) => {
+                            log::warn!("Could not create StatusNotifierItem from address {:?}: {:?}", svc, e);
+                        },
+                    }
+                }
             },
             ItemEvent::GoneItem(sig) => {
-                let args = sig.args()?;
-                host.remove_item(args.service);
+                let svc = sig.args()?.service;
+                if item_names.remove(svc) {
+                    host.remove_item(svc);
+                }
             },
         }
     }
+
+    // TODO handle running out of events? why could this happen?
 
     Ok(())
 }

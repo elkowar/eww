@@ -125,14 +125,16 @@ impl Watcher {
         #[zbus(signal_context)] ctxt: zbus::SignalContext<'_>,
     ) -> zbus::fdo::Result<()> {
         let (service, objpath) = parse_service(service);
-        let service = if let Some(x) = service {
-            x.to_owned()
+        let service: zbus::names::UniqueName<'_> = if let Some(x) = service {
+            let dbus = zbus::fdo::DBusProxy::new(&con).await?;
+            dbus.get_name_owner(x).await?.into_inner()
         } else if let Some(sender) = hdr.sender()? {
-            sender.to_owned().into()
+            sender.to_owned()
         } else {
             log::warn!("register_status_notifier_item: unknown sender");
             return Err(zbus::fdo::Error::InvalidArgs("Unknown bus address".into()));
         };
+        let service = zbus::names::BusName::Unique(service);
 
         let item = format!("{}{}", service, objpath);
         log::info!("new item: {}", item);
