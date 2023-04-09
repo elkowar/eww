@@ -7,10 +7,8 @@ pub trait Host {
     fn remove_item(&mut self, id: &str);
 }
 
-/// Attach to dbus and forward events to Host.
-///
-/// This async function won't complete unless an error occurs.
-pub async fn host_on(host: &mut dyn Host, con: &zbus::Connection) -> Result<()> {
+/// Register this connection as a StatusNotifierHost.
+pub async fn register_host(con: &zbus::Connection) -> zbus::Result<dbus::StatusNotifierWatcherProxy> {
     // From <https://www.freedesktop.org/wiki/Specifications/StatusNotifierItem/StatusNotifierHost/>:
     //
     // Instances of this service are registered on the Dbus session bus, under a name on the
@@ -40,6 +38,10 @@ pub async fn host_on(host: &mut dyn Host, con: &zbus::Connection) -> Result<()> 
     let snw = dbus::StatusNotifierWatcherProxy::new(&con).await?;
     snw.register_status_notifier_host(&wellknown_name).await?;
 
+    Ok(snw)
+}
+
+pub async fn serve_host_forever_on(host: &mut dyn Host, snw: dbus::StatusNotifierWatcherProxy<'_>) -> zbus::Result<()> {
     enum ItemEvent {
         NewItem(dbus::StatusNotifierItemRegistered),
         GoneItem(dbus::StatusNotifierItemUnregistered),
@@ -51,7 +53,7 @@ pub async fn host_on(host: &mut dyn Host, con: &zbus::Connection) -> Result<()> 
 
     // initial items first
     for svc in snw.registered_status_notifier_items().await? {
-        let item = Item::from_address(&con, &svc).await?;
+        let item = Item::from_address(snw.connection(), &svc).await?;
         host.add_item(&svc, item);
     }
 
@@ -63,7 +65,7 @@ pub async fn host_on(host: &mut dyn Host, con: &zbus::Connection) -> Result<()> 
         match ev {
             ItemEvent::NewItem(sig) => {
                 let args = sig.args()?;
-                let item = Item::from_address(&con, args.service).await?;
+                let item = Item::from_address(snw.connection(), args.service).await?;
                 host.add_item(args.service, item);
             },
             ItemEvent::GoneItem(sig) => {

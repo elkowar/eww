@@ -5,6 +5,11 @@ use gtk::{self, prelude::*};
 use zbus::export::ordered_stream::OrderedStreamExt;
 use tokio::sync::watch;
 
+/// Recognised values of org.freedesktop.StatusNotifierItem.Status
+///
+/// See
+/// <https://www.freedesktop.org/wiki/Specifications/StatusNotifierItem/StatusNotifierItem/#org.freedesktop.statusnotifieritem.status>
+/// for details.
 #[derive(Debug, Clone, Copy)]
 pub enum Status {
     /// The item doesn't convey important information to the user, it can be considered an "idle"
@@ -42,7 +47,7 @@ pub struct Item {
 /// path.
 ///
 /// Original logic from <https://github.com/oknozor/stray/blob/main/stray/src/notifier_watcher/notifier_address.rs>
-fn split_service_name(service: &str) -> Result<(String, String)> {
+fn split_service_name(service: &str) -> zbus::Result<(String, String)> {
     if let Some((addr, path)) = service.split_once('/') {
         Ok((addr.to_owned(), format!("/{}", path)))
     } else if service.contains(':') {
@@ -52,15 +57,15 @@ fn split_service_name(service: &str) -> Result<(String, String)> {
         if let Some(addr) = addr {
             Ok((addr.to_owned(), "/StatusNotifierItem".to_owned()))
         } else {
-            Err(Error::DbusAddressError(service.to_owned()))
+            Err(zbus::Error::Address(service.to_owned()))
         }
     } else {
-        Err(Error::DbusAddressError(service.to_owned()))
+        Err(zbus::Error::Address(service.to_owned()))
     }
 }
 
 impl Item {
-    pub async fn from_address(con: &zbus::Connection, addr: &str) -> Result<Self> {
+    pub async fn from_address(con: &zbus::Connection, addr: &str) -> zbus::Result<Self> {
         let (addr, path) = split_service_name(addr)?;
         let sni = dbus::StatusNotifierItemProxy::builder(con)
             .destination(addr)?
@@ -193,7 +198,7 @@ impl Item {
         }
     }
 
-    pub async fn menu(&self) -> Result<gtk::Menu> {
+    pub async fn menu(&self) -> zbus::Result<gtk::Menu> {
         // TODO better handling if menu() method doesn't exist
         let menu = dbusmenu_gtk3::Menu::new(self.sni.destination(), &self.sni.menu().await?);
         Ok(menu.upcast())

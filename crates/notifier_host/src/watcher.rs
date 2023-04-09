@@ -231,3 +231,24 @@ impl Watcher {
         ).await
     }
 }
+
+/// Start a StatusNotifierWatcher on this connection.
+pub async fn watcher_on(con: &zbus::Connection) -> zbus::Result<()> {
+    if !con.object_server().at(WATCHER_OBJECT_NAME, Watcher::new()).await? {
+        // There's already something at this object
+        // TODO better handling?
+        return Err(zbus::Error::Failure(format!("Interface already exists at object {}", WATCHER_OBJECT_NAME)))
+    }
+
+    use zbus::fdo::*;
+    match con.request_name_with_flags(WATCHER_BUS_NAME, [RequestNameFlags::DoNotQueue].into_iter().collect()).await? {
+        RequestNameReply::PrimaryOwner => return Ok(()),
+        RequestNameReply::Exists => {},
+        RequestNameReply::AlreadyOwner => {}, // TODO should this return
+        RequestNameReply::InQueue => panic!("request_name_with_flags returned InQueue even though we specified DoNotQueue"),
+    }
+
+    // TODO should we queue?
+
+    Ok(())
+}

@@ -3,20 +3,6 @@
 use gtk::prelude::*;
 use notifier_host;
 
-async fn gtk_run<F, R1, R>(f: F) -> R
-where
-    F: FnOnce() -> R1 + 'static,
-    R1: std::future::Future<Output=R>,
-    R: 'static,
-{
-    let (tx, rx) = tokio::sync::oneshot::channel();
-    glib::MainContext::default().spawn_local(async move {
-        let r = f().await;
-        tx.send(r).map_err(|_| ()).unwrap();
-    });
-    rx.await.unwrap()
-}
-
 struct Host {
     menubar: gtk::MenuBar,
     items: std::collections::HashMap<String, gtk::MenuItem>,
@@ -71,16 +57,18 @@ impl notifier_host::Host for Host {
 }
 
 pub fn maintain_menubar(menubar: gtk::MenuBar) {
+    // TODO avoid having too many zbus::Connection instances
+
     menubar.show_all();
     glib::MainContext::default().spawn_local(async move {
         let con = zbus::Connection::session().await.unwrap();
+        notifier_host::watcher_on(&con).await.unwrap();
 
-        notifier_host::Watcher::new().run_on(&con).await.unwrap();
-
+        let snw = notifier_host::register_host(&con).await.unwrap();
         let mut host = Host {
             menubar,
             items: std::collections::HashMap::new(),
         };
-        notifier_host::host_on(&mut host, &con).await.unwrap();
+        notifier_host::serve_host_forever_on(&mut host, snw).await.unwrap();
     });
 }

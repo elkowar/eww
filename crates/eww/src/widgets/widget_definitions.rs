@@ -1048,15 +1048,15 @@ const WIDGET_NAME_SYSTRAY: &str = "systray";
 /// @widget systray
 /// @desc Tray for system notifier icons
 fn build_systray(bargs: &mut BuilderArgs) -> Result<gtk::MenuBar> {
-    let w = gtk::MenuBar::new();
+    let gtk_widget = gtk::MenuBar::new();
 
-    def_widget!(bargs, _g, w, {
+    def_widget!(bargs, _g, gtk_widget, {
         // @prop pack-direction - how to arrange tray items
-        prop(pack_direction: as_string) { w.set_pack_direction(parse_packdirection(&pack_direction)?); },
+        prop(pack_direction: as_string) { gtk_widget.set_pack_direction(parse_packdirection(&pack_direction)?); },
     });
 
-    systray::maintain_menubar(w.clone());
-    Ok(w)
+    systray::maintain_menubar(gtk_widget.clone());
+    Ok(gtk_widget)
 }
 
 /// @var orientation - "vertical", "v", "horizontal", "h"
