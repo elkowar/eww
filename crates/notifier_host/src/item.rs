@@ -116,22 +116,43 @@ impl Item {
 
 #[derive(thiserror::Error, Debug)]
 pub enum IconError {
-    #[error("Dbus error")]
-    DbusError(#[from] zbus::Error),
-    #[error("Failed to load icon {icon_name:?} from theme {theme_path:?}")]
+    #[error("unhandled dbus error while calling {bus_name}: {err}")]
+    DBusError {
+        #[source] err: zbus::Error,
+        bus_name: zbus::names::BusName<'static>,
+    },
+    #[error("failed to load icon {icon_name:?} from theme {theme_path:?}")]
     LoadIconFromTheme {
         icon_name: String,
-        theme_path: String,
+        theme_path: Option<String>,
         source: gtk::glib::Error,
     },
-    #[error("Failed to load icon {icon_name:?} from default theme")]
-    LoadIconFromDefaultTheme {
-        icon_name: String,
-        source: gtk::glib::Error,
-    },
+    #[error("no icon available")]
+    NotAvailable,
+}
+
+/// Get the fallback GTK icon
+async fn fallback_icon(size: i32) -> std::result::Result<gtk::gdk_pixbuf::Pixbuf, IconError> {
+    // TODO downgrade from panic to error return?
+    let theme = gtk::IconTheme::default().expect("Could not get default gtk theme");
+    return match theme.load_icon("image-missing", size, gtk::IconLookupFlags::FORCE_SIZE) {
+        Err(e) => Err(IconError::LoadIconFromTheme {
+            icon_name: "image-missing".to_owned(),
+            theme_path: None,
+            source: e,
+        }),
+        Ok(pb) => Ok(pb.unwrap()),
+    }
 }
 
 impl Item {
+    fn to_dbus_err(&self, err: zbus::Error) -> IconError {
+        IconError::DBusError {
+            err,
+            bus_name: self.sni.destination().to_owned()
+        }
+    }
+
     pub fn load_pixmap(width: i32, height: i32, mut data: Vec<u8>) -> gtk::Image {
         // We need to convert data from ARGB32 to RGBA32
         for chunk in data.chunks_mut(4) {
@@ -157,22 +178,35 @@ impl Item {
         gtk::Image::from_pixbuf(Some(&pixmap))
     }
 
-    pub async fn icon(&self, size: i32) -> std::result::Result<gtk::gdk_pixbuf::Pixbuf, IconError> {
-        let icon_name = self.sni.icon_name().await?;
-        let icon_theme_path = self.sni.icon_theme_path().await?;
+    async fn icon_from_name(&self, size: i32) -> std::result::Result<gtk::gdk_pixbuf::Pixbuf, IconError> {
+        // TODO better handling of icon_name failure instead of punting it to the caller
+        let icon_name = match self.sni.icon_name().await {
+            Ok(s) if s == "" => return Err(IconError::NotAvailable),
+            Ok(s) => s,
+            Err(e) => return Err(self.to_dbus_err(e)),
+        };
+
+        let icon_theme_path = match self.sni.icon_theme_path().await {
+            Ok(p) => p,
+            Err(zbus::Error::FDO(e)) => match *e {
+                zbus::fdo::Error::UnknownProperty(_) => "".into(),
+                _ => return Err(self.to_dbus_err(zbus::Error::FDO(e))),
+            },
+            Err(e) => return Err(self.to_dbus_err(e)),
+        };
 
         if icon_theme_path != "" {
-            // icon supplied a theme path, so only look there
+            // icon supplied a theme path, so only look there (w/ fallback)
             let theme = gtk::IconTheme::new();
             theme.prepend_search_path(&icon_theme_path);
 
             return match theme.load_icon(&icon_name, size, gtk::IconLookupFlags::FORCE_SIZE) {
                 Err(e) => Err(IconError::LoadIconFromTheme {
                     icon_name,
-                    theme_path: icon_theme_path,
+                    theme_path: Some(icon_theme_path),
                     source: e,
                 }),
-                Ok(pb) => return Ok(pb.unwrap()),
+                Ok(pb) => return Ok(pb.expect("no pixbuf from theme.load_icon despite no error")),
             }
         }
 
@@ -180,22 +214,47 @@ impl Item {
         let theme = gtk::IconTheme::default().expect("Could not get default gtk theme");
         match theme.load_icon(&icon_name, size, gtk::IconLookupFlags::FORCE_SIZE) {
             // TODO specifically match on icon missing here
-            Err(e) => log::warn!("Could not find icon {:?} in default theme: {}", &icon_name, e),
-            Ok(pb) => return Ok(pb.unwrap()),
+            Err(e) => {
+                log::warn!("Could not find icon {:?} in default theme: {}", &icon_name, e);
+                Err(IconError::LoadIconFromTheme {
+                    icon_name,
+                    theme_path: None,
+                    source: e,
+                })
+            },
+            Ok(pb) => Ok(pb.unwrap()),
+        }
+    }
+
+    async fn icon_from_pixmap(&self, _size: i32) -> std::result::Result<gtk::gdk_pixbuf::Pixbuf, IconError> {
+        let _pixmap = match self.sni.icon_pixmap().await {
+            Ok(p) => p,
+            Err(e) => return Err(self.to_dbus_err(e)),
+        };
+
+        // TODO
+        Err(IconError::NotAvailable)
+    }
+
+    pub async fn icon(&self, size: i32) -> std::result::Result<gtk::gdk_pixbuf::Pixbuf, IconError> {
+        // "Visualizations are encouraged to prefer icon names over icon pixmaps if both are
+        // available."
+
+        match self.icon_from_name(size).await {
+            Ok(pb) => return Ok(pb),
+            // don't handle unknown dbus error
+            err @ Err(IconError::DBusError { .. }) => return err,
+            Err(_) => {},
+        };
+
+        match self.icon_from_pixmap(size).await {
+            Ok(pb) => return Ok(pb),
+            // don't handle unknown dbus error
+            err @ Err(IconError::DBusError { .. }) => return err,
+            Err(_) => {},
         }
 
-        // "Visualizations are encouraged to prefer icon names over icon pixmaps if both are available."
-        // TODO icon_pixmap
-
-        // fallback to default icon
-        let theme = gtk::IconTheme::default().expect("Could not get default gtk theme");
-        return match theme.load_icon("image-missing", size, gtk::IconLookupFlags::FORCE_SIZE) {
-            Err(e) => Err(IconError::LoadIconFromDefaultTheme {
-                icon_name: "image-missing".to_owned(),
-                source: e,
-            }),
-            Ok(pb) => return Ok(pb.unwrap()),
-        }
+        fallback_icon(size).await
     }
 
     pub async fn menu(&self) -> zbus::Result<gtk::Menu> {
