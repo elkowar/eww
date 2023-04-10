@@ -7,41 +7,33 @@ pub trait Host {
     fn remove_item(&mut self, id: &str);
 }
 
-/// Register this connection as a StatusNotifierHost.
-pub async fn register_host(con: &zbus::Connection) -> zbus::Result<dbus::StatusNotifierWatcherProxy> {
-    // From <https://www.freedesktop.org/wiki/Specifications/StatusNotifierItem/StatusNotifierHost/>:
-    //
-    // Instances of this service are registered on the Dbus session bus, under a name on the
-    // form org.freedesktop.StatusNotifierHost-id where id is an unique identifier, that keeps
-    // the names unique on the bus, such as the process-id of the application or another type
-    // of identifier if more that one StatusNotifierHost is registered by the same process.
-
-    // pick a new wellknown_name
+/// Add a new well-known name of format `org.freedesktop.StatusNotifierHost-{pid}-{nr}` for this connection.
+pub async fn attach_new_wellknown_name(con: &zbus::Connection) -> zbus::Result<zbus::names::WellKnownName<'static>> {
     let pid = std::process::id();
     let mut i = 0;
-    let wellknown_name = loop {
-        let wellknown_name = format!("org.freedesktop.StatusNotifierHost-{}-{}", pid, i);
-        let flags = [zbus::fdo::RequestNameFlags::DoNotQueue];
-
+    let wellknown = loop {
         use zbus::fdo::RequestNameReply::*;
-        match con.request_name_with_flags(wellknown_name.as_str(), flags.into_iter().collect()).await? {
-            PrimaryOwner => break wellknown_name,
-            Exists => {},
-            AlreadyOwner => {}, // we choose to not use an existing owner, is this correct?
-            InQueue => panic!("request_name_with_flags returned InQueue even though we specified DoNotQueue"),
-        };
 
         i += 1;
+        let wellknown = format!("org.freedesktop.StatusNotifierHost-{}-{}", pid, i);
+        let wellknown: zbus::names::WellKnownName = wellknown.try_into().expect("generated well-known name is invalid");
+
+        let flags = [zbus::fdo::RequestNameFlags::DoNotQueue];
+        match con.request_name_with_flags(&wellknown, flags.into_iter().collect()).await? {
+            PrimaryOwner => break wellknown,
+            Exists => {},
+            AlreadyOwner => {},
+            InQueue => unreachable!("request_name_with_flags returned InQueue even though we specified DoNotQueue"),
+        };
     };
-
-    // register ourself to StatusNotifierWatcher
-    let snw = dbus::StatusNotifierWatcherProxy::new(&con).await?;
-    snw.register_status_notifier_host(&wellknown_name).await?;
-
-    Ok(snw)
+    Ok(wellknown)
 }
 
-pub async fn serve_host_forever_on(host: &mut dyn Host, snw: dbus::StatusNotifierWatcherProxy<'_>) -> zbus::Result<()> {
+pub async fn run_host_forever(host: &mut dyn Host, con: &zbus::Connection, name: &zbus::names::WellKnownName<'_>) -> zbus::Result<()> {
+    // register ourself to StatusNotifierWatcher
+    let snw = dbus::StatusNotifierWatcherProxy::new(&con).await?;
+    snw.register_status_notifier_host(&name).await?;
+
     enum ItemEvent {
         NewItem(dbus::StatusNotifierItemRegistered),
         GoneItem(dbus::StatusNotifierItemUnregistered),
@@ -75,7 +67,7 @@ pub async fn serve_host_forever_on(host: &mut dyn Host, snw: dbus::StatusNotifie
             ItemEvent::NewItem(sig) => {
                 let svc = sig.args()?.service;
                 if item_names.contains(svc) {
-                    log::warn!("Got duplicate new item: {:?}", svc);
+                    log::info!("Got duplicate new item: {:?}", svc);
                 } else {
                     match Item::from_address(snw.connection(), svc).await {
                         Ok(item) => {

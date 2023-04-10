@@ -149,15 +149,16 @@ impl Watcher {
         let service = zbus::names::BusName::Unique(service);
 
         let item = format!("{}{}", service, objpath);
-        log::info!("new item: {}", item);
 
         {
             let mut items = self.items.lock().unwrap();
             if !items.insert(item.clone()) {
                 // we're already tracking them
+                log::info!("new item: {} (duplicate)", item);
                 return Ok(())
             }
         }
+        log::info!("new item: {}", item);
 
         self.registered_status_notifier_items_changed(&ctxt).await?;
         Watcher::status_notifier_item_registered(&ctxt, service.as_ref()).await?;
@@ -259,7 +260,7 @@ pub async fn watcher_on(con: &zbus::Connection) -> zbus::Result<()> {
         RequestNameReply::PrimaryOwner => return Ok(()),
         RequestNameReply::Exists => {},
         RequestNameReply::AlreadyOwner => {}, // TODO should this return
-        RequestNameReply::InQueue => panic!("request_name_with_flags returned InQueue even though we specified DoNotQueue"),
+        RequestNameReply::InQueue => unreachable!("request_name_with_flags returned InQueue even though we specified DoNotQueue"),
     }
 
     // TODO should we queue?

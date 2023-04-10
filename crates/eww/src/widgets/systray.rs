@@ -56,19 +56,45 @@ impl notifier_host::Host for Host {
     }
 }
 
-pub fn maintain_menubar(menubar: gtk::MenuBar) {
-    // TODO avoid having too many zbus::Connection instances
+struct DBusGlobalState {
+    con: zbus::Connection,
+    name: zbus::names::WellKnownName<'static>,
+}
 
-    menubar.show_all();
-    glib::MainContext::default().spawn_local(async move {
+async fn dbus_state() -> std::sync::Arc<DBusGlobalState> {
+    use tokio::sync::Mutex;
+    use std::sync::{Weak, Arc};
+    use once_cell::sync::Lazy;
+    static DBUS_STATE: Lazy<Mutex<Weak<DBusGlobalState>>> = Lazy::new(Default::default);
+
+    let mut dbus_state = DBUS_STATE.lock().await;
+    if let Some(state) = dbus_state.upgrade() {
+        state
+    } else {
+        // TODO error handling?
         let con = zbus::Connection::session().await.unwrap();
         notifier_host::watcher_on(&con).await.unwrap();
 
-        let snw = notifier_host::register_host(&con).await.unwrap();
+        let name = notifier_host::attach_new_wellknown_name(&con).await.unwrap();
+
+        let arc = Arc::new(DBusGlobalState {
+            con,
+            name,
+        });
+        *dbus_state = Arc::downgrade(&arc);
+
+        arc
+    }
+}
+
+pub fn maintain_menubar(menubar: gtk::MenuBar) {
+    menubar.show_all();
+    glib::MainContext::default().spawn_local(async move {
         let mut host = Host {
             menubar,
             items: std::collections::HashMap::new(),
         };
-        notifier_host::serve_host_forever_on(&mut host, snw).await.unwrap();
+        let s = &dbus_state().await;
+        notifier_host::run_host_forever(&mut host, &s.con, &s.name).await.unwrap();
     });
 }
