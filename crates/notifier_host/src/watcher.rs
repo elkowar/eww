@@ -261,15 +261,12 @@ pub async fn watcher_on(con: &zbus::Connection) -> zbus::Result<()> {
         return Err(zbus::Error::Failure(format!("Interface already exists at object {}", WATCHER_OBJECT_NAME)))
     }
 
-    use zbus::fdo::*;
-    match con.request_name_with_flags(WATCHER_BUS_NAME, [RequestNameFlags::DoNotQueue].into_iter().collect()).await? {
-        RequestNameReply::PrimaryOwner => return Ok(()),
-        RequestNameReply::Exists => {},
-        RequestNameReply::AlreadyOwner => {}, // TODO should this return
-        RequestNameReply::InQueue => unreachable!("request_name_with_flags returned InQueue even though we specified DoNotQueue"),
+    // TODO should we queue if we couldn't take the name?
+
+    use zbus::fdo::{RequestNameFlags, RequestNameReply};
+    match con.request_name_with_flags(WATCHER_BUS_NAME, [RequestNameFlags::DoNotQueue].into_iter().collect()).await {
+        Ok(RequestNameReply::PrimaryOwner) => Ok(()),
+        Ok(_) | Err(zbus::Error::NameTaken) => Ok(()), // defer to existing
+        Err(e) => Err(e),
     }
-
-    // TODO should we queue?
-
-    Ok(())
 }
