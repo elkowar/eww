@@ -88,15 +88,18 @@ impl Watcher {
         let (service, _) = parse_service(service, hdr, con).await?;
         log::info!("new host: {}", service);
 
-        {
+        let added_first = {
             let mut hosts = self.hosts.lock().unwrap();
             if !hosts.insert(service.to_string()) {
                 // we're already tracking them
                 return Ok(())
             }
-        }
+            hosts.len() == 1
+        };
 
-        self.is_status_notifier_host_registered_changed(&ctxt).await?;
+        if added_first {
+            self.is_status_notifier_host_registered_changed(&ctxt).await?;
+        }
         Watcher::status_notifier_host_registered(&ctxt).await?;
 
         self.tasks.spawn({
@@ -107,12 +110,15 @@ impl Watcher {
                 wait_for_service_exit(con.clone(), service.as_ref().into()).await.unwrap();
                 log::info!("lost host: {}", service);
 
-                {
+                let removed_last = {
                     let mut hosts = hosts.lock().unwrap();
-                    hosts.remove(service.as_str());
-                }
+                    let did_remove = hosts.remove(service.as_str());
+                    did_remove && hosts.is_empty()
+                };
 
-                Watcher::is_status_notifier_host_registered_refresh(&ctxt).await.unwrap();
+                if removed_last {
+                    Watcher::is_status_notifier_host_registered_refresh(&ctxt).await.unwrap();
+                }
                 Watcher::status_notifier_host_unregistered(&ctxt).await.unwrap();
             }
         });
@@ -161,7 +167,7 @@ impl Watcher {
         log::info!("new item: {}", item);
 
         self.registered_status_notifier_items_changed(&ctxt).await?;
-        Watcher::status_notifier_item_registered(&ctxt, service.as_ref()).await?;
+        Watcher::status_notifier_item_registered(&ctxt, item.as_ref()).await?;
 
         self.tasks.spawn({
             let items = self.items.clone();
@@ -177,7 +183,7 @@ impl Watcher {
                 }
 
                 Watcher::registered_status_notifier_items_refresh(&ctxt).await.unwrap();
-                Watcher::status_notifier_item_unregistered(&ctxt, service.as_ref()).await.unwrap();
+                Watcher::status_notifier_item_unregistered(&ctxt, item.as_ref()).await.unwrap();
             }
         });
 
@@ -186,11 +192,11 @@ impl Watcher {
 
     /// StatusNotifierItemRegistered signal
     #[dbus_interface(signal)]
-    async fn status_notifier_item_registered(ctxt: &zbus::SignalContext<'_>, service: zbus::names::BusName<'_>) -> zbus::Result<()>;
+    async fn status_notifier_item_registered(ctxt: &zbus::SignalContext<'_>, service: &str) -> zbus::Result<()>;
 
     /// StatusNotifierItemUnregistered signal
     #[dbus_interface(signal)]
-    async fn status_notifier_item_unregistered(ctxt: &zbus::SignalContext<'_>, service: zbus::names::BusName<'_>) -> zbus::Result<()>;
+    async fn status_notifier_item_unregistered(ctxt: &zbus::SignalContext<'_>, service: &str) -> zbus::Result<()>;
 
     /// RegisteredStatusNotifierItems property
     #[dbus_interface(property)]
