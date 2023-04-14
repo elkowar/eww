@@ -138,9 +138,6 @@ mod platform_x11 {
             let window_type =
                 if window_def.backend_options.x11.wm_ignore { gtk::WindowType::Popup } else { gtk::WindowType::Toplevel };
             let window = gtk::Window::new(window_type);
-            let wm_class_name = format!("eww-{}", window_def.name);
-            #[allow(deprecated)]
-            window.set_wmclass(&wm_class_name, &wm_class_name);
             window.set_resizable(window_def.resizable);
             window.set_keep_above(window_def.stacking == WindowStacking::Foreground);
             window.set_keep_below(window_def.stacking == WindowStacking::Background);

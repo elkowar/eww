@@ -356,7 +356,7 @@ const WIDGET_NAME_COLOR_BUTTON: &str = "color-button";
 /// @widget color-button
 /// @desc A button opening a color chooser window
 fn build_gtk_color_button(bargs: &mut BuilderArgs) -> Result<gtk::ColorButton> {
-    let gtk_widget = gtk::builders::ColorButtonBuilder::new().build();
+    let gtk_widget = gtk::ColorButton::builder().build();
     def_widget!(bargs, _g, gtk_widget, {
         // @prop use-alpha - bool to whether or not use alpha
         prop(use_alpha: as_bool) {gtk_widget.set_use_alpha(use_alpha);},
