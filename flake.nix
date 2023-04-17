@@ -6,7 +6,7 @@
     rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, rust-overlay, flake-compat, ... }:
+  outputs = { self, nixpkgs, rust-overlay, ... }:
     let
       pkgsFor = system: import nixpkgs {
         inherit system;
@@ -30,15 +30,18 @@
             rustc = rust;
           };
         in
-        {
-          eww = (prev.eww.override { inherit rustPlatform; }).overrideAttrs (old: {
+        rec {
+          # TODO update this to reflect the changes in upstream (nixpkgs), when upstream is updated
+          eww = (prev.eww.override { inherit rustPlatform; withWayland = true; }).overrideAttrs (old: {
             version = self.rev or "dirty";
             src = builtins.path { name = "eww"; path = prev.lib.cleanSource ./.; };
             cargoDeps = rustPlatform.importCargoLock { lockFile = ./Cargo.lock; };
+            cargoBuildNoDefaultFeatures = false;
+            cargoCheckNoDefaultFeatures = false;
             patches = [ ];
           });
 
-          eww-wayland = final.eww.override { withWayland = true; };
+          eww-wayland = eww;
         };
 
       packages = nixpkgs.lib.genAttrs targetSystems (system:
