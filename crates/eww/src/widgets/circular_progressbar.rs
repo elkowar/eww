@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use glib::{object_subclass, wrapper};
 use gtk::{prelude::*, subclass::prelude::*};
-use std::cell::RefCell;
+use std::{cell::RefCell, f64::consts::PI};
 
 use crate::error_handling_ctx;
 
@@ -181,6 +181,9 @@ impl WidgetImpl for CircProgPriv {
             let thickness = *self.thickness.borrow() as f64;
             let clockwise = *self.clockwise.borrow() as bool;
 
+            // TODO: Make the roundness optional
+            let round = true;
+
             let styles = widget.style_context();
             let margin = styles.margin(gtk::StateFlags::NORMAL);
             // Padding is not supported yet
@@ -201,6 +204,10 @@ impl WidgetImpl for CircProgPriv {
             let outer_ring = f64::min(circle_width, circle_height) / 2.0;
             let inner_ring = (f64::min(circle_width, circle_height) / 2.0) - thickness;
 
+            let circumference = 2.0 * PI * (outer_ring - thickness / 2.0);
+            let thickness_percentage = thickness * 50.0 / circumference;
+            let thickness_rad = perc_to_rad(thickness_percentage);
+
             cr.save()?;
 
             // Centering
@@ -219,11 +226,82 @@ impl WidgetImpl for CircProgPriv {
 
             // Foreground Ring
             cr.move_to(center.0, center.1);
-            cr.arc(center.0, center.1, outer_ring, start_angle, end_angle);
+            cr.arc(
+                center.0,
+                center.1,
+                outer_ring,
+                if round && value < 100.0 { start_angle + thickness_rad } else { start_angle },
+                if round && value < 100.0 { (end_angle - thickness_rad).max(start_angle + thickness_rad) } else { end_angle },
+            );
             cr.set_source_rgba(fg_color.red(), fg_color.green(), fg_color.blue(), fg_color.alpha());
             cr.move_to(center.0, center.1);
-            cr.arc(center.0, center.1, inner_ring, start_angle, end_angle);
+            cr.arc(
+                center.0,
+                center.1,
+                inner_ring,
+                if round && value < 100.0 { start_angle + thickness_rad } else { start_angle },
+                if round && value < 100.0 { (end_angle - thickness_rad).max(start_angle + thickness_rad) } else { end_angle },
+            );
             cr.set_fill_rule(cairo::FillRule::EvenOdd); // Substract one circle from the other
+
+            cr.fill()?;
+            cr.restore()?;
+
+            cr.save()?;
+
+            cr.translate(center.0, center.1);
+            cr.rotate(perc_to_rad(start_at));
+            cr.translate(-center.0, -center.1);
+
+            cr.move_to(center.0, center.1);
+            cr.set_source_rgba(fg_color.red(), fg_color.green(), fg_color.blue(), fg_color.alpha());
+
+            if round && value < 100.0 {
+                // FIXME: Fix low values overlap
+                // FIXME: Remove the slight gap between the round circles and the bar
+                {
+                    let end_pos = (
+                        (outer_ring - thickness / 2.0)
+                            * (if clockwise { start_angle + thickness_rad } else { end_angle - thickness_rad }).cos()
+                            + center.0,
+                        (outer_ring - thickness / 2.0)
+                            * (if clockwise { start_angle + thickness_rad } else { end_angle - thickness_rad }).sin()
+                            + center.1,
+                    );
+
+                    cr.move_to(end_pos.0, end_pos.1);
+
+                    cr.arc(
+                        end_pos.0,
+                        end_pos.1,
+                        thickness / 2.0,
+                        if clockwise { PI + thickness_rad } else { 2.0 * PI - thickness_rad },
+                        if clockwise { 2.0 * PI + thickness_rad } else { PI - thickness_rad },
+                    );
+                }
+
+                {
+                    let end_pos = (
+                        (outer_ring - thickness / 2.0)
+                            * (if clockwise { end_angle - thickness_rad } else { start_angle + thickness_rad }).cos()
+                            + center.0,
+                        (outer_ring - thickness / 2.0)
+                            * (if clockwise { end_angle - thickness_rad } else { start_angle + thickness_rad }).sin()
+                            + center.1,
+                    );
+
+                    cr.move_to(end_pos.0, end_pos.1);
+
+                    cr.arc(
+                        end_pos.0,
+                        end_pos.1,
+                        thickness / 2.0,
+                        if clockwise { 2.0 * PI - thickness_rad + end_angle } else { PI + thickness_rad + start_angle },
+                        if clockwise { PI - thickness_rad + end_angle } else { 2.0 * PI + thickness_rad + start_angle },
+                    );
+                }
+            }
+
             cr.fill()?;
             cr.restore()?;
 
