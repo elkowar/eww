@@ -307,6 +307,14 @@ impl SimplExpr {
 
 fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError> {
     match name {
+        "get_env" => match args.as_slice() {
+            [string] => {
+                let string = string.as_string()?;
+                let var = std::env::var(string).unwrap_or("".to_string());
+                Ok(DynVal::from(var))
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
         "round" => match args.as_slice() {
             [num, digits] => {
                 let num = num.as_f64()?;
