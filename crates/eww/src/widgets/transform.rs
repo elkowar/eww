@@ -17,6 +17,12 @@ pub struct TransformPriv {
     #[property(get, set, nick = "Rotate", blurb = "The Rotation", minimum = f64::MIN, maximum = f64::MAX, default = 0f64)]
     rotate: RefCell<f64>,
 
+    #[property(get, set, nick = "Transform-Origin X", blurb = "X coordinate (%/px) for the Transform-Origin", default = None)]
+    transform_origin_x: RefCell<Option<String>>,
+
+    #[property(get, set, nick = "Transform-Origin Y", blurb = "Y coordinate (%/px) for the Transform-Origin", default = None)]
+    transform_origin_y: RefCell<Option<String>>,
+
     #[property(get, set, nick = "Translate x", blurb = "The X Translation", default = None)]
     translate_x: RefCell<Option<String>>,
 
@@ -37,6 +43,8 @@ impl Default for TransformPriv {
     fn default() -> Self {
         TransformPriv {
             rotate: RefCell::new(0.0),
+            transform_origin_x: RefCell::new(None),
+            transform_origin_y: RefCell::new(None),
             translate_x: RefCell::new(None),
             translate_y: RefCell::new(None),
             scale_x: RefCell::new(None),
@@ -55,6 +63,14 @@ impl ObjectImpl for TransformPriv {
         match pspec.name() {
             "rotate" => {
                 self.rotate.replace(value.get().unwrap());
+                self.obj().queue_draw(); // Queue a draw call with the updated value
+            }
+            "transform-origin-x" => {
+                self.transform_origin_x.replace(value.get().unwrap());
+                self.obj().queue_draw(); // Queue a draw call with the updated value
+            }
+            "transform-origin-y" => {
+                self.transform_origin_y.replace(value.get().unwrap());
                 self.obj().queue_draw(); // Queue a draw call with the updated value
             }
             "translate-x" => {
@@ -128,6 +144,15 @@ impl WidgetImpl for TransformPriv {
 
             cr.save()?;
 
+            let transform_origin_x = match &*self.transform_origin_x.borrow() {
+                Some(rcx) => NumWithUnit::from_str(rcx)?.pixels_relative_to(total_width as i32) as f64,
+                None => 0.0,
+            };
+            let transform_origin_y = match &*self.transform_origin_y.borrow() {
+                Some(rcy) => NumWithUnit::from_str(rcy)?.pixels_relative_to(total_height as i32) as f64,
+                None => 0.0,
+            };
+
             let translate_x = match &*self.translate_x.borrow() {
                 Some(tx) => NumWithUnit::from_str(tx)?.pixels_relative_to(total_width as i32) as f64,
                 None => 0.0,
@@ -149,8 +174,9 @@ impl WidgetImpl for TransformPriv {
             };
 
             cr.scale(scale_x, scale_y);
+            cr.translate(transform_origin_x, transform_origin_y);
             cr.rotate(perc_to_rad(rotate));
-            cr.translate(translate_x, translate_y);
+            cr.translate(translate_x - transform_origin_x, translate_y - transform_origin_y);
 
             // Children widget
             if let Some(child) = &*self.content.borrow() {

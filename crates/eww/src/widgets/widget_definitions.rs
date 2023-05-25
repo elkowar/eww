@@ -1188,6 +1188,10 @@ fn build_transform(bargs: &mut BuilderArgs) -> Result<Transform> {
     def_widget!(bargs, _g, w, {
         // @prop rotate - the percentage to rotate
         prop(rotate: as_f64) { w.set_property("rotate", rotate); },
+        // @prop transform-origin-x - x coordinate of origin of transformation (px or %)
+        prop(transform_origin_x: as_string) { w.set_property("transform-origin-x", transform_origin_x) },
+        // @prop transform-origin-y - y coordinate of origin of transformation (px or %)
+        prop(transform_origin_y: as_string) { w.set_property("transform-origin-y", transform_origin_y) },
         // @prop translate-x - the amount to translate in the x direction (px or %)
         prop(translate_x: as_string) { w.set_property("translate-x", translate_x); },
         // @prop translate-y - the amount to translate in the y direction (px or %)
