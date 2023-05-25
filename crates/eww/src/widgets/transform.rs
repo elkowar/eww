@@ -13,6 +13,8 @@ wrapper! {
 
 pub struct TransformPriv {
     rotate: RefCell<f64>,
+    rotation_center_x: RefCell<Option<String>>,
+    rotation_center_y: RefCell<Option<String>>,
     translate_x: RefCell<Option<String>>,
     translate_y: RefCell<Option<String>>,
     scale_x: RefCell<Option<String>>,
@@ -25,6 +27,8 @@ impl Default for TransformPriv {
     fn default() -> Self {
         TransformPriv {
             rotate: RefCell::new(0.0),
+            rotation_center_x: RefCell::new(None),
+            rotation_center_y: RefCell::new(None),
             translate_x: RefCell::new(None),
             translate_y: RefCell::new(None),
             scale_x: RefCell::new(None),
@@ -48,6 +52,20 @@ impl ObjectImpl for TransformPriv {
                     0f64,
                     glib::ParamFlags::READWRITE,
                 ),
+                glib::ParamSpecString::new(
+                    "rotation-center-x",
+                    "position of rotation-center - x",
+                    "The X coordinate for the rotation center",
+                    None,
+                    glib::ParamFlags::READWRITE,
+                ),
+                glib::ParamSpecString::new(
+                    "rotation-center-y",
+                    "position of rotation-center - y",
+                    "The Y coordinate for the rotation center",
+                    None,
+                    glib::ParamFlags::READWRITE,
+                ),
                 glib::ParamSpecString::new("translate-x", "Translate x", "The X Translation", None, glib::ParamFlags::READWRITE),
                 glib::ParamSpecString::new("translate-y", "Translate y", "The Y Translation", None, glib::ParamFlags::READWRITE),
                 glib::ParamSpecString::new("scale-x", "Scale x", "The amount to scale in x", None, glib::ParamFlags::READWRITE),
@@ -62,6 +80,14 @@ impl ObjectImpl for TransformPriv {
         match pspec.name() {
             "rotate" => {
                 self.rotate.replace(value.get().unwrap());
+                obj.queue_draw(); // Queue a draw call with the updated value
+            }
+            "rotation-center-x" => {
+                self.rotation_center_x.replace(value.get().unwrap());
+                obj.queue_draw(); // Queue a draw call with the updated value
+            }
+            "rotation-center-y" => {
+                self.rotation_center_y.replace(value.get().unwrap());
                 obj.queue_draw(); // Queue a draw call with the updated value
             }
             "translate-x" => {
@@ -87,6 +113,8 @@ impl ObjectImpl for TransformPriv {
     fn property(&self, _obj: &Self::Type, _id: usize, pspec: &glib::ParamSpec) -> glib::Value {
         match pspec.name() {
             "rotate" => self.rotate.borrow().to_value(),
+            "rotation-center-x" => self.rotation_center_x.borrow().to_value(),
+            "rotation-center-y" => self.rotation_center_y.borrow().to_value(),
             "translate_x" => self.translate_x.borrow().to_value(),
             "translate_y" => self.translate_y.borrow().to_value(),
             "scale_x" => self.scale_x.borrow().to_value(),
@@ -142,6 +170,18 @@ impl WidgetImpl for TransformPriv {
 
             cr.save()?;
 
+            let rotation_center = {
+                let x = match &*self.rotation_center_x.borrow() {
+                    Some(rcx) => NumWithUnit::from_str(rcx)?.pixels_relative_to(total_width as i32) as f64,
+                    None => 0.0,
+                };
+                let y = match &*self.rotation_center_y.borrow() {
+                    Some(rcy) => NumWithUnit::from_str(rcy)?.pixels_relative_to(total_height as i32) as f64,
+                    None => 0.0,
+                };
+                (x, y)
+            };
+
             let translate_x = match &*self.translate_x.borrow() {
                 Some(tx) => NumWithUnit::from_str(tx)?.pixels_relative_to(total_width as i32) as f64,
                 None => 0.0,
@@ -163,7 +203,9 @@ impl WidgetImpl for TransformPriv {
             };
 
             cr.scale(scale_x, scale_y);
+            cr.translate(rotation_center.0, rotation_center.1);
             cr.rotate(perc_to_rad(rotate));
+            cr.translate(-rotation_center.0, -rotation_center.1);
             cr.translate(translate_x, translate_y);
 
             // Children widget
