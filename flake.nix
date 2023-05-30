@@ -29,19 +29,22 @@
             cargo = rust;
             rustc = rust;
           };
-        in
-        rec {
           # TODO update this to reflect the changes in upstream (nixpkgs), when upstream is updated
-          eww = (prev.eww.override { inherit rustPlatform; withWayland = true; }).overrideAttrs (old: {
+          eww = withWayland: (prev.eww.override { inherit rustPlatform; withWayland = true; }).overrideAttrs (old: {
             version = self.rev or "dirty";
             src = builtins.path { name = "eww"; path = prev.lib.cleanSource ./.; };
             cargoDeps = rustPlatform.importCargoLock { lockFile = ./Cargo.lock; };
-            cargoBuildNoDefaultFeatures = false;
-            cargoCheckNoDefaultFeatures = false;
+            # this currently just disables the x11 feature and enables the cargo feature "wayland" via the upstream derivation
+            cargoBuildNoDefaultFeatures = withWayland;
+            cargoCheckNoDefaultFeatures = withWayland;
             patches = [ ];
           });
-
-          eww-wayland = eww;
+        in
+        {
+          # this doesn't support wayland currently (although it should, see https://github.com/elkowar/eww/issues/739)
+          eww = eww false;
+          eww-x11 = eww false;
+          eww-wayland = eww true;
         };
 
       packages = nixpkgs.lib.genAttrs targetSystems (system:
