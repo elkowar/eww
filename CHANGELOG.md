@@ -16,6 +16,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add Vanilla CSS support (By: Ezequiel Ramis)
 - Add `jq` function, offering jq-style json processing
 - Add `justify` property to the label widget, allowing text justification (By: n3oney)
+- Add `rotation-center-x`/`rotation-center-y` properties to transform widget (By: mario-kr)
 
 ## [0.4.0] (04.09.2022)
 
