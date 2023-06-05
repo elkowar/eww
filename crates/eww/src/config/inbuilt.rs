@@ -29,7 +29,7 @@ macro_rules! define_builtin_vars {
     }
 }
 
-define_builtin_vars! { Duration::new(2, 0),
+define_builtin_vars! { Duration::new(1, 0),
     // @desc EWW_TEMPS - Heat of the components in Celcius
     // @prop { <name>: temperature }
     "EWW_TEMPS" => || Ok(DynVal::from(get_temperatures())),
@@ -61,6 +61,18 @@ define_builtin_vars! { Duration::new(2, 0),
     // @desc EWW_NET - Bytes up/down on all interfaces
     // @prop { <name>: { up, down } }
     "EWW_NET" => || Ok(DynVal::from(net())),
+
+    // @desc EWW_TIME - Information on current time
+    // @prop { year, month_name, month_num, day, weekday, am_pm, hour_24, hour_12, minute, second }
+    "EWW_TIME" => || Ok(DynVal::from(
+        match get_time() {
+            Err(e) => {
+                log::error!("Couldn't get the time: {:?}", e);
+                "Error: Check `eww log` for more details".to_string()
+            }
+            Ok(o) => o,
+        }
+    )),
 }
 
 macro_rules! define_magic_constants {
