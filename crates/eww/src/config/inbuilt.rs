@@ -63,7 +63,7 @@ define_builtin_vars! { Duration::new(1, 0),
     "EWW_NET" => || Ok(DynVal::from(net())),
 
     // @desc EWW_TIME - Information on current time
-    // @prop { year, month_name, month_number, day, weekday_name, weekday_number, am_pm, hour_24, hour_12, minute, second }
+    // @prop { year, month: { name, abbreviation, number }, day, weekday: { name, abbreviation, number }, am_pm, hour: { h24, h12}, minute, second }
     "EWW_TIME" => || Ok(DynVal::from(get_time())),
 }
 

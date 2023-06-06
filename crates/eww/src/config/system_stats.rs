@@ -182,9 +182,9 @@ pub fn get_time() -> String {
     format!(
         "{}",
         chrono::offset::Local::now().format(
-            r#"{ "year": "%Y", "month_name": "%B", "month_number": "%m", "day": "%d",
-            "weekday_name": "%A", "weekday_number": "%u", "am_pm": "%p", "hour_24": "%H",
-            "hour_12": "%I", "minute": "%M", "second": "%S" }"#
+            r#"{ "year": { "full": "%Y", "short": "%y"}, "month": { "name": "%B", "abbreviation": "%b", "number": "%m" },
+            "day": "%d", "weekday": { "name": "%A", "abbreviation": "%a", "number": "%u" }, "am_pm": "%p",
+            "hour": { "h24": "%H", "h12": "%I" }, "minute": "%M", "second": "%S" }"#
         )
     )
 }
