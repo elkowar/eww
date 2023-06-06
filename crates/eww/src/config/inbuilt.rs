@@ -63,16 +63,8 @@ define_builtin_vars! { Duration::new(1, 0),
     "EWW_NET" => || Ok(DynVal::from(net())),
 
     // @desc EWW_TIME - Information on current time
-    // @prop { year, month_name, month_num, day, weekday, am_pm, hour_24, hour_12, minute, second }
-    "EWW_TIME" => || Ok(DynVal::from(
-        match get_time() {
-            Err(e) => {
-                log::error!("Couldn't get the time: {:?}", e);
-                "Error: Check `eww log` for more details".to_string()
-            }
-            Ok(o) => o,
-        }
-    )),
+    // @prop { year, month_name, month_number, day, weekday_name, weekday_number, am_pm, hour_24, hour_12, minute, second }
+    "EWW_TIME" => || Ok(DynVal::from(get_time())),
 }
 
 macro_rules! define_magic_constants {

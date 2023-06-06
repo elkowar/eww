@@ -178,26 +178,13 @@ pub fn net() -> String {
     interfaces
 }
 
-#[cfg(target_family = "unix")]
-pub fn get_time() -> Result<String> {
-    let time = String::from_utf8(
-        std::process::Command::new("date")
-            .arg(r#"+"%Y %B %m %d %A %p %H %I %M %S""#)
-            .output()
-            .context("\nError while getting the time on unix, with `date`: ")?
-            .stdout,
-    )?;
-
-    // Remove the " at the beginning and the end
-    let time_v = time[1..time.len() - 2].split_whitespace().collect::<Vec<&str>>();
-
-    Ok(format!(
-        r#"{{ "year": "{}", "month_name": "{}", "month_num": "{}", "day": "{}", "weekday": "{}", "am_pm": "{}", "hour_24": "{}", "hour_12": "{}", "minute": "{}", "second": "{}" }}"#,
-        time_v[0], time_v[1], time_v[2], time_v[3], time_v[4], time_v[5], time_v[6], time_v[7], time_v[8], time_v[9]
-    ))
-}
-
-#[cfg(not(target_family = "unix"))]
-pub fn get_time() -> Result<String> {
-    Err(anyhow::anyhow!("Eww doesn't support your OS for getting the time"))
+pub fn get_time() -> String {
+    format!(
+        "{}",
+        chrono::offset::Local::now().format(
+            r#"{ "year": "%Y", "month_name": "%B", "month_number": "%m", "day": "%d",
+            "weekday_name": "%A", "weekday_number": "%u", "am_pm": "%p", "hour_24": "%H",
+            "hour_12": "%I", "minute": "%M", "second": "%S" }"#
+        )
+    )
 }
