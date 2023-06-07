@@ -2003,6 +2003,7 @@ name = "simplexpr"
 version = "0.1.0"
 dependencies = [
  "cached",
+ "chrono",
  "eww_shared_util",
  "insta",
  "itertools",

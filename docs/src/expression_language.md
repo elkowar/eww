@@ -47,3 +47,6 @@ Supported currently are the following features:
 	- `arraylength(value)`: Gets the length of the array
 	- `objectlength(value)`: Gets the amount of entries in the object
 	- `jq(value, jq_filter_string)`: run a [jq](https://stedolan.github.io/jq/manual/) style command on a json value. (Uses [jaq](https://crates.io/crates/jaq) internally).
+    - `formattime(unix_timestamp, format_str)`: Gets the time in a given format from UNIX timestamp.
+      Check [chrono's documentation for format string](chrono::format::strftime) for more
+      information
