@@ -179,12 +179,5 @@ pub fn net() -> String {
 }
 
 pub fn get_time() -> String {
-    format!(
-        "{}",
-        chrono::offset::Local::now().format(
-            r#"{ "year": { "full": "%Y", "short": "%y"}, "month": { "name": "%B", "abbreviation": "%b", "number": "%m" },
-            "day": "%d", "weekday": { "name": "%A", "abbreviation": "%a", "number": "%u" }, "am_pm": "%p",
-            "hour": { "h24": "%H", "h12": "%I" }, "minute": "%M", "second": "%S" }"#
-        )
-    )
+    format!("{}", chrono::offset::Utc::now().format("%s"))
 }
