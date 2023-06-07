@@ -26,6 +26,7 @@ jaq-std = {version = "0.9.0", features = ["bincode"]}
 static_assertions = "1.1.0"
 cached = "0.42.0"
 chrono = "0.4.26"
+chrono-tz = "0.8.2"
 
 strum = { version = "0.24", features = ["derive"] }
 
