@@ -57,11 +57,11 @@ pub enum EvalError {
     #[error(transparent)]
     JaqParseError(JaqParseError),
 
-    #[error("{1}")]
-    Spanned(Span, Box<EvalError>),
-
     #[error("Error parsing date: {0}")]
     ChronoError(String),
+
+    #[error("{1}")]
+    Spanned(Span, Box<EvalError>),
 }
 
 static_assertions::assert_impl_all!(EvalError: Send, Sync);
@@ -382,7 +382,7 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
         "formattime" => match args.as_slice() {
-            [timestamp, timezone, format] => {
+            [timestamp, format, timezone] => {
                 let timezone = match chrono_tz::Tz::from_str(&timezone.as_string()?) {
                     Ok(x) => x,
                     Err(_) => return Err(EvalError::ChronoError("Invalid timezone".to_string())),

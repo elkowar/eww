@@ -179,5 +179,5 @@ pub fn net() -> String {
 }
 
 pub fn get_time() -> String {
-    format!("{}", chrono::offset::Utc::now().format("%s"))
+    chrono::offset::Utc::now().timestamp().to_string()
 }
