@@ -51,3 +51,7 @@ Supported currently are the following features:
       Check [chrono's documentation](https://docs.rs/chrono/latest/chrono/format/strftime/index.html) for more
       information about format string and [chrono-tz's documentation](https://docs.rs/chrono-tz/latest/chrono_tz/enum.Tz.html)
       for available time zones.
+    - `formattime(unix_timestamp, format_str)`: Gets the time in a given format from UNIX timestamp.
+      Same as other `formattime`, but does not accept timezone. Instead, it uses system's local timezone.
+      Check [chrono's documentation](https://docs.rs/chrono/latest/chrono/format/strftime/index.html) for more
+      information about format string.
