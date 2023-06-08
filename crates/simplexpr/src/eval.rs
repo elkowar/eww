@@ -308,9 +308,8 @@ impl SimplExpr {
 fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError> {
     match name {
         "get_env" => match args.as_slice() {
-            [string] => {
-                let string = string.as_string()?;
-                let var = std::env::var(string).unwrap_or("".to_string());
+            [var_name] => {
+                let var = std::env::var(var_name.as_string()?).unwrap_or_default();
                 Ok(DynVal::from(var))
             }
             _ => Err(EvalError::WrongArgCount(name.to_string())),
