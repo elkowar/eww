@@ -482,6 +482,14 @@ not an object.
 <li><code>arraylength(value)</code>: Gets the length of the array</li>
 <li><code>objectlength(value)</code>: Gets the amount of entries in the object</li>
 <li><code>jq(value, jq_filter_string)</code>: run a <a href="https://stedolan.github.io/jq/manual/">jq</a> style command on a json value. (Uses <a href="https://crates.io/crates/jaq">jaq</a> internally).</li>
+<li><code>formattime(unix_timestamp, timezone, format_str)</code>: Gets the time in a given format from UNIX timestamp.
+Check <a href="https://docs.rs/chrono/latest/chrono/format/strftime/index.html">chrono's documentation</a> for more
+information about format string and <a href="https://docs.rs/chrono-tz/latest/chrono_tz/enum.Tz.html">chrono-tz's documentation</a>
+for available time zones.</li>
+<li><code>formattime(unix_timestamp, format_str)</code>: Gets the time in a given format from UNIX timestamp.
+Same as other <code>formattime</code>, but does not accept timezone. Instead, it uses system's local timezone.
+Check <a href="https://docs.rs/chrono/latest/chrono/format/strftime/index.html">chrono's documentation</a> for more
+information about format string.</li>
 </ul>
 </li>
 </ul>
@@ -503,7 +511,7 @@ or use the <a href="working_with_gtk.html#gtk-debugger">GTK-Debugger</a>.</p>
 <p>Then you can click on the drop down menu in the top right corner and select CSS Nodes. Here you will see everything about styling it, CSS Properties, and how it's structured.</p>
 <div id="chapter_begin" style="break-before: page; page-break-before: always;"></div><h1 id="magic-variables"><a class="header" href="#magic-variables">Magic variables</a></h1>
 <p>These are variables that are always there, without you having to import them.</p>
-<p>The delay between the updating variables is always 2s.</p>
+<p>The delay between all the updating variables except <code>EWW_TIME</code> is 2s, for <code>EWW_TIME</code> it is 1s.</p>
 <h3 id="eww_temps"><a class="header" href="#eww_temps"><code>EWW_TEMPS</code></a></h3>
 <p>Heat of the components in Celcius</p>
 <h4 id="structure"><a class="header" href="#structure">Structure</a></h4>
@@ -534,6 +542,8 @@ or use the <a href="working_with_gtk.html#gtk-debugger">GTK-Debugger</a>.</p>
 <h4 id="structure-5"><a class="header" href="#structure-5">Structure</a></h4>
 <pre><code>{ &lt;name&gt;: { up, down } }
 </code></pre>
+<h3 id="eww_time"><a class="header" href="#eww_time"><code>EWW_TIME</code></a></h3>
+<p>Information on current time in UNIX timestamp</p>
 <h3 id="eww_config_dir"><a class="header" href="#eww_config_dir"><code>EWW_CONFIG_DIR</code></a></h3>
 <p>Path to the eww configuration of the current process</p>
 <h3 id="eww_cmd"><a class="header" href="#eww_cmd"><code>EWW_CMD</code></a></h3>
