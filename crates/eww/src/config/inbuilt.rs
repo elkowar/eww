@@ -10,7 +10,7 @@ use crate::{config::system_stats::*, paths::EwwPaths};
 use eww_shared_util::VarName;
 
 macro_rules! define_builtin_vars {
-    ($interval:expr, $($name:literal => $fun:expr),*$(,)?) => {
+    ($($name:literal => $fun:expr => $interval:expr),*$(,)?) => {
         pub static INBUILT_VAR_NAMES: &[&'static str] = &[$($name),*];
         pub fn get_inbuilt_vars() -> HashMap<VarName, ScriptVarDefinition> {
             maplit::hashmap! {
@@ -29,18 +29,18 @@ macro_rules! define_builtin_vars {
     }
 }
 
-define_builtin_vars! { Duration::new(2, 0),
+define_builtin_vars! {
     // @desc EWW_TEMPS - Heat of the components in Celcius
     // @prop { <name>: temperature }
-    "EWW_TEMPS" => || Ok(DynVal::from(get_temperatures())),
+    "EWW_TEMPS" => || Ok(DynVal::from(get_temperatures())) => Duration::new(2, 0),
 
     // @desc EWW_RAM - Information on ram and swap usage in kB.
     // @prop { total_mem, free_mem, total_swap, free_swap, available_mem, used_mem, used_mem_perc }
-    "EWW_RAM" => || Ok(DynVal::from(get_ram())),
+    "EWW_RAM" => || Ok(DynVal::from(get_ram())) => Duration::new(2, 0),
 
     // @desc EWW_DISK - Information on on all mounted partitions (Might report inaccurately on some filesystems, like btrfs and zfs) Example: `{EWW_DISK["/"]}`
     // @prop { <mount_point>: { name, total, free, used, used_perc } }
-    "EWW_DISK" => || Ok(DynVal::from(get_disks())),
+    "EWW_DISK" => || Ok(DynVal::from(get_disks())) => Duration::new(2, 0),
 
     // @desc EWW_BATTERY - Battery capacity in procent of the main battery
     // @prop { <name>: { capacity, status } }
@@ -52,15 +52,18 @@ define_builtin_vars! { Duration::new(2, 0),
             }
             Ok(o) => o,
         }
-    )),
+    )) => Duration::new(2, 0),
 
     // @desc EWW_CPU - Information on the CPU cores: frequency and usage (No MacOS support)
     // @prop { cores: [{ core, freq, usage }], avg }
-    "EWW_CPU" => || Ok(DynVal::from(get_cpus())),
+    "EWW_CPU" => || Ok(DynVal::from(get_cpus())) => Duration::new(2, 0),
 
     // @desc EWW_NET - Bytes up/down on all interfaces
     // @prop { <name>: { up, down } }
-    "EWW_NET" => || Ok(DynVal::from(net())),
+    "EWW_NET" => || Ok(DynVal::from(net())) => Duration::new(2, 0),
+
+    // @desc EWW_TIME - Information on current time in UNIX timestamp
+    "EWW_TIME" => || Ok(DynVal::from(get_time())) => Duration::new(1, 0),
 }
 
 macro_rules! define_magic_constants {

@@ -177,3 +177,7 @@ pub fn net() -> String {
     );
     interfaces
 }
+
+pub fn get_time() -> String {
+    format!("{}", chrono::offset::Utc::now().format("%s"))
+}
