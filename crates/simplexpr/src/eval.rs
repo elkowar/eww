@@ -1,5 +1,5 @@
 use cached::proc_macro::cached;
-use chrono::{LocalResult, TimeZone, Local};
+use chrono::{Local, LocalResult, TimeZone};
 use itertools::Itertools;
 
 use crate::{
@@ -393,12 +393,10 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
                     LocalResult::None => return Err(EvalError::ChronoError("Invalid UNIX timestamp".to_string())),
                 }))
             }
-            [timestamp, format] => {
-                Ok(DynVal::from(match Local.timestamp_opt(timestamp.as_i64()?, 0) {
-                    LocalResult::Single(t) | LocalResult::Ambiguous(t, _) => t.format(&format.as_string()?).to_string(),
-                    LocalResult::None => return Err(EvalError::ChronoError("Invalid UNIX timestamp".to_string())),
-                }))
-            }
+            [timestamp, format] => Ok(DynVal::from(match Local.timestamp_opt(timestamp.as_i64()?, 0) {
+                LocalResult::Single(t) | LocalResult::Ambiguous(t, _) => t.format(&format.as_string()?).to_string(),
+                LocalResult::None => return Err(EvalError::ChronoError("Invalid UNIX timestamp".to_string())),
+            })),
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
 
