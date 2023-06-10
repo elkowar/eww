@@ -111,6 +111,8 @@ pub fn get_battery_capacity() -> Result<String> {
 
 #[cfg(target_os = "linux")]
 pub fn get_battery_capacity() -> Result<String> {
+    use std::sync::atomic::AtomicBool;
+
     let mut current = 0_f64;
     let mut total = 0_f64;
     let mut json = String::from('{');
@@ -143,10 +145,14 @@ pub fn get_battery_capacity() -> Result<String> {
                     current += c.trim_end_matches(|c| c == '\n').parse::<f64>()?;
                     total += t.trim_end_matches(|c| c == '\n').parse::<f64>()?;
                 } else {
-                    log::warn!(
-                        "Failed to get/calculate uWh: the total_avg value of the battery magic var will probably be a garbage \
-                         value that can not be trusted."
-                    );
+                    static WARNED: AtomicBool = AtomicBool::new(false);
+                    if !WARNED.load(std::sync::atomic::Ordering::Relaxed) {
+                        WARNED.store(true, std::sync::atomic::Ordering::Relaxed);
+                        log::warn!(
+                            "Failed to get/calculate uWh: the total_avg value of the battery magic var will probably be a \
+                             garbage value that can not be trusted."
+                        );
+                    }
                 }
             }
         }
