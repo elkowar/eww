@@ -75,13 +75,18 @@ pub fn get_cpus() -> String {
     let mut c = SYSTEM.lock().unwrap();
     c.refresh_cpu_specifics(sysinfo::CpuRefreshKind::everything());
     let cpus = c.cpus();
-    format!(
-        r#"{{ "cores": [{}], "avg": {} }}"#,
-        cpus.iter()
-            .map(|a| format!(r#"{{"core": "{}", "freq": {}, "usage": {:.0}}}"#, a.name(), a.frequency(), a.cpu_usage()))
-            .join(","),
-        cpus.iter().map(|a| a.cpu_usage()).avg()
-    )
+    let json = serde_json::json!({
+        "cores": cpus.iter()
+            .map(|a| {
+                serde_json::json!({
+                    "core": a.name(),
+                    "freq": a.frequency(),
+                    "usage": a.cpu_usage() as i64
+                })
+            }).collect::<Vec<_>>(),
+        "avg": cpus.iter().map(|a| a.cpu_usage()).avg()
+    });
+    serde_json::to_string(&json).unwrap()
 }
 
 #[cfg(target_os = "macos")]
@@ -111,48 +116,64 @@ pub fn get_battery_capacity() -> Result<String> {
 
 #[cfg(target_os = "linux")]
 pub fn get_battery_capacity() -> Result<String> {
-    use std::sync::atomic::AtomicBool;
+    use std::{collections::HashMap, sync::atomic::AtomicBool};
+
+    #[derive(serde::Serialize)]
+    struct BatteryData {
+        capacity: i64,
+        status: String,
+    }
+
+    #[derive(serde::Serialize)]
+    struct Data {
+        #[serde(flatten)]
+        batteries: HashMap<String, BatteryData>,
+        total_avg: f64,
+    }
 
     let mut current = 0_f64;
     let mut total = 0_f64;
-    let mut json = String::from('{');
-    for i in
-        std::path::Path::new("/sys/class/power_supply").read_dir().context("Couldn't read /sys/class/power_supply directory")?
-    {
-        let i = i?.path();
-        if i.is_dir() {
-            // some ugly hack because if let Some(a) = a && Some(b) = b doesn't work yet
-            if let (Ok(o), Ok(s)) = (read_to_string(i.join("capacity")), read_to_string(i.join("status"))) {
-                json.push_str(&format!(
-                    r#"{:?}: {{ "status": "{}", "capacity": {} }},"#,
-                    i.file_name().context("couldn't convert file name to rust string")?,
-                    s.trim_end_matches(|c| c == '\n'),
-                    o.trim_end_matches(|c| c == '\n')
-                ));
-                if let (Ok(t), Ok(c), Ok(v)) = (
-                    read_to_string(i.join("charge_full")),
-                    read_to_string(i.join("charge_now")),
-                    read_to_string(i.join("voltage_now")),
-                ) {
-                    // (uAh / 1000000) * U = p and that / one million so that we have microwatt
-                    current += ((c.trim_end_matches(|c| c == '\n').parse::<f64>()? / 1000000_f64)
-                        * v.trim_end_matches(|c| c == '\n').parse::<f64>()?)
-                        / 1000000_f64;
-                    total += ((t.trim_end_matches(|c| c == '\n').parse::<f64>()? / 1000000_f64)
-                        * v.trim_end_matches(|c| c == '\n').parse::<f64>()?)
-                        / 1000000_f64;
-                } else if let (Ok(t), Ok(c)) = (read_to_string(i.join("energy_full")), read_to_string(i.join("energy_now"))) {
-                    current += c.trim_end_matches(|c| c == '\n').parse::<f64>()?;
-                    total += t.trim_end_matches(|c| c == '\n').parse::<f64>()?;
-                } else {
-                    static WARNED: AtomicBool = AtomicBool::new(false);
-                    if !WARNED.load(std::sync::atomic::Ordering::Relaxed) {
-                        WARNED.store(true, std::sync::atomic::Ordering::Relaxed);
-                        log::warn!(
-                            "Failed to get/calculate uWh: the total_avg value of the battery magic var will probably be a \
-                             garbage value that can not be trusted."
-                        );
-                    }
+    let mut batteries = HashMap::new();
+    let power_supply_dir = std::path::Path::new("/sys/class/power_supply");
+    let power_supply_entries = power_supply_dir.read_dir().context("Couldn't read /sys/class/power_supply directory")?;
+    for entry in power_supply_entries {
+        let entry = entry?.path();
+        if !entry.is_dir() {
+            continue;
+        }
+        if let (Ok(capacity), Ok(status)) = (read_to_string(entry.join("capacity")), read_to_string(entry.join("status"))) {
+            batteries.insert(
+                entry.file_name().context("Couldn't get filename")?.to_string_lossy().to_string(),
+                BatteryData {
+                    status: status.trim_end_matches('\n').to_string(),
+                    capacity: capacity.trim_end_matches('\n').parse::<f64>()?.round() as i64,
+                },
+            );
+            if let (Ok(charge_full), Ok(charge_now), Ok(voltage_now)) = (
+                read_to_string(entry.join("charge_full")),
+                read_to_string(entry.join("charge_now")),
+                read_to_string(entry.join("voltage_now")),
+            ) {
+                // (uAh / 1000000) * U = p and that / one million so that we have microwatt
+                current += ((charge_now.trim_end_matches('\n').parse::<f64>()? / 1000000_f64)
+                    * voltage_now.trim_end_matches('\n').parse::<f64>()?)
+                    / 1000000_f64;
+                total += ((charge_full.trim_end_matches('\n').parse::<f64>()? / 1000000_f64)
+                    * voltage_now.trim_end_matches('\n').parse::<f64>()?)
+                    / 1000000_f64;
+            } else if let (Ok(energy_full), Ok(energy_now)) =
+                (read_to_string(entry.join("energy_full")), read_to_string(entry.join("energy_now")))
+            {
+                current += energy_now.trim_end_matches('\n').parse::<f64>()?;
+                total += energy_full.trim_end_matches('\n').parse::<f64>()?;
+            } else {
+                static WARNED: AtomicBool = AtomicBool::new(false);
+                if !WARNED.load(std::sync::atomic::Ordering::Relaxed) {
+                    WARNED.store(true, std::sync::atomic::Ordering::Relaxed);
+                    log::warn!(
+                        "Failed to get/calculate uWh: the total_avg value of the battery magic var will probably be a garbage \
+                         value that can not be trusted."
+                    );
                 }
             }
         }
@@ -161,8 +182,7 @@ pub fn get_battery_capacity() -> Result<String> {
         return Ok(String::from(""));
     }
 
-    json.push_str(&format!(r#" "total_avg": {:.1}}}"#, (current / total) * 100_f64));
-    Ok(json)
+    Ok(serde_json::to_string(&(Data { batteries, total_avg: (current / total) * 100_f64 })).unwrap())
 }
 
 #[cfg(not(target_os = "macos"))]
