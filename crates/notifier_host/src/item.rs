@@ -116,11 +116,12 @@ impl Item {
 
 #[derive(thiserror::Error, Debug)]
 pub enum IconError {
-    #[error("unhandled dbus error while calling {bus_name}: {err}")]
-    DBusError {
-        #[source] err: zbus::Error,
-        bus_name: zbus::names::BusName<'static>,
-    },
+    #[error("failed to get icon name: {0}")]
+    DBusIconName(zbus::Error),
+    #[error("failed to get icon theme path: {0}")]
+    DBusTheme(zbus::Error),
+    #[error("failed to get pixmap: {0}")]
+    DBusPixmap(zbus::Error),
     #[error("failed to load icon {icon_name:?} from theme {theme_path:?}")]
     LoadIconFromTheme {
         icon_name: String,
@@ -146,13 +147,6 @@ async fn fallback_icon(size: i32) -> std::result::Result<gtk::gdk_pixbuf::Pixbuf
 }
 
 impl Item {
-    fn to_dbus_err(&self, err: zbus::Error) -> IconError {
-        IconError::DBusError {
-            err,
-            bus_name: self.sni.destination().to_owned()
-        }
-    }
-
     pub fn load_pixbuf(width: i32, height: i32, mut data: Vec<u8>) -> gtk::gdk_pixbuf::Pixbuf {
         // We need to convert data from ARGB32 to RGBA32
         for chunk in data.chunks_mut(4) {
@@ -182,27 +176,30 @@ impl Item {
         let icon_name = match self.sni.icon_name().await {
             Ok(s) if s == "" => return Err(IconError::NotAvailable),
             Ok(s) => s,
-            Err(e) => return Err(self.to_dbus_err(e)),
+            Err(e) => return Err(IconError::DBusIconName(e)),
         };
 
         let icon_theme_path = match self.sni.icon_theme_path().await {
-            Ok(p) => p,
+            Ok(p) if p == "" => None,
+            Ok(p) => Some(p),
             Err(zbus::Error::FDO(e)) => match *e {
-                zbus::fdo::Error::UnknownProperty(_) => "".into(),
-                _ => return Err(self.to_dbus_err(zbus::Error::FDO(e))),
+                zbus::fdo::Error::UnknownProperty(_)
+                | zbus::fdo::Error::InvalidArgs(_)
+                    => None,
+                _ => return Err(IconError::DBusTheme(zbus::Error::FDO(e))),
             },
-            Err(e) => return Err(self.to_dbus_err(e)),
+            Err(e) => return Err(IconError::DBusTheme(e)),
         };
 
-        if icon_theme_path != "" {
+        if let Some(theme_path) = icon_theme_path {
             // icon supplied a theme path, so only look there (w/ fallback)
             let theme = gtk::IconTheme::new();
-            theme.prepend_search_path(&icon_theme_path);
+            theme.prepend_search_path(&theme_path);
 
             return match theme.load_icon(&icon_name, size, gtk::IconLookupFlags::FORCE_SIZE) {
                 Err(e) => Err(IconError::LoadIconFromTheme {
                     icon_name,
-                    theme_path: Some(icon_theme_path),
+                    theme_path: Some(theme_path),
                     source: e,
                 }),
                 Ok(pb) => return Ok(pb.expect("no pixbuf from theme.load_icon despite no error")),
@@ -237,29 +234,35 @@ impl Item {
                 Err(IconError::NotAvailable)
             },
             Err(zbus::Error::FDO(e)) => match *e {
-                zbus::fdo::Error::UnknownMethod(_) => Err(IconError::NotAvailable),
-                _ => return Err(self.to_dbus_err(zbus::Error::FDO(e))),
+                zbus::fdo::Error::UnknownProperty(_)
+                | zbus::fdo::Error::InvalidArgs(_)
+                    => Err(IconError::NotAvailable),
+                _ => Err(IconError::DBusPixmap(zbus::Error::FDO(e))),
             },
-            Err(e) => Err(self.to_dbus_err(e)),
+            Err(e) => Err(IconError::DBusPixmap(e)),
         }
     }
 
     pub async fn icon(&self, size: i32) -> std::result::Result<gtk::gdk_pixbuf::Pixbuf, IconError> {
+        // TODO make this function retun just Pixbuf instead of a result?
+
         // "Visualizations are encouraged to prefer icon names over icon pixmaps if both are
         // available."
 
         match self.icon_from_name(size).await {
             Ok(pb) => return Ok(pb),
-            // don't handle unknown dbus error
-            err @ Err(IconError::DBusError { .. }) => return err,
-            Err(_) => {},
+            Err(IconError::NotAvailable)
+            | Err(IconError::LoadIconFromTheme { .. })
+                => {},
+            // Don't fail icon loading here -- e.g. discord raises
+            // "org.freedesktop.DBus.Error.Failed: error occurred in Get" but has a valid pixmap
+            Err(e) => log::warn!("failed to get icon by name for {}: {}", self.sni.destination(), e),
         };
 
         match self.icon_from_pixmap(size).await {
             Ok(pb) => return Ok(pb),
-            // don't handle unknown dbus error
-            err @ Err(IconError::DBusError { .. }) => return err,
-            Err(_) => {},
+            Err(IconError::NotAvailable) => {},
+            Err(e) => log::warn!("failed to get icon pixmap for {}: {}", self.sni.destination(), e),
         }
 
         fallback_icon(size).await
