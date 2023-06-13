@@ -36,13 +36,18 @@ impl notifier_host::Host for Host {
 
         // other initialisation
         glib::MainContext::default().spawn_local({
+            let id = id.to_owned();
             let mi = mi.clone();
             async move {
-                let img = item.icon(24).await.unwrap();
-                icon.set_from_pixbuf(Some(&img));
+                match item.icon(24).await {
+                    Ok(img) => icon.set_from_pixbuf(Some(&img)),
+                    Err(e) => log::warn!("Failed to load icon for {:?}: {}", id, e),
+                }
 
-                let menu = item.menu().await.unwrap();
-                mi.set_submenu(Some(&menu));
+                match item.menu().await {
+                    Ok(menu) => mi.set_submenu(Some(&menu)),
+                    Err(e) => log::warn!("Failed to load menu for {:?}: {}", id, e),
+                }
             }
         });
         mi.show_all();
