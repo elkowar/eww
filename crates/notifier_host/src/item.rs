@@ -226,6 +226,8 @@ impl Item {
         match self.sni.icon_pixmap().await {
             Ok(ps) => {
                 for (width, height, data) in ps {
+                    // TODO use closest size instead of looking for exact match
+                    // (can be tested with keepassxc, which only provides 48x48 and 22x22 pixmaps)
                     if width == size && height == size {
                         return Ok(Self::load_pixbuf(width, height, data))
                     }
@@ -244,7 +246,8 @@ impl Item {
     }
 
     pub async fn icon(&self, size: i32) -> std::result::Result<gtk::gdk_pixbuf::Pixbuf, IconError> {
-        // TODO make this function retun just Pixbuf instead of a result?
+        // TODO make this function retun just Pixbuf instead of a result, now that we're handling
+        // all errors here?
 
         // "Visualizations are encouraged to prefer icon names over icon pixmaps if both are
         // available."
@@ -257,7 +260,7 @@ impl Item {
             // Don't fail icon loading here -- e.g. discord raises
             // "org.freedesktop.DBus.Error.Failed: error occurred in Get" but has a valid pixmap
             Err(e) => log::warn!("failed to get icon by name for {}: {}", self.sni.destination(), e),
-        };
+        }
 
         match self.icon_from_pixmap(size).await {
             Ok(pb) => return Ok(pb),
