@@ -1,0 +1,52 @@
+<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN" "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+<node>
+  <interface name="org.kde.StatusNotifierWatcher">
+    <annotation name="org.gtk.GDBus.C.Name" value="Watcher" />
+
+    <!-- methods -->
+    <method name="RegisterStatusNotifierItem">
+      <annotation name="org.gtk.GDBus.C.Name" value="RegisterItem" />
+      <arg name="service" type="s" direction="in"/>
+    </method>
+
+    <method name="RegisterStatusNotifierHost">
+        <annotation name="org.gtk.GDBus.C.Name" value="RegisterHost" />
+        <arg name="service" type="s" direction="in"/>
+    </method>
+
+
+    <!-- properties -->
+
+    <property name="RegisteredStatusNotifierItems" type="as" access="read">
+      <annotation name="org.gtk.GDBus.C.Name" value="RegisteredItems" />
+      <annotation name="org.qtproject.QtDBus.QtTypeName.Out0" value="QStringList"/>
+    </property>
+
+    <property name="IsStatusNotifierHostRegistered" type="b" access="read">
+      <annotation name="org.gtk.GDBus.C.Name" value="IsHostRegistered" />
+    </property>
+
+    <property name="ProtocolVersion" type="i" access="read"/>
+
+
+    <!-- signals -->
+
+    <signal name="StatusNotifierItemRegistered">
+      <annotation name="org.gtk.GDBus.C.Name" value="ItemRegistered" />
+      <arg type="s" direction="out" name="service" />
+    </signal>
+
+    <signal name="StatusNotifierItemUnregistered">
+      <annotation name="org.gtk.GDBus.C.Name" value="ItemUnregistered" />
+      <arg type="s" direction="out" name="service" />
+    </signal>
+
+    <signal name="StatusNotifierHostRegistered">
+      <annotation name="org.gtk.GDBus.C.Name" value="HostRegistered" />
+    </signal>
+
+    <signal name="StatusNotifierHostUnregistered">
+      <annotation name="org.gtk.GDBus.C.Name" value="HostUnregistered" />
+    </signal>
+  </interface>
+</node>
