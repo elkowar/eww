@@ -50,7 +50,7 @@ pub struct Item {
 fn split_service_name(service: &str) -> zbus::Result<(String, String)> {
     if let Some((addr, path)) = service.split_once('/') {
         Ok((addr.to_owned(), format!("/{}", path)))
-    } else if service.contains(':') {
+    } else if service.contains(':') { // TODO why?
         let addr = service.split(':').skip(1).next();
         // Some StatusNotifierItems will not return an object path, in that case we fallback
         // to the default path.
@@ -153,7 +153,7 @@ impl Item {
         }
     }
 
-    pub fn load_pixmap(width: i32, height: i32, mut data: Vec<u8>) -> gtk::Image {
+    pub fn load_pixbuf(width: i32, height: i32, mut data: Vec<u8>) -> gtk::gdk_pixbuf::Pixbuf {
         // We need to convert data from ARGB32 to RGBA32
         for chunk in data.chunks_mut(4) {
             let a = chunk[0];
@@ -166,7 +166,7 @@ impl Item {
             chunk[3] = a;
         }
 
-        let pixmap = gtk::gdk_pixbuf::Pixbuf::from_bytes(
+        gtk::gdk_pixbuf::Pixbuf::from_bytes(
             &gtk::glib::Bytes::from_owned(data),
             gtk::gdk_pixbuf::Colorspace::Rgb,
             true,
@@ -174,8 +174,7 @@ impl Item {
             width,
             height,
             width * 4,
-        );
-        gtk::Image::from_pixbuf(Some(&pixmap))
+        )
     }
 
     async fn icon_from_name(&self, size: i32) -> std::result::Result<gtk::gdk_pixbuf::Pixbuf, IconError> {
@@ -226,14 +225,23 @@ impl Item {
         }
     }
 
-    async fn icon_from_pixmap(&self, _size: i32) -> std::result::Result<gtk::gdk_pixbuf::Pixbuf, IconError> {
-        let _pixmap = match self.sni.icon_pixmap().await {
-            Ok(p) => p,
-            Err(e) => return Err(self.to_dbus_err(e)),
-        };
+    async fn icon_from_pixmap(&self, size: i32) -> std::result::Result<gtk::gdk_pixbuf::Pixbuf, IconError> {
+        match self.sni.icon_pixmap().await {
+            Ok(ps) => {
+                for (width, height, data) in ps {
+                    if width == size && height == size {
+                        return Ok(Self::load_pixbuf(width, height, data))
+                    }
+                }
 
-        // TODO
-        Err(IconError::NotAvailable)
+                Err(IconError::NotAvailable)
+            },
+            Err(zbus::Error::FDO(e)) => match *e {
+                zbus::fdo::Error::UnknownMethod(_) => Err(IconError::NotAvailable),
+                _ => return Err(self.to_dbus_err(zbus::Error::FDO(e))),
+            },
+            Err(e) => Err(self.to_dbus_err(e)),
+        }
     }
 
     pub async fn icon(&self, size: i32) -> std::result::Result<gtk::gdk_pixbuf::Pixbuf, IconError> {
