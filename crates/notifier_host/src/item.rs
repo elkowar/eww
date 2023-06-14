@@ -3,7 +3,7 @@ use crate::*;
 use log;
 use gtk::{self, prelude::*};
 use zbus::export::ordered_stream::OrderedStreamExt;
-use tokio::sync::watch;
+use tokio::{sync::watch, select};
 
 /// Recognised values of org.freedesktop.StatusNotifierItem.Status
 ///
@@ -23,24 +23,21 @@ pub enum Status {
     NeedsAttention,
 }
 
-impl std::str::FromStr for Status {
-    type Err = ();
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct ParseStatusError;
 
-    fn from_str(s: &str) -> std::result::Result<Self, ()> {
+impl std::str::FromStr for Status {
+    type Err = ParseStatusError;
+
+    fn from_str(s: &str) -> std::result::Result<Self, ParseStatusError> {
         match s {
             "Passive" => Ok(Status::Passive),
             "Active" => Ok(Status::Active),
             "NeedsAttention" => Ok(Status::NeedsAttention),
-            _ => Err(()),
+            _ => Err(ParseStatusError),
         }
     }
-}
-
-#[derive(Clone, Debug)]
-pub struct Item {
-    pub sni: dbus::StatusNotifierItemProxy<'static>,
-    status_rx: watch::Receiver<Status>,
-    title_rx: watch::Receiver<String>,
 }
 
 /// Split a sevice name e.g. `:1.50:/org/ayatana/NotificationItem/nm_applet` into the address and
@@ -64,6 +61,21 @@ fn split_service_name(service: &str) -> zbus::Result<(String, String)> {
     }
 }
 
+pub struct Item {
+    pub sni: dbus::StatusNotifierItemProxy<'static>,
+
+    status_rx: watch::Receiver<()>,
+    title_rx: watch::Receiver<()>,
+
+    task: tokio::task::JoinHandle<()>,
+}
+
+impl Drop for Item {
+    fn drop(&mut self) {
+        self.task.abort();
+    }
+}
+
 impl Item {
     pub async fn from_address(con: &zbus::Connection, addr: &str) -> zbus::Result<Self> {
         let (addr, path) = split_service_name(addr)?;
@@ -72,45 +84,60 @@ impl Item {
             .path(path)?
             .build()
             .await?;
+        let sni_out = sni.clone();
 
-        let (status_tx, status_rx) = watch::channel(sni.status().await?.parse().unwrap());
-        tokio::spawn({
-            let sni = sni.clone();
-            async move {
-                let mut new_status_stream = sni.receive_new_status().await.unwrap();
-                while let Some(sig) = new_status_stream.next().await {
-                    let args = sig.args().unwrap();
-                    let status: Status = args.status.parse().unwrap();
-                    status_tx.send_replace(status);
-                }
-            }
-        });
+        let (status_tx, status_rx) = watch::channel(());
+        let (title_tx, title_rx) = watch::channel(());
 
-        let (title_tx, title_rx) = watch::channel(sni.title().await?);
-        tokio::spawn({
-            let sni = sni.clone();
-            async move {
-                let mut new_title_stream = sni.receive_new_title().await.unwrap();
-                while let Some(_) = new_title_stream.next().await {
-                    let title = sni.title().await.unwrap();
-                    title_tx.send_replace(title);
+        let task = tokio::spawn(async move {
+            let mut status_updates = sni.receive_new_status().await.unwrap();
+            let mut title_updates = sni.receive_new_title().await.unwrap();
+
+            loop {
+                select! {
+                    _ = status_updates.next() => {
+                        status_tx.send_replace(());
+                    }
+                    _ = title_updates.next() => {
+                        title_tx.send_replace(());
+                    }
                 }
             }
         });
 
         Ok(Item {
-            sni,
+            sni: sni_out,
             status_rx,
             title_rx,
+            task,
         })
     }
 
-    pub fn status(&self) -> watch::Receiver<Status> {
+    /// Get the current status of the item.
+    pub async fn status(&self) -> zbus::Result<Status> {
+        let status = self.sni.status().await?;
+        match status.parse() {
+            Ok(s) => Ok(s),
+            Err(_) => Err(zbus::Error::Failure(format!("Invalid status {:?}", status))),
+        }
+    }
+
+    pub fn status_updates(&self) -> watch::Receiver<()> {
         self.status_rx.clone()
     }
 
-    pub fn title(&self) -> watch::Receiver<String> {
+    pub async fn title(&self) -> zbus::Result<String> {
+        self.sni.title().await
+    }
+
+    pub fn title_updates(&self) -> watch::Receiver<()> {
         self.title_rx.clone()
+    }
+
+    pub async fn menu(&self) -> zbus::Result<gtk::Menu> {
+        // TODO better handling if menu() method doesn't exist
+        let menu = dbusmenu_gtk3::Menu::new(self.sni.destination(), &self.sni.menu().await?);
+        Ok(menu.upcast())
     }
 }
 
@@ -186,6 +213,8 @@ impl Item {
                 zbus::fdo::Error::UnknownProperty(_)
                 | zbus::fdo::Error::InvalidArgs(_)
                     => None,
+                // this error is reported by discord, blueman-applet
+                zbus::fdo::Error::Failed(msg) if msg == "error occurred in Get" => None,
                 _ => return Err(IconError::DBusTheme(zbus::Error::FDO(e))),
             },
             Err(e) => return Err(IconError::DBusTheme(e)),
@@ -269,11 +298,5 @@ impl Item {
         }
 
         fallback_icon(size).await
-    }
-
-    pub async fn menu(&self) -> zbus::Result<gtk::Menu> {
-        // TODO better handling if menu() method doesn't exist
-        let menu = dbusmenu_gtk3::Menu::new(self.sni.destination(), &self.sni.menu().await?);
-        Ok(menu.upcast())
     }
 }

@@ -3,64 +3,7 @@
 use gtk::prelude::*;
 use notifier_host;
 
-struct Host {
-    menubar: gtk::MenuBar,
-    items: std::collections::HashMap<String, gtk::MenuItem>,
-}
-
-async fn watch_foreach<T: std::fmt::Debug>(mut rx: tokio::sync::watch::Receiver<T>, mut f: impl FnMut(&T)) {
-    f(&rx.borrow());
-    while rx.changed().await.is_ok() {
-        f(&rx.borrow());
-    }
-}
-
-impl notifier_host::Host for Host {
-    fn add_item(&mut self, id: &str, item: notifier_host::Item) {
-        let mi = gtk::MenuItem::new();
-        self.menubar.add(&mi);
-        if let Some(old_mi) = self.items.insert(id.to_string(), mi.clone()) {
-            self.menubar.remove(&old_mi);
-        }
-
-        // maintain title
-        glib::MainContext::default().spawn_local({
-            let mi = mi.clone();
-            watch_foreach(item.title(), move |title| {
-                mi.set_tooltip_text(Some(title));
-            })
-        });
-
-        let icon = gtk::Image::new();
-        mi.add(&icon);
-
-        // other initialisation
-        glib::MainContext::default().spawn_local({
-            let id = id.to_owned();
-            let mi = mi.clone();
-            async move {
-                match item.icon(24).await {
-                    Ok(img) => icon.set_from_pixbuf(Some(&img)),
-                    Err(e) => log::warn!("Failed to load icon for {:?}: {}", id, e),
-                }
-
-                match item.menu().await {
-                    Ok(menu) => mi.set_submenu(Some(&menu)),
-                    Err(e) => log::warn!("Failed to load menu for {:?}: {}", id, e),
-                }
-            }
-        });
-        mi.show_all();
-    }
-    fn remove_item(&mut self, id: &str) {
-        if let Some(mi) = self.items.get(id) {
-            self.menubar.remove(mi);
-        } else {
-            log::warn!("Tried to remove nonexistent item {:?} from systray", id);
-        }
-    }
-}
-
+// DBus state shared between systray instances, to avoid creating too many connections etc.
 struct DBusGlobalState {
     con: zbus::Connection,
     name: zbus::names::WellKnownName<'static>,
@@ -92,14 +35,166 @@ async fn dbus_state() -> std::sync::Arc<DBusGlobalState> {
     }
 }
 
-pub fn maintain_menubar(menubar: gtk::MenuBar) {
-    menubar.show_all();
+pub struct Props {
+    icon_size_tx: tokio::sync::watch::Sender<i32>,
+}
+
+impl Props {
+    pub fn new() -> Self {
+        let (icon_size_tx, _) = tokio::sync::watch::channel(24);
+        Self {
+            icon_size_tx,
+        }
+    }
+
+    pub fn icon_size(&self, value: i32) {
+        let _ = self.icon_size_tx.send_if_modified(|x| {
+            if *x == value {
+                false
+            } else {
+                *x = value;
+                true
+            }
+        });
+    }
+}
+
+struct Tray {
+    menubar: gtk::MenuBar,
+    items: std::collections::HashMap<String, Item>,
+
+    icon_size: tokio::sync::watch::Receiver<i32>,
+}
+
+pub fn spawn_systray(
+    menubar: &gtk::MenuBar,
+    props: &Props,
+) {
+    let mut systray = Tray {
+        menubar: menubar.clone(),
+        items: Default::default(),
+        icon_size: props.icon_size_tx.subscribe(),
+    };
+
     glib::MainContext::default().spawn_local(async move {
-        let mut host = Host {
-            menubar,
-            items: std::collections::HashMap::new(),
-        };
         let s = &dbus_state().await;
-        notifier_host::run_host_forever(&mut host, &s.con, &s.name).await.unwrap();
+        systray.menubar.show();
+        notifier_host::run_host_forever(&mut systray, &s.con, &s.name).await.unwrap();
     });
+}
+
+impl notifier_host::Host for Tray {
+    fn add_item(&mut self, id: &str, item: notifier_host::Item) {
+        let item = Item::new(
+            id.to_owned(),
+            item,
+            self.icon_size.clone()
+        );
+        self.menubar.add(&item.mi);
+        if let Some(old_item) = self.items.insert(id.to_string(), item) {
+            self.menubar.remove(&old_item.mi);
+        }
+    }
+    fn remove_item(&mut self, id: &str) {
+        if let Some(item) = self.items.get(id) {
+            self.menubar.remove(&item.mi);
+        } else {
+            log::warn!("Tried to remove nonexistent item {:?} from systray", id);
+        }
+    }
+}
+
+struct Item {
+    mi: gtk::MenuItem,
+
+    tasks: Vec<glib::SourceId>,
+}
+
+impl Drop for Item {
+    fn drop(&mut self) {
+        for task in self.tasks.drain(..) {
+            // TODO does this abort the task
+            task.remove();
+        }
+    }
+}
+
+impl Item {
+    fn new(
+        id: String,
+        item: notifier_host::Item,
+        mut icon_size: tokio::sync::watch::Receiver<i32>,
+    ) -> Self {
+        let mi = gtk::MenuItem::new();
+        let mut out = Self {
+            mi: mi.clone(),
+            tasks: Vec::new(),
+        };
+
+        out.spawn(async move {
+            // TODO don't unwrap so much
+
+            // init icon
+            let icon = gtk::Image::new();
+            mi.add(&icon);
+            icon.show();
+
+            // init menu
+            match item.menu().await {
+                Ok(m) => mi.set_submenu(Some(&m)),
+                Err(e) => log::warn!("failed to get menu of {}: {}", id, e),
+            }
+
+            // TODO this is a lot of code duplication unfortunately, i'm not really sure how to
+            // refactor without making the borrow checker angry
+
+            // set status
+            match item.status().await.unwrap() {
+                notifier_host::Status::Passive => mi.hide(),
+                notifier_host::Status::Active | notifier_host::Status::NeedsAttention => mi.show(),
+            }
+
+            // set title
+            mi.set_tooltip_text(Some(&item.title().await.unwrap()));
+
+            // set icon
+            match item.icon(*icon_size.borrow_and_update()).await {
+                Ok(p) => icon.set_from_pixbuf(Some(&p)),
+                Err(e) => log::warn!("failed to get icon of {}: {}", id, e),
+            }
+
+            // updates
+            let mut status_updates = item.status_updates();
+            let mut title_updates = item.title_updates();
+
+            loop {
+                tokio::select! {
+                    Ok(_) = status_updates.changed() => {
+                        // set status
+                        match item.status().await.unwrap() {
+                            notifier_host::Status::Passive => mi.hide(),
+                            notifier_host::Status::Active | notifier_host::Status::NeedsAttention => mi.show(),
+                        }
+                    }
+                    Ok(_) = icon_size.changed() => {
+                        // set icon
+                        match item.icon(*icon_size.borrow_and_update()).await {
+                            Ok(p) => icon.set_from_pixbuf(Some(&p)),
+                            Err(e) => log::warn!("failed to get icon of {}: {}", id, e),
+                        }
+                    }
+                    Ok(_) = title_updates.changed() => {
+                        // set title
+                        mi.set_tooltip_text(Some(&item.title().await.unwrap()));
+                    }
+                }
+            }
+        });
+
+        out
+    }
+
+    fn spawn(&mut self, f: impl std::future::Future<Output = ()> + 'static) {
+        self.tasks.push(glib::MainContext::default().spawn_local(f));
+    }
 }

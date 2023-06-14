@@ -1049,13 +1049,25 @@ const WIDGET_NAME_SYSTRAY: &str = "systray";
 /// @desc Tray for system notifier icons
 fn build_systray(bargs: &mut BuilderArgs) -> Result<gtk::MenuBar> {
     let gtk_widget = gtk::MenuBar::new();
+    let props = Rc::new(systray::Props::new());
+    let props_clone = props.clone();
 
+    // copies for def_widget
     def_widget!(bargs, _g, gtk_widget, {
+        // @prop icon-size - size of icons in the tray
+        prop(icon_size: as_i32) {
+            if icon_size <= 0 {
+                log::warn!("Icon size is not a positive number");
+            } else {
+                props.icon_size(icon_size);
+            }
+        },
         // @prop pack-direction - how to arrange tray items
         prop(pack_direction: as_string) { gtk_widget.set_pack_direction(parse_packdirection(&pack_direction)?); },
     });
 
-    systray::maintain_menubar(gtk_widget.clone());
+    systray::spawn_systray(&gtk_widget, &props_clone);
+
     Ok(gtk_widget)
 }
 

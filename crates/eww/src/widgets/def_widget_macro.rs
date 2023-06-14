@@ -53,6 +53,8 @@ macro_rules! def_widget {
                                     // values is a map of all the variables that are required to evaluate the
                                     // attributes expression.
 
+                                    // allow $gtk_widget to never be used, by creating a reference that gets immediately discarded
+                                    {&$gtk_widget};
 
                                     // We first initialize all the local variables for all the expected attributes in scope
                                     $(
