@@ -143,11 +143,11 @@ impl Item {
 
 #[derive(thiserror::Error, Debug)]
 pub enum IconError {
-    #[error("failed to get icon name: {0}")]
+    #[error("failed to fetch icon name: {0}")]
     DBusIconName(zbus::Error),
-    #[error("failed to get icon theme path: {0}")]
+    #[error("failed to fetch icon theme path: {0}")]
     DBusTheme(zbus::Error),
-    #[error("failed to get pixmap: {0}")]
+    #[error("failed to fetch pixmap: {0}")]
     DBusPixmap(zbus::Error),
     #[error("failed to load icon {icon_name:?} from theme {theme_path:?}")]
     LoadIconFromTheme {
