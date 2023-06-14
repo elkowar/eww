@@ -27,6 +27,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add support for referring to monitor with `<primary>`
 - Add support for multiple matchers in `monitor` field
 - Add `stack` widget (By: vladaviedov)
+- Add `unindent` property to the label widget, allowing to disable removal of leading spaces (By: nrv)
 
 ## [0.4.0] (04.09.2022)
 

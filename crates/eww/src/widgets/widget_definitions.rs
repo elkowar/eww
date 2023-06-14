@@ -2,7 +2,7 @@
 use super::{build_widget::BuilderArgs, circular_progressbar::*, run_command, transform::*};
 use crate::{
     def_widget, enum_parse, error_handling_ctx,
-    util::{list_difference, unindent},
+    util::{self, list_difference},
     widgets::build_widget::build_gtk_widget,
 };
 use anyhow::{anyhow, Context, Result};
@@ -830,7 +830,8 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
         // @prop limit-width - maximum count of characters to display
         // @prop truncate-left - whether to truncate on the left side
         // @prop show-truncated - show whether the text was truncated
-        prop(text: as_string, limit_width: as_i32 = i32::MAX, truncate_left: as_bool = false, show_truncated: as_bool = true) {
+        // @prop unindent - whether to remove leading spaces
+        prop(text: as_string, limit_width: as_i32 = i32::MAX, truncate_left: as_bool = false, show_truncated: as_bool = true, unindent: as_bool = true) {
             let limit_width = limit_width as usize;
             let char_count = text.chars().count();
             let text = if char_count > limit_width {
@@ -852,7 +853,7 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
             };
 
             let text = unescape::unescape(&text).context(format!("Failed to unescape label text {}", &text))?;
-            let text = unindent(&text);
+            let text = if unindent { util::unindent(&text) } else { text };
             gtk_widget.set_text(&text);
         },
         // @prop markup - Pango markup to display
