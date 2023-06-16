@@ -68,6 +68,9 @@ async fn wait_for_service_exit(
     Ok(())
 }
 
+/// An instance of [`org.kde.StatusNotifierWatcher`].
+///
+/// [`org.kde.StatusNotifierWatcher`]: https://freedesktop.org/wiki/Specifications/StatusNotifierItem/StatusNotifierWatcher/
 #[derive(Debug, Default)]
 pub struct Watcher {
     tasks: tokio::task::JoinSet<()>,
@@ -89,6 +92,7 @@ impl Watcher {
         log::info!("new host: {}", service);
 
         let added_first = {
+            // scoped around locking of hosts
             let mut hosts = self.hosts.lock().unwrap();
             if !hosts.insert(service.to_string()) {
                 // we're already tracking them
@@ -220,19 +224,25 @@ impl Watcher {
         Default::default()
     }
 
-    /// Attach the Watcher to a connection.
-    pub async fn run_on(self, con: &zbus::Connection) -> zbus::Result<()> {
+    /// Attach and run the Watcher on a connection.
+    pub async fn attach_to(self, con: &zbus::Connection) -> zbus::Result<()> {
         if !con.object_server().at(WATCHER_OBJECT_NAME, self).await? {
-            return Err(zbus::Error::Failure("Interface already exists at this path".into()))
+            // There's already something at this object
+            // TODO is there a more specific error
+            return Err(zbus::Error::Failure(format!("Connection already has an object at {}", WATCHER_OBJECT_NAME)))
         }
 
-        // no ReplaceExisting, no AllowReplacement, no DoNotQueue
-        con.request_name_with_flags(WATCHER_BUS_NAME, Default::default()).await?;
-
-        Ok(())
+        // not AllowReplacement, not ReplaceExisting, not DoNotQueue
+        let flags: [zbus::fdo::RequestNameFlags; 0] = [];
+        match con.request_name_with_flags(WATCHER_BUS_NAME, flags.into_iter().collect()).await {
+            Ok(zbus::fdo::RequestNameReply::PrimaryOwner) => Ok(()),
+            Ok(_) | Err(zbus::Error::NameTaken) => Ok(()), // defer to existing
+            Err(e) => Err(e),
+        }
     }
 
-    // Based on is_status_notifier_host_registered_invalidate, but without requiring self
+    /// Equivalent to `is_status_notifier_host_registered_invalidate`, but without requiring
+    /// `self`.
     async fn is_status_notifier_host_registered_refresh(ctxt: &zbus::SignalContext<'_>) -> zbus::Result<()> {
         zbus::fdo::Properties::properties_changed(
             ctxt,
@@ -242,7 +252,7 @@ impl Watcher {
         ).await
     }
 
-    // Based on registered_status_notifier_items_invalidate, but without requiring self
+    /// Equivalen to `registered_status_notifier_items_invalidate`, but without requiring `self`.
     async fn registered_status_notifier_items_refresh(ctxt: &zbus::SignalContext<'_>) -> zbus::Result<()> {
         zbus::fdo::Properties::properties_changed(
             ctxt,
@@ -250,23 +260,5 @@ impl Watcher {
             &std::collections::HashMap::new(),
             &["RegisteredStatusNotifierItems"],
         ).await
-    }
-}
-
-/// Start a StatusNotifierWatcher on this connection.
-pub async fn watcher_on(con: &zbus::Connection) -> zbus::Result<()> {
-    if !con.object_server().at(WATCHER_OBJECT_NAME, Watcher::new()).await? {
-        // There's already something at this object
-        // TODO better handling?
-        return Err(zbus::Error::Failure(format!("Interface already exists at object {}", WATCHER_OBJECT_NAME)))
-    }
-
-    // TODO should we queue if we couldn't take the name?
-
-    use zbus::fdo::{RequestNameFlags, RequestNameReply};
-    match con.request_name_with_flags(WATCHER_BUS_NAME, [RequestNameFlags::DoNotQueue].into_iter().collect()).await {
-        Ok(RequestNameReply::PrimaryOwner) => Ok(()),
-        Ok(_) | Err(zbus::Error::NameTaken) => Ok(()), // defer to existing
-        Err(e) => Err(e),
     }
 }

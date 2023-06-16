@@ -21,7 +21,10 @@ async fn dbus_state() -> std::sync::Arc<DBusGlobalState> {
     } else {
         // TODO error handling?
         let con = zbus::Connection::session().await.unwrap();
-        notifier_host::watcher_on(&con).await.unwrap();
+        notifier_host::Watcher::new()
+            .attach_to(&con)
+            .await
+            .unwrap();
 
         let name = notifier_host::attach_new_wellknown_name(&con).await.unwrap();
 
