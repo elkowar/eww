@@ -11,3 +11,7 @@ pub use item::*;
 
 mod watcher;
 pub use watcher::*;
+
+pub mod export {
+    pub use zbus::export::ordered_stream;
+}

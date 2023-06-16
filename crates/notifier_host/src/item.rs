@@ -1,8 +1,6 @@
 use crate::*;
 
 use gtk::{self, prelude::*};
-use zbus::export::ordered_stream::OrderedStreamExt;
-use tokio::{sync::watch, select};
 
 /// Recognised values of org.freedesktop.StatusNotifierItem.Status
 ///
@@ -62,17 +60,6 @@ fn split_service_name(service: &str) -> zbus::Result<(String, String)> {
 
 pub struct Item {
     pub sni: dbus::StatusNotifierItemProxy<'static>,
-
-    status_rx: watch::Receiver<()>,
-    title_rx: watch::Receiver<()>,
-
-    task: tokio::task::JoinHandle<()>,
-}
-
-impl Drop for Item {
-    fn drop(&mut self) {
-        self.task.abort();
-    }
 }
 
 impl Item {
@@ -83,32 +70,9 @@ impl Item {
             .path(path)?
             .build()
             .await?;
-        let sni_out = sni.clone();
-
-        let (status_tx, status_rx) = watch::channel(());
-        let (title_tx, title_rx) = watch::channel(());
-
-        let task = tokio::spawn(async move {
-            let mut status_updates = sni.receive_new_status().await.unwrap();
-            let mut title_updates = sni.receive_new_title().await.unwrap();
-
-            loop {
-                select! {
-                    _ = status_updates.next() => {
-                        status_tx.send_replace(());
-                    }
-                    _ = title_updates.next() => {
-                        title_tx.send_replace(());
-                    }
-                }
-            }
-        });
 
         Ok(Item {
-            sni: sni_out,
-            status_rx,
-            title_rx,
-            task,
+            sni,
         })
     }
 
@@ -119,18 +83,6 @@ impl Item {
             Ok(s) => Ok(s),
             Err(_) => Err(zbus::Error::Failure(format!("Invalid status {:?}", status))),
         }
-    }
-
-    pub fn status_updates(&self) -> watch::Receiver<()> {
-        self.status_rx.clone()
-    }
-
-    pub async fn title(&self) -> zbus::Result<String> {
-        self.sni.title().await
-    }
-
-    pub fn title_updates(&self) -> watch::Receiver<()> {
-        self.title_rx.clone()
     }
 
     pub async fn menu(&self) -> zbus::Result<gtk::Menu> {

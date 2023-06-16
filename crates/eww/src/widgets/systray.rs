@@ -2,6 +2,7 @@
 
 use gtk::prelude::*;
 use notifier_host;
+use notifier_host::export::ordered_stream::OrderedStreamExt;
 
 // DBus state shared between systray instances, to avoid creating too many connections etc.
 struct DBusGlobalState {
@@ -158,18 +159,18 @@ impl Item {
             }
 
             // set title
-            mi.set_tooltip_text(Some(&item.title().await.unwrap()));
+            mi.set_tooltip_text(Some(&item.sni.title().await.unwrap()));
 
             // set icon
             icon.set_from_pixbuf(Some(&item.icon(*icon_size.borrow_and_update()).await));
 
             // updates
-            let mut status_updates = item.status_updates();
-            let mut title_updates = item.title_updates();
+            let mut status_updates = item.sni.receive_new_status().await.unwrap();
+            let mut title_updates = item.sni.receive_new_status().await.unwrap();
 
             loop {
                 tokio::select! {
-                    Ok(_) = status_updates.changed() => {
+                    Some(_) = status_updates.next() => {
                         // set status
                         match item.status().await.unwrap() {
                             notifier_host::Status::Passive => mi.hide(),
@@ -180,9 +181,9 @@ impl Item {
                         // set icon
                         icon.set_from_pixbuf(Some(&item.icon(*icon_size.borrow_and_update()).await));
                     }
-                    Ok(_) = title_updates.changed() => {
+                    Some(_) = title_updates.next() => {
                         // set title
-                        mi.set_tooltip_text(Some(&item.title().await.unwrap()));
+                        mi.set_tooltip_text(Some(&item.sni.title().await.unwrap()));
                     }
                 }
             }
