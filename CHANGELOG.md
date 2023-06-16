@@ -25,6 +25,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add `--duration` flag to `eww open`
 - Add support for referring to monitor with `<primary>`
 - Add support for multiple matchers in `monitor` field
+- Add `systray` widget (By: ralismark)
 
 ## [0.4.0] (04.09.2022)
 

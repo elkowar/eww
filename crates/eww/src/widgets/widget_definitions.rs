@@ -1125,7 +1125,7 @@ fn parse_justification(j: &str) -> Result<gtk::Justification> {
     }
 }
 
-/// @var packdirection - "right", "ltr", "left", "rtl", "down", "ttb", "up", "btt"
+/// @var pack-direction - "right", "ltr", "left", "rtl", "down", "ttb", "up", "btt"
 fn parse_packdirection(o: &str) -> Result<gtk::PackDirection> {
     enum_parse! { "packdirection", o,
         "right" | "ltr" => gtk::PackDirection::Ltr,
