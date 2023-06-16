@@ -1,8 +1,7 @@
 #![allow(unused)]
 
 use gtk::prelude::*;
-use notifier_host;
-use notifier_host::export::ordered_stream::OrderedStreamExt;
+use notifier_host::{self, export::ordered_stream::OrderedStreamExt};
 
 // DBus state shared between systray instances, to avoid creating too many connections etc.
 struct DBusGlobalState {
@@ -11,9 +10,9 @@ struct DBusGlobalState {
 }
 
 async fn dbus_state() -> std::sync::Arc<DBusGlobalState> {
-    use tokio::sync::Mutex;
-    use std::sync::{Weak, Arc};
     use once_cell::sync::Lazy;
+    use std::sync::{Arc, Weak};
+    use tokio::sync::Mutex;
     static DBUS_STATE: Lazy<Mutex<Weak<DBusGlobalState>>> = Lazy::new(Default::default);
 
     let mut dbus_state = DBUS_STATE.lock().await;
@@ -22,17 +21,11 @@ async fn dbus_state() -> std::sync::Arc<DBusGlobalState> {
     } else {
         // TODO error handling?
         let con = zbus::Connection::session().await.unwrap();
-        notifier_host::Watcher::new()
-            .attach_to(&con)
-            .await
-            .unwrap();
+        notifier_host::Watcher::new().attach_to(&con).await.unwrap();
 
         let name = notifier_host::attach_new_wellknown_name(&con).await.unwrap();
 
-        let arc = Arc::new(DBusGlobalState {
-            con,
-            name,
-        });
+        let arc = Arc::new(DBusGlobalState { con, name });
         *dbus_state = Arc::downgrade(&arc);
 
         arc
@@ -46,9 +39,7 @@ pub struct Props {
 impl Props {
     pub fn new() -> Self {
         let (icon_size_tx, _) = tokio::sync::watch::channel(24);
-        Self {
-            icon_size_tx,
-        }
+        Self { icon_size_tx }
     }
 
     pub fn icon_size(&self, value: i32) {
@@ -70,15 +61,8 @@ struct Tray {
     icon_size: tokio::sync::watch::Receiver<i32>,
 }
 
-pub fn spawn_systray(
-    menubar: &gtk::MenuBar,
-    props: &Props,
-) {
-    let mut systray = Tray {
-        menubar: menubar.clone(),
-        items: Default::default(),
-        icon_size: props.icon_size_tx.subscribe(),
-    };
+pub fn spawn_systray(menubar: &gtk::MenuBar, props: &Props) {
+    let mut systray = Tray { menubar: menubar.clone(), items: Default::default(), icon_size: props.icon_size_tx.subscribe() };
 
     glib::MainContext::default().spawn_local(async move {
         let s = &dbus_state().await;
@@ -89,16 +73,13 @@ pub fn spawn_systray(
 
 impl notifier_host::Host for Tray {
     fn add_item(&mut self, id: &str, item: notifier_host::Item) {
-        let item = Item::new(
-            id.to_owned(),
-            item,
-            self.icon_size.clone()
-        );
+        let item = Item::new(id.to_owned(), item, self.icon_size.clone());
         self.menubar.add(&item.mi);
         if let Some(old_item) = self.items.insert(id.to_string(), item) {
             self.menubar.remove(&old_item.mi);
         }
     }
+
     fn remove_item(&mut self, id: &str) {
         if let Some(item) = self.items.get(id) {
             self.menubar.remove(&item.mi);
@@ -124,16 +105,9 @@ impl Drop for Item {
 }
 
 impl Item {
-    fn new(
-        id: String,
-        item: notifier_host::Item,
-        mut icon_size: tokio::sync::watch::Receiver<i32>,
-    ) -> Self {
+    fn new(id: String, item: notifier_host::Item, mut icon_size: tokio::sync::watch::Receiver<i32>) -> Self {
         let mi = gtk::MenuItem::new();
-        let mut out = Self {
-            mi: mi.clone(),
-            tasks: Vec::new(),
-        };
+        let mut out = Self { mi: mi.clone(), tasks: Vec::new() };
 
         out.spawn(async move {
             // TODO don't unwrap so much

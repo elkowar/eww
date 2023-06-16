@@ -44,7 +44,8 @@ impl std::str::FromStr for Status {
 fn split_service_name(service: &str) -> zbus::Result<(String, String)> {
     if let Some((addr, path)) = service.split_once('/') {
         Ok((addr.to_owned(), format!("/{}", path)))
-    } else if service.contains(':') { // TODO why?
+    } else if service.contains(':') {
+        // TODO why?
         let addr = service.split(':').skip(1).next();
         // Some StatusNotifierItems will not return an object path, in that case we fallback
         // to the default path.
@@ -65,15 +66,9 @@ pub struct Item {
 impl Item {
     pub async fn from_address(con: &zbus::Connection, addr: &str) -> zbus::Result<Self> {
         let (addr, path) = split_service_name(addr)?;
-        let sni = dbus::StatusNotifierItemProxy::builder(con)
-            .destination(addr)?
-            .path(path)?
-            .build()
-            .await?;
+        let sni = dbus::StatusNotifierItemProxy::builder(con).destination(addr)?.path(path)?.build().await?;
 
-        Ok(Item {
-            sni,
-        })
+        Ok(Item { sni })
     }
 
     /// Get the current status of the item.

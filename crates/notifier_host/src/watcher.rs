@@ -1,6 +1,4 @@
-use zbus::dbus_interface;
-use zbus::Interface;
-use zbus::export::ordered_stream::OrderedStreamExt;
+use zbus::{dbus_interface, export::ordered_stream::OrderedStreamExt, Interface};
 
 pub const WATCHER_BUS_NAME: &'static str = "org.kde.StatusNotifierWatcher";
 pub const WATCHER_OBJECT_NAME: &'static str = "/StatusNotifierWatcher";
@@ -9,8 +7,7 @@ async fn parse_service<'a>(
     service: &'a str,
     hdr: zbus::MessageHeader<'_>,
     con: &zbus::Connection,
-) -> zbus::fdo::Result<(zbus::names::UniqueName<'static>, &'a str)>
-{
+) -> zbus::fdo::Result<(zbus::names::UniqueName<'static>, &'a str)> {
     if service.starts_with("/") {
         // they sent us just the object path :(
         if let Some(sender) = hdr.sender()? {
@@ -25,7 +22,7 @@ async fn parse_service<'a>(
             Err(e) => {
                 log::warn!("received invalid bus name {:?}: {}", service, e);
                 return Err(zbus::fdo::Error::InvalidArgs(e.to_string()));
-            },
+            }
         };
 
         if let zbus::names::BusName::Unique(unique) = busname {
@@ -45,23 +42,18 @@ async fn parse_service<'a>(
 }
 
 /// Wait for a DBus service to exit
-async fn wait_for_service_exit(
-    connection: zbus::Connection,
-    service: zbus::names::BusName<'_>,
-) -> zbus::fdo::Result<()> {
+async fn wait_for_service_exit(connection: zbus::Connection, service: zbus::names::BusName<'_>) -> zbus::fdo::Result<()> {
     let dbus = zbus::fdo::DBusProxy::new(&connection).await?;
-    let mut owner_changes = dbus
-        .receive_name_owner_changed_with_args(&[(0, &service)])
-        .await?;
+    let mut owner_changes = dbus.receive_name_owner_changed_with_args(&[(0, &service)]).await?;
 
     if !dbus.name_has_owner(service.as_ref()).await? {
-        return Ok(())
+        return Ok(());
     }
 
     while let Some(sig) = owner_changes.next().await {
         let args = sig.args()?;
         if args.new_owner().is_none() {
-            break
+            break;
         }
     }
 
@@ -78,7 +70,7 @@ pub struct Watcher {
     items: std::sync::Arc<std::sync::Mutex<std::collections::HashSet<String>>>,
 }
 
-#[dbus_interface(name="org.kde.StatusNotifierWatcher")]
+#[dbus_interface(name = "org.kde.StatusNotifierWatcher")]
 impl Watcher {
     /// RegisterStatusNotifierHost method
     async fn register_status_notifier_host(
@@ -96,7 +88,7 @@ impl Watcher {
             let mut hosts = self.hosts.lock().unwrap();
             if !hosts.insert(service.to_string()) {
                 // we're already tracking them
-                return Ok(())
+                return Ok(());
             }
             hosts.len() == 1
         };
@@ -165,7 +157,7 @@ impl Watcher {
             if !items.insert(item.clone()) {
                 // we're already tracking them
                 log::info!("new item: {} (duplicate)", item);
-                return Ok(())
+                return Ok(());
             }
         }
         log::info!("new item: {}", item);
@@ -229,7 +221,7 @@ impl Watcher {
         if !con.object_server().at(WATCHER_OBJECT_NAME, self).await? {
             // There's already something at this object
             // TODO is there a more specific error
-            return Err(zbus::Error::Failure(format!("Connection already has an object at {}", WATCHER_OBJECT_NAME)))
+            return Err(zbus::Error::Failure(format!("Connection already has an object at {}", WATCHER_OBJECT_NAME)));
         }
 
         // not AllowReplacement, not ReplaceExisting, not DoNotQueue
@@ -249,7 +241,8 @@ impl Watcher {
             Self::name(),
             &std::collections::HashMap::new(),
             &["IsStatusNotifierHostRegistered"],
-        ).await
+        )
+        .await
     }
 
     /// Equivalen to `registered_status_notifier_items_invalidate`, but without requiring `self`.
@@ -259,6 +252,7 @@ impl Watcher {
             Self::name(),
             &std::collections::HashMap::new(),
             &["RegisteredStatusNotifierItems"],
-        ).await
+        )
+        .await
     }
 }

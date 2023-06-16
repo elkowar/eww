@@ -13,13 +13,15 @@ pub enum IconError {
     #[error("loading icon from file {path:?}")]
     LoadIconFromFile {
         path: String,
-        #[source] source: gtk::glib::Error,
+        #[source]
+        source: gtk::glib::Error,
     },
     #[error("loading icon {icon_name:?} from theme {theme_path:?}")]
     LoadIconFromTheme {
         icon_name: String,
         theme_path: Option<String>,
-        #[source] source: gtk::glib::Error,
+        #[source]
+        source: gtk::glib::Error,
     },
     #[error("no icon available")]
     NotAvailable,
@@ -32,16 +34,10 @@ pub async fn fallback_icon(size: i32) -> gtk::gdk_pixbuf::Pixbuf {
         Err(e) => {
             log::error!("failed to load \"image-missing\" from default theme: {}", e);
             // create a blank pixbuf
-            gtk::gdk_pixbuf::Pixbuf::new(
-                gtk::gdk_pixbuf::Colorspace::Rgb,
-                false,
-                0,
-                size,
-                size,
-            ).unwrap()
-        },
+            gtk::gdk_pixbuf::Pixbuf::new(gtk::gdk_pixbuf::Colorspace::Rgb, false, 0, size, size).unwrap()
+        }
         Ok(pb) => pb.unwrap(),
-    }
+    };
 }
 
 /// Load a pixbuf from StatusNotifierItem's [Icon format].
@@ -76,7 +72,8 @@ fn icon_from_pixmap(width: i32, height: i32, mut data: Vec<u8>) -> gtk::gdk_pixb
 ///
 /// This function returns None if and only if no pixmaps are provided.
 fn icon_from_pixmaps(pixmaps: Vec<(i32, i32, Vec<u8>)>, size: i32) -> Option<gtk::gdk_pixbuf::Pixbuf> {
-    pixmaps.into_iter()
+    pixmaps
+        .into_iter()
         .max_by(|(w1, h1, _), (w2, h2, _)| {
             // take smallest one bigger than requested size, otherwise take biggest
             let a = size * size;
@@ -99,7 +96,11 @@ fn icon_from_pixmaps(pixmaps: Vec<(i32, i32, Vec<u8>)>, size: i32) -> Option<gtk
         })
 }
 
-fn icon_from_name(icon_name: &str, theme_path: Option<&str>, size: i32) -> std::result::Result<gtk::gdk_pixbuf::Pixbuf, IconError> {
+fn icon_from_name(
+    icon_name: &str,
+    theme_path: Option<&str>,
+    size: i32,
+) -> std::result::Result<gtk::gdk_pixbuf::Pixbuf, IconError> {
     let theme = if let Some(path) = theme_path {
         let theme = gtk::IconTheme::new();
         theme.prepend_search_path(&path);
@@ -134,10 +135,7 @@ pub async fn load_icon_from_sni(sni: &dbus::StatusNotifierItemProxy<'_>, size: i
         let icon_path = std::path::Path::new(&icon_name);
         if icon_path.is_absolute() && icon_path.is_file() {
             return gtk::gdk_pixbuf::Pixbuf::from_file_at_size(icon_path, size, size)
-                .map_err(|e| IconError::LoadIconFromFile {
-                    path: icon_name,
-                    source: e,
-                });
+                .map_err(|e| IconError::LoadIconFromFile { path: icon_name, source: e });
         }
 
         // otherwise, fetch icon theme and lookup using icon_from_name
@@ -147,9 +145,7 @@ pub async fn load_icon_from_sni(sni: &dbus::StatusNotifierItemProxy<'_>, size: i
             // treat property not existing as the same as it being empty i.e. to use the default
             // system theme
             Err(zbus::Error::FDO(e)) => match *e {
-                zbus::fdo::Error::UnknownProperty(_)
-                | zbus::fdo::Error::InvalidArgs(_)
-                    => None,
+                zbus::fdo::Error::UnknownProperty(_) | zbus::fdo::Error::InvalidArgs(_) => None,
                 // this error is reported by discord, blueman-applet
                 zbus::fdo::Error::Failed(msg) if msg == "error occurred in Get" => None,
                 _ => return Err(IconError::DBusTheme(zbus::Error::FDO(e))),
@@ -162,10 +158,11 @@ pub async fn load_icon_from_sni(sni: &dbus::StatusNotifierItemProxy<'_>, size: i
         };
 
         icon_from_name(&icon_name, icon_theme_path, size)
-    }).await;
+    })
+    .await;
     match icon_from_name {
         Ok(p) => return p,
-        Err(IconError::NotAvailable) => {}, // try pixbuf
+        Err(IconError::NotAvailable) => {} // try pixbuf
         // log and continue
         Err(e) => log::warn!("failed to get icon by name for {}: {}", sni.destination(), e),
     };
@@ -177,9 +174,7 @@ pub async fn load_icon_from_sni(sni: &dbus::StatusNotifierItemProxy<'_>, size: i
         },
         Err(zbus::Error::FDO(e)) => match *e {
             // property not existing is fine
-            zbus::fdo::Error::UnknownProperty(_)
-            | zbus::fdo::Error::InvalidArgs(_)
-                => Err(IconError::NotAvailable),
+            zbus::fdo::Error::UnknownProperty(_) | zbus::fdo::Error::InvalidArgs(_) => Err(IconError::NotAvailable),
 
             _ => Err(IconError::DBusPixmap(zbus::Error::FDO(e))),
         },
@@ -187,7 +182,7 @@ pub async fn load_icon_from_sni(sni: &dbus::StatusNotifierItemProxy<'_>, size: i
     };
     match icon_from_pixmaps {
         Ok(p) => return p,
-        Err(IconError::NotAvailable) => {},
+        Err(IconError::NotAvailable) => {}
         Err(e) => log::warn!("failed to get icon pixmap for {}: {}", sni.destination(), e),
     };
 

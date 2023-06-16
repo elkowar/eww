@@ -21,15 +21,19 @@ pub async fn attach_new_wellknown_name(con: &zbus::Connection) -> zbus::Result<z
         let flags = [zbus::fdo::RequestNameFlags::DoNotQueue];
         match con.request_name_with_flags(&wellknown, flags.into_iter().collect()).await? {
             PrimaryOwner => break wellknown,
-            Exists => {},
-            AlreadyOwner => {},
+            Exists => {}
+            AlreadyOwner => {}
             InQueue => unreachable!("request_name_with_flags returned InQueue even though we specified DoNotQueue"),
         };
     };
     Ok(wellknown)
 }
 
-pub async fn run_host_forever(host: &mut dyn Host, con: &zbus::Connection, name: &zbus::names::WellKnownName<'_>) -> zbus::Result<()> {
+pub async fn run_host_forever(
+    host: &mut dyn Host,
+    con: &zbus::Connection,
+    name: &zbus::names::WellKnownName<'_>,
+) -> zbus::Result<()> {
     // register ourself to StatusNotifierWatcher
     let snw = dbus::StatusNotifierWatcherProxy::new(&con).await?;
     snw.register_status_notifier_host(&name).await?;
@@ -51,10 +55,10 @@ pub async fn run_host_forever(host: &mut dyn Host, con: &zbus::Connection, name:
             Ok(item) => {
                 item_names.insert(svc.to_owned());
                 host.add_item(&svc, item);
-            },
+            }
             Err(e) => {
                 log::warn!("Could not create StatusNotifierItem from address {:?}: {:?}", svc, e);
-            },
+            }
         }
     }
 
@@ -73,19 +77,19 @@ pub async fn run_host_forever(host: &mut dyn Host, con: &zbus::Connection, name:
                         Ok(item) => {
                             item_names.insert(svc.to_owned());
                             host.add_item(svc, item);
-                        },
+                        }
                         Err(e) => {
                             log::warn!("Could not create StatusNotifierItem from address {:?}: {:?}", svc, e);
-                        },
+                        }
                     }
                 }
-            },
+            }
             ItemEvent::GoneItem(sig) => {
                 let svc = sig.args()?.service;
                 if item_names.remove(svc) {
                     host.remove_item(svc);
                 }
-            },
+            }
         }
     }
 
