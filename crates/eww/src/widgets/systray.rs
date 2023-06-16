@@ -161,10 +161,7 @@ impl Item {
             mi.set_tooltip_text(Some(&item.title().await.unwrap()));
 
             // set icon
-            match item.icon(*icon_size.borrow_and_update()).await {
-                Ok(p) => icon.set_from_pixbuf(Some(&p)),
-                Err(e) => log::warn!("failed to get icon of {}: {}", id, e),
-            }
+            icon.set_from_pixbuf(Some(&item.icon(*icon_size.borrow_and_update()).await));
 
             // updates
             let mut status_updates = item.status_updates();
@@ -181,10 +178,7 @@ impl Item {
                     }
                     Ok(_) = icon_size.changed() => {
                         // set icon
-                        match item.icon(*icon_size.borrow_and_update()).await {
-                            Ok(p) => icon.set_from_pixbuf(Some(&p)),
-                            Err(e) => log::warn!("failed to get icon of {}: {}", id, e),
-                        }
+                        icon.set_from_pixbuf(Some(&item.icon(*icon_size.borrow_and_update()).await));
                     }
                     Ok(_) = title_updates.changed() => {
                         // set title
