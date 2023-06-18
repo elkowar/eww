@@ -7,6 +7,7 @@ use notifier_host::{self, export::ordered_stream::OrderedStreamExt};
 struct DBusGlobalState {
     con: zbus::Connection,
     name: zbus::names::WellKnownName<'static>,
+    snw: notifier_host::dbus::StatusNotifierWatcherProxy<'static>,
 }
 
 async fn dbus_state() -> std::sync::Arc<DBusGlobalState> {
@@ -24,8 +25,9 @@ async fn dbus_state() -> std::sync::Arc<DBusGlobalState> {
         notifier_host::Watcher::new().attach_to(&con).await.unwrap();
 
         let name = notifier_host::attach_new_wellknown_name(&con).await.unwrap();
+        let snw = notifier_host::register_to_watcher(&con, &name).await.unwrap();
 
-        let arc = Arc::new(DBusGlobalState { con, name });
+        let arc = Arc::new(DBusGlobalState { con, name, snw });
         *dbus_state = Arc::downgrade(&arc);
 
         arc
@@ -64,10 +66,11 @@ struct Tray {
 pub fn spawn_systray(menubar: &gtk::MenuBar, props: &Props) {
     let mut systray = Tray { menubar: menubar.clone(), items: Default::default(), icon_size: props.icon_size_tx.subscribe() };
 
+    // TODO when does this task die?
     glib::MainContext::default().spawn_local(async move {
         let s = &dbus_state().await;
         systray.menubar.show();
-        notifier_host::run_host_forever(&mut systray, &s.con, &s.name).await.unwrap();
+        notifier_host::run_host_forever(&mut systray, &s.snw).await.unwrap();
     });
 }
 

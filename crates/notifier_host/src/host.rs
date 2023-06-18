@@ -29,15 +29,20 @@ pub async fn attach_new_wellknown_name(con: &zbus::Connection) -> zbus::Result<z
     Ok(wellknown)
 }
 
-pub async fn run_host_forever(
-    host: &mut dyn Host,
+pub async fn register_to_watcher(
     con: &zbus::Connection,
     name: &zbus::names::WellKnownName<'_>,
-) -> zbus::Result<()> {
+) -> zbus::Result<dbus::StatusNotifierWatcherProxy<'static>> {
     // register ourself to StatusNotifierWatcher
     let snw = dbus::StatusNotifierWatcherProxy::new(&con).await?;
     snw.register_status_notifier_host(&name).await?;
+    Ok(snw)
+}
 
+pub async fn run_host_forever(
+    host: &mut dyn Host,
+    snw: &dbus::StatusNotifierWatcherProxy<'static>,
+) -> zbus::Result<()> {
     enum ItemEvent {
         NewItem(dbus::StatusNotifierItemRegistered),
         GoneItem(dbus::StatusNotifierItemUnregistered),
