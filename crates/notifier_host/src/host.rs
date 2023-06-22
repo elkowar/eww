@@ -39,10 +39,7 @@ pub async fn register_to_watcher(
     Ok(snw)
 }
 
-pub async fn run_host_forever(
-    host: &mut dyn Host,
-    snw: &dbus::StatusNotifierWatcherProxy<'static>,
-) -> zbus::Result<()> {
+pub async fn run_host_forever(host: &mut dyn Host, snw: &dbus::StatusNotifierWatcherProxy<'static>) -> zbus::Result<()> {
     enum ItemEvent {
         NewItem(dbus::StatusNotifierItemRegistered),
         GoneItem(dbus::StatusNotifierItemUnregistered),

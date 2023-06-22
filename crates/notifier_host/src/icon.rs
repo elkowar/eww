@@ -16,7 +16,7 @@ pub enum IconError {
         #[source]
         source: gtk::glib::Error,
     },
-    #[error("loading icon {icon_name:?} from theme {theme_path:?}")]
+    #[error("loading icon {icon_name:?} from theme {}", .theme_path.as_ref().unwrap_or(&"(default)".to_owned()))]
     LoadIconFromTheme {
         icon_name: String,
         theme_path: Option<String>,
