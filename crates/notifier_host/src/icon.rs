@@ -125,7 +125,9 @@ pub async fn load_icon_from_sni(sni: &dbus::StatusNotifierItemProxy<'_>, size: i
 
     let icon_from_name: std::result::Result<gtk::gdk_pixbuf::Pixbuf, IconError> = (async {
         // fetch icon name
-        let icon_name = match sni.icon_name().await {
+        let icon_name = sni.icon_name().await;
+        log::debug!("dbus: {} icon_name -> {:?}", sni.destination(), icon_name);
+        let icon_name = match icon_name {
             Ok(s) if s == "" => return Err(IconError::NotAvailable),
             Ok(s) => s,
             Err(e) => return Err(IconError::DBusIconName(e)),
@@ -139,7 +141,9 @@ pub async fn load_icon_from_sni(sni: &dbus::StatusNotifierItemProxy<'_>, size: i
         }
 
         // otherwise, fetch icon theme and lookup using icon_from_name
-        let icon_theme_path = match sni.icon_theme_path().await {
+        let icon_theme_path = sni.icon_theme_path().await;
+        log::debug!("dbus: {} icon_theme_path -> {:?}", sni.destination(), icon_theme_path);
+        let icon_theme_path = match icon_theme_path {
             Ok(p) if p == "" => None,
             Ok(p) => Some(p),
             // treat property not existing as the same as it being empty i.e. to use the default
@@ -167,7 +171,9 @@ pub async fn load_icon_from_sni(sni: &dbus::StatusNotifierItemProxy<'_>, size: i
         Err(e) => log::warn!("failed to get icon by name for {}: {}", sni.destination(), e),
     };
 
-    let icon_from_pixmaps = match sni.icon_pixmap().await {
+    let icon_pixmap = sni.icon_pixmap().await;
+    log::debug!("dbus: {} icon_pixmap -> {:?}", sni.destination(), icon_pixmap);
+    let icon_from_pixmaps = match icon_pixmap {
         Ok(ps) => match icon_from_pixmaps(ps, size) {
             Some(p) => Ok(p),
             None => Err(IconError::NotAvailable),
