@@ -1,9 +1,9 @@
 #![feature(trace_macros)]
-#![feature(drain_filter)]
+#![feature(extract_if)]
 #![feature(box_patterns)]
 #![feature(slice_concat_trait)]
 #![feature(try_blocks)]
-#![feature(hash_drain_filter)]
+#![feature(hash_extract_if)]
 #![allow(rustdoc::private_intra_doc_links)]
 
 extern crate gtk;
