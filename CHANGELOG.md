@@ -36,6 +36,8 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Fix cirular-progress not properly displaying 100% values when clockwise is false
 - Fix temperatures inside `EWW_TEMPS` not being accessible if at least one value is `NaN`
 
+### Notable fixes and other changes
+- Fixed Nix flake failing due to an [autopatch-elf breaking change](https://github.com/oxalica/rust-overlay/issues/121) on newer versions of nixpkgs. (By: patrickshaw)
 
 ## 0.3.0 (26.05.2022)
 
