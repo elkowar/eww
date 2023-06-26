@@ -2,7 +2,7 @@
   inputs = {
     flake-compat = { url = "github:edolstra/flake-compat"; flake = false; };
     rust-overlay.url = "github:oxalica/rust-overlay";
-    nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs";
     rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
   };
 
@@ -30,21 +30,19 @@
             rustc = rust;
           };
           # TODO update this to reflect the changes in upstream (nixpkgs), when upstream is updated
-          eww = withWayland: (prev.eww.override { inherit rustPlatform; withWayland = true; }).overrideAttrs (old: {
+          eww = features: (prev.eww.override { inherit rustPlatform; withWayland = builtins.elem "wayland" features; }).overrideAttrs (old: {
             version = self.rev or "dirty";
             src = builtins.path { name = "eww"; path = prev.lib.cleanSource ./.; };
             cargoDeps = rustPlatform.importCargoLock { lockFile = ./Cargo.lock; };
-            # this currently just disables the x11 feature and enables the cargo feature "wayland" via the upstream derivation
-            cargoBuildNoDefaultFeatures = withWayland;
-            cargoCheckNoDefaultFeatures = withWayland;
-            patches = [ ];
+            cargoBuildFeatures = features;
+            cargoCheckFeatures = features;
           });
         in
         {
           # this doesn't support wayland currently (although it should, see https://github.com/elkowar/eww/issues/739)
-          eww = eww false;
-          eww-x11 = eww false;
-          eww-wayland = eww true;
+          eww = eww [ "wayland" "x11" ];
+          eww-x11 = eww [ "x11" ];
+          eww-wayland = eww [ "wayland" ];
         };
 
       packages = nixpkgs.lib.genAttrs targetSystems (system:
