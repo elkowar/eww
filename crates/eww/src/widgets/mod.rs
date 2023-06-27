@@ -7,6 +7,8 @@ pub mod graph;
 pub mod transform;
 pub mod widget_definitions;
 
+mod dup_log_count;
+
 /// Run a command that was provided as an attribute.
 /// This command may use placeholders which will be replaced by the values of the arguments given.
 /// This can either be the placeholder `{}`, which will be replaced by the first argument,
