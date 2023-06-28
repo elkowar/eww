@@ -17,6 +17,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add `jq` function, offering jq-style json processing
 - Add `justify` property to the label widget, allowing text justification (By: n3oney)
 - Add `EWW_TIME` magic variable (By: Erenoit)
+- Add `sin`, `cos`, `tan`, `cot`, `sin_deg`, `cos_deg`, `tan_deg`, `cot_deg` trigonometric functions (By: end-4)
 
 ## [0.4.0] (04.09.2022)
 

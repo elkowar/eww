@@ -39,6 +39,8 @@ Supported currently are the following features:
     - for this, the object/array value needs to refer to a variable that contains a valid json string.
 - some function calls:
     - `round(number, decimal_digits)`: Round a number to the given amount of decimals
+    - `sin(number)`, `cos(number)`, `tan(number)`, `cot(number)`: Calculate the trigonometric value of a given number in **radians**
+    - `sin_deg(number)`, `cos_deg(number)`, `tan_deg(number)`, `cot_deg(number)`: Calculate the trigonometric value of a given number in **degrees**
     - `replace(string, regex, replacement)`: Replace matches of a given regex in a string
 	- `search(string, regex)`: Search for a given regex in a string (returns array)
 	- `matches(string, regex)`: check if a given string matches a given regex (returns bool)
