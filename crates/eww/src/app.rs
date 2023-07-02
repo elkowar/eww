@@ -14,6 +14,7 @@ use crate::{
 use anyhow::anyhow;
 use codespan_reporting::files::Files;
 use eww_shared_util::{Span, VarName};
+use gdk::Monitor;
 use glib::ObjectExt;
 use itertools::Itertools;
 use once_cell::sync::Lazy;
@@ -406,8 +407,8 @@ impl<B: DisplayBackend> App<B> {
 
             root_widget.style_context().add_class(window_name);
 
-            let monitor_geometry = get_monitor_geometry(initiator.monitor.clone())?;
-            let mut eww_window = initialize_window::<B>(&initiator, monitor_geometry, root_widget, window_scope)?;
+            let monitor = get_monitor(initiator.monitor.clone())?;
+            let mut eww_window = initialize_window::<B>(&initiator, monitor, root_widget, window_scope)?;
             eww_window.gtk_window.style_context().add_class(window_name);
 
             // initialize script var handlers for variables. As starting a scriptvar with the script_var_handler is idempodent,
@@ -528,10 +529,11 @@ impl<B: DisplayBackend> App<B> {
 
 fn initialize_window<B: DisplayBackend>(
     window_init: &WindowInitiator,
-    monitor_geometry: gdk::Rectangle,
+    monitor: Monitor,
     root_widget: gtk::Widget,
     window_scope: ScopeIndex,
 ) -> Result<EwwWindow> {
+    let monitor_geometry = monitor.geometry();
     let window = B::initialize_window(window_init, monitor_geometry)
         .with_context(|| format!("monitor {} is unavailable", window_init.monitor.clone().unwrap()))?;
 
@@ -567,7 +569,7 @@ fn initialize_window<B: DisplayBackend>(
                 });
             }
         }
-        display_backend::set_xprops(&window, monitor_geometry, window_init)?;
+        display_backend::set_xprops(&window, monitor, window_init)?;
     }
 
     window.show_all();
@@ -608,7 +610,7 @@ fn on_screen_changed(window: &gtk::Window, _old_screen: Option<&gdk::Screen>) {
 }
 
 /// Get the monitor geometry of a given monitor, or the default if none is given
-fn get_monitor_geometry(identifier: Option<MonitorIdentifier>) -> Result<gdk::Rectangle> {
+fn get_monitor(identifier: Option<MonitorIdentifier>) -> Result<Monitor> {
     let display = gdk::Display::default().expect("could not get default display");
     let monitor = match identifier {
         Some(ident) => {
@@ -628,7 +630,7 @@ fn get_monitor_geometry(identifier: Option<MonitorIdentifier>) -> Result<gdk::Re
             .primary_monitor()
             .context("Failed to get primary monitor from GTK. Try explicitly specifying the monitor on your window.")?,
     };
-    Ok(monitor.geometry())
+    Ok(monitor)
 }
 
 /// Returns the [Monitor][gdk::Monitor] structure corresponding to the identifer.

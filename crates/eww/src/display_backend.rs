@@ -114,6 +114,7 @@ mod platform_wayland {
 mod platform_x11 {
     use crate::window_initiator::WindowInitiator;
     use anyhow::{Context, Result};
+    use gdk::Monitor;
     use gtk::{self, prelude::*};
     use x11rb::protocol::xproto::ConnectionExt;
 
@@ -150,7 +151,7 @@ mod platform_x11 {
         }
     }
 
-    pub fn set_xprops(window: &gtk::Window, monitor: gdk::Rectangle, window_init: &WindowInitiator) -> Result<()> {
+    pub fn set_xprops(window: &gtk::Window, monitor: Monitor, window_init: &WindowInitiator) -> Result<()> {
         let backend = X11BackendConnection::new()?;
         backend.set_xprops_for(window, monitor, window_init)?;
         Ok(())
@@ -173,17 +174,21 @@ mod platform_x11 {
         fn set_xprops_for(
             &self,
             window: &gtk::Window,
-            monitor_rect: gdk::Rectangle,
+            monitor: Monitor,
             window_init: &WindowInitiator,
         ) -> Result<()> {
+            let monitor_rect = monitor.geometry();
+            let scale_factor = monitor.scale_factor() as u32;
             let gdk_window = window.window().context("Couldn't get gdk window from gtk window")?;
             let win_id =
                 gdk_window.downcast_ref::<gdkx11::X11Window>().context("Failed to get x11 window for gtk window")?.xid() as u32;
             let strut_def = window_init.backend_options.x11.struts;
             let root_window_geometry = self.conn.get_geometry(self.root_window)?.reply()?;
 
-            let mon_end_x = (monitor_rect.x() + monitor_rect.width()) as u32 - 1u32;
-            let mon_end_y = (monitor_rect.y() + monitor_rect.height()) as u32 - 1u32;
+            let mon_x = scale_factor * monitor_rect.x() as u32;
+            let mon_y = scale_factor * monitor_rect.y() as u32;
+            let mon_end_x = scale_factor * (monitor_rect.x() + monitor_rect.width()) as u32 - 1u32;
+            let mon_end_y = scale_factor * (monitor_rect.y() + monitor_rect.height()) as u32 - 1u32;
 
             let dist = match strut_def.side {
                 Side::Left | Side::Right => strut_def.dist.pixels_relative_to(monitor_rect.width()) as u32,
@@ -195,10 +200,10 @@ mod platform_x11 {
             // left, right, top, bottom, left_start_y, left_end_y, right_start_y, right_end_y, top_start_x, top_end_x, bottom_start_x, bottom_end_x
             #[rustfmt::skip]
             let strut_list: Vec<u8> = match strut_def.side {
-                Side::Left   => vec![dist + monitor_rect.x() as u32,  0,                                                     0,                             0,                                                      monitor_rect.y() as u32,  mon_end_y,  0,                      0,          0,                      0,          0,                      0],
-                Side::Right  => vec![0,                             root_window_geometry.width as u32 - mon_end_x + dist,  0,                             0,                                                      0,                      0,          monitor_rect.y() as u32,  mon_end_y,  0,                      0,          0,                      0],
-                Side::Top    => vec![0,                             0,                                                     dist + monitor_rect.y() as u32,  0,                                                      0,                      0,          0,                      0,          monitor_rect.x() as u32,  mon_end_x,  0,                      0],
-                Side::Bottom => vec![0,                             0,                                                     0,                             root_window_geometry.height as u32 - mon_end_y + dist,  0,                      0,          0,                      0,          0,                      0,          monitor_rect.x() as u32,  mon_end_x],
+                Side::Left   => vec![dist + mon_x, 0,                                                    0,                   0,                                                     mon_x, mon_end_y, 0,     0,         0,     0,         0,             0],
+                Side::Right  => vec![0,            root_window_geometry.width as u32 - mon_end_x + dist, 0,                   0,                                                     0,     0,         mon_x, mon_end_y, 0,     0,         0,             0],
+                Side::Top    => vec![0,            0,                                                    dist + mon_y as u32, 0,                                                     0,     0,         0,     0,         mon_x, mon_end_x, 0,             0],
+                Side::Bottom => vec![0,            0,                                                    0,                   root_window_geometry.height as u32 - mon_end_y + dist, 0,     0,         0,     0,         0,     0,         mon_x as u32,  mon_end_x],
                 // This should never happen but if it does the window will be anchored on the
                 // right of the screen
             }.iter().flat_map(|x| x.to_le_bytes().to_vec()).collect();
