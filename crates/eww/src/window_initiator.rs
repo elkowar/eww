@@ -28,19 +28,25 @@ pub struct WindowInitiator {
 impl WindowInitiator {
     pub fn new(window_def: &WindowDefinition, args: &WindowArguments) -> Result<Self> {
         let vars = args.get_local_window_variables(window_def)?;
-        let geometry = window_def.geometry.map(|x| x.override_if_given(args.anchor, args.pos, args.size));
 
-        let monitor = if args.monitor.is_none() { window_def.get_monitor(&vars)? } else { args.monitor.clone() };
+        let backend_options = window_def.backend_options.eval(&vars)?;
+        let geometry = match &window_def.geometry {
+            Some(geo) => Some(geo.eval(&vars)?.override_if_given(args.anchor, args.pos, args.size)),
+            None => None,
+        };
+        let monitor = if args.monitor.is_none() { window_def.eval_monitor(&vars)? } else { args.monitor.clone() };
+        let resizable = window_def.eval_resizable(&vars)?;
+        let stacking = window_def.eval_stacking(&vars)?;
 
         Ok(WindowInitiator {
-            backend_options: window_def.backend_options.clone(),
+            backend_options,
             geometry,
             id: args.id.clone(),
             local_variables: vars,
             monitor,
             name: window_def.name.clone(),
-            resizable: window_def.resizable,
-            stacking: window_def.stacking,
+            resizable,
+            stacking,
         })
     }
 

@@ -10,33 +10,55 @@ use crate::{
     },
 };
 use eww_shared_util::{Span, VarName};
-use simplexpr::{dynval::DynVal, eval::EvalError, SimplExpr};
+use simplexpr::{dynval::{DynVal, FromDynVal}, eval::EvalError, SimplExpr};
 
 use super::{
-    attributes::AttrSpec, backend_window_options::BackendWindowOptions, widget_use::WidgetUse, window_geometry::WindowGeometry,
+    attributes::AttrSpec, backend_window_options::BackendWindowOptionsDef, widget_use::WidgetUse, window_geometry::WindowGeometryDef,
 };
 
-#[derive(Debug, Clone, serde::Serialize, PartialEq)]
+#[derive(Debug, thiserror::Error)]
+pub enum WindowStackingConversionError {
+    #[error(transparent)]
+    EvalError(#[from] EvalError),
+    #[error(transparent)]
+    EnumParseError(#[from] EnumParseError),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct WindowDefinition {
     pub name: String,
     pub expected_args: Vec<AttrSpec>,
     pub args_span: Span,
-    pub geometry: Option<WindowGeometry>,
-    pub stacking: WindowStacking,
+    pub geometry: Option<WindowGeometryDef>,
+    pub stacking: Option<SimplExpr>,
     pub monitor: Option<SimplExpr>,
     pub widget: WidgetUse,
-    pub resizable: bool,
-    pub backend_options: BackendWindowOptions,
+    pub resizable: Option<SimplExpr>,
+    pub backend_options: BackendWindowOptionsDef,
 }
 
 impl WindowDefinition {
-    pub fn get_monitor(&self, local_variables: &HashMap<VarName, DynVal>) -> Result<Option<MonitorIdentifier>, EvalError> {
-        match &self.monitor {
-            Some(monitor_expr) => match monitor_expr.eval(local_variables) {
-                Ok(val) => Ok(Some(MonitorIdentifier::from_dynval(&val)?)),
-                Err(err) => Err(err),
-            },
-            None => Ok(None),
+    pub fn eval_monitor(&self, local_variables: &HashMap<VarName, DynVal>) -> Result<Option<MonitorIdentifier>, EvalError> {
+        Ok(match &self.monitor {
+            Some(monitor_expr) => Some(MonitorIdentifier::from_dynval(&monitor_expr.eval(local_variables)?)?),
+            None => None,
+        })
+    }
+
+    pub fn eval_resizable(&self, local_variables: &HashMap<VarName, DynVal>) -> Result<bool, EvalError> {
+        Ok(match &self.resizable {
+            Some(expr) => expr.eval(local_variables)?.as_bool()?,
+            None => true,
+        })
+    }
+
+    pub fn eval_stacking(&self, local_variables: &HashMap<VarName, DynVal>) -> Result<WindowStacking, WindowStackingConversionError> {
+        match &self.stacking {
+            Some(stacking_expr) => match stacking_expr.eval(local_variables) {
+                Ok(val) => Ok(WindowStacking::from_dynval(&val)?),
+                Err(err) => Err(WindowStackingConversionError::EvalError(err)),
+            }
+            None => Ok(WindowStacking::Foreground),
         }
     }
 }
@@ -50,10 +72,10 @@ impl FromAstElementContent for WindowDefinition {
         let expected_args = expected_args.into_iter().map(AttrSpec::from_ast).collect::<DiagResult<_>>()?;
         let mut attrs = iter.expect_key_values()?;
         let monitor = attrs.ast_optional("monitor")?;
-        let resizable = attrs.primitive_optional("resizable")?.unwrap_or(true);
-        let stacking = attrs.primitive_optional("stacking")?.unwrap_or(WindowStacking::Foreground);
+        let resizable = attrs.ast_optional("resizable")?;
+        let stacking = attrs.ast_optional("stacking")?;
         let geometry = attrs.ast_optional("geometry")?;
-        let backend_options = BackendWindowOptions::from_attrs(&mut attrs)?;
+        let backend_options = BackendWindowOptionsDef::from_attrs(&mut attrs)?;
         let widget = iter.expect_any().map_err(DiagError::from).and_then(WidgetUse::from_ast)?;
         iter.expect_done()?;
         Ok(Self { name, expected_args, args_span, monitor, resizable, widget, stacking, geometry, backend_options })
