@@ -140,6 +140,10 @@ impl WidgetImpl for TransformPriv {
             let total_width = widget.allocated_width() as f64;
             let total_height = widget.allocated_height() as f64;
 
+            let total_width = widget.allocated_width() as f64;
+            let total_height = widget.allocated_height() as f64;
+            let center = (total_width / 2.0, total_height / 2.0);
+
             cr.save()?;
 
             let translate_x = match &*self.translate_x.borrow() {
@@ -162,9 +166,13 @@ impl WidgetImpl for TransformPriv {
                 None => 1.0,
             };
 
+            cr.translate(center.0, center.1);
+
             cr.scale(scale_x, scale_y);
             cr.rotate(perc_to_rad(rotate));
             cr.translate(translate_x, translate_y);
+
+            cr.translate(-center.0, -center.1);
 
             // Children widget
             if let Some(child) = &*self.content.borrow() {
