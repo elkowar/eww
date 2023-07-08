@@ -13,8 +13,8 @@ wrapper! {
 
 pub struct TransformPriv {
     rotate: RefCell<f64>,
-    rotation_center_x: RefCell<Option<String>>,
-    rotation_center_y: RefCell<Option<String>>,
+    transform_origin_x: RefCell<Option<String>>,
+    transform_origin_y: RefCell<Option<String>>,
     translate_x: RefCell<Option<String>>,
     translate_y: RefCell<Option<String>>,
     scale_x: RefCell<Option<String>>,
@@ -27,8 +27,8 @@ impl Default for TransformPriv {
     fn default() -> Self {
         TransformPriv {
             rotate: RefCell::new(0.0),
-            rotation_center_x: RefCell::new(None),
-            rotation_center_y: RefCell::new(None),
+            transform_origin_x: RefCell::new(None),
+            transform_origin_y: RefCell::new(None),
             translate_x: RefCell::new(None),
             translate_y: RefCell::new(None),
             scale_x: RefCell::new(None),
@@ -53,16 +53,16 @@ impl ObjectImpl for TransformPriv {
                     glib::ParamFlags::READWRITE,
                 ),
                 glib::ParamSpecString::new(
-                    "rotation-center-x",
-                    "position of rotation-center - x",
-                    "The X coordinate for the rotation center",
+                    "transform-origin-x",
+                    "position of transform-origin - x",
+                    "The X coordinate for the origin of this transformation",
                     None,
                     glib::ParamFlags::READWRITE,
                 ),
                 glib::ParamSpecString::new(
-                    "rotation-center-y",
-                    "position of rotation-center - y",
-                    "The Y coordinate for the rotation center",
+                    "transform-origin-y",
+                    "position of transform-origin - y",
+                    "The Y coordinate for the origin of this transformation",
                     None,
                     glib::ParamFlags::READWRITE,
                 ),
@@ -82,12 +82,12 @@ impl ObjectImpl for TransformPriv {
                 self.rotate.replace(value.get().unwrap());
                 obj.queue_draw(); // Queue a draw call with the updated value
             }
-            "rotation-center-x" => {
-                self.rotation_center_x.replace(value.get().unwrap());
+            "transform-origin-x" => {
+                self.transform_origin_x.replace(value.get().unwrap());
                 obj.queue_draw(); // Queue a draw call with the updated value
             }
-            "rotation-center-y" => {
-                self.rotation_center_y.replace(value.get().unwrap());
+            "transform-origin-y" => {
+                self.transform_origin_y.replace(value.get().unwrap());
                 obj.queue_draw(); // Queue a draw call with the updated value
             }
             "translate-x" => {
@@ -113,8 +113,8 @@ impl ObjectImpl for TransformPriv {
     fn property(&self, _obj: &Self::Type, _id: usize, pspec: &glib::ParamSpec) -> glib::Value {
         match pspec.name() {
             "rotate" => self.rotate.borrow().to_value(),
-            "rotation-center-x" => self.rotation_center_x.borrow().to_value(),
-            "rotation-center-y" => self.rotation_center_y.borrow().to_value(),
+            "transform-origin-x" => self.transform_origin_x.borrow().to_value(),
+            "transform-origin-y" => self.transform_origin_y.borrow().to_value(),
             "translate_x" => self.translate_x.borrow().to_value(),
             "translate_y" => self.translate_y.borrow().to_value(),
             "scale_x" => self.scale_x.borrow().to_value(),
@@ -170,12 +170,12 @@ impl WidgetImpl for TransformPriv {
 
             cr.save()?;
 
-            let rotation_center = {
-                let x = match &*self.rotation_center_x.borrow() {
+            let transform_origin = {
+                let x = match &*self.transform_origin_x.borrow() {
                     Some(rcx) => NumWithUnit::from_str(rcx)?.pixels_relative_to(total_width as i32) as f64,
                     None => 0.0,
                 };
-                let y = match &*self.rotation_center_y.borrow() {
+                let y = match &*self.transform_origin_y.borrow() {
                     Some(rcy) => NumWithUnit::from_str(rcy)?.pixels_relative_to(total_height as i32) as f64,
                     None => 0.0,
                 };
@@ -203,9 +203,9 @@ impl WidgetImpl for TransformPriv {
             };
 
             cr.scale(scale_x, scale_y);
-            cr.translate(rotation_center.0, rotation_center.1);
+            cr.translate(transform_origin.0, transform_origin.1);
             cr.rotate(perc_to_rad(rotate));
-            cr.translate(-rotation_center.0, -rotation_center.1);
+            cr.translate(-transform_origin.0, -transform_origin.1);
             cr.translate(translate_x, translate_y);
 
             // Children widget
