@@ -348,31 +348,17 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
             }
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
-        "sindeg" => match args.as_slice() {
+        "degtorad" => match args.as_slice() {
             [num] => {
                 let num = num.as_f64()?;
-                Ok(DynVal::from((num.to_radians()).sin()))
+                Ok(DynVal::from(num.to_radians()))
             }
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
-        "cosdeg" => match args.as_slice() {
+        "radtodeg" => match args.as_slice() {
             [num] => {
                 let num = num.as_f64()?;
-                Ok(DynVal::from((num.to_radians()).cos()))
-            }
-            _ => Err(EvalError::WrongArgCount(name.to_string())),
-        },
-        "tandeg" => match args.as_slice() {
-            [num] => {
-                let num = num.as_f64()?;
-                Ok(DynVal::from((num.to_radians()).tan()))
-            }
-            _ => Err(EvalError::WrongArgCount(name.to_string())),
-        },
-        "cotdeg" => match args.as_slice() {
-            [num] => {
-                let num = num.as_f64()?;
-                Ok(DynVal::from(1.0 / (num.to_radians()).tan()))
+                Ok(DynVal::from(num.to_degrees()))
             }
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
