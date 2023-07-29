@@ -142,6 +142,7 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
     }
 
     let css_provider = gtk::CssProvider::new();
+    let css_provider2 = css_provider.clone();
 
     let visible_result: Result<_> = try {
         let visible_expr = bargs.widget_use.attrs.attrs.get("visible").map(|x| x.value.as_simplexpr()).transpose()?;
@@ -206,6 +207,12 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
             gtk_widget.reset_style();
             css_provider.load_from_data(format!("* {{ {} }}", style).as_bytes())?;
             gtk_widget.style_context().add_provider(&css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION)
+        },
+        // @prop css - scss code applied to the widget, i.e.: `button {color: red;}`
+        prop(css: as_string) {
+            gtk_widget.reset_style();
+            css_provider2.load_from_data(grass::from_string(css, &grass::Options::default())?.as_bytes())?;
+            gtk_widget.style_context().add_provider(&css_provider2, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION)
         },
     });
     Ok(())
