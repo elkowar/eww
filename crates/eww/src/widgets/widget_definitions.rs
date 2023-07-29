@@ -127,7 +127,7 @@ static DEPRECATED_ATTRS: Lazy<HashSet<&str>> =
 /// @desc these properties apply to _all_ widgets, and can be used anywhere!
 pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Widget) -> Result<()> {
     let deprecated: HashSet<_> = DEPRECATED_ATTRS.to_owned();
-    let contained_deprecated: Vec<_> = bargs.unhandled_attrs.drain_filter(|a, _| deprecated.contains(&a.0 as &str)).collect();
+    let contained_deprecated: Vec<_> = bargs.unhandled_attrs.extract_if(|a, _| deprecated.contains(&a.0 as &str)).collect();
     if !contained_deprecated.is_empty() {
         let diag = error_handling_ctx::stringify_diagnostic(gen_diagnostic! {
             kind =  Severity::Error,
