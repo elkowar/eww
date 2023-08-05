@@ -28,9 +28,9 @@ pub enum IconError {
 }
 
 /// Get the fallback GTK icon
-pub async fn fallback_icon(size: i32) -> Option<gtk::gdk_pixbuf::Pixbuf> {
+async fn fallback_icon(size: i32, scale: i32) -> Option<gtk::gdk_pixbuf::Pixbuf> {
     let theme = gtk::IconTheme::default().expect("Could not get default gtk theme");
-    match theme.load_icon("image-missing", size, gtk::IconLookupFlags::FORCE_SIZE) {
+    match theme.load_icon_for_scale("image-missing", size, scale, gtk::IconLookupFlags::FORCE_SIZE) {
         Ok(pb) => pb,
         Err(e) => {
             log::error!("failed to load \"image-missing\" from default theme: {}", e);
@@ -99,6 +99,7 @@ fn icon_from_name(
     icon_name: &str,
     theme_path: Option<&str>,
     size: i32,
+    scale: i32,
 ) -> std::result::Result<gtk::gdk_pixbuf::Pixbuf, IconError> {
     let theme = if let Some(path) = theme_path {
         let theme = gtk::IconTheme::new();
@@ -108,7 +109,7 @@ fn icon_from_name(
         gtk::IconTheme::default().expect("Could not get default gtk theme")
     };
 
-    match theme.load_icon(icon_name, size, gtk::IconLookupFlags::FORCE_SIZE) {
+    match theme.load_icon_for_scale(icon_name, size, scale, gtk::IconLookupFlags::FORCE_SIZE) {
         Ok(pb) => Ok(pb.expect("no pixbuf from theme.load_icon despite no error")),
         Err(e) => Err(IconError::LoadIconFromTheme {
             icon_name: icon_name.to_owned(),
@@ -118,10 +119,15 @@ fn icon_from_name(
     }
 }
 
-pub async fn load_icon_from_sni(sni: &dbus::StatusNotifierItemProxy<'_>, size: i32) -> Option<gtk::gdk_pixbuf::Pixbuf> {
+pub async fn load_icon_from_sni(
+    sni: &dbus::StatusNotifierItemProxy<'_>,
+    size: i32,
+    scale: i32,
+) -> Option<gtk::gdk_pixbuf::Pixbuf> {
     // "Visualizations are encouraged to prefer icon names over icon pixmaps if both are
     // available."
 
+    let scaled_size = size * scale;
     let icon_from_name: std::result::Result<gtk::gdk_pixbuf::Pixbuf, IconError> = (async {
         // fetch icon name
         let icon_name = sni.icon_name().await;
@@ -135,7 +141,7 @@ pub async fn load_icon_from_sni(sni: &dbus::StatusNotifierItemProxy<'_>, size: i
         // interpret it as an absolute path if we can
         let icon_path = std::path::Path::new(&icon_name);
         if icon_path.is_absolute() && icon_path.is_file() {
-            return gtk::gdk_pixbuf::Pixbuf::from_file_at_size(icon_path, size, size)
+            return gtk::gdk_pixbuf::Pixbuf::from_file_at_size(icon_path, scaled_size, scaled_size)
                 .map_err(|e| IconError::LoadIconFromFile { path: icon_name, source: e });
         }
 
@@ -161,7 +167,7 @@ pub async fn load_icon_from_sni(sni: &dbus::StatusNotifierItemProxy<'_>, size: i
             Some(s) => Some(s),
             None => None,
         };
-        icon_from_name(&icon_name, icon_theme_path, size)
+        icon_from_name(&icon_name, icon_theme_path, size, scale)
     })
     .await;
     match icon_from_name {
@@ -174,7 +180,7 @@ pub async fn load_icon_from_sni(sni: &dbus::StatusNotifierItemProxy<'_>, size: i
     let icon_pixmap = sni.icon_pixmap().await;
     log::debug!("dbus: {} icon_pixmap -> {:?}", sni.destination(), icon_pixmap);
     let icon_from_pixmaps = match icon_pixmap {
-        Ok(ps) => match icon_from_pixmaps(ps, size) {
+        Ok(ps) => match icon_from_pixmaps(ps, scaled_size) {
             Some(p) => Ok(p),
             None => Err(IconError::NotAvailable),
         },
@@ -192,5 +198,5 @@ pub async fn load_icon_from_sni(sni: &dbus::StatusNotifierItemProxy<'_>, size: i
         Err(e) => log::warn!("failed to get icon pixmap for {}: {}", sni.destination(), e),
     };
 
-    fallback_icon(size).await
+    fallback_icon(size, scale).await
 }

@@ -1,4 +1,4 @@
-use gtk::prelude::*;
+use gtk::{cairo::Surface, gdk::ffi::gdk_cairo_surface_create_from_pixbuf, prelude::*};
 use notifier_host::{self, export::ordered_stream::OrderedStreamExt};
 
 // DBus state shared between systray instances, to avoid creating too many connections etc.
@@ -161,7 +161,8 @@ impl Item {
         widget.set_tooltip_text(Some(&item.sni.title().await?));
 
         // set icon
-        icon.set_from_pixbuf(item.icon(*icon_size.borrow_and_update()).await.as_ref());
+        let scale = icon.scale_factor();
+        load_icon_for_item(&icon, &item, *icon_size.borrow_and_update(), scale).await;
 
         // updates
         let mut status_updates = item.sni.receive_new_status().await?;
@@ -178,7 +179,7 @@ impl Item {
                 }
                 Ok(_) = icon_size.changed() => {
                     // set icon
-                    icon.set_from_pixbuf(item.icon(*icon_size.borrow_and_update()).await.as_ref());
+                    load_icon_for_item(&icon, &item, *icon_size.borrow_and_update(), scale).await;
                 }
                 Some(_) = title_updates.next() => {
                     // set title
@@ -186,5 +187,20 @@ impl Item {
                 }
             }
         }
+    }
+}
+
+async fn load_icon_for_item(icon: &gtk::Image, item: &notifier_host::Item, size: i32, scale: i32) {
+    if let Some(pixbuf) = item.icon(size, scale).await {
+        let surface = unsafe {
+            // gtk::cairo::Surface will destroy the underlying surface on drop
+            let ptr = gdk_cairo_surface_create_from_pixbuf(
+                pixbuf.as_ptr(),
+                scale,
+                icon.window().map_or(std::ptr::null_mut(), |v| v.as_ptr()),
+            );
+            Surface::from_raw_full(ptr)
+        };
+        icon.set_from_surface(surface.ok().as_ref());
     }
 }

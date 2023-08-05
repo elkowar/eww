@@ -86,8 +86,8 @@ impl Item {
         Ok(menu.upcast())
     }
 
-    pub async fn icon(&self, size: i32) -> Option<gtk::gdk_pixbuf::Pixbuf> {
+    pub async fn icon(&self, size: i32, scale: i32) -> Option<gtk::gdk_pixbuf::Pixbuf> {
         // see icon.rs
-        load_icon_from_sni(&self.sni, size).await
+        load_icon_from_sni(&self.sni, size, scale).await
     }
 }
