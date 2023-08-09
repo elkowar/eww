@@ -3,7 +3,6 @@
 #![feature(try_blocks)]
 #![feature(unwrap_infallible)]
 #![feature(never_type)]
-#![feature(once_cell)]
 
 pub mod ast;
 pub mod dynval;

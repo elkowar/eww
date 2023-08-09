@@ -466,7 +466,7 @@ fn initialize_window<B: DisplayBackend>(
     window.realize();
 
     #[cfg(feature = "x11")]
-    {
+    if B::IS_X11 {
         if let Some(geometry) = window_def.geometry {
             let _ = apply_window_position(geometry, monitor_geometry, &window);
             if window_def.backend_options.x11.window_type != yuck::config::backend_window_options::X11WindowType::Normal {
