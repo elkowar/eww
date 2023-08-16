@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{bail, Context, Result};
 use eww_shared_util::VarName;
 use simplexpr::dynval::DynVal;
 use std::{
@@ -10,56 +10,37 @@ use yuck::{
     value::Coords,
 };
 
-fn extract_value_from_args(name: &str, args: &mut Vec<(VarName, DynVal)>) -> Option<DynVal> {
-    let var_name = name.to_string();
-    let pos = args.iter().position(|(n, _)| n.0 == var_name);
-
-    if let Some(unwrapped_pos) = pos {
-        let (_, val) = args.remove(unwrapped_pos);
-        Some(val)
-    } else {
-        None
-    }
+pub fn extract_value_from_args(name: &str, args: &mut HashMap<VarName, DynVal>) -> Option<DynVal> {
+    args.remove(&VarName(name.to_string()))
 }
 
-fn parse_value_from_args<T: FromStr>(name: &str, args: &mut Vec<(VarName, DynVal)>) -> Result<Option<T>, T::Err> {
+fn parse_value_from_args<T: FromStr>(name: &str, args: &mut HashMap<VarName, DynVal>) -> Result<Option<T>, T::Err> {
     extract_value_from_args(name, args).map(|x| FromStr::from_str(&x.as_string().unwrap())).transpose()
 }
 
 /// This stores the arguments given in the command line to create a window
 /// While creating a window, we combine this with information from the
-/// WindowDefinition to create a WindowInitiator, which stores all the
+/// [`WindowDefinition`] to create a [WindowInitiator](`crate::window_initiator::WindowInitiator`), which stores all the
 /// information required to start a window
 #[derive(Debug, Clone)]
 pub struct WindowArguments {
+    /// Name of the window as defined in the eww config
+    pub window_name: String,
+    /// Instance ID of the window
+    pub instance_id: String,
     pub anchor: Option<AnchorPoint>,
-    pub args: Vec<(VarName, DynVal)>,
-    pub config_name: String,
+    pub args: HashMap<VarName, DynVal>,
     pub duration: Option<std::time::Duration>,
-    pub id: String,
     pub monitor: Option<MonitorIdentifier>,
     pub pos: Option<Coords>,
     pub size: Option<Coords>,
 }
 
 impl WindowArguments {
-    pub fn new(
-        id: String,
-        config_name: String,
-        pos: Option<Coords>,
-        size: Option<Coords>,
-        monitor: Option<MonitorIdentifier>,
-        anchor: Option<AnchorPoint>,
-        duration: Option<std::time::Duration>,
-        args: Vec<(VarName, DynVal)>,
-    ) -> Self {
-        WindowArguments { id, config_name, pos, size, monitor, anchor, duration, args }
-    }
-
-    pub fn new_from_args(id: String, config_name: String, mut args: Vec<(VarName, DynVal)>) -> Result<Self> {
+    pub fn new_from_args(id: String, config_name: String, mut args: HashMap<VarName, DynVal>) -> Result<Self> {
         let initiator = WindowArguments {
-            config_name,
-            id,
+            window_name: config_name,
+            instance_id: id,
             pos: parse_value_from_args::<Coords>("pos", &mut args)?,
             size: parse_value_from_args::<Coords>("size", &mut args)?,
             monitor: parse_value_from_args::<MonitorIdentifier>("screen", &mut args)?,
@@ -74,16 +55,19 @@ impl WindowArguments {
         Ok(initiator)
     }
 
+    /// Return a hashmap of all arguments the window was passed and expected, returning
+    /// an error in case required arguments are missing or unexpected arguments are passed.
     pub fn get_local_window_variables(&self, window_def: &WindowDefinition) -> Result<HashMap<VarName, DynVal>> {
         let expected_args: HashSet<&String> = window_def.expected_args.iter().map(|x| &x.name.0).collect();
         let mut local_variables: HashMap<VarName, DynVal> = HashMap::new();
 
-        // Inserts these first so they can be overridden
+        // Ensure that the arguments passed to the window that are already interpreted by eww (id, screen)
+        // are set to the correct values
         if expected_args.contains(&"id".to_string()) {
-            local_variables.insert(VarName::from("id"), DynVal::from(self.id.clone()));
+            local_variables.insert(VarName::from("id"), DynVal::from(self.instance_id.clone()));
         }
         if self.monitor.is_some() && expected_args.contains(&"screen".to_string()) {
-            let mon_dyn = self.monitor.clone().unwrap().to_dynval();
+            let mon_dyn = DynVal::from(&self.monitor.clone().unwrap());
             local_variables.insert(VarName::from("screen"), mon_dyn);
         }
 
@@ -91,30 +75,19 @@ impl WindowArguments {
 
         for attr in &window_def.expected_args {
             let name = VarName::from(attr.name.clone());
-
-            // This is here to get around the map_entry warning
-            let mut inserted = false;
-            local_variables.entry(name).or_insert_with(|| {
-                inserted = true;
-                DynVal::from_string(String::new())
-            });
-
-            if inserted && !attr.optional {
-                return Err(anyhow!("Error, {} was required when creating {} but was not given", attr.name, self.config_name));
+            if !local_variables.contains_key(&name) && !attr.optional {
+                bail!("Error, missing argument '{}' when creating window with id '{}'", attr.name, self.instance_id);
             }
         }
 
         if local_variables.len() != window_def.expected_args.len() {
-            let unexpected_vars: Vec<VarName> = local_variables
-                .iter()
-                .filter_map(|(n, _)| if !expected_args.contains(&n.0) { Some(n.clone()) } else { None })
-                .collect();
-            return Err(anyhow!(
-                "'{}' {} unexpectedly defined when creating window {}",
-                unexpected_vars.join(","),
-                if unexpected_vars.len() == 1 { "was" } else { "were" },
-                self.config_name
-            ));
+            let unexpected_vars: Vec<_> =
+                local_variables.iter().map(|(name, _)| name.clone()).filter(|n| !expected_args.contains(&n.0)).collect();
+            bail!(
+                "variables {} unexpectedly defined when creating window with id '{}'",
+                unexpected_vars.join(", "),
+                self.instance_id,
+            );
         }
 
         Ok(local_variables)

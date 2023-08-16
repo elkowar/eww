@@ -129,19 +129,22 @@ pub enum ActionWithServer {
         #[arg(long, value_parser=parse_duration)]
         duration: Option<std::time::Duration>,
 
-        #[arg(long, value_parser = parse_var_update_arg)]
-        arg: Option<Vec<(VarName, DynVal)>>,
+        /// Define a variable for the window, i.e.: `--arg "var_name=value"`
+        #[arg(long = "arg", value_parser = parse_var_update_arg)]
+        args: Option<Vec<(VarName, DynVal)>>,
     },
 
     /// Open multiple windows at once.
     /// NOTE: This will in the future be part of eww open, and will then be removed.
     #[command(name = "open-many")]
     OpenMany {
+        /// List the windows to open, optionally including their id, i.e.: `--window "window_name:window_id"`
         #[arg(value_parser = parse_window_config_and_id)]
         windows: Vec<(String, String)>,
 
-        #[arg(long, value_parser = parse_window_id_args)]
-        arg: Vec<(String, VarName, DynVal)>,
+        /// Define a variable for the window, i.e.: `--arg "window_id:var_name=value"`
+        #[arg(long = "arg", value_parser = parse_window_id_args)]
+        args: Vec<(String, VarName, DynVal)>,
 
         /// If a window is already open, close it instead
         #[arg(long = "toggle")]
@@ -206,12 +209,15 @@ impl From<RawOpt> for Opt {
     }
 }
 
+/// Parse a window-name:window-id pair of the form `name:id` or `name` into a tuple of `(name, id)`.
 fn parse_window_config_and_id(s: &str) -> Result<(String, String)> {
     let (name, id) = s.split_once(':').unwrap_or((s, s));
 
     Ok((name.to_string(), id.to_string()))
 }
 
+/// Parse a window-id specific variable value declaration with the syntax `window-id:variable_name="new_value"`
+/// into a tuple of `(id, variable_name, new_value)`.
 fn parse_window_id_args(s: &str) -> Result<(String, VarName, DynVal)> {
     // Parse the = first so we know if an id has not been given
     let (name, value) = parse_var_update_arg(s)?;
@@ -221,6 +227,7 @@ fn parse_window_id_args(s: &str) -> Result<(String, VarName, DynVal)> {
     Ok((id.to_string(), var_name.into(), value))
 }
 
+/// Split the input string at `=`, parsing the value into a [`DynVal`].
 fn parse_var_update_arg(s: &str) -> Result<(VarName, DynVal)> {
     let (name, value) = s
         .split_once('=')
@@ -245,10 +252,10 @@ impl ActionWithServer {
                 let _ = send.send(DaemonResponse::Success("pong".to_owned()));
                 return (app::DaemonCommand::NoOp, Some(recv));
             }
-            ActionWithServer::OpenMany { windows, arg: args, should_toggle } => {
+            ActionWithServer::OpenMany { windows, args, should_toggle } => {
                 return with_response_channel(|sender| app::DaemonCommand::OpenMany { windows, args, should_toggle, sender });
             }
-            ActionWithServer::OpenWindow { window_name, id, pos, size, screen, anchor, should_toggle, duration, arg: args } => {
+            ActionWithServer::OpenWindow { window_name, id, pos, size, screen, anchor, should_toggle, duration, args } => {
                 return with_response_channel(|sender| app::DaemonCommand::OpenWindow {
                     window_name,
                     instance_id: id,

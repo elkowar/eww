@@ -110,6 +110,7 @@ impl Attributes {
     }
 }
 
+/// Specification of an argument to a widget or window
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
 pub struct AttrSpec {
     pub name: AttrName,

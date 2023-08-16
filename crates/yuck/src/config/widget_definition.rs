@@ -8,25 +8,9 @@ use crate::{
         from_ast::{FromAst, FromAstElementContent},
     },
 };
-use eww_shared_util::{AttrName, Span, Spanned};
+use eww_shared_util::{Span, Spanned};
 
-use super::widget_use::WidgetUse;
-
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
-pub struct AttrSpec {
-    pub name: AttrName,
-    pub optional: bool,
-    pub span: Span,
-}
-
-impl FromAst for AttrSpec {
-    fn from_ast(e: Ast) -> DiagResult<Self> {
-        let span = e.span();
-        let symbol = e.as_symbol()?;
-        let (name, optional) = if let Some(name) = symbol.strip_prefix('?') { (name.to_string(), true) } else { (symbol, false) };
-        Ok(Self { name: AttrName(name), optional, span })
-    }
-}
+use super::{attributes::AttrSpec, widget_use::WidgetUse};
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
 pub struct WidgetDefinition {

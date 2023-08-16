@@ -4,6 +4,7 @@
 #![feature(slice_concat_trait)]
 #![feature(try_blocks)]
 #![feature(hash_extract_if)]
+#![feature(let_chains)]
 #![allow(rustdoc::private_intra_doc_links)]
 
 extern crate gtk;

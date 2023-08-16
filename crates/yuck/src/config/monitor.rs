@@ -29,17 +29,19 @@ impl MonitorIdentifier {
         }
     }
 
-    pub fn to_dynval(&self) -> DynVal {
-        match self {
-            Self::List(l) => l.iter().map(|x| x.to_dynval()).collect::<Vec<_>>().into(),
-            Self::Numeric(n) => DynVal::from(*n),
-            Self::Name(n) => DynVal::from(n.clone()),
-            Self::Primary => DynVal::from("<primary>"),
-        }
-    }
-
     pub fn is_numeric(&self) -> bool {
         matches!(self, Self::Numeric(_))
+    }
+}
+
+impl From<&MonitorIdentifier> for DynVal {
+    fn from(val: &MonitorIdentifier) -> Self {
+        match val {
+            MonitorIdentifier::List(l) => l.iter().map(|x| x.into()).collect::<Vec<_>>().into(),
+            MonitorIdentifier::Numeric(n) => DynVal::from(*n),
+            MonitorIdentifier::Name(n) => DynVal::from(n.clone()),
+            MonitorIdentifier::Primary => DynVal::from("<primary>"),
+        }
     }
 }
 

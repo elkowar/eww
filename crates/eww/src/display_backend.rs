@@ -171,12 +171,7 @@ mod platform_x11 {
             Ok(X11BackendConnection { conn, root_window: screen.root, atoms })
         }
 
-        fn set_xprops_for(
-            &self,
-            window: &gtk::Window,
-            monitor: Monitor,
-            window_init: &WindowInitiator,
-        ) -> Result<()> {
+        fn set_xprops_for(&self, window: &gtk::Window, monitor: Monitor, window_init: &WindowInitiator) -> Result<()> {
             let monitor_rect = monitor.geometry();
             let scale_factor = monitor.scale_factor() as u32;
             let gdk_window = window.window().context("Couldn't get gdk window from gtk window")?;
@@ -191,8 +186,8 @@ mod platform_x11 {
             let mon_end_y = scale_factor * (monitor_rect.y() + monitor_rect.height()) as u32 - 1u32;
 
             let dist = match strut_def.side {
-                Side::Left | Side::Right => strut_def.dist.pixels_relative_to(monitor_rect.width()) as u32,
-                Side::Top | Side::Bottom => strut_def.dist.pixels_relative_to(monitor_rect.height()) as u32,
+                Side::Left | Side::Right => strut_def.distance.pixels_relative_to(monitor_rect.width()) as u32,
+                Side::Top | Side::Bottom => strut_def.distance.pixels_relative_to(monitor_rect.height()) as u32,
             };
 
             // don't question it,.....

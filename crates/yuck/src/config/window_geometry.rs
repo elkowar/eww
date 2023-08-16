@@ -5,13 +5,17 @@ use crate::{
     error::DiagResult,
     format_diagnostic::ToDiagnostic,
     parser::{ast::Ast, ast_iterator::AstIterator, from_ast::FromAstElementContent},
-    value::{Coords, coords, NumWithUnit},
+    value::{coords, Coords, NumWithUnit},
 };
 
 use super::window_definition::EnumParseError;
 use eww_shared_util::{Span, VarName};
 use serde::{Deserialize, Serialize};
-use simplexpr::{SimplExpr, dynval::{DynVal, FromDynVal}, eval::EvalError};
+use simplexpr::{
+    dynval::{DynVal, FromDynVal},
+    eval::EvalError,
+    SimplExpr,
+};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, smart_default::SmartDefault, Serialize, Deserialize, strum::Display)]
 pub enum AnchorAlignment {
@@ -105,6 +109,7 @@ impl std::str::FromStr for AnchorPoint {
     }
 }
 
+/// Unevaluated variant of [`Coords`]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct CoordsDef {
     pub x: Option<SimplExpr>,
@@ -130,13 +135,17 @@ impl CoordsDef {
     }
 }
 
-fn convert_to_num_with_unit(opt_expr: &Option<SimplExpr>, local_variables: &HashMap<VarName, DynVal>) -> Result<NumWithUnit, Error> {
+fn convert_to_num_with_unit(
+    opt_expr: &Option<SimplExpr>,
+    local_variables: &HashMap<VarName, DynVal>,
+) -> Result<NumWithUnit, Error> {
     Ok(match opt_expr {
         Some(expr) => NumWithUnit::from_dynval(&expr.eval(local_variables)?)?,
         None => NumWithUnit::default(),
     })
 }
 
+/// Unevaluated variant of [`WindowGeometry`]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct WindowGeometryDef {
     pub anchor_point: Option<SimplExpr>,
@@ -154,14 +163,8 @@ impl FromAstElementContent for WindowGeometryDef {
 
         Ok(WindowGeometryDef {
             anchor_point: attrs.ast_optional("anchor")?,
-            size: CoordsDef {
-                x: attrs.ast_optional("width")?,
-                y: attrs.ast_optional("height")?,
-            },
-            offset: CoordsDef {
-                x: attrs.ast_optional("x")?,
-                y: attrs.ast_optional("y")?,
-            },
+            size: CoordsDef { x: attrs.ast_optional("width")?, y: attrs.ast_optional("height")? },
+            offset: CoordsDef { x: attrs.ast_optional("x")?, y: attrs.ast_optional("y")? },
         })
     }
 }
