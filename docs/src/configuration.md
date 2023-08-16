@@ -259,28 +259,44 @@ Eww then reads the provided value and renders the resulting widget. Whenever it 
 
 Note that this is not all that efficient. Make sure to only use `literal` when necessary!
 
-## Dynamically generated windows with arguments and ids
+## Using window arguments and IDs
 
-In some cases you may want to use the same window configuration for multiple widgets, e.g. for multiple windows. This is where arugments and ids come in.
+In some cases you may want to use the same window configuration for multiple widgets, e.g. for multiple windows. This is where arguments and ids come in.
 
-Firstly let us start off with ids. An id can be specified in the `open` command with `--id`, by default the id will be set to the name of the window configuration. These ids allow you to spawn multiple of the same windows. So for example you can do:
+### Window ID
+
+Firstly let us start off with ids. An id can be specified in the `open` command
+with `--id`, by default the id will be set to the name of the window
+configuration. These ids allow you to spawn multiple of the same windows. So
+for example you can do:
 
 ```bash
 eww open my_bar --screen 0 --id primary
 eww open my_bar --screen 1 --id secondary
 ```
 
-When using `open-many` you can follow the structure below. Again if no id is given, the id will default to the name of the window configuration.
+When using `open-many` you can follow the structure below. Again if no id is
+given, the id will default to the name of the window configuration.
 
 ```bash
 eww open-many my_config:primary my_config:secondary
 ```
 
-You may notice with this we didn't set `screen`, this is set through the `--arg` system, please see below for more information.
+You may notice with this we didn't set `screen`, this is set through the
+`--arg` system, please see below for more information.
 
-However you may want to have slight changes for each of these bars, e.g. spawning other windows on the same monitor. This is where the arguments come in.
+### Window Arguments
 
-Defining arguments in a window is the exact same as in a widget so you can have:
+However this may not be enough and you want to have slight changes for each of
+these bars, e.g. having a different class for 1080p displays vs 4k or having
+spawning the window in a different size or location. This is where the
+arguments come in.
+
+Please note these arguments are **CONSTANT** and so cannot be update after the
+window has been opened.
+
+Defining arguments in a window is the exact same as in a widget so you can
+have:
 
 ```lisp
 (defwindow my_bar [arg1 ?arg2]
@@ -288,17 +304,19 @@ Defining arguments in a window is the exact same as in a widget so you can have:
                        :x      "0%"
                        :y      "6px"
                        :width  "100%"
-                       :height "30px"
+                       :height { arg1 == "small" ? "30px" : "40px" }
                        :anchor "top center")
           :stacking   "bg"
           :windowtype "dock"
           :reserve    (struts :distance "50px" :side "top")
-    ...)
+    (my_widget :arg2 arg2))
 ```
 
 Here we have two arguments, `arg1` and `arg2` (an optional parameter).
 
-Once we have these parameters, when opening a new window, we must specify them (unless they are required, like `arg2`), but how? Well, we use the `--arg` option when running the `open` command:
+Once we have these parameters, when opening a new window, we must specify them
+(unless they are required, like `arg2`), but how? Well, we use the `--arg`
+option when running the `open` command:
 
 ```bash
 eww open my_bar --id primary --arg arg1=some_value --arg arg2=another_value
@@ -311,26 +329,37 @@ With the `open-many` it looks like this:
 eww open-many my_bar:primary --arg primary:arg1=some_value --arg primary:arg2=another_value
 ```
 
-Using this method you can define `screen`, `anchor`, `pos`, `size` inside the args for each window and it will act like giving `--screen`, `--anchor` etc. in the `open` command.
+Using this method you can define `screen`, `anchor`, `pos`, `size` inside the
+args for each window and it will act like giving `--screen`, `--anchor` etc. in
+the `open` command.
 
-You may notice that this is the same layout to set values with `update` and you'd be correct.
+So, now you know the basics, I shall introduce you to some of these "special"
+parameters, which are set slightly differently. However these can all be
+overridden by the `--arg` option.
 
-So, now you know the basics, I shall introduce you to some of these "special" parameters, which are set slightly differently. However these can all be overridden by the `--arg` option.
-
-- `id` - If `id` is included in the argument list, it will be set to the id specified by `--id` or will be set to the name of the config. This can be used when closing the current window through eww commands.
-- `screen` - If `screen` is specified it will be set to the value given by `--screen`, so you can use this in other widgets to access screen specific information.
+- `id` - If `id` is included in the argument list, it will be set to the id
+  specified by `--id` or will be set to the name of the config. This can be
+  used when closing the current window through eww commands.
+- `screen` - If `screen` is specified it will be set to the value given by
+  `--screen`, so you can use this in other widgets to access screen specific
+  information.
 
 ### Further insight into args in `open-many`
 
-Now due to the system behind processing the `open-many` `--arg` option you don't have to specify an id for each argument. If you do not, that argument will be applied across all windows e.g.
+Now due to the system behind processing the `open-many` `--arg` option you
+don't have to specify an id for each argument. If you do not, that argument
+will be applied across all windows e.g.
 
 ```bash
-eww open-many -c "~/.config/eww/bars" my_bar:primary my_bar:secondary --arg config="~/.config/eww/bars"
+eww open-many my_bar:primary my_bar:secondary --arg gui_size="small"
 ```
 
 This will mean the config is the same throughout the bars.
 
-Furthermore if you didn't specify an id for the window, you can still set args specifically for that window - following the idea that the id will be set to the window configuration if not given - by just using the name of the window configuration e.g.
+Furthermore if you didn't specify an id for the window, you can still set args
+specifically for that window - following the idea that the id will be set to
+the window configuration if not given - by just using the name of the window
+configuration e.g.
 
 ```bash
 eww open-many my_primary_bar --arg my_primary_bar:screen=0
