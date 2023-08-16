@@ -47,6 +47,7 @@ Supported currently are the following features:
 	- `matches(string, regex)`: check if a given string matches a given regex (returns bool)
 	- `captures(string, regex)`: Get the captures of a given regex in a string (returns array)
 	- `strlength(value)`: Gets the length of the string
+    - `substring(string, start, length)`: Return a substring of given length starting at the given index
 	- `arraylength(value)`: Gets the length of the array
 	- `objectlength(value)`: Gets the amount of entries in the object
 	- `jq(value, jq_filter_string)`: run a [jq](https://stedolan.github.io/jq/manual/) style command on a json value. (Uses [jaq](https://crates.io/crates/jaq) internally).

@@ -379,6 +379,18 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
             }
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
+        "substring" => match args.as_slice() {
+            [string, start, len] => {
+                let result: String = string
+                    .as_string()?
+                    .chars()
+                    .skip(start.as_i32()?.max(0) as usize)
+                    .take(len.as_i32()?.max(0) as usize)
+                    .collect();
+                Ok(DynVal::from(result))
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
         "search" => match args.as_slice() {
             [string, pattern] => {
                 use serde_json::Value;
