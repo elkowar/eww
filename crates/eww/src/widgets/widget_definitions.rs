@@ -999,9 +999,9 @@ fn build_circular_progress_bar(bargs: &mut BuilderArgs) -> Result<CircProg> {
     let w = CircProg::new();
     def_widget!(bargs, _g, w, {
         // @prop value - the value, between 0 - 100
-        prop(value: as_f64) { w.set_property("value", value); },
-        // @prop start-at - the angle that the circle should start at
-        prop(start_at: as_f64) { w.set_property("start-at", start_at); },
+        prop(value: as_f64) { w.set_property("value", value.clamp(0.0, 100.0)); },
+        // @prop start-at - the percentage that the circle should start at
+        prop(start_at: as_f64) { w.set_property("start-at", start_at.clamp(0.0, 100.0)); },
         // @prop thickness - the thickness of the circle
         prop(thickness: as_f64) { w.set_property("thickness", thickness); },
         // @prop clockwise - wether the progress bar spins clockwise or counter clockwise
