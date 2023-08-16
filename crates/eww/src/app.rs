@@ -115,7 +115,7 @@ pub struct App<B> {
     pub eww_config: config::EwwConfig,
     /// Map of all currently open windows
     pub open_windows: HashMap<String, EwwWindow>,
-    pub window_argumentss: HashMap<String, WindowArguments>,
+    pub instance_id_to_args: HashMap<String, WindowArguments>,
     /// Window names that are supposed to be open, but failed.
     /// When reloading the config, these should be opened again.
     pub failed_windows: HashSet<String>,
@@ -138,7 +138,7 @@ impl<B> std::fmt::Debug for App<B> {
             .field("eww_config", &self.eww_config)
             .field("open_windows", &self.open_windows)
             .field("failed_windows", &self.failed_windows)
-            .field("window_arguments", &self.window_argumentss)
+            .field("window_arguments", &self.instance_id_to_args)
             .field("paths", &self.paths)
             .finish()
     }
@@ -361,7 +361,7 @@ impl<B: DisplayBackend> App<B> {
             self.script_var_handler.stop_for_variable(unused_var.clone());
         }
 
-        self.window_argumentss.remove(instance_id);
+        self.instance_id_to_args.remove(instance_id);
 
         Ok(())
     }
@@ -376,7 +376,7 @@ impl<B: DisplayBackend> App<B> {
             self.close_window(instance_id)?;
         }
 
-        self.window_argumentss.insert(instance_id.to_string(), window_args.clone());
+        self.instance_id_to_args.insert(instance_id.to_string(), window_args.clone());
 
         let open_result: Result<_> = try {
             let window_name: &str = &window_args.window_name;
@@ -490,7 +490,7 @@ impl<B: DisplayBackend> App<B> {
         let open_window_ids: Vec<String> =
             self.open_windows.keys().cloned().chain(self.failed_windows.iter().cloned()).dedup().collect();
         for instance_id in &open_window_ids {
-            let window_arguments = self.window_argumentss.get(instance_id).with_context(|| {
+            let window_arguments = self.instance_id_to_args.get(instance_id).with_context(|| {
                 format!("Cannot reopen window, initial parameters were not saved correctly for {instance_id}")
             })?;
             self.open_window(&window_arguments.clone())?;
