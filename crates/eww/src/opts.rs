@@ -120,6 +120,10 @@ pub enum ActionWithServer {
         /// If the window is already open, close it instead
         #[arg(long = "toggle")]
         should_toggle: bool,
+
+        /// Automatically close the window after a specified amount of time, i.e.: 1s
+        #[arg(long, value_parser=parse_duration)]
+        duration: Option<std::time::Duration>,
     },
 
     /// Open multiple windows at once.
@@ -218,7 +222,7 @@ impl ActionWithServer {
             ActionWithServer::OpenMany { windows, should_toggle } => {
                 return with_response_channel(|sender| app::DaemonCommand::OpenMany { windows, should_toggle, sender });
             }
-            ActionWithServer::OpenWindow { window_name, pos, size, screen, anchor, should_toggle } => {
+            ActionWithServer::OpenWindow { window_name, pos, size, screen, anchor, should_toggle, duration } => {
                 return with_response_channel(|sender| app::DaemonCommand::OpenWindow {
                     window_name,
                     pos,
@@ -226,6 +230,7 @@ impl ActionWithServer {
                     anchor,
                     screen,
                     should_toggle,
+                    duration,
                     sender,
                 })
             }
@@ -253,4 +258,8 @@ where
 {
     let (sender, recv) = daemon_response::create_pair();
     (f(sender), Some(recv))
+}
+
+fn parse_duration(s: &str) -> Result<std::time::Duration, simplexpr::dynval::ConversionError> {
+    DynVal::from_string(s.to_owned()).as_duration()
 }

@@ -84,6 +84,7 @@ pub fn initialize_server<B: DisplayBackend>(
         css_provider: gtk::CssProvider::new(),
         script_var_handler,
         app_evt_send: ui_send.clone(),
+        window_close_timer_abort_senders: HashMap::new(),
         paths,
     };
 
