@@ -3,7 +3,7 @@ use crate::{
     daemon_response::DaemonResponseSender,
     display_backend::DisplayBackend,
     error_handling_ctx,
-    gtk::prelude::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt},
+    gtk::prelude::{ContainerExt, CssProviderExt, GtkWindowExt, MonitorExt, StyleContextExt, WidgetExt},
     paths::EwwPaths,
     script_var_handler::ScriptVarHandlerHandle,
     state::scope_graph::{ScopeGraph, ScopeIndex},
@@ -505,8 +505,7 @@ fn apply_window_position(
 }
 
 fn on_screen_changed(window: &gtk::Window, _old_screen: Option<&gdk::Screen>) {
-    let visual = window
-        .screen()
+    let visual = gtk::prelude::GtkWindowExt::screen(window)
         .and_then(|screen| screen.rgba_visual().filter(|_| screen.is_composited()).or_else(|| screen.system_visual()));
     window.set_visual(visual.as_ref());
 }

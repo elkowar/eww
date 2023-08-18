@@ -3,6 +3,7 @@ use std::{cell::RefCell, collections::VecDeque};
 // https://github.com/gtk-rs/examples/blob/master/src/bin/listbox_model.rs
 use anyhow::{anyhow, Result};
 use glib::{object_subclass, wrapper};
+use glib_macros::Properties;
 use gtk::{prelude::*, subclass::prelude::*};
 
 use crate::error_handling_ctx;
@@ -14,14 +15,30 @@ wrapper! {
     @extends gtk::Bin, gtk::Container, gtk::Widget;
 }
 
+#[derive(Properties)]
+#[properties(wrapper_type = Graph)]
 pub struct GraphPriv {
+    #[property(get, set, nick = "Value", blurb = "The value", minimum = 0f64, maximum = f64::MAX, default = 0f64)]
     value: RefCell<f64>,
+
+    #[property(get, set, nick = "Thickness", blurb = "The Thickness", minimum = 0f64, maximum = f64::MAX, default = 1f64)]
     thickness: RefCell<f64>,
+
+    #[property(get, set, nick = "Line Style", blurb = "The Line Style", default = "miter")]
     line_style: RefCell<String>,
+
+    #[property(get, set, nick = "Maximum Value", blurb = "The Maximum Value", minimum = 0f64, maximum = f64::MAX, default = 100f64)]
     min: RefCell<f64>,
+
+    #[property(get, set, nick = "Minumum Value", blurb = "The Minimum Value", minimum = 0f64, maximum = f64::MAX, default = 0f64)]
     max: RefCell<f64>,
+
+    #[property(get, set, nick = "Dynamic", blurb = "If it is dynamic", default = true)]
     dynamic: RefCell<bool>,
+
+    #[property(get, set, nick = "Time Range", blurb = "The Time Range", minimum = 0u64, maximum = u64::MAX, default = 10u64)]
     time_range: RefCell<u64>,
+
     history: RefCell<VecDeque<(std::time::Instant, f64)>>,
     extra_point: RefCell<Option<(std::time::Instant, f64)>>,
     last_updated_at: RefCell<std::time::Instant>,
@@ -65,67 +82,16 @@ impl GraphPriv {
 
 impl ObjectImpl for GraphPriv {
     fn properties() -> &'static [glib::ParamSpec] {
-        use once_cell::sync::Lazy;
-        static PROPERTIES: Lazy<Vec<glib::ParamSpec>> = Lazy::new(|| {
-            vec![
-                glib::ParamSpecDouble::new("value", "Value", "The value", 0f64, f64::MAX, 0f64, glib::ParamFlags::READWRITE),
-                glib::ParamSpecDouble::new(
-                    "thickness",
-                    "Thickness",
-                    "The Thickness",
-                    0f64,
-                    100f64,
-                    1f64,
-                    glib::ParamFlags::READWRITE,
-                ),
-                glib::ParamSpecDouble::new(
-                    "max",
-                    "Maximum Value",
-                    "The Maximum Value",
-                    0f64,
-                    f64::MAX,
-                    100f64,
-                    glib::ParamFlags::READWRITE,
-                ),
-                glib::ParamSpecDouble::new(
-                    "min",
-                    "Minumum Value",
-                    "The Minimum Value",
-                    0f64,
-                    f64::MAX,
-                    0f64,
-                    glib::ParamFlags::READWRITE,
-                ),
-                glib::ParamSpecBoolean::new("dynamic", "Dynamic", "If it is dynamic", true, glib::ParamFlags::READWRITE),
-                glib::ParamSpecUInt64::new(
-                    "time-range",
-                    "Time Range",
-                    "The Time Range",
-                    0u64,
-                    u64::MAX,
-                    10u64,
-                    glib::ParamFlags::READWRITE,
-                ),
-                glib::ParamSpecString::new(
-                    "line-style",
-                    "Line Style",
-                    "The Line Style",
-                    Some("miter"),
-                    glib::ParamFlags::READWRITE,
-                ),
-            ]
-        });
-
-        PROPERTIES.as_ref()
+        Self::derived_properties()
     }
 
-    fn set_property(&self, obj: &Self::Type, _id: usize, value: &glib::Value, pspec: &glib::ParamSpec) {
+    fn set_property(&self, _id: usize, value: &glib::Value, pspec: &glib::ParamSpec) {
         match pspec.name() {
             "value" => {
                 let value = value.get().unwrap();
                 self.value.replace(value);
                 self.update_history((std::time::Instant::now(), value));
-                obj.queue_draw();
+                self.obj().queue_draw();
             }
             "thickness" => {
                 self.thickness.replace(value.get().unwrap());
@@ -149,17 +115,8 @@ impl ObjectImpl for GraphPriv {
         }
     }
 
-    fn property(&self, _obj: &Self::Type, _id: usize, pspec: &glib::ParamSpec) -> glib::Value {
-        match pspec.name() {
-            "value" => self.value.borrow().to_value(),
-            "thickness" => self.thickness.borrow().to_value(),
-            "max" => self.max.borrow().to_value(),
-            "min" => self.min.borrow().to_value(),
-            "dynamic" => self.dynamic.borrow().to_value(),
-            "time-range" => self.time_range.borrow().to_value(),
-            "line-style" => self.line_style.borrow().to_value(),
-            x => panic!("Tried to access inexistant property of Graph: {}", x,),
-        }
+    fn property(&self, id: usize, pspec: &glib::ParamSpec) -> glib::Value {
+        self.derived_property(id, pspec)
     }
 }
 
@@ -183,37 +140,37 @@ impl Default for Graph {
 
 impl Graph {
     pub fn new() -> Self {
-        glib::Object::new::<Self>(&[]).expect("Failed to create Graph Widget")
+        glib::Object::new::<Self>()
     }
 }
 
 impl ContainerImpl for GraphPriv {
-    fn add(&self, _container: &Self::Type, _widget: &gtk::Widget) {
+    fn add(&self, _widget: &gtk::Widget) {
         error_handling_ctx::print_error(anyhow!("Error, Graph widget shoudln't have any children"));
     }
 }
 
 impl BinImpl for GraphPriv {}
 impl WidgetImpl for GraphPriv {
-    fn preferred_width(&self, _widget: &Self::Type) -> (i32, i32) {
+    fn preferred_width(&self) -> (i32, i32) {
         let thickness = *self.thickness.borrow() as i32;
         (thickness, thickness)
     }
 
-    fn preferred_width_for_height(&self, _widget: &Self::Type, height: i32) -> (i32, i32) {
+    fn preferred_width_for_height(&self, height: i32) -> (i32, i32) {
         (height, height)
     }
 
-    fn preferred_height(&self, _widget: &Self::Type) -> (i32, i32) {
+    fn preferred_height(&self) -> (i32, i32) {
         let thickness = *self.thickness.borrow() as i32;
         (thickness, thickness)
     }
 
-    fn preferred_height_for_width(&self, _widget: &Self::Type, width: i32) -> (i32, i32) {
+    fn preferred_height_for_width(&self, width: i32) -> (i32, i32) {
         (width, width)
     }
 
-    fn draw(&self, widget: &Self::Type, cr: &cairo::Context) -> Inhibit {
+    fn draw(&self, cr: &cairo::Context) -> Inhibit {
         let res: Result<()> = try {
             let history = &*self.history.borrow();
             let extra_point = *self.extra_point.borrow();
@@ -239,13 +196,13 @@ impl WidgetImpl for GraphPriv {
                 (min, max)
             };
 
-            let styles = widget.style_context();
+            let styles = self.obj().style_context();
             let (margin_top, margin_right, margin_bottom, margin_left) = {
                 let margin = styles.margin(gtk::StateFlags::NORMAL);
                 (margin.top as f64, margin.right as f64, margin.bottom as f64, margin.left as f64)
             };
-            let width = widget.allocated_width() as f64 - margin_left - margin_right;
-            let height = widget.allocated_height() as f64 - margin_top - margin_bottom;
+            let width = self.obj().allocated_width() as f64 - margin_left - margin_right;
+            let height = self.obj().allocated_height() as f64 - margin_top - margin_bottom;
 
             // Calculate graph points once
             //  Separating this into another function would require pasing a
