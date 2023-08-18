@@ -10,12 +10,8 @@ use yuck::{
     value::Coords,
 };
 
-pub fn extract_value_from_args(name: &str, args: &mut HashMap<VarName, DynVal>) -> Option<DynVal> {
-    args.remove(&VarName(name.to_string()))
-}
-
 fn parse_value_from_args<T: FromStr>(name: &str, args: &mut HashMap<VarName, DynVal>) -> Result<Option<T>, T::Err> {
-    extract_value_from_args(name, args).map(|x| FromStr::from_str(&x.as_string().unwrap())).transpose()
+    args.remove(&VarName(name.to_string())).map(|x| FromStr::from_str(&x.as_string().unwrap())).transpose()
 }
 
 /// This stores the arguments given in the command line to create a window
@@ -45,7 +41,7 @@ impl WindowArguments {
             size: parse_value_from_args::<Coords>("size", &mut args)?,
             monitor: parse_value_from_args::<MonitorIdentifier>("screen", &mut args)?,
             anchor: parse_value_from_args::<AnchorPoint>("anchor", &mut args)?,
-            duration: extract_value_from_args("duration", &mut args)
+            duration: parse_value_from_args::<DynVal>("duration", &mut args)?
                 .map(|x| x.as_duration())
                 .transpose()
                 .context("Not a valid duration")?,
