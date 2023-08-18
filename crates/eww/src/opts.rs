@@ -179,9 +179,13 @@ pub enum ActionWithServer {
     #[command(name = "get")]
     GetVar { name: String },
 
-    /// Print the names of all configured windows. Windows with a * in front of them are currently opened.
-    #[command(name = "windows")]
-    ShowWindows,
+    /// List the names of active windows
+    #[command(name = "list-windows")]
+    ListWindows,
+
+    /// Show active window IDs, formatted linewise `<window_id>: <window_name>`
+    #[command(name = "active-windows")]
+    ListActiveWindows,
 
     /// Print out the widget structure as seen by eww.
     ///
@@ -273,7 +277,8 @@ impl ActionWithServer {
                 return with_response_channel(|sender| app::DaemonCommand::CloseWindows { windows, sender });
             }
             ActionWithServer::Reload => return with_response_channel(app::DaemonCommand::ReloadConfigAndCss),
-            ActionWithServer::ShowWindows => return with_response_channel(app::DaemonCommand::PrintWindows),
+            ActionWithServer::ListWindows => return with_response_channel(app::DaemonCommand::ListWindows),
+            ActionWithServer::ListActiveWindows => return with_response_channel(app::DaemonCommand::ListActiveWindows),
             ActionWithServer::ShowState { all } => {
                 return with_response_channel(|sender| app::DaemonCommand::PrintState { all, sender })
             }

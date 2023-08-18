@@ -5,6 +5,9 @@ All notable changes to eww will be listed here, starting at changes since versio
 
 ## [Unreleased]
 
+### BREAKING CHANGES
+- Remove `eww windows` command, replace with `eww active-windows` and `eww list-windows`
+
 ### Features
 - Add `:namespace` window option
 - Default to building with x11 and wayland support simultaneously

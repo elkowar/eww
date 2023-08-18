@@ -79,7 +79,8 @@ pub enum DaemonCommand {
     },
     PrintDebug(DaemonResponseSender),
     PrintGraph(DaemonResponseSender),
-    PrintWindows(DaemonResponseSender),
+    ListWindows(DaemonResponseSender),
+    ListActiveWindows(DaemonResponseSender),
 }
 
 /// An opened window.
@@ -113,7 +114,7 @@ pub struct App<B> {
     pub display_backend: B,
     pub scope_graph: Rc<RefCell<ScopeGraph>>,
     pub eww_config: config::EwwConfig,
-    /// Map of all currently open windows
+    /// Map of all currently open windows by their IDs
     pub open_windows: HashMap<String, EwwWindow>,
     pub instance_id_to_args: HashMap<String, WindowArguments>,
     /// Window names that are supposed to be open, but failed.
@@ -270,16 +271,12 @@ impl<B: DisplayBackend> App<B> {
                         None => sender.send_failure(format!("Variable not found \"{}\"", name))?,
                     }
                 }
-                DaemonCommand::PrintWindows(sender) => {
-                    let output = self
-                        .eww_config
-                        .get_windows()
-                        .keys()
-                        .map(|window_name| {
-                            let is_open = self.open_windows.contains_key(window_name);
-                            format!("{}{}", if is_open { "*" } else { "" }, window_name)
-                        })
-                        .join("\n");
+                DaemonCommand::ListWindows(sender) => {
+                    let output = self.eww_config.get_windows().keys().join("\n");
+                    sender.send_success(output)?
+                }
+                DaemonCommand::ListActiveWindows(sender) => {
+                    let output = self.open_windows.iter().map(|(id, window)| format!("{id}: {}", window.name)).join("\n");
                     sender.send_success(output)?
                 }
                 DaemonCommand::PrintDebug(sender) => {
