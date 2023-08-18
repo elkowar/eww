@@ -826,8 +826,8 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
     def_widget!(bargs, _g, gtk_widget, {
         // @prop text - the text to display
         // @prop limit-width - maximum count of characters to display
-        // @prop truncate_left - whether to truncate on the left side
-        // @prop show_truncated - show whether the text was truncated
+        // @prop truncate-left - whether to truncate on the left side
+        // @prop show-truncated - show whether the text was truncated
         prop(text: as_string, limit_width: as_i32 = i32::MAX, truncate_left: as_bool = false, show_truncated: as_bool = true) {
             let limit_width = limit_width as usize;
             let char_count = text.chars().count();
@@ -984,9 +984,9 @@ fn build_transform(bargs: &mut BuilderArgs) -> Result<Transform> {
         prop(translate_x: as_string) { w.set_property("translate-x", translate_x); },
         // @prop translate-y - the amount to translate in the y direction (px or %)
         prop(translate_y: as_string) { w.set_property("translate-y", translate_y); },
-        // @prop scale_x - the amount to scale in the x direction (px or %)
+        // @prop scale-x - the amount to scale in the x direction (px or %)
         prop(scale_x: as_string) { w.set_property("scale-x", scale_x); },
-        // @prop scale_y - the amount to scale in the y direction (px or %)
+        // @prop scale-y - the amount to scale in the y direction (px or %)
         prop(scale_y: as_string) { w.set_property("scale-y", scale_y); },
     });
     Ok(w)
