@@ -79,31 +79,34 @@ pub fn spawn_systray(menubar: &gtk::MenuBar, props: &Props) {
 impl notifier_host::Host for Tray {
     fn add_item(&mut self, id: &str, item: notifier_host::Item) {
         let item = Item::new(id.to_owned(), item, self.icon_size.clone());
-        self.menubar.add(&item.mi);
+        self.menubar.add(&item.widget);
         if let Some(old_item) = self.items.insert(id.to_string(), item) {
-            self.menubar.remove(&old_item.mi);
+            self.menubar.remove(&old_item.widget);
         }
     }
 
     fn remove_item(&mut self, id: &str) {
         if let Some(item) = self.items.get(id) {
-            self.menubar.remove(&item.mi);
+            self.menubar.remove(&item.widget);
         } else {
             log::warn!("Tried to remove nonexistent item {:?} from systray", id);
         }
     }
 }
 
+/// Item represents a single icon being shown in the system tray.
 struct Item {
-    mi: gtk::MenuItem,
+    /// Main widget representing this tray item.
+    widget: gtk::MenuItem,
 
+    /// Async tasks to stop when this item gets removed.
     tasks: Vec<glib::SourceId>,
 }
 
 impl Drop for Item {
     fn drop(&mut self) {
         for task in self.tasks.drain(..) {
-            // TODO does this abort the task
+            // TODO verify that this does indeed stop the task
             task.remove();
         }
     }
@@ -111,20 +114,20 @@ impl Drop for Item {
 
 impl Item {
     fn new(id: String, item: notifier_host::Item, mut icon_size: tokio::sync::watch::Receiver<i32>) -> Self {
-        let mi = gtk::MenuItem::new();
-        let mut out = Self { mi: mi.clone(), tasks: Vec::new() };
+        let widget = gtk::MenuItem::new();
+        let mut out = Self { widget: widget.clone(), tasks: Vec::new() };
 
         out.spawn(async move {
             // TODO don't unwrap so much
 
             // init icon
             let icon = gtk::Image::new();
-            mi.add(&icon);
+            widget.add(&icon);
             icon.show();
 
             // init menu
             match item.menu().await {
-                Ok(m) => mi.set_submenu(Some(&m)),
+                Ok(m) => widget.set_submenu(Some(&m)),
                 Err(e) => log::warn!("failed to get menu of {}: {}", id, e),
             }
 
@@ -133,12 +136,12 @@ impl Item {
 
             // set status
             match item.status().await.unwrap() {
-                notifier_host::Status::Passive => mi.hide(),
-                notifier_host::Status::Active | notifier_host::Status::NeedsAttention => mi.show(),
+                notifier_host::Status::Passive => widget.hide(),
+                notifier_host::Status::Active | notifier_host::Status::NeedsAttention => widget.show(),
             }
 
             // set title
-            mi.set_tooltip_text(Some(&item.sni.title().await.unwrap()));
+            widget.set_tooltip_text(Some(&item.sni.title().await.unwrap()));
 
             // set icon
             icon.set_from_pixbuf(item.icon(*icon_size.borrow_and_update()).await.as_ref());
@@ -152,8 +155,8 @@ impl Item {
                     Some(_) = status_updates.next() => {
                         // set status
                         match item.status().await.unwrap() {
-                            notifier_host::Status::Passive => mi.hide(),
-                            notifier_host::Status::Active | notifier_host::Status::NeedsAttention => mi.show(),
+                            notifier_host::Status::Passive => widget.hide(),
+                            notifier_host::Status::Active | notifier_host::Status::NeedsAttention => widget.show(),
                         }
                     }
                     Ok(_) = icon_size.changed() => {
@@ -162,7 +165,7 @@ impl Item {
                     }
                     Some(_) = title_updates.next() => {
                         // set title
-                        mi.set_tooltip_text(Some(&item.sni.title().await.unwrap()));
+                        widget.set_tooltip_text(Some(&item.sni.title().await.unwrap()));
                     }
                 }
             }
