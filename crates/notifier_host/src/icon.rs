@@ -127,7 +127,7 @@ pub async fn load_icon_from_sni(sni: &dbus::StatusNotifierItemProxy<'_>, size: i
         let icon_name = sni.icon_name().await;
         log::debug!("dbus: {} icon_name -> {:?}", sni.destination(), icon_name);
         let icon_name = match icon_name {
-            Ok(s) if s == "" => return Err(IconError::NotAvailable),
+            Ok(s) if s.is_empty() => return Err(IconError::NotAvailable),
             Ok(s) => s,
             Err(e) => return Err(IconError::DBusIconName(e)),
         };
@@ -143,7 +143,7 @@ pub async fn load_icon_from_sni(sni: &dbus::StatusNotifierItemProxy<'_>, size: i
         let icon_theme_path = sni.icon_theme_path().await;
         log::debug!("dbus: {} icon_theme_path -> {:?}", sni.destination(), icon_theme_path);
         let icon_theme_path = match icon_theme_path {
-            Ok(p) if p == "" => None,
+            Ok(p) if p.is_empty() => None,
             Ok(p) => Some(p),
             // treat property not existing as the same as it being empty i.e. to use the default
             // system theme
@@ -155,11 +155,12 @@ pub async fn load_icon_from_sni(sni: &dbus::StatusNotifierItemProxy<'_>, size: i
             },
             Err(e) => return Err(IconError::DBusTheme(e)),
         };
+
         let icon_theme_path: Option<&str> = match &icon_theme_path {
-            Some(s) => Some(&s),
+            // this looks weird but this converts &String to &str
+            Some(s) => Some(s),
             None => None,
         };
-
         icon_from_name(&icon_name, icon_theme_path, size)
     })
     .await;

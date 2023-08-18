@@ -1,14 +1,14 @@
 use zbus::{dbus_interface, export::ordered_stream::OrderedStreamExt, Interface};
 
-pub const WATCHER_BUS_NAME: &'static str = "org.kde.StatusNotifierWatcher";
-pub const WATCHER_OBJECT_NAME: &'static str = "/StatusNotifierWatcher";
+pub const WATCHER_BUS_NAME: &str = "org.kde.StatusNotifierWatcher";
+pub const WATCHER_OBJECT_NAME: &str = "/StatusNotifierWatcher";
 
 async fn parse_service<'a>(
     service: &'a str,
     hdr: zbus::MessageHeader<'_>,
     con: &zbus::Connection,
 ) -> zbus::fdo::Result<(zbus::names::UniqueName<'static>, &'a str)> {
-    if service.starts_with("/") {
+    if service.starts_with('/') {
         // they sent us just the object path :(
         if let Some(sender) = hdr.sender()? {
             Ok((sender.to_owned(), service))
@@ -28,7 +28,7 @@ async fn parse_service<'a>(
         if let zbus::names::BusName::Unique(unique) = busname {
             Ok((unique.to_owned(), "/StatusNotifierItem"))
         } else {
-            let dbus = zbus::fdo::DBusProxy::new(&con).await?;
+            let dbus = zbus::fdo::DBusProxy::new(con).await?;
             match dbus.get_name_owner(busname).await {
                 Ok(owner) => Ok((owner.into_inner(), "/StatusNotifierItem")),
                 Err(e) => {

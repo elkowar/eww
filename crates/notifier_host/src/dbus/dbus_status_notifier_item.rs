@@ -9,6 +9,9 @@
 //! [Writing a client proxy](https://dbus.pages.freedesktop.org/zbus/client.html)
 //! section of the zbus documentation.
 
+// suppress warning from generated code
+#![allow(clippy::type_complexity)]
+
 use zbus::dbus_proxy;
 
 #[dbus_proxy(interface = "org.kde.StatusNotifierItem", assume_defaults = true)]

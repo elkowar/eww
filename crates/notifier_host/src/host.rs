@@ -34,8 +34,8 @@ pub async fn register_to_watcher(
     name: &zbus::names::WellKnownName<'_>,
 ) -> zbus::Result<dbus::StatusNotifierWatcherProxy<'static>> {
     // register ourself to StatusNotifierWatcher
-    let snw = dbus::StatusNotifierWatcherProxy::new(&con).await?;
-    snw.register_status_notifier_host(&name).await?;
+    let snw = dbus::StatusNotifierWatcherProxy::new(con).await?;
+    snw.register_status_notifier_host(name).await?;
     Ok(snw)
 }
 

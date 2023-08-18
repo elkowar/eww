@@ -68,7 +68,7 @@ struct Tray {
 pub fn spawn_systray(menubar: &gtk::MenuBar, props: &Props) {
     let mut systray = Tray { menubar: menubar.clone(), items: Default::default(), icon_size: props.icon_size_tx.subscribe() };
 
-    // TODO when does this task die?
+    // TODO stop this task when systray is disabled
     glib::MainContext::default().spawn_local(async move {
         let s = &dbus_state().await;
         systray.menubar.show();

@@ -46,7 +46,7 @@ fn split_service_name(service: &str) -> zbus::Result<(String, String)> {
         Ok((addr.to_owned(), format!("/{}", path)))
     } else if service.contains(':') {
         // TODO why?
-        let addr = service.split(':').skip(1).next();
+        let addr = service.split(':').nth(1);
         // Some StatusNotifierItems will not return an object path, in that case we fallback
         // to the default path.
         if let Some(addr) = addr {
