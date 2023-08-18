@@ -1,12 +1,10 @@
-#![allow(unused)]
-
 use gtk::prelude::*;
 use notifier_host::{self, export::ordered_stream::OrderedStreamExt};
 
 // DBus state shared between systray instances, to avoid creating too many connections etc.
 struct DBusGlobalState {
-    con: zbus::Connection,
-    name: zbus::names::WellKnownName<'static>,
+    // con: zbus::Connection,
+    // name: zbus::names::WellKnownName<'static>,
     snw: notifier_host::dbus::StatusNotifierWatcherProxy<'static>,
 }
 
@@ -27,7 +25,11 @@ async fn dbus_state() -> std::sync::Arc<DBusGlobalState> {
         let name = notifier_host::attach_new_wellknown_name(&con).await.unwrap();
         let snw = notifier_host::register_to_watcher(&con, &name).await.unwrap();
 
-        let arc = Arc::new(DBusGlobalState { con, name, snw });
+        let arc = Arc::new(DBusGlobalState {
+            // con,
+            // name,
+            snw,
+        });
         *dbus_state = Arc::downgrade(&arc);
 
         arc
@@ -139,7 +141,7 @@ impl Item {
             mi.set_tooltip_text(Some(&item.sni.title().await.unwrap()));
 
             // set icon
-            icon.set_from_pixbuf(Some(&item.icon(*icon_size.borrow_and_update()).await));
+            icon.set_from_pixbuf(item.icon(*icon_size.borrow_and_update()).await.as_ref());
 
             // updates
             let mut status_updates = item.sni.receive_new_status().await.unwrap();
@@ -156,7 +158,7 @@ impl Item {
                     }
                     Ok(_) = icon_size.changed() => {
                         // set icon
-                        icon.set_from_pixbuf(Some(&item.icon(*icon_size.borrow_and_update()).await));
+                        icon.set_from_pixbuf(item.icon(*icon_size.borrow_and_update()).await.as_ref());
                     }
                     Some(_) = title_updates.next() => {
                         // set title

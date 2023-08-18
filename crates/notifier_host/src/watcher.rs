@@ -28,8 +28,7 @@ async fn parse_service<'a>(
         if let zbus::names::BusName::Unique(unique) = busname {
             Ok((unique.to_owned(), "/StatusNotifierItem"))
         } else {
-            // unwrap: we should always be able to access the dbus interface
-            let dbus = zbus::fdo::DBusProxy::new(&con).await.unwrap();
+            let dbus = zbus::fdo::DBusProxy::new(&con).await?;
             match dbus.get_name_owner(busname).await {
                 Ok(owner) => Ok((owner.into_inner(), "/StatusNotifierItem")),
                 Err(e) => {
@@ -66,6 +65,11 @@ async fn wait_for_service_exit(connection: zbus::Connection, service: zbus::name
 #[derive(Debug, Default)]
 pub struct Watcher {
     tasks: tokio::task::JoinSet<()>,
+
+    // NOTE Intentionally using std::sync::Mutex instead of tokio's async mutex, since we don't
+    // need to hold the mutex across an await.
+    //
+    // See <https://docs.rs/tokio/latest/tokio/sync/struct.Mutex.html#which-kind-of-mutex-should-you-use>
     hosts: std::sync::Arc<std::sync::Mutex<std::collections::HashSet<String>>>,
     items: std::sync::Arc<std::sync::Mutex<std::collections::HashSet<String>>>,
 }
@@ -85,7 +89,7 @@ impl Watcher {
 
         let added_first = {
             // scoped around locking of hosts
-            let mut hosts = self.hosts.lock().unwrap();
+            let mut hosts = self.hosts.lock().unwrap(); // unwrap: mutex poisoning is okay
             if !hosts.insert(service.to_string()) {
                 // we're already tracking them
                 return Ok(());
@@ -103,19 +107,25 @@ impl Watcher {
             let ctxt = ctxt.to_owned();
             let con = con.to_owned();
             async move {
-                wait_for_service_exit(con.clone(), service.as_ref().into()).await.unwrap();
+                if let Err(e) = wait_for_service_exit(con.clone(), service.as_ref().into()).await {
+                    log::error!("failed to wait for service exit: {}", e);
+                }
                 log::info!("lost host: {}", service);
 
                 let removed_last = {
-                    let mut hosts = hosts.lock().unwrap();
+                    let mut hosts = hosts.lock().unwrap(); // unwrap: mutex poisoning is okay
                     let did_remove = hosts.remove(service.as_str());
                     did_remove && hosts.is_empty()
                 };
 
                 if removed_last {
-                    Watcher::is_status_notifier_host_registered_refresh(&ctxt).await.unwrap();
+                    if let Err(e) = Watcher::is_status_notifier_host_registered_refresh(&ctxt).await {
+                        log::error!("failed to signal Watcher: {}", e);
+                    }
                 }
-                Watcher::status_notifier_host_unregistered(&ctxt).await.unwrap();
+                if let Err(e) = Watcher::status_notifier_host_unregistered(&ctxt).await {
+                    log::error!("failed to signal Watcher: {}", e);
+                }
             }
         });
 
@@ -133,7 +143,7 @@ impl Watcher {
     /// IsStatusNotifierHostRegistered property
     #[dbus_interface(property)]
     async fn is_status_notifier_host_registered(&self) -> bool {
-        let hosts = self.hosts.lock().unwrap();
+        let hosts = self.hosts.lock().unwrap(); // unwrap: mutex poisoning is okay
         !hosts.is_empty()
     }
 
@@ -153,7 +163,7 @@ impl Watcher {
         let item = format!("{}{}", service, objpath);
 
         {
-            let mut items = self.items.lock().unwrap();
+            let mut items = self.items.lock().unwrap(); // unwrap: mutex poisoning is okay
             if !items.insert(item.clone()) {
                 // we're already tracking them
                 log::info!("new item: {} (duplicate)", item);
@@ -170,16 +180,22 @@ impl Watcher {
             let ctxt = ctxt.to_owned();
             let con = con.to_owned();
             async move {
-                wait_for_service_exit(con.clone(), service.as_ref()).await.unwrap();
+                if let Err(e) = wait_for_service_exit(con.clone(), service.as_ref()).await {
+                    log::error!("failed to wait for service exit: {}", e);
+                }
                 println!("gone item: {}", &item);
 
                 {
-                    let mut items = items.lock().unwrap();
+                    let mut items = items.lock().unwrap(); // unwrap: mutex poisoning is okay
                     items.remove(&item);
                 }
 
-                Watcher::registered_status_notifier_items_refresh(&ctxt).await.unwrap();
-                Watcher::status_notifier_item_unregistered(&ctxt, item.as_ref()).await.unwrap();
+                if let Err(e) = Watcher::registered_status_notifier_items_refresh(&ctxt).await {
+                    log::error!("failed to signal Watcher: {}", e);
+                }
+                if let Err(e) = Watcher::status_notifier_item_unregistered(&ctxt, item.as_ref()).await {
+                    log::error!("failed to signal Watcher: {}", e);
+                }
             }
         });
 
@@ -197,7 +213,7 @@ impl Watcher {
     /// RegisteredStatusNotifierItems property
     #[dbus_interface(property)]
     async fn registered_status_notifier_items(&self) -> Vec<String> {
-        let items = self.items.lock().unwrap();
+        let items = self.items.lock().unwrap(); // unwrap: mutex poisoning is okay
         items.iter().cloned().collect()
     }
 

@@ -28,16 +28,15 @@ pub enum IconError {
 }
 
 /// Get the fallback GTK icon
-pub async fn fallback_icon(size: i32) -> gtk::gdk_pixbuf::Pixbuf {
+pub async fn fallback_icon(size: i32) -> Option<gtk::gdk_pixbuf::Pixbuf> {
     let theme = gtk::IconTheme::default().expect("Could not get default gtk theme");
-    return match theme.load_icon("image-missing", size, gtk::IconLookupFlags::FORCE_SIZE) {
+    match theme.load_icon("image-missing", size, gtk::IconLookupFlags::FORCE_SIZE) {
+        Ok(pb) => pb,
         Err(e) => {
             log::error!("failed to load \"image-missing\" from default theme: {}", e);
-            // create a blank pixbuf
-            gtk::gdk_pixbuf::Pixbuf::new(gtk::gdk_pixbuf::Colorspace::Rgb, false, 0, size, size).unwrap()
+            None
         }
-        Ok(pb) => pb.unwrap(),
-    };
+    }
 }
 
 /// Load a pixbuf from StatusNotifierItem's [Icon format].
@@ -46,7 +45,7 @@ pub async fn fallback_icon(size: i32) -> gtk::gdk_pixbuf::Pixbuf {
 fn icon_from_pixmap(width: i32, height: i32, mut data: Vec<u8>) -> gtk::gdk_pixbuf::Pixbuf {
     // We need to convert data from ARGB32 to RGBA32, since that's the only one that gdk-pixbuf
     // understands.
-    for chunk in data.chunks_mut(4) {
+    for chunk in data.chunks_exact_mut(4) {
         let a = chunk[0];
         let r = chunk[1];
         let g = chunk[2];
@@ -86,12 +85,12 @@ fn icon_from_pixmaps(pixmaps: Vec<(i32, i32, Vec<u8>)>, size: i32) -> Option<gtk
                 (false, false) => a1.cmp(&a2),
             }
         })
-        .map(|(w, h, d)| {
+        .and_then(|(w, h, d)| {
             let pixbuf = icon_from_pixmap(w, h, d);
             if w != size || h != size {
-                pixbuf.scale_simple(size, size, gtk::gdk_pixbuf::InterpType::Bilinear).unwrap()
+                pixbuf.scale_simple(size, size, gtk::gdk_pixbuf::InterpType::Bilinear)
             } else {
-                pixbuf
+                Some(pixbuf)
             }
         })
 }
@@ -119,7 +118,7 @@ fn icon_from_name(
     }
 }
 
-pub async fn load_icon_from_sni(sni: &dbus::StatusNotifierItemProxy<'_>, size: i32) -> gtk::gdk_pixbuf::Pixbuf {
+pub async fn load_icon_from_sni(sni: &dbus::StatusNotifierItemProxy<'_>, size: i32) -> Option<gtk::gdk_pixbuf::Pixbuf> {
     // "Visualizations are encouraged to prefer icon names over icon pixmaps if both are
     // available."
 
@@ -165,7 +164,7 @@ pub async fn load_icon_from_sni(sni: &dbus::StatusNotifierItemProxy<'_>, size: i
     })
     .await;
     match icon_from_name {
-        Ok(p) => return p,
+        Ok(p) => return Some(p),
         Err(IconError::NotAvailable) => {} // try pixbuf
         // log and continue
         Err(e) => log::warn!("failed to get icon by name for {}: {}", sni.destination(), e),
@@ -187,7 +186,7 @@ pub async fn load_icon_from_sni(sni: &dbus::StatusNotifierItemProxy<'_>, size: i
         Err(e) => Err(IconError::DBusPixmap(e)),
     };
     match icon_from_pixmaps {
-        Ok(p) => return p,
+        Ok(p) => return Some(p),
         Err(IconError::NotAvailable) => {}
         Err(e) => log::warn!("failed to get icon pixmap for {}: {}", sni.destination(), e),
     };
