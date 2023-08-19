@@ -77,8 +77,7 @@ impl WindowArguments {
         }
 
         if local_variables.len() != window_def.expected_args.len() {
-            let unexpected_vars: Vec<_> =
-                local_variables.iter().map(|(name, _)| name.clone()).filter(|n| !expected_args.contains(&n.0)).collect();
+            let unexpected_vars: Vec<_> = local_variables.keys().cloned().filter(|n| !expected_args.contains(&n.0)).collect();
             bail!(
                 "variables {} unexpectedly defined when creating window with id '{}'",
                 unexpected_vars.join(", "),

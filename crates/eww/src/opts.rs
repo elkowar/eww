@@ -226,7 +226,7 @@ fn parse_window_id_args(s: &str) -> Result<(String, VarName, DynVal)> {
     // Parse the = first so we know if an id has not been given
     let (name, value) = parse_var_update_arg(s)?;
 
-    let (id, var_name) = (&name.0).split_once(':').unwrap_or((&"", &name.0));
+    let (id, var_name) = name.0.split_once(':').unwrap_or(("", &name.0));
 
     Ok((id.to_string(), var_name.into(), value))
 }
