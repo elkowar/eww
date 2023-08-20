@@ -130,7 +130,7 @@ As you may have noticed, we are using a couple predefined widgets here. These ar
 
 
 ### Rendering children in your widgets
-As your configuration grows, you might want to improve the structure of you config by factoring out functionality into basic reusable widgets.
+As your configuration grows, you might want to improve the structure of your config by factoring out functionality into basic reusable widgets.
 Eww allows you to create custom wrapper widgets that can themselves take children, just like some of the built-in widgets like `box` or `button` can.
 For this, use the `children` placeholder:
 ```lisp
