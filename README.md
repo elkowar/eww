@@ -32,11 +32,7 @@ I've hit a bit of a design roadblock for one of the bigger features that are in 
 
 * [Vertical Bar by Rxyhn](https://github.com/rxyhn/bspdots)
 
-<div align="left">
-
 ![Rxyhn-rice](https://user-images.githubusercontent.com/93292023/152228869-d618335a-7a1e-40f7-95f9-b1cf401be89e.gif)
-
-</div>
 
 * [Setup by Axarva](https://github.com/Axarva/dotfiles-2.0)
 ![Axarva-rice](https://raw.githubusercontent.com/Axarva/dotfiles-2.0/main/screenshots/center.png)
