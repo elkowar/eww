@@ -2,38 +2,32 @@ use gtk::prelude::*;
 use notifier_host::{self, export::ordered_stream::OrderedStreamExt};
 
 // DBus state shared between systray instances, to avoid creating too many connections etc.
-struct DBusGlobalState {
+struct DBusSession {
     // con: zbus::Connection,
     // name: zbus::names::WellKnownName<'static>,
     snw: notifier_host::dbus::StatusNotifierWatcherProxy<'static>,
 }
 
-async fn dbus_state() -> std::sync::Arc<DBusGlobalState> {
-    use once_cell::sync::Lazy;
-    use std::sync::{Arc, Weak};
-    use tokio::sync::Mutex;
-    static DBUS_STATE: Lazy<Mutex<Weak<DBusGlobalState>>> = Lazy::new(Default::default);
+async fn dbus_session() -> zbus::Result<&'static DBusSession> {
+    // TODO make DBusSession reference counted so it's dropped when not in use?
 
-    let mut dbus_state = DBUS_STATE.lock().await;
-    if let Some(state) = dbus_state.upgrade() {
-        state
-    } else {
-        // TODO error handling?
-        let con = zbus::Connection::session().await.unwrap();
-        notifier_host::Watcher::new().attach_to(&con).await.unwrap();
+    static DBUS_STATE: tokio::sync::OnceCell<DBusSession> = tokio::sync::OnceCell::const_new();
+    DBUS_STATE
+        .get_or_try_init(|| async {
+            // TODO error handling?
+            let con = zbus::Connection::session().await?;
+            notifier_host::Watcher::new().attach_to(&con).await?;
 
-        let name = notifier_host::attach_new_wellknown_name(&con).await.unwrap();
-        let snw = notifier_host::register_to_watcher(&con, &name).await.unwrap();
+            let name = notifier_host::attach_new_wellknown_name(&con).await?;
+            let snw = notifier_host::register_to_watcher(&con, &name).await?;
 
-        let arc = Arc::new(DBusGlobalState {
-            // con,
-            // name,
-            snw,
-        });
-        *dbus_state = Arc::downgrade(&arc);
-
-        arc
-    }
+            Ok(DBusSession {
+                // con,
+                // name,
+                snw,
+            })
+        })
+        .await
 }
 
 pub struct Props {
@@ -69,7 +63,14 @@ pub fn spawn_systray(menubar: &gtk::MenuBar, props: &Props) {
     let mut systray = Tray { menubar: menubar.clone(), items: Default::default(), icon_size: props.icon_size_tx.subscribe() };
 
     let task = glib::MainContext::default().spawn_local(async move {
-        let s = &dbus_state().await;
+        let s = match dbus_session().await {
+            Ok(x) => x,
+            Err(e) => {
+                log::error!("could not initialise dbus connection for tray: {}", e);
+                return;
+            }
+        };
+
         systray.menubar.show();
         if let Err(e) = notifier_host::run_host_forever(&mut systray, &s.snw).await {
             log::error!("notifier host error: {}", e);
@@ -128,10 +129,7 @@ impl Item {
             }
         });
 
-        Self {
-            widget: out_widget,
-            task: Some(task),
-        }
+        Self { widget: out_widget, task: Some(task) }
     }
 
     async fn maintain(
