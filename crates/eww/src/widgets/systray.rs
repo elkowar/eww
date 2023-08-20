@@ -68,11 +68,17 @@ struct Tray {
 pub fn spawn_systray(menubar: &gtk::MenuBar, props: &Props) {
     let mut systray = Tray { menubar: menubar.clone(), items: Default::default(), icon_size: props.icon_size_tx.subscribe() };
 
-    // TODO stop this task when systray is disabled
-    glib::MainContext::default().spawn_local(async move {
+    let task = glib::MainContext::default().spawn_local(async move {
         let s = &dbus_state().await;
         systray.menubar.show();
-        notifier_host::run_host_forever(&mut systray, &s.snw).await.unwrap();
+        if let Err(e) = notifier_host::run_host_forever(&mut systray, &s.snw).await {
+            log::error!("notifier host error: {}", e);
+        }
+    });
+
+    // stop the task when the widget is dropped
+    menubar.connect_destroy(move |_| {
+        task.abort();
     });
 }
 
@@ -99,82 +105,88 @@ struct Item {
     /// Main widget representing this tray item.
     widget: gtk::MenuItem,
 
-    /// Async tasks to stop when this item gets removed.
-    tasks: Vec<glib::SourceId>,
+    /// Async task to stop when this item gets removed.
+    task: Option<glib::JoinHandle<()>>,
 }
 
 impl Drop for Item {
     fn drop(&mut self) {
-        for task in self.tasks.drain(..) {
-            // TODO verify that this does indeed stop the task
-            task.remove();
+        if let Some(task) = &self.task {
+            task.abort();
         }
     }
 }
 
 impl Item {
-    fn new(id: String, item: notifier_host::Item, mut icon_size: tokio::sync::watch::Receiver<i32>) -> Self {
+    fn new(id: String, item: notifier_host::Item, icon_size: tokio::sync::watch::Receiver<i32>) -> Self {
         let widget = gtk::MenuItem::new();
-        let mut out = Self { widget: widget.clone(), tasks: Vec::new() };
+        let out_widget = widget.clone(); // copy so we can return it
 
-        out.spawn(async move {
-            // TODO don't unwrap so much
-
-            // init icon
-            let icon = gtk::Image::new();
-            widget.add(&icon);
-            icon.show();
-
-            // init menu
-            match item.menu().await {
-                Ok(m) => widget.set_submenu(Some(&m)),
-                Err(e) => log::warn!("failed to get menu of {}: {}", id, e),
-            }
-
-            // TODO this is a lot of code duplication unfortunately, i'm not really sure how to
-            // refactor without making the borrow checker angry
-
-            // set status
-            match item.status().await.unwrap() {
-                notifier_host::Status::Passive => widget.hide(),
-                notifier_host::Status::Active | notifier_host::Status::NeedsAttention => widget.show(),
-            }
-
-            // set title
-            widget.set_tooltip_text(Some(&item.sni.title().await.unwrap()));
-
-            // set icon
-            icon.set_from_pixbuf(item.icon(*icon_size.borrow_and_update()).await.as_ref());
-
-            // updates
-            let mut status_updates = item.sni.receive_new_status().await.unwrap();
-            let mut title_updates = item.sni.receive_new_status().await.unwrap();
-
-            loop {
-                tokio::select! {
-                    Some(_) = status_updates.next() => {
-                        // set status
-                        match item.status().await.unwrap() {
-                            notifier_host::Status::Passive => widget.hide(),
-                            notifier_host::Status::Active | notifier_host::Status::NeedsAttention => widget.show(),
-                        }
-                    }
-                    Ok(_) = icon_size.changed() => {
-                        // set icon
-                        icon.set_from_pixbuf(item.icon(*icon_size.borrow_and_update()).await.as_ref());
-                    }
-                    Some(_) = title_updates.next() => {
-                        // set title
-                        widget.set_tooltip_text(Some(&item.sni.title().await.unwrap()));
-                    }
-                }
+        let task = glib::MainContext::default().spawn_local(async move {
+            if let Err(e) = Item::maintain(widget.clone(), item, icon_size).await {
+                log::error!("error for systray item {}: {}", id, e);
             }
         });
 
-        out
+        Self {
+            widget: out_widget,
+            task: Some(task),
+        }
     }
 
-    fn spawn(&mut self, f: impl std::future::Future<Output = ()> + 'static) {
-        self.tasks.push(glib::MainContext::default().spawn_local(f));
+    async fn maintain(
+        widget: gtk::MenuItem,
+        item: notifier_host::Item,
+        mut icon_size: tokio::sync::watch::Receiver<i32>,
+    ) -> zbus::Result<()> {
+        // init icon
+        let icon = gtk::Image::new();
+        widget.add(&icon);
+        icon.show();
+
+        // init menu
+        match item.menu().await {
+            Ok(m) => widget.set_submenu(Some(&m)),
+            Err(e) => log::warn!("failed to get menu: {}", e),
+        }
+
+        // TODO this is a lot of code duplication unfortunately, i'm not really sure how to
+        // refactor without making the borrow checker angry
+
+        // set status
+        match item.status().await? {
+            notifier_host::Status::Passive => widget.hide(),
+            notifier_host::Status::Active | notifier_host::Status::NeedsAttention => widget.show(),
+        }
+
+        // set title
+        widget.set_tooltip_text(Some(&item.sni.title().await?));
+
+        // set icon
+        icon.set_from_pixbuf(item.icon(*icon_size.borrow_and_update()).await.as_ref());
+
+        // updates
+        let mut status_updates = item.sni.receive_new_status().await?;
+        let mut title_updates = item.sni.receive_new_status().await?;
+
+        loop {
+            tokio::select! {
+                Some(_) = status_updates.next() => {
+                    // set status
+                    match item.status().await? {
+                        notifier_host::Status::Passive => widget.hide(),
+                        notifier_host::Status::Active | notifier_host::Status::NeedsAttention => widget.show(),
+                    }
+                }
+                Ok(_) = icon_size.changed() => {
+                    // set icon
+                    icon.set_from_pixbuf(item.icon(*icon_size.borrow_and_update()).await.as_ref());
+                }
+                Some(_) = title_updates.next() => {
+                    // set title
+                    widget.set_tooltip_text(Some(&item.sni.title().await?));
+                }
+            }
+        }
     }
 }
