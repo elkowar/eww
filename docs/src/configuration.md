@@ -79,9 +79,9 @@ Depending on if you are using X11 or Wayland, some additional properties exist:
 |    Property | Description                                                  |
 | ----------: | ------------------------------------------------------------ |
 |  `stacking` | Where the window should appear in the stack. Possible values: `fg`, `bg`, `overlay`, `bottom`. |
-| `exclusive` | Whether the compositor should reserve space for the window automatically. |
-| `focusable` | Whether the window should be able to be focused. This is necessary for any widgets that use the keyboard to work. |
-| `namespace` | Set the wayland layersurface namespace eww uses |
+| `exclusive` | Whether the compositor should reserve space for the window automatically. Either `true` or `false`. |
+| `focusable` | Whether the window should be able to be focused. This is necessary for any widgets that use the keyboard to work. Either `true` or `false`. |
+| `namespace` | Set the wayland layersurface namespace eww uses. Accepts a `string` value. |
 
 
 
