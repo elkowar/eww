@@ -3,7 +3,7 @@ use crate::{
     daemon_response::DaemonResponseSender,
     display_backend::DisplayBackend,
     error_handling_ctx,
-    gtk::prelude::{ContainerExt, CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt},
+    gtk::prelude::{ContainerExt, CssProviderExt, GtkWindowExt, MonitorExt, StyleContextExt, WidgetExt},
     paths::EwwPaths,
     script_var_handler::ScriptVarHandlerHandle,
     state::scope_graph::{ScopeGraph, ScopeIndex},
@@ -55,6 +55,7 @@ pub enum DaemonCommand {
         anchor: Option<AnchorPoint>,
         screen: Option<MonitorIdentifier>,
         should_toggle: bool,
+        duration: Option<std::time::Duration>,
         sender: DaemonResponseSender,
     },
     CloseWindows {
@@ -113,6 +114,9 @@ pub struct App<B> {
     /// Sender to send [`DaemonCommand`]s
     pub app_evt_send: UnboundedSender<DaemonCommand>,
     pub script_var_handler: ScriptVarHandlerHandle,
+
+    /// Senders that will cancel a windows auto-close timer when started with --duration.
+    pub window_close_timer_abort_senders: HashMap<String, futures::channel::oneshot::Sender<()>>,
 
     pub paths: EwwPaths,
 }
@@ -181,20 +185,27 @@ impl<B: DisplayBackend> App<B> {
                             if should_toggle && self.open_windows.contains_key(w) {
                                 self.close_window(w)
                             } else {
-                                self.open_window(w, None, None, None, None)
+                                self.open_window(w, None, None, None, None, None)
                             }
                         })
                         .filter_map(Result::err);
                     sender.respond_with_error_list(errors)?;
                 }
-                DaemonCommand::OpenWindow { window_name, pos, size, anchor, screen: monitor, should_toggle, sender } => {
+                DaemonCommand::OpenWindow {
+                    window_name,
+                    pos,
+                    size,
+                    anchor,
+                    screen: monitor,
+                    should_toggle,
+                    duration,
+                    sender,
+                } => {
                     let is_open = self.open_windows.contains_key(&window_name);
-                    let result = if !is_open {
-                        self.open_window(&window_name, pos, size, monitor, anchor)
-                    } else if should_toggle {
+                    let result = if should_toggle && is_open {
                         self.close_window(&window_name)
                     } else {
-                        Ok(())
+                        self.open_window(&window_name, pos, size, monitor, anchor, duration)
                     };
                     sender.respond_with_result(result)?;
                 }
@@ -294,6 +305,9 @@ impl<B: DisplayBackend> App<B> {
 
     /// Close a window and do all the required cleanups in the scope_graph and script_var_handler
     fn close_window(&mut self, window_name: &str) -> Result<()> {
+        if let Some(old_abort_send) = self.window_close_timer_abort_senders.remove(window_name) {
+            _ = old_abort_send.send(());
+        }
         let eww_window = self
             .open_windows
             .remove(window_name)
@@ -320,11 +334,13 @@ impl<B: DisplayBackend> App<B> {
         size: Option<Coords>,
         monitor: Option<MonitorIdentifier>,
         anchor: Option<AnchorPoint>,
+        duration: Option<std::time::Duration>,
     ) -> Result<()> {
         self.failed_windows.remove(window_name);
         log::info!("Opening window {}", window_name);
 
         // if an instance of this is already running, close it
+        // TODO make reopening optional via a --no-reopen flag?
         if self.open_windows.contains_key(window_name) {
             self.close_window(window_name)?;
         }
@@ -380,6 +396,34 @@ impl<B: DisplayBackend> App<B> {
                 }
             }));
 
+            if let Some(duration) = duration {
+                let app_evt_sender = self.app_evt_send.clone();
+                let window_name = window_name.to_string();
+
+                let (abort_send, abort_recv) = futures::channel::oneshot::channel();
+
+                glib::MainContext::default().spawn_local({
+                    let window_name = window_name.clone();
+                    async move {
+                        tokio::select! {
+                            _ = glib::timeout_future(duration) => {
+                                let (response_sender, mut response_recv) = daemon_response::create_pair();
+                                let command = DaemonCommand::CloseWindows { windows: vec![window_name], sender: response_sender };
+                                if let Err(err) = app_evt_sender.send(command) {
+                                    log::error!("Error sending close window command to daemon after gtk window destroy event: {}", err);
+                                }
+                                _ = response_recv.recv().await;
+                            }
+                            _ = abort_recv => {}
+                        }
+                    }
+                });
+
+                if let Some(old_abort_send) = self.window_close_timer_abort_senders.insert(window_name, abort_send) {
+                    _ = old_abort_send.send(());
+                }
+            }
+
             self.open_windows.insert(window_name.to_string(), eww_window);
         };
 
@@ -407,7 +451,7 @@ impl<B: DisplayBackend> App<B> {
         let window_names: Vec<String> =
             self.open_windows.keys().cloned().chain(self.failed_windows.iter().cloned()).dedup().collect();
         for window_name in &window_names {
-            self.open_window(window_name, None, None, None, None)?;
+            self.open_window(window_name, None, None, None, None, None)?;
         }
         Ok(())
     }
@@ -466,7 +510,7 @@ fn initialize_window<B: DisplayBackend>(
     window.realize();
 
     #[cfg(feature = "x11")]
-    {
+    if B::IS_X11 {
         if let Some(geometry) = window_def.geometry {
             let _ = apply_window_position(geometry, monitor_geometry, &window);
             if window_def.backend_options.x11.window_type != yuck::config::backend_window_options::X11WindowType::Normal {
@@ -505,8 +549,7 @@ fn apply_window_position(
 }
 
 fn on_screen_changed(window: &gtk::Window, _old_screen: Option<&gdk::Screen>) {
-    let visual = window
-        .screen()
+    let visual = gtk::prelude::GtkWindowExt::screen(window)
         .and_then(|screen| screen.rgba_visual().filter(|_| screen.is_composited()).or_else(|| screen.system_visual()));
     window.set_visual(visual.as_ref());
 }

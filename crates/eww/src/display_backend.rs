@@ -7,12 +7,15 @@ pub use platform_wayland::WaylandBackend;
 pub use platform_x11::{set_xprops, X11Backend};
 
 pub trait DisplayBackend: Send + Sync + 'static {
+    const IS_X11: bool;
     fn initialize_window(window_def: &WindowDefinition, monitor: gdk::Rectangle) -> Option<gtk::Window>;
 }
 
 pub struct NoBackend;
 
 impl DisplayBackend for NoBackend {
+    const IS_X11: bool = false;
+
     fn initialize_window(_window_def: &WindowDefinition, _monitor: gdk::Rectangle) -> Option<gtk::Window> {
         Some(gtk::Window::new(gtk::WindowType::Toplevel))
     }
@@ -31,6 +34,8 @@ mod platform_wayland {
     pub struct WaylandBackend;
 
     impl DisplayBackend for WaylandBackend {
+        const IS_X11: bool = false;
+
         fn initialize_window(window_def: &WindowDefinition, monitor: gdk::Rectangle) -> Option<gtk::Window> {
             let window = gtk::Window::new(gtk::WindowType::Toplevel);
             // Initialising a layer shell surface
@@ -127,13 +132,12 @@ mod platform_x11 {
 
     pub struct X11Backend;
     impl DisplayBackend for X11Backend {
+        const IS_X11: bool = true;
+
         fn initialize_window(window_def: &WindowDefinition, _monitor: gdk::Rectangle) -> Option<gtk::Window> {
             let window_type =
                 if window_def.backend_options.x11.wm_ignore { gtk::WindowType::Popup } else { gtk::WindowType::Toplevel };
             let window = gtk::Window::new(window_type);
-            let wm_class_name = format!("eww-{}", window_def.name);
-            #[allow(deprecated)]
-            window.set_wmclass(&wm_class_name, &wm_class_name);
             window.set_resizable(window_def.resizable);
             window.set_keep_above(window_def.stacking == WindowStacking::Foreground);
             window.set_keep_below(window_def.stacking == WindowStacking::Background);

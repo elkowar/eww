@@ -168,6 +168,10 @@ impl DynVal {
         self.0.parse().map_err(|e| ConversionError::new(self.clone(), "i32", e))
     }
 
+    pub fn as_i64(&self) -> Result<i64> {
+        self.0.parse().map_err(|e| ConversionError::new(self.clone(), "i64", e))
+    }
+
     pub fn as_bool(&self) -> Result<bool> {
         self.0.parse().map_err(|e| ConversionError::new(self.clone(), "bool", e))
     }

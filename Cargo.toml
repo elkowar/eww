@@ -1,5 +1,7 @@
 [workspace]
 members = ["crates/*"]
+resolver = "2"
+
 [profile.dev]
 split-debuginfo = "unpacked"
 
