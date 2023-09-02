@@ -20,6 +20,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add trigonometric functions (`sin`, `cos`, `tan`, `cot`) and degree/radian conversions (`degtorad`, `radtodeg`) (By: end-4)
 - Add `substring` function to simplexpr
 - Add `--duration` flag to `eww open`
+- Add `force-poll` command (By: ZaheenJ)
 
 ## [0.4.0] (04.09.2022)
 

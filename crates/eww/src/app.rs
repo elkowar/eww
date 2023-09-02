@@ -5,7 +5,7 @@ use crate::{
     error_handling_ctx,
     gtk::prelude::{ContainerExt, CssProviderExt, GtkWindowExt, MonitorExt, StyleContextExt, WidgetExt},
     paths::EwwPaths,
-    script_var_handler::ScriptVarHandlerHandle,
+    script_var_handler::{run_poll_once, ScriptVarHandlerHandle},
     state::scope_graph::{ScopeGraph, ScopeIndex},
     *,
 };
@@ -41,6 +41,7 @@ use yuck::{
 pub enum DaemonCommand {
     NoOp,
     UpdateVars(Vec<(VarName, DynVal)>),
+    ForcePoll(Vec<VarName>),
     ReloadConfigAndCss(DaemonResponseSender),
     OpenInspector,
     OpenMany {
@@ -146,6 +147,15 @@ impl<B: DisplayBackend> App<B> {
                 DaemonCommand::UpdateVars(mappings) => {
                     for (var_name, new_value) in mappings {
                         self.update_global_variable(var_name, new_value);
+                    }
+                }
+                DaemonCommand::ForcePoll(vars) => {
+                    for var in vars {
+                        if let ScriptVarDefinition::Poll(poll_var) = self.eww_config.get_script_var(&var)? {
+                            self.update_global_variable(var, run_poll_once(poll_var)?);
+                        } else {
+                            Err(anyhow!(format!("No poll var named '{}' exists", var)))?
+                        }
                     }
                 }
                 DaemonCommand::ReloadConfigAndCss(sender) => {

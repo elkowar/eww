@@ -91,6 +91,10 @@ pub enum ActionWithServer {
         mappings: Vec<(VarName, DynVal)>,
     },
 
+    /// Manually tells  polling variables to update
+    #[clap(name = "force-poll", alias = "fp")]
+    ForcePoll { vars: Vec<VarName> },
+
     /// Open the GTK debugger
     #[command(name = "inspector", alias = "debugger")]
     OpenInspector,
@@ -210,6 +214,7 @@ impl ActionWithServer {
     pub fn into_daemon_command(self) -> (app::DaemonCommand, Option<daemon_response::DaemonResponseReceiver>) {
         let command = match self {
             ActionWithServer::Update { mappings } => app::DaemonCommand::UpdateVars(mappings),
+            ActionWithServer::ForcePoll { vars } => app::DaemonCommand::ForcePoll(vars),
             ActionWithServer::OpenInspector => app::DaemonCommand::OpenInspector,
 
             ActionWithServer::KillServer => app::DaemonCommand::KillServer,
