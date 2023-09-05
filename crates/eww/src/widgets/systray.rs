@@ -167,6 +167,7 @@ impl Item {
         // updates
         let mut status_updates = item.sni.receive_new_status().await?;
         let mut title_updates = item.sni.receive_new_status().await?;
+        let mut icon_updates = item.sni.receive_new_icon().await?;
 
         loop {
             tokio::select! {
@@ -184,6 +185,10 @@ impl Item {
                 Some(_) = title_updates.next() => {
                     // set title
                     widget.set_tooltip_text(Some(&item.sni.title().await?));
+                }
+                Some(_) = icon_updates.next() => {
+                    // set icon
+                    icon.set_from_pixbuf(item.icon(*icon_size.borrow_and_update()).await.as_ref());
                 }
             }
         }

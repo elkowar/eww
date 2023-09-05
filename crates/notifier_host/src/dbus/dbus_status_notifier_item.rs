@@ -69,7 +69,7 @@ trait StatusNotifierItem {
     fn category(&self) -> zbus::Result<String>;
 
     /// IconName property
-    #[dbus_proxy(property)]
+    #[dbus_proxy(property(emits_changed_signal = "false"))]
     fn icon_name(&self) -> zbus::Result<String>;
 
     /// IconPixmap property
