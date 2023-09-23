@@ -1,6 +1,7 @@
 use cached::proc_macro::cached;
 use chrono::{Local, LocalResult, TimeZone};
 use itertools::Itertools;
+use number_prefix::{NumberPrefix};
 
 use crate::{
     ast::{AccessType, BinOp, SimplExpr, UnaryOp},
@@ -13,6 +14,7 @@ use std::{
     str::FromStr,
     sync::Arc,
 };
+use serde_json::json;
 
 #[derive(Debug, thiserror::Error)]
 pub struct JaqParseError(pub Option<jaq_core::parse::Error>);
@@ -317,6 +319,29 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
                 let num = num.as_f64()?;
                 let digits = digits.as_i32()?;
                 Ok(DynVal::from(format!("{:.1$}", num, digits as usize)))
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
+        "roundsize" => match args.as_slice() {
+            [size] => {
+                let size = size.as_f64()?;
+                Ok(match NumberPrefix::binary(size) {
+                    NumberPrefix::Standalone(bytes) => DynVal::from(json!({"size": bytes, "units": "B"}).to_string()),
+                    NumberPrefix::Prefixed(prefix, n) => DynVal::from(json!({"size": n, "units": format!("{}B", prefix)}).to_string())
+                })
+            }
+            [size, format_type] => {
+                let format_type = format_type.as_string()?;
+                let func = match format_type.as_str() {
+                    "decimal" => NumberPrefix::decimal,
+                    "binary" => NumberPrefix::binary,
+                    _ => return Err(EvalError::NoVariablesAllowed(format_type.parse().unwrap()))
+                };
+                let size = size.as_f64()?;
+                Ok(match func(size) {
+                    NumberPrefix::Standalone(bytes) => DynVal::from(json!({"size": bytes, "units": "B"}).to_string()),
+                    NumberPrefix::Prefixed(prefix, n) => DynVal::from(json!({"size": n, "units": format!("{}B", prefix)}).to_string())
+                })
             }
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
