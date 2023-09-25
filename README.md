@@ -9,7 +9,7 @@ your own, custom widgets in any window manager.
 
 Documentation **and instructions on how to install** can be found [here](https://elkowar.github.io/eww).
 
-Dharmx also wrote a nice, beginner friendly introductory guide for eww [here](https://dharmx.is-a.dev/eww-powermenu/).
+Dharmx also wrote a nice, beginner friendly introductory guide for eww [here](https://web.archive.org/web/20230725111510/https://dharmx.is-a.dev/eww-powermenu/).
 
 ## Eww needs your opinion!
 I've hit a bit of a design roadblock for one of the bigger features that are in the works right now.
