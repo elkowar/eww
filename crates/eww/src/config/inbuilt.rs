@@ -64,6 +64,12 @@ define_builtin_vars! {
 
     // @desc EWW_TIME - the current UNIX timestamp
     "EWW_TIME" [1] => || Ok(DynVal::from(get_time())) ,
+
+    // @desc EWW_IPV4 - Information about the IPv4 address on all interfaces except "lo"
+    "EWW_IPV4" [1] => || Ok(DynVal::from(get_ipv4())),
+
+    // @desc EWW_IPV6 - Information about the IPv6 address on all interfaces except "lo"
+    "EWW_IPV6" [1] => || Ok(DynVal::from(get_ipv6())),
 }
 
 macro_rules! define_magic_constants {

@@ -17,6 +17,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add `jq` function, offering jq-style json processing
 - Add `justify` property to the label widget, allowing text justification (By: n3oney)
 - Add `EWW_TIME` magic variable (By: Erenoit)
+- Add `EWW_IPV4`, `EWW_IPV6` magic variable (By: Lanpingner)
 - Add trigonometric functions (`sin`, `cos`, `tan`, `cot`) and degree/radian conversions (`degtorad`, `radtodeg`) (By: end-4)
 - Add `substring` function to simplexpr
 - Add `--duration` flag to `eww open`
