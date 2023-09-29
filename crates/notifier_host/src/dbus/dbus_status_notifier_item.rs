@@ -73,7 +73,7 @@ trait StatusNotifierItem {
     fn icon_name(&self) -> zbus::Result<String>;
 
     /// IconPixmap property
-    #[dbus_proxy(property)]
+    #[dbus_proxy(property(emits_changed_signal = "false"))]
     fn icon_pixmap(&self) -> zbus::Result<Vec<(i32, i32, Vec<u8>)>>;
 
     /// IconThemePath property
