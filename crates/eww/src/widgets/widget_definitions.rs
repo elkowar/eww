@@ -859,6 +859,10 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
         prop(wrap: as_bool) { gtk_widget.set_line_wrap(wrap) },
         // @prop angle - the angle of rotation for the label (between 0 - 360)
         prop(angle: as_f64 = 0) { gtk_widget.set_angle(angle) },
+        // @prop gravity - the gravity of the string (south, east, west, north, auto). Text will want to face the direction of gravity.
+        prop(gravity: as_string = "south") {
+            gtk_widget.pango_context().set_base_gravity(parse_gravity(&gravity)?);
+        },
         // @prop xalign - the alignment of the label text on the x axis (between 0 - 1, 0 -> left, 0.5 -> center, 1 -> right)
         prop(xalign: as_f64 = 0.5) { gtk_widget.set_xalign(xalign as f32) },
         // @prop yalign - the alignment of the label text on the y axis (between 0 - 1, 0 -> bottom, 0.5 -> center, 1 -> top)
@@ -1093,6 +1097,17 @@ fn parse_justification(j: &str) -> Result<gtk::Justification> {
         "right" => gtk::Justification::Right,
         "center" => gtk::Justification::Center,
         "fill" => gtk::Justification::Fill,
+    }
+}
+
+/// @var gravity - "south", "east", "west", "north", "auto"
+fn parse_gravity(g: &str) -> Result<gtk::pango::Gravity> {
+    enum_parse! { "gravity", g,
+        "south" => gtk::pango::Gravity::South,
+        "east" => gtk::pango::Gravity::East,
+        "west" => gtk::pango::Gravity::West,
+        "north" => gtk::pango::Gravity::North,
+        "auto" => gtk::pango::Gravity::Auto,
     }
 }
 

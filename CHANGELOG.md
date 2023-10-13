@@ -9,6 +9,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add `:namespace` window option
 - Default to building with x11 and wayland support simultaneously
 - Add `truncate-left` property on `label` widgets (By: kawaki-san)
+- Add `gravity` property on `label` widgets (By: Elekrisk)
 - Add support for safe access (`?.`) in simplexpr (By: oldwomanjosiah)
 - Allow floating-point numbers in percentages for window-geometry
 - Add support for safe access with index (`?.[n]`) (By: ModProg)
