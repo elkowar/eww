@@ -18,6 +18,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Remove `eww windows` command, replace with `eww active-windows` and `eww list-windows`
 
 ### Features
+- Add `:icon` and `:icon-size` to the image widget (By: Adrian Perez de Castro)
 - Add `get_env` function (By: RegenJacob)
 - Add `:namespace` window option
 - Default to building with x11 and wayland support simultaneously
