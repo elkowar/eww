@@ -21,6 +21,9 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add `substring` function to simplexpr
 - Add `--duration` flag to `eww open`
 
+### Notable fixes and other changes
+- When `(import)` is used it generates a hint suggesting the use of `(include)` instead (By: max-ishere)
+
 ## [0.4.0] (04.09.2022)
 
 ### BREAKING CHANGES

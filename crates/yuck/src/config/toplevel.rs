@@ -33,6 +33,25 @@ static TOP_LEVEL_DEFINITION_NAMES: &[&str] = &[
     Include::ELEMENT_NAME,
 ];
 
+/// Defines common ways definitions may be called instead of their official names.
+///
+/// E.g: ~~`import`~~ ➡️ `include`.
+///
+/// This list will be used to generate a hint in the error diagnostic suggesting the use of the correct definition.
+///
+/// **Note:** This is not meant to contain a list of typos for [`TOP_LEVEL_DEFINITION_NAMES`], instead it contains a
+/// list of correctly spelled strings that may be used because they exist in other languages.
+static TOP_LEVEL_COMMON_DEFINITION_ERRORS: &[CommonDefinitionError] = {
+    use CommonDefinitionError as E; // Makes the lines below shorter
+    &[E { wrong: "import", correct: Include::ELEMENT_NAME }]
+};
+
+/// Used to map commonly confused definitions to their correct naming
+struct CommonDefinitionError<'a> {
+    wrong: &'a str,
+    correct: &'a str,
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
 pub struct Include {
     pub path: String,
@@ -74,11 +93,22 @@ impl FromAst for TopLevel {
             }
             x if x == WindowDefinition::ELEMENT_NAME => Self::WindowDefinition(WindowDefinition::from_tail(span, iter)?),
             x => {
+                for common_error in TOP_LEVEL_COMMON_DEFINITION_ERRORS {
+                    if x == common_error.wrong {
+                        return Err(DiagError(gen_diagnostic! {
+                            msg = format!("Unknown toplevel declaration `{x}`"),
+                            label = sym_span,
+                            note = format!("help: Perhaps you've meant `{}`?", common_error.correct),
+                            note = format!("Must be one of: {}", TOP_LEVEL_DEFINITION_NAMES.iter().join(", ")),
+                        }));
+                    }
+                }
+
                 return Err(DiagError(gen_diagnostic! {
                     msg = format!("Unknown toplevel declaration `{x}`"),
                     label = sym_span,
                     note = format!("Must be one of: {}", TOP_LEVEL_DEFINITION_NAMES.iter().join(", ")),
-                }))
+                }));
             }
         })
     }
