@@ -31,6 +31,7 @@ chrono-tz = "0.8.2"
 strum = { version = "0.24", features = ["derive"] }
 
 eww_shared_util = { version = "0.1.0", path = "../eww_shared_util" }
+number_prefix = "0.4.0"
 
 
 [build-dependencies]

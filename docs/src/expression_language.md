@@ -59,3 +59,5 @@ Supported currently are the following features:
       Same as other `formattime`, but does not accept timezone. Instead, it uses system's local timezone.
       Check [chrono's documentation](https://docs.rs/chrono/latest/chrono/format/strftime/index.html) for more
       information about format string.
+    - `roundsize(bytes)`: Round a number of bytes to human-readable on binary base (KiB, MiB, GiB). Returned value format `{ size, units }` 
+    - `roundsize(bytes, format_type)`: Round a number of bytes to human-readable with specific format type it's can be `binary (KiB, MiB, GiB...)` or `decimal (KB, MB, GB...)`. Returned value format `{ size, units }`
