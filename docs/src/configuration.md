@@ -191,6 +191,8 @@ They may also be useful to have buttons within eww change what is shown within y
 ```
 
 A polling variable is a variable which runs a provided shell-script repeatedly, in a given interval.
+You can also manually poll it by running `eww force-poll foo`.
+This is very useful for information like volume or brightness which change with a keypress but you may still want to update regularly.
 
 This may be the most commonly used type of variable.
 They are useful to access any quickly retrieved value repeatedly,
