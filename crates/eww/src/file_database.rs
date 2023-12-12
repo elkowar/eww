@@ -39,15 +39,16 @@ impl FileDatabase {
 }
 
 impl YuckFileProvider for FileDatabase {
+    /// Loads a Yuck file from a filesystem. If the file is already loaded returns a dummy [`Span`] and an empty [`Ast`].
     fn load_yuck_file(&mut self, path: std::path::PathBuf) -> Result<(Span, Vec<Ast>), FilesError> {
+        let name = path.display().to_string();
+        if self.files.values().find(|code_file| code_file.name == name).is_some() {
+            return Ok((Span::DUMMY, Vec::new()));
+        }
+
         let file_content = std::fs::read_to_string(&path)?;
         let line_starts = codespan_reporting::files::line_starts(&file_content).collect();
-        let code_file = CodeFile {
-            name: path.display().to_string(),
-            line_starts,
-            source_len_bytes: file_content.len(),
-            source: CodeSource::File(path),
-        };
+        let code_file = CodeFile { name, line_starts, source_len_bytes: file_content.len(), source: CodeSource::File(path) };
         let file_id = self.insert_code_file(code_file);
         Ok(yuck::parser::parse_toplevel(file_id, file_content)?)
     }

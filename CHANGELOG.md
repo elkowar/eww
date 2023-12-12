@@ -5,6 +5,10 @@ All notable changes to eww will be listed here, starting at changes since versio
 
 ## [Unreleased]
 
+### BREAKING CHANGES
+- Add relative `(include)`. Includes starting with the `./` or `../` prefixes will now be considered relative and thus may break. 
+  Please update your Yuck files to use the new syntax. (By: max-ishere)
+
 ### Features
 - Add `:namespace` window option
 - Default to building with x11 and wayland support simultaneously
@@ -20,6 +24,12 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add trigonometric functions (`sin`, `cos`, `tan`, `cot`) and degree/radian conversions (`degtorad`, `radtodeg`) (By: end-4)
 - Add `substring` function to simplexpr
 - Add `--duration` flag to `eww open`
+- Files are only loaded once if they were included multiple times. This prevents recursive imports from crashing `eww`.
+  (By: max-ishere)
+
+### Notable fixes and other changes
+- When `(import)` is used it generates a hint suggesting the use of `(include)` instead (By: max-ishere)
+
 
 ## [0.4.0] (04.09.2022)
 

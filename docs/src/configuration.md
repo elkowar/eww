@@ -273,11 +273,25 @@ There are two options to achieve this:
 
 ### Using `include`
 
+A single yuck file may import the contents of any other yuck file. For this, make use of the `include` directive.
+
+Imports are resolved in a similar way to shell paths. This is explained below:
+
 ```lisp
-(include "./path/to/your/file.yuck")
+; These imports are located inside ~/.config/eww/example/example.yuck
+
+;       Prefix            Resolves to
+
+(import "file.yuck")    ; ~/.config/eww/file.yuck
+(import "/file.yuck")   ; /file.yuck
+(import "./file.yuck") ‌ ; ~/.config/eww/example/file.yuck
+(import "../file.yuck") ; ~/.config/eww/file.yuck
 ```
 
-A single yuck file may import the contents of any other yuck file. For this, make use of the `include` directive.
+As you can see they behave the same way as paths would in the shell. The only rule is that when there is no `‌/`‌, `./‌` or `../` the
+path is relative to the config directory. You should try to use relative paths as much as possible for better modularity.
+
+Some older yuck imports may break if they used the `./` prefix.
 
 ### Using a separate eww configuration directory
 
