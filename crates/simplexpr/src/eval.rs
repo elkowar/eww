@@ -430,8 +430,8 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
             [json] => Ok(DynVal::from(json.as_json_object()?.len() as i32)),
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
-        "jq" => match args.as_slice() {
-            [json, code] => run_jaq_function(json.as_json_value()?, code.as_string()?)
+        what @ ("jq" | "jq_raw") => match args.as_slice() {
+            [json, code] => run_jaq_function(json.as_json_value()?, code.as_string()?, what == "jq_raw")
                 .map_err(|e| EvalError::Spanned(code.span(), Box::new(e))),
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
@@ -478,16 +478,23 @@ fn prepare_jaq_filter(code: String) -> Result<Arc<jaq_core::Filter>, EvalError> 
     Ok(Arc::new(filter))
 }
 
-fn run_jaq_function(json: serde_json::Value, code: String) -> Result<DynVal, EvalError> {
-    let filter = prepare_jaq_filter(code)?;
+fn run_jaq_function(json: serde_json::Value, code: String, raw_string: bool) -> Result<DynVal, EvalError> {
     let inputs = jaq_core::RcIter::new(std::iter::empty());
-    let out = filter
+
+    prepare_jaq_filter(code)?
         .run(jaq_core::Ctx::new([], &inputs), jaq_core::Val::from(json))
-        .map(|x| x.map(Into::<serde_json::Value>::into))
-        .map(|x| x.map(|x| DynVal::from_string(serde_json::to_string(&x).unwrap())))
+        .map(|r| r.map(Into::<serde_json::Value>::into))
+        .map(|r| {
+            r.map(|v| match v {
+                // Per jq docs, "raw-output" behavior simply omits
+                // quotation marks from strings, and outputs what would
+                // otherwise be valid JSON, so this should replicate that.
+                serde_json::Value::String(contents) if raw_string => DynVal::from_string(contents),
+                anyval => DynVal::from_string(serde_json::to_string(&anyval).unwrap()),
+            })
+        })
         .collect::<Result<_, _>>()
-        .map_err(|e| EvalError::JaqError(e.to_string()))?;
-    Ok(out)
+        .map_err(|e| EvalError::JaqError(e.to_string()))
 }
 
 #[cfg(test)]

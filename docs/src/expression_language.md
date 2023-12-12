@@ -51,6 +51,7 @@ Supported currently are the following features:
 	- `arraylength(value)`: Gets the length of the array
 	- `objectlength(value)`: Gets the amount of entries in the object
 	- `jq(value, jq_filter_string)`: run a [jq](https://stedolan.github.io/jq/manual/) style command on a json value. (Uses [jaq](https://crates.io/crates/jaq) internally).
+    - `jq_raw(value, jq_filter_string)`: as above, but top-level strings will not be quoted, as with `jq --raw-output`.
     - `formattime(unix_timestamp, format_str, timezone)`: Gets the time in a given format from UNIX timestamp.
       Check [chrono's documentation](https://docs.rs/chrono/latest/chrono/format/strftime/index.html) for more
       information about format string and [chrono-tz's documentation](https://docs.rs/chrono-tz/latest/chrono_tz/enum.Tz.html)
