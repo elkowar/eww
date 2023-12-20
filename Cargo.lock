@@ -333,6 +333,7 @@ dependencies = [
  "iana-time-zone",
  "js-sys",
  "num-traits",
+ "pure-rust-locales",
  "time",
  "wasm-bindgen",
  "winapi",
@@ -718,6 +719,7 @@ dependencies = [
 name = "eww_shared_util"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "derive_more",
  "ref-cast",
  "serde",
@@ -1895,6 +1897,12 @@ checksum = "18fb31db3f9bddb2ea821cde30a9f70117e3f119938b5ee630b7403aa6e2ead9"
 dependencies = [
  "unicode-ident",
 ]
+
+[[package]]
+name = "pure-rust-locales"
+version = "0.5.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b45c49fc4f91f35bae654f85ebb3a44d60ac64f11b3166ffa609def390c732d8"
 
 [[package]]
 name = "quote"
