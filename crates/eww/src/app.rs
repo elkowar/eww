@@ -582,6 +582,14 @@ fn get_monitor_geometry(identifier: Option<MonitorIdentifier>) -> Result<gdk::Re
 /// Outside of x11, only [MonitorIdentifier::Numeric] is supported
 pub fn get_monitor_from_display(display: &gdk::Display, identifier: &MonitorIdentifier) -> Option<gdk::Monitor> {
     match identifier {
+        MonitorIdentifier::List(list) => {
+            for ident in list {
+                if let Some(monitor) = get_monitor_from_display(display, ident) {
+                    return Some(monitor);
+                }
+            }
+            None
+        }
         MonitorIdentifier::Primary => display.primary_monitor(),
         MonitorIdentifier::Numeric(num) => display.monitor(*num),
         MonitorIdentifier::Name(name) => {

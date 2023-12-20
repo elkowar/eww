@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 /// The type of the identifier used to select a monitor
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MonitorIdentifier {
+    List(Vec<MonitorIdentifier>),
     Numeric(i32),
     Name(String),
     Primary,
@@ -19,6 +20,7 @@ impl MonitorIdentifier {
 impl fmt::Display for MonitorIdentifier {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::List(l) => write!(f, "[{}]", l.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(" ")),
             Self::Numeric(n) => write!(f, "{}", n),
             Self::Name(n) => write!(f, "{}", n),
             Self::Primary => write!(f, "<primary>"),

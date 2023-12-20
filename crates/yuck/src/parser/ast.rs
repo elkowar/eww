@@ -71,6 +71,8 @@ impl Ast {
 
     as_func!(AstType::List, as_list as_list_ref<Vec<Ast>> = Ast::List(_, x) => x);
 
+    as_func!(AstType::Array, as_array as_array_ref<Vec<Ast>> = Ast::Array(_, x) => x);
+
     pub fn expr_type(&self) -> AstType {
         match self {
             Ast::List(..) => AstType::List,

@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, str::FromStr};
 
 use crate::{
     config::monitor::MonitorIdentifier,
@@ -24,13 +24,22 @@ pub struct WindowDefinition {
     pub backend_options: BackendWindowOptions,
 }
 
+impl FromAst for MonitorIdentifier {
+    fn from_ast(x: Ast) -> DiagResult<Self> {
+        match x {
+            Ast::Array(_, x) => Ok(Self::List(x.into_iter().map(MonitorIdentifier::from_ast).collect::<DiagResult<_>>()?)),
+            other => Ok(Self::from_str(&String::from_ast(other)?).unwrap()),
+        }
+    }
+}
+
 impl FromAstElementContent for WindowDefinition {
     const ELEMENT_NAME: &'static str = "defwindow";
 
     fn from_tail<I: Iterator<Item = Ast>>(_span: Span, mut iter: AstIterator<I>) -> DiagResult<Self> {
         let (_, name) = iter.expect_symbol()?;
         let mut attrs = iter.expect_key_values()?;
-        let monitor = attrs.primitive_optional("monitor")?;
+        let monitor = attrs.ast_optional::<MonitorIdentifier>("monitor")?;
         let resizable = attrs.primitive_optional("resizable")?.unwrap_or(true);
         let stacking = attrs.primitive_optional("stacking")?.unwrap_or(WindowStacking::Foreground);
         let geometry = attrs.ast_optional("geometry")?;
