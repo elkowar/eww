@@ -413,6 +413,80 @@ or if you want to change the widget structure in some other, more complex way.</
 <p>Here, you specify the content of your literal by providing it a string (most likely stored in a variable) which contains a single yuck widget tree.
 Eww then reads the provided value and renders the resulting widget. Whenever it changes, the widget will be rerendered.</p>
 <p>Note that this is not all that efficient. Make sure to only use <code>literal</code> when necessary!</p>
+<h2 id="using-window-arguments-and-ids"><a class="header" href="#using-window-arguments-and-ids">Using window arguments and IDs</a></h2>
+<p>In some cases you may want to use the same window configuration for multiple widgets, e.g. for multiple windows. This is where arguments and ids come in.</p>
+<h3 id="window-id"><a class="header" href="#window-id">Window ID</a></h3>
+<p>Firstly let us start off with ids. An id can be specified in the <code>open</code> command
+with <code>--id</code>, by default the id will be set to the name of the window
+configuration. These ids allow you to spawn multiple of the same windows. So
+for example you can do:</p>
+<pre><code class="language-bash">eww open my_bar --screen 0 --id primary
+eww open my_bar --screen 1 --id secondary
+</code></pre>
+<p>When using <code>open-many</code> you can follow the structure below. Again if no id is
+given, the id will default to the name of the window configuration.</p>
+<pre><code class="language-bash">eww open-many my_config:primary my_config:secondary
+</code></pre>
+<p>You may notice with this we didn't set <code>screen</code>, this is set through the
+<code>--arg</code> system, please see below for more information.</p>
+<h3 id="window-arguments"><a class="header" href="#window-arguments">Window Arguments</a></h3>
+<p>However this may not be enough and you want to have slight changes for each of
+these bars, e.g. having a different class for 1080p displays vs 4k or having
+spawning the window in a different size or location. This is where the
+arguments come in.</p>
+<p>Please note these arguments are <strong>CONSTANT</strong> and so cannot be update after the
+window has been opened.</p>
+<p>Defining arguments in a window is the exact same as in a widget so you can
+have:</p>
+<pre><code class="language-lisp">(defwindow my_bar [arg1 ?arg2]
+          :geometry (geometry
+                       :x      &quot;0%&quot;
+                       :y      &quot;6px&quot;
+                       :width  &quot;100%&quot;
+                       :height { arg1 == &quot;small&quot; ? &quot;30px&quot; : &quot;40px&quot; }
+                       :anchor &quot;top center&quot;)
+          :stacking   &quot;bg&quot;
+          :windowtype &quot;dock&quot;
+          :reserve    (struts :distance &quot;50px&quot; :side &quot;top&quot;)
+    (my_widget :arg2 arg2))
+</code></pre>
+<p>Here we have two arguments, <code>arg1</code> and <code>arg2</code> (an optional parameter).</p>
+<p>Once we have these parameters, when opening a new window, we must specify them
+(unless they are required, like <code>arg2</code>), but how? Well, we use the <code>--arg</code>
+option when running the <code>open</code> command:</p>
+<pre><code class="language-bash">eww open my_bar --id primary --arg arg1=some_value --arg arg2=another_value
+</code></pre>
+<p>With the <code>open-many</code> it looks like this:</p>
+<pre><code class="language-bash"># Please note that `--arg` option must be given after all the windows names
+eww open-many my_bar:primary --arg primary:arg1=some_value --arg primary:arg2=another_value
+</code></pre>
+<p>Using this method you can define <code>screen</code>, <code>anchor</code>, <code>pos</code>, <code>size</code> inside the
+args for each window and it will act like giving <code>--screen</code>, <code>--anchor</code> etc. in
+the <code>open</code> command.</p>
+<p>So, now you know the basics, I shall introduce you to some of these &quot;special&quot;
+parameters, which are set slightly differently. However these can all be
+overridden by the <code>--arg</code> option.</p>
+<ul>
+<li><code>id</code> - If <code>id</code> is included in the argument list, it will be set to the id
+specified by <code>--id</code> or will be set to the name of the config. This can be
+used when closing the current window through eww commands.</li>
+<li><code>screen</code> - If <code>screen</code> is specified it will be set to the value given by
+<code>--screen</code>, so you can use this in other widgets to access screen specific
+information.</li>
+</ul>
+<h3 id="further-insight-into-args-in-open-many"><a class="header" href="#further-insight-into-args-in-open-many">Further insight into args in <code>open-many</code></a></h3>
+<p>Now due to the system behind processing the <code>open-many</code> <code>--arg</code> option you
+don't have to specify an id for each argument. If you do not, that argument
+will be applied across all windows e.g.</p>
+<pre><code class="language-bash">eww open-many my_bar:primary my_bar:secondary --arg gui_size=&quot;small&quot;
+</code></pre>
+<p>This will mean the config is the same throughout the bars.</p>
+<p>Furthermore if you didn't specify an id for the window, you can still set args
+specifically for that window - following the idea that the id will be set to
+the window configuration if not given - by just using the name of the window
+configuration e.g.</p>
+<pre><code class="language-bash">eww open-many my_primary_bar --arg my_primary_bar:screen=0
+</code></pre>
 <h2 id="generating-a-list-of-widgets-from-json-using-for"><a class="header" href="#generating-a-list-of-widgets-from-json-using-for">Generating a list of widgets from JSON using <code>for</code></a></h2>
 <p>If you want to display a list of values, you can use the <code>for</code>-Element to fill a container with a list of elements generated from a JSON-array.</p>
 <pre><code class="language-lisp">(defvar my-json &quot;[1, 2, 3]&quot;)
