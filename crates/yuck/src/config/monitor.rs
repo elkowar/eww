@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 pub enum MonitorIdentifier {
     Numeric(i32),
     Name(String),
+    Primary,
 }
 
 impl MonitorIdentifier {
@@ -20,6 +21,7 @@ impl fmt::Display for MonitorIdentifier {
         match self {
             Self::Numeric(n) => write!(f, "{}", n),
             Self::Name(n) => write!(f, "{}", n),
+            Self::Primary => write!(f, "<primary>"),
         }
     }
 }
@@ -30,7 +32,13 @@ impl str::FromStr for MonitorIdentifier {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.parse::<i32>() {
             Ok(n) => Ok(Self::Numeric(n)),
-            Err(_) => Ok(Self::Name(s.to_owned())),
+            Err(_) => {
+                if &s.to_lowercase() == "<primary>" {
+                    Ok(Self::Primary)
+                } else {
+                    Ok(Self::Name(s.to_owned()))
+                }
+            }
         }
     }
 }

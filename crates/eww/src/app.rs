@@ -560,31 +560,16 @@ fn get_monitor_geometry(identifier: Option<MonitorIdentifier>) -> Result<gdk::Re
     let monitor = match identifier {
         Some(ident) => {
             let mon = get_monitor_from_display(&display, &ident);
-
-            #[cfg(feature = "x11")]
-            {
-                mon.with_context(|| {
-                    let head = format!("Failed to get monitor {}\nThe available monitors are:", ident);
-                    let mut body = String::new();
-                    for m in 0..display.n_monitors() {
-                        if let Some(model) = display.monitor(m).and_then(|x| x.model()) {
-                            body.push_str(format!("\n\t[{}] {}", m, model).as_str());
-                        }
+            mon.with_context(|| {
+                let head = format!("Failed to get monitor {}\nThe available monitors are:", ident);
+                let mut body = String::new();
+                for m in 0..display.n_monitors() {
+                    if let Some(model) = display.monitor(m).and_then(|x| x.model()) {
+                        body.push_str(format!("\n\t[{}] {}", m, model).as_str());
                     }
-                    format!("{}{}", head, body)
-                })?
-            }
-
-            #[cfg(not(feature = "x11"))]
-            {
-                mon.with_context(|| {
-                    if ident.is_numeric() {
-                        format!("Failed to get monitor {}", ident)
-                    } else {
-                        format!("Using ouput names (\"{}\" in the configuration) is not supported outside of x11 yet", ident)
-                    }
-                })?
-            }
+                }
+                format!("{}{}", head, body)
+            })?
         }
         None => display
             .primary_monitor()
@@ -597,12 +582,8 @@ fn get_monitor_geometry(identifier: Option<MonitorIdentifier>) -> Result<gdk::Re
 /// Outside of x11, only [MonitorIdentifier::Numeric] is supported
 pub fn get_monitor_from_display(display: &gdk::Display, identifier: &MonitorIdentifier) -> Option<gdk::Monitor> {
     match identifier {
+        MonitorIdentifier::Primary => display.primary_monitor(),
         MonitorIdentifier::Numeric(num) => display.monitor(*num),
-
-        #[cfg(not(feature = "x11"))]
-        MonitorIdentifier::Name(_) => return None,
-
-        #[cfg(feature = "x11")]
         MonitorIdentifier::Name(name) => {
             for m in 0..display.n_monitors() {
                 if let Some(model) = display.monitor(m).and_then(|x| x.model()) {
