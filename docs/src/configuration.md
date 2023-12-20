@@ -50,8 +50,18 @@ You can now open your first window by running `eww open example`! Glorious!
 
 |   Property | Description                                                  |
 | ---------: | ------------------------------------------------------------ |
-|  `monitor` | Which monitor this window should be displayed on. Can be either a number (X11 and Wayland) or an output name (X11 only). |
+|  `monitor` | Which monitor this window should be displayed on. See below for details.|
 | `geometry` | Geometry of the window.  |
+
+
+**`monitor`-property**
+
+This field can be:
+
+- the string `<primary>`, in which case eww tries to identify the primary display (which may fail, especially on wayland)
+- an integer, declaring the monitor index
+- the name of the monitor
+- an array of monitor matchers, such as: `["<primary>" "HDMI-A-1" "PHL 345B1C" 0]`. Eww will try to find a match in order, allowing you to specify fallbacks.
 
 
 **`geometry`-properties**
