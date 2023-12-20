@@ -1,6 +1,11 @@
-use std::{convert::Infallible, fmt, str};
+use std::{
+    convert::Infallible,
+    fmt,
+    str::{self, FromStr},
+};
 
 use serde::{Deserialize, Serialize};
+use simplexpr::dynval::{ConversionError, DynVal};
 
 /// The type of the identifier used to select a monitor
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -12,8 +17,31 @@ pub enum MonitorIdentifier {
 }
 
 impl MonitorIdentifier {
+    pub fn from_dynval(val: &DynVal) -> Result<Self, ConversionError> {
+        match val.as_json_array() {
+            Ok(arr) => Ok(MonitorIdentifier::List(
+                arr.iter().map(|x| MonitorIdentifier::from_dynval(&x.into())).collect::<Result<_, _>>()?,
+            )),
+            Err(_) => match val.as_i32() {
+                Ok(x) => Ok(MonitorIdentifier::Numeric(x)),
+                Err(_) => Ok(MonitorIdentifier::from_str(&val.as_string().unwrap()).unwrap()),
+            },
+        }
+    }
+
     pub fn is_numeric(&self) -> bool {
         matches!(self, Self::Numeric(_))
+    }
+}
+
+impl From<&MonitorIdentifier> for DynVal {
+    fn from(val: &MonitorIdentifier) -> Self {
+        match val {
+            MonitorIdentifier::List(l) => l.iter().map(|x| x.into()).collect::<Vec<_>>().into(),
+            MonitorIdentifier::Numeric(n) => DynVal::from(*n),
+            MonitorIdentifier::Name(n) => DynVal::from(n.clone()),
+            MonitorIdentifier::Primary => DynVal::from("<primary>"),
+        }
     }
 }
 

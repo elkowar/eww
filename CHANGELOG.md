@@ -5,6 +5,9 @@ All notable changes to eww will be listed here, starting at changes since versio
 
 ## [Unreleased]
 
+### BREAKING CHANGES
+- Remove `eww windows` command, replace with `eww active-windows` and `eww list-windows`
+
 ### Features
 - Add `:namespace` window option
 - Default to building with x11 and wayland support simultaneously
@@ -73,6 +76,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add `:onaccept` to input field, add `:onclick` to eventbox
 - Add `EWW_CMD`, `EWW_CONFIG_DIR`, `EWW_EXECUTABLE` magic variables
 - Add `overlay` widget (By: viandoxdev)
+- Add arguments option to `defwindow` (By: WilfSilver)
 
 ### Notable Internal changes
 - Rework state management completely, now making local state and dynamic widget hierarchy changes possible.
