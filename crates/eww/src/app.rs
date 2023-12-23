@@ -380,8 +380,8 @@ impl<B: DisplayBackend> App<B> {
 
             let window_def = self.eww_config.get_window(window_name)?.clone();
             assert_eq!(window_def.name, window_name, "window definition name did not equal the called window");
-
-            let initiator = WindowInitiator::new(&window_def, window_args)?;
+            let global_vars = self.scope_graph.borrow().global_scope().data.clone();
+            let initiator = WindowInitiator::new(&window_def, window_args, global_vars)?;
 
             let root_index = self.scope_graph.borrow().root_index;
 
