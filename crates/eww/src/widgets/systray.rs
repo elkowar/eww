@@ -188,7 +188,7 @@ impl Item {
                 }
                 Some(_) = icon_updates.next() => {
                     // set icon
-                    icon.set_from_pixbuf(item.icon(*icon_size.borrow_and_update()).await.as_ref());
+                    load_icon_for_item(&icon, &item, *icon_size.borrow_and_update(), scale).await;
                 }
             }
         }
