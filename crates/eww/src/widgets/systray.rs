@@ -1,6 +1,8 @@
+use crate::widgets::window::Window;
 use futures::StreamExt;
 use gtk::{cairo::Surface, gdk::ffi::gdk_cairo_surface_create_from_pixbuf, prelude::*};
 use notifier_host;
+use std::{future::Future, rc::Rc};
 
 // DBus state shared between systray instances, to avoid creating too many connections etc.
 struct DBusSession {
@@ -21,6 +23,11 @@ async fn dbus_session() -> zbus::Result<&'static DBusSession> {
             Ok(DBusSession { snw })
         })
         .await
+}
+
+fn run_async_task<F: Future>(f: F) -> F::Output {
+    let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().expect("Failed to initialize tokio runtime");
+    rt.block_on(f)
 }
 
 pub struct Props {
@@ -155,6 +162,46 @@ impl Item {
         // set icon
         let scale = icon.scale_factor();
         load_icon_for_item(&icon, &item, *icon_size.borrow_and_update(), scale).await;
+
+        let item = Rc::new(item);
+        let window =
+            widget.toplevel().expect("Failed to obtain toplevel window").downcast::<Window>().expect("Failed to downcast window");
+        widget.add_events(gdk::EventMask::BUTTON_PRESS_MASK);
+        widget.connect_button_press_event(glib::clone!(@strong item => move |_, evt| {
+            let (x, y) = (evt.root().0 as i32 + window.x(), evt.root().1 as i32 + window.y());
+            let item_is_menu = run_async_task(async { item.sni.item_is_menu().await });
+            let have_item_is_menu = item_is_menu.is_ok();
+            let item_is_menu = item_is_menu.unwrap_or(false);
+            log::debug!(
+                "mouse click button={}, x={}, y={}, have_item_is_menu={}, item_is_menu={}",
+                evt.button(),
+                x,
+                y,
+                have_item_is_menu,
+                item_is_menu
+            );
+
+            match (evt.button(), item_is_menu) {
+                (gdk::BUTTON_PRIMARY, false) => {
+                    if let Err(e) = run_async_task(async { item.sni.activate(x, y).await }) {
+                        log::error!("failed to send activate event: {}", e);
+                        if !have_item_is_menu {
+                            // Some applications are in fact menu-only (don't have Activate method)
+                            // but don't report so through ItemIsMenu property. Fallback to menu if
+                            // activate failed in this case.
+                            return gtk::Inhibit(false);
+                        }
+                    }
+                }
+                (gdk::BUTTON_MIDDLE, _) => {
+                    if let Err(e) = run_async_task(async { item.sni.secondary_activate(x, y).await }) {
+                        log::error!("failed to send secondary activate event: {}", e);
+                    }
+                }
+                _ => return gtk::Inhibit(false),
+            }
+            gtk::Inhibit(true)
+        }));
 
         // updates
         let mut status_updates = item.sni.receive_new_status().await?;
