@@ -1954,6 +1954,7 @@ name = "notifier_host"
 version = "0.1.0"
 dependencies = [
  "dbusmenu-gtk3",
+ "gdk",
  "gtk",
  "log",
  "thiserror",
