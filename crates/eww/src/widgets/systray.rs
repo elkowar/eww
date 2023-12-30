@@ -158,7 +158,7 @@ impl Item {
 
         // updates
         let mut status_updates = item.sni.receive_new_status().await?;
-        let mut title_updates = item.sni.receive_new_status().await?;
+        let mut title_updates = item.sni.receive_new_title().await?;
         let mut icon_updates = item.sni.receive_new_icon().await?;
 
         loop {
