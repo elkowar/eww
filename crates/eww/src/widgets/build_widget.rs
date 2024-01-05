@@ -246,7 +246,7 @@ fn build_loop_special_widget(
                         .collect_vec();
                     let mut created_children = created_children.borrow_mut();
                     for old_child in created_children.drain(..) {
-                        unsafe { old_child.destroy() };
+                        gtk_container.remove(&old_child);
                     }
                     let mut created_child_scopes = created_child_scopes.borrow_mut();
                     for child_scope in created_child_scopes.drain(..) {
