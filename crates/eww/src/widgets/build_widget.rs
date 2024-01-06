@@ -313,11 +313,7 @@ fn build_children_special_widget(
                             nth_child_widget_use.clone(),
                             None,
                         )?;
-                        for old_child in child_container.children() {
-                            unsafe {
-                                old_child.destroy();
-                            }
-                        }
+                        child_container.children().iter().for_each(|f| child_container.remove(f));
                         child_container.set_child(Some(&new_child_widget));
                         new_child_widget.show();
                         Ok(())
