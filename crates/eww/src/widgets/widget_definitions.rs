@@ -61,6 +61,7 @@ pub const BUILTIN_WIDGET_NAMES: &[&str] = &[
     WIDGET_NAME_BOX,
     WIDGET_NAME_CENTERBOX,
     WIDGET_NAME_EVENTBOX,
+    WIDGET_NAME_TOOLTIP,
     WIDGET_NAME_CIRCULAR_PROGRESS,
     WIDGET_NAME_GRAPH,
     WIDGET_NAME_TRANSFORM,
@@ -89,6 +90,7 @@ pub(super) fn widget_use_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::W
         WIDGET_NAME_BOX => build_gtk_box(bargs)?.upcast(),
         WIDGET_NAME_CENTERBOX => build_center_box(bargs)?.upcast(),
         WIDGET_NAME_EVENTBOX => build_gtk_event_box(bargs)?.upcast(),
+        WIDGET_NAME_TOOLTIP => build_tooltip(bargs)?.upcast(),
         WIDGET_NAME_CIRCULAR_PROGRESS => build_circular_progress_bar(bargs)?.upcast(),
         WIDGET_NAME_GRAPH => build_graph(bargs)?.upcast(),
         WIDGET_NAME_TRANSFORM => build_transform(bargs)?.upcast(),
@@ -579,6 +581,50 @@ fn build_gtk_overlay(bargs: &mut BuilderArgs) -> Result<gtk::Overlay> {
                 gtk_widget.set_overlay_pass_through(&child, true);
                 child.show();
             }
+            Ok(gtk_widget)
+        }
+    }
+}
+
+const WIDGET_NAME_TOOLTIP: &str = "tooltip";
+/// @widget tooltip
+/// @desc A widget that have a custom tooltip. The first child is the content of the tooltip, the second one is the content of the widget.
+fn build_tooltip(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
+    let gtk_widget = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    gtk_widget.set_has_tooltip(true);
+
+    match bargs.widget_use.children.len().cmp(&2) {
+        Ordering::Less => {
+            Err(DiagError(gen_diagnostic!("tooltip must contain exactly 2 elements", bargs.widget_use.span)).into())
+        }
+        Ordering::Greater => {
+            let (_, additional_children) = bargs.widget_use.children.split_at(2);
+            // we know that there is more than two children, so unwrapping on first and last here is fine.
+            let first_span = additional_children.first().unwrap().span();
+            let last_span = additional_children.last().unwrap().span();
+            Err(DiagError(gen_diagnostic!("tooltip must contain exactly 2 elements, but got more", first_span.to(last_span)))
+                .into())
+        }
+        Ordering::Equal => {
+            let mut children = bargs.widget_use.children.iter().map(|child| {
+                build_gtk_widget(
+                    bargs.scope_graph,
+                    bargs.widget_defs.clone(),
+                    bargs.calling_scope,
+                    child.clone(),
+                    bargs.custom_widget_invocation.clone(),
+                )
+            });
+            // we know that we have exactly two children here, so we can unwrap here.
+            let (tooltip, content) = children.next_tuple().unwrap();
+            let (tooltip_content, content) = (tooltip?, content?);
+
+            gtk_widget.add(&content);
+            gtk_widget.connect_query_tooltip(move |_this, _x, _y, _keyboard_mode, tooltip| {
+                tooltip.set_custom(Some(&tooltip_content));
+                true
+            });
+
             Ok(gtk_widget)
         }
     }
