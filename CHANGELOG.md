@@ -29,6 +29,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add `stack` widget (By: vladaviedov)
 - Add `unindent` property to the label widget, allowing to disable removal of leading spaces (By: nrv)
 - Switch to stable rust toolchain (1.76)
+- Add `tooltip` widget, which allows setting a custom tooltip (not only text), to a widget (By: Rayzeq)
 
 ## [0.4.0] (04.09.2022)
 
