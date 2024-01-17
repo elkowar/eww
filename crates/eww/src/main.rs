@@ -4,6 +4,7 @@
 #![feature(slice_concat_trait)]
 #![feature(try_blocks)]
 #![feature(hash_extract_if)]
+#![feature(let_chains)]
 #![allow(rustdoc::private_intra_doc_links)]
 
 extern crate gtk;
@@ -36,6 +37,8 @@ mod server;
 mod state;
 mod util;
 mod widgets;
+mod window_arguments;
+mod window_initiator;
 
 fn main() {
     let eww_binary_name = std::env::args().next().unwrap();

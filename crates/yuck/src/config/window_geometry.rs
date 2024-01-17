@@ -1,14 +1,21 @@
+use std::collections::HashMap;
+
 use crate::{
     enum_parse,
     error::DiagResult,
     format_diagnostic::ToDiagnostic,
     parser::{ast::Ast, ast_iterator::AstIterator, from_ast::FromAstElementContent},
-    value::Coords,
+    value::{coords, Coords, NumWithUnit},
 };
 
 use super::window_definition::EnumParseError;
-use eww_shared_util::Span;
+use eww_shared_util::{Span, VarName};
 use serde::{Deserialize, Serialize};
+use simplexpr::{
+    dynval::{DynVal, FromDynVal},
+    eval::EvalError,
+    SimplExpr,
+};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, smart_default::SmartDefault, Serialize, Deserialize, strum::Display)]
 pub enum AnchorAlignment {
@@ -102,32 +109,84 @@ impl std::str::FromStr for AnchorPoint {
     }
 }
 
-#[derive(Default, Debug, Clone, Copy, PartialEq, Serialize)]
-pub struct WindowGeometry {
-    pub anchor_point: AnchorPoint,
-    pub offset: Coords,
-    pub size: Coords,
+/// Unevaluated variant of [`Coords`]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct CoordsDef {
+    pub x: Option<SimplExpr>,
+    pub y: Option<SimplExpr>,
 }
 
-impl FromAstElementContent for WindowGeometry {
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error(transparent)]
+    AnchorPointParseError(#[from] AnchorPointParseError),
+    #[error(transparent)]
+    CoordsError(#[from] coords::Error),
+    #[error(transparent)]
+    EvalError(#[from] EvalError),
+}
+
+impl CoordsDef {
+    pub fn eval(&self, local_variables: &HashMap<VarName, DynVal>) -> Result<Coords, Error> {
+        Ok(Coords {
+            x: convert_to_num_with_unit(&self.x, local_variables)?,
+            y: convert_to_num_with_unit(&self.y, local_variables)?,
+        })
+    }
+}
+
+fn convert_to_num_with_unit(
+    opt_expr: &Option<SimplExpr>,
+    local_variables: &HashMap<VarName, DynVal>,
+) -> Result<NumWithUnit, Error> {
+    Ok(match opt_expr {
+        Some(expr) => NumWithUnit::from_dynval(&expr.eval(local_variables)?)?,
+        None => NumWithUnit::default(),
+    })
+}
+
+/// Unevaluated variant of [`WindowGeometry`]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct WindowGeometryDef {
+    pub anchor_point: Option<SimplExpr>,
+    pub offset: CoordsDef,
+    pub size: CoordsDef,
+}
+
+impl FromAstElementContent for WindowGeometryDef {
     const ELEMENT_NAME: &'static str = "geometry";
 
     fn from_tail<I: Iterator<Item = Ast>>(_span: Span, mut iter: AstIterator<I>) -> DiagResult<Self> {
         let mut attrs = iter.expect_key_values()?;
         iter.expect_done()
             .map_err(|e| e.to_diagnostic().with_notes(vec!["Check if you are missing a colon in front of a key".to_string()]))?;
-        Ok(WindowGeometry {
-            anchor_point: attrs.primitive_optional("anchor")?.unwrap_or_default(),
-            size: Coords {
-                x: attrs.primitive_optional("width")?.unwrap_or_default(),
-                y: attrs.primitive_optional("height")?.unwrap_or_default(),
-            },
-            offset: Coords {
-                x: attrs.primitive_optional("x")?.unwrap_or_default(),
-                y: attrs.primitive_optional("y")?.unwrap_or_default(),
-            },
+
+        Ok(WindowGeometryDef {
+            anchor_point: attrs.ast_optional("anchor")?,
+            size: CoordsDef { x: attrs.ast_optional("width")?, y: attrs.ast_optional("height")? },
+            offset: CoordsDef { x: attrs.ast_optional("x")?, y: attrs.ast_optional("y")? },
         })
     }
+}
+
+impl WindowGeometryDef {
+    pub fn eval(&self, local_variables: &HashMap<VarName, DynVal>) -> Result<WindowGeometry, Error> {
+        Ok(WindowGeometry {
+            anchor_point: match &self.anchor_point {
+                Some(expr) => AnchorPoint::from_dynval(&expr.eval(local_variables)?)?,
+                None => AnchorPoint::default(),
+            },
+            size: self.size.eval(local_variables)?,
+            offset: self.offset.eval(local_variables)?,
+        })
+    }
+}
+
+#[derive(Default, Debug, Clone, Copy, PartialEq, Serialize)]
+pub struct WindowGeometry {
+    pub anchor_point: AnchorPoint,
+    pub offset: Coords,
+    pub size: Coords,
 }
 
 impl WindowGeometry {
