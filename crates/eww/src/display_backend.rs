@@ -197,8 +197,8 @@ mod platform_x11 {
             let strut_list: Vec<u8> = match strut_def.side {
                 Side::Left   => vec![dist + mon_x, 0,                                                    0,                   0,                                                     mon_x, mon_end_y, 0,     0,         0,     0,         0,             0],
                 Side::Right  => vec![0,            root_window_geometry.width as u32 - mon_end_x + dist, 0,                   0,                                                     0,     0,         mon_x, mon_end_y, 0,     0,         0,             0],
-                Side::Top    => vec![0,            0,                                                    dist + mon_y as u32, 0,                                                     0,     0,         0,     0,         mon_x, mon_end_x, 0,             0],
-                Side::Bottom => vec![0,            0,                                                    0,                   root_window_geometry.height as u32 - mon_end_y + dist, 0,     0,         0,     0,         0,     0,         mon_x as u32,  mon_end_x],
+                Side::Top    => vec![0,            0,                                                    dist + mon_y, 0,                                                     0,     0,         0,     0,         mon_x, mon_end_x, 0,             0],
+                Side::Bottom => vec![0,            0,                                                    0,                   root_window_geometry.height as u32 - mon_end_y + dist, 0,     0,         0,     0,         0,     0,         mon_x,  mon_end_x],
                 // This should never happen but if it does the window will be anchored on the
                 // right of the screen
             }.iter().flat_map(|x| x.to_le_bytes().to_vec()).collect();

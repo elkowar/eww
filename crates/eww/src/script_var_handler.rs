@@ -236,7 +236,7 @@ impl ListenVarHandler {
             crate::try_logging_errors!(format!("Executing listen var-command {}", &var.command) =>  {
                 let mut handle = unsafe {
                     tokio::process::Command::new("sh")
-                    .args(&["-c", &var.command])
+                    .args(["-c", &var.command])
                     .stdout(std::process::Stdio::piped())
                     .stderr(std::process::Stdio::piped())
                     .stdin(std::process::Stdio::null())

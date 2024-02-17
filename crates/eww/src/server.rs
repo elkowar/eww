@@ -26,7 +26,7 @@ pub fn initialize_server<B: DisplayBackend>(
 ) -> Result<ForkResult> {
     let (ui_send, mut ui_recv) = tokio::sync::mpsc::unbounded_channel();
 
-    std::env::set_current_dir(&paths.get_config_dir())
+    std::env::set_current_dir(paths.get_config_dir())
         .with_context(|| format!("Failed to change working directory to {}", paths.get_config_dir().display()))?;
 
     log::info!("Loading paths: {}", &paths);
@@ -42,7 +42,7 @@ pub fn initialize_server<B: DisplayBackend>(
     };
 
     if should_daemonize {
-        let fork_result = do_detach(&paths.get_log_file())?;
+        let fork_result = do_detach(paths.get_log_file())?;
 
         if fork_result == ForkResult::Parent {
             return Ok(ForkResult::Parent);

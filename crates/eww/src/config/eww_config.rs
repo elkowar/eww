@@ -45,12 +45,8 @@ impl EwwConfig {
         let config = Config::generate_from_main_file(files, yuck_path)?;
 
         // run some validations on the configuration
-        let magic_globals: Vec<_> = inbuilt::INBUILT_VAR_NAMES
-            .iter()
-            .chain(inbuilt::MAGIC_CONSTANT_NAMES)
-            .into_iter()
-            .map(|x| VarName::from(*x))
-            .collect();
+        let magic_globals: Vec<_> =
+            inbuilt::INBUILT_VAR_NAMES.iter().chain(inbuilt::MAGIC_CONSTANT_NAMES).map(|x| VarName::from(*x)).collect();
         yuck::config::validate::validate(&config, magic_globals)?;
 
         for (name, def) in &config.widget_definitions {
