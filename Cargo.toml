@@ -14,6 +14,7 @@ cached = "0.48.0"
 chrono = "0.4.26"
 chrono-tz = "0.8.2"
 clap = {version = "4.5.1", features = ["derive"] }
+clap_complete = "4.5.1"
 codespan-reporting = "0.11"
 derive_more = "0.99"
 extend = "1.2"
