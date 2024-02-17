@@ -1,6 +1,5 @@
 #![feature(try_blocks)]
 #![feature(unwrap_infallible)]
-#![feature(never_type)]
 
 pub mod ast;
 pub mod dynval;

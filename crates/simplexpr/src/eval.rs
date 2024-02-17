@@ -9,7 +9,7 @@ use crate::{
 use eww_shared_util::{Span, Spanned, VarName};
 use std::{
     collections::HashMap,
-    convert::{TryFrom, TryInto},
+    convert::{Infallible, TryFrom, TryInto},
     str::FromStr,
     sync::Arc,
 };
@@ -126,7 +126,7 @@ impl SimplExpr {
     }
 
     pub fn map_var_refs(self, f: impl Fn(Span, VarName) -> SimplExpr) -> Self {
-        self.try_map_var_refs(|span, var| Ok::<_, !>(f(span, var))).into_ok()
+        self.try_map_var_refs(|span, var| Ok::<_, Infallible>(f(span, var))).unwrap()
     }
 
     /// resolve partially.
