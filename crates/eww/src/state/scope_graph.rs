@@ -110,6 +110,7 @@ impl ScopeGraph {
         self.graph.remove_scope(scope_index);
     }
 
+    #[cfg_attr(not(debug_assertions), allow(dead_code))]
     pub fn validate(&self) -> Result<()> {
         self.graph.validate()
     }
@@ -505,6 +506,7 @@ mod internal {
             Ok(())
         }
 
+        #[cfg_attr(not(debug_assertions), allow(dead_code))]
         pub fn validate(&self) -> Result<()> {
             for (child_scope, (parent_scope, _edge)) in &self.hierarchy_relations.child_to_parent {
                 if !self.scopes.contains_key(child_scope) {
