@@ -358,7 +358,7 @@ const WIDGET_NAME_COLOR_BUTTON: &str = "color-button";
 /// @widget color-button
 /// @desc A button opening a color chooser window
 fn build_gtk_color_button(bargs: &mut BuilderArgs) -> Result<gtk::ColorButton> {
-    let gtk_widget = gtk::builders::ColorButtonBuilder::new().build();
+    let gtk_widget = gtk::ColorButton::builder().build();
     def_widget!(bargs, _g, gtk_widget, {
         // @prop use-alpha - bool to whether or not use alpha
         prop(use_alpha: as_bool) {gtk_widget.set_use_alpha(use_alpha);},
@@ -828,8 +828,8 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
     def_widget!(bargs, _g, gtk_widget, {
         // @prop text - the text to display
         // @prop limit-width - maximum count of characters to display
-        // @prop truncate_left - whether to truncate on the left side
-        // @prop show_truncated - show whether the text was truncated
+        // @prop truncate-left - whether to truncate on the left side
+        // @prop show-truncated - show whether the text was truncated
         prop(text: as_string, limit_width: as_i32 = i32::MAX, truncate_left: as_bool = false, show_truncated: as_bool = true) {
             let limit_width = limit_width as usize;
             let char_count = text.chars().count();
@@ -1024,9 +1024,9 @@ fn build_transform(bargs: &mut BuilderArgs) -> Result<Transform> {
         prop(translate_x: as_string) { w.set_property("translate-x", translate_x); },
         // @prop translate-y - the amount to translate in the y direction (px or %)
         prop(translate_y: as_string) { w.set_property("translate-y", translate_y); },
-        // @prop scale_x - the amount to scale in the x direction (px or %)
+        // @prop scale-x - the amount to scale in the x direction (px or %)
         prop(scale_x: as_string) { w.set_property("scale-x", scale_x); },
-        // @prop scale_y - the amount to scale in the y direction (px or %)
+        // @prop scale-y - the amount to scale in the y direction (px or %)
         prop(scale_y: as_string) { w.set_property("scale-y", scale_y); },
     });
     Ok(w)
@@ -1039,9 +1039,9 @@ fn build_circular_progress_bar(bargs: &mut BuilderArgs) -> Result<CircProg> {
     let w = CircProg::new();
     def_widget!(bargs, _g, w, {
         // @prop value - the value, between 0 - 100
-        prop(value: as_f64) { w.set_property("value", value); },
-        // @prop start-at - the angle that the circle should start at
-        prop(start_at: as_f64) { w.set_property("start-at", start_at); },
+        prop(value: as_f64) { w.set_property("value", value.clamp(0.0, 100.0)); },
+        // @prop start-at - the percentage that the circle should start at
+        prop(start_at: as_f64) { w.set_property("start-at", start_at.clamp(0.0, 100.0)); },
         // @prop thickness - the thickness of the circle
         prop(thickness: as_f64) { w.set_property("thickness", thickness); },
         // @prop clockwise - wether the progress bar spins clockwise or counter clockwise

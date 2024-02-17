@@ -81,9 +81,11 @@ pub fn initialize_server<B: DisplayBackend>(
         eww_config,
         open_windows: HashMap::new(),
         failed_windows: HashSet::new(),
+        instance_id_to_args: HashMap::new(),
         css_provider: gtk::CssProvider::new(),
         script_var_handler,
         app_evt_send: ui_send.clone(),
+        window_close_timer_abort_senders: HashMap::new(),
         paths,
     };
 

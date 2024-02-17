@@ -5,6 +5,9 @@ All notable changes to eww will be listed here, starting at changes since versio
 
 ## [Unreleased]
 
+### BREAKING CHANGES
+- Remove `eww windows` command, replace with `eww active-windows` and `eww list-windows`
+
 ### Features
 - Add `:namespace` window option
 - Default to building with x11 and wayland support simultaneously
@@ -17,6 +20,11 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add `jq` function, offering jq-style json processing
 - Add `justify` property to the label widget, allowing text justification (By: n3oney)
 - Add `EWW_TIME` magic variable (By: Erenoit)
+- Add trigonometric functions (`sin`, `cos`, `tan`, `cot`) and degree/radian conversions (`degtorad`, `radtodeg`) (By: end-4)
+- Add `substring` function to simplexpr
+- Add `--duration` flag to `eww open`
+- Add support for referring to monitor with `<primary>`
+- Add support for multiple matchers in `monitor` field
 - Add `stack` widget (By: vladaviedov)
 
 ## [0.4.0] (04.09.2022)
@@ -69,6 +77,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add `:onaccept` to input field, add `:onclick` to eventbox
 - Add `EWW_CMD`, `EWW_CONFIG_DIR`, `EWW_EXECUTABLE` magic variables
 - Add `overlay` widget (By: viandoxdev)
+- Add arguments option to `defwindow` (By: WilfSilver)
 
 ### Notable Internal changes
 - Rework state management completely, now making local state and dynamic widget hierarchy changes possible.

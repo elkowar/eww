@@ -320,6 +320,48 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
             }
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
+        "sin" => match args.as_slice() {
+            [num] => {
+                let num = num.as_f64()?;
+                Ok(DynVal::from(num.sin()))
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
+        "cos" => match args.as_slice() {
+            [num] => {
+                let num = num.as_f64()?;
+                Ok(DynVal::from(num.cos()))
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
+        "tan" => match args.as_slice() {
+            [num] => {
+                let num = num.as_f64()?;
+                Ok(DynVal::from(num.tan()))
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
+        "cot" => match args.as_slice() {
+            [num] => {
+                let num = num.as_f64()?;
+                Ok(DynVal::from(1.0 / num.tan()))
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
+        "degtorad" => match args.as_slice() {
+            [num] => {
+                let num = num.as_f64()?;
+                Ok(DynVal::from(num.to_radians()))
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
+        "radtodeg" => match args.as_slice() {
+            [num] => {
+                let num = num.as_f64()?;
+                Ok(DynVal::from(num.to_degrees()))
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
         "matches" => match args.as_slice() {
             [string, pattern] => {
                 let string = string.as_string()?;
@@ -334,6 +376,18 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
                 let pattern = regex::Regex::new(&pattern.as_string()?)?;
                 let replacement = replacement.as_string()?;
                 Ok(DynVal::from(pattern.replace_all(&string, replacement.replace('$', "$$").replace('\\', "$")).into_owned()))
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
+        "substring" => match args.as_slice() {
+            [string, start, len] => {
+                let result: String = string
+                    .as_string()?
+                    .chars()
+                    .skip(start.as_i32()?.max(0) as usize)
+                    .take(len.as_i32()?.max(0) as usize)
+                    .collect();
+                Ok(DynVal::from(result))
             }
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },

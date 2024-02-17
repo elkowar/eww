@@ -39,11 +39,15 @@ Supported currently are the following features:
     - for this, the object/array value needs to refer to a variable that contains a valid json string.
 - some function calls:
     - `round(number, decimal_digits)`: Round a number to the given amount of decimals
+    - `sin(number)`, `cos(number)`, `tan(number)`, `cot(number)`: Calculate the trigonometric value of a given number in **radians**
+    - `degtorad(number)`: Converts a number from degrees to radians
+    - `radtodeg(number)`: Converts a number from radians to degrees
     - `replace(string, regex, replacement)`: Replace matches of a given regex in a string
 	- `search(string, regex)`: Search for a given regex in a string (returns array)
 	- `matches(string, regex)`: check if a given string matches a given regex (returns bool)
 	- `captures(string, regex)`: Get the captures of a given regex in a string (returns array)
 	- `strlength(value)`: Gets the length of the string
+    - `substring(string, start, length)`: Return a substring of given length starting at the given index
 	- `arraylength(value)`: Gets the length of the array
 	- `objectlength(value)`: Gets the amount of entries in the object
 	- `jq(value, jq_filter_string)`: run a [jq](https://stedolan.github.io/jq/manual/) style command on a json value. (Uses [jaq](https://crates.io/crates/jaq) internally).

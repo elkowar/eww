@@ -33,13 +33,17 @@ impl Spanned for ValidationError {
 }
 
 pub fn validate(config: &Config, additional_globals: Vec<VarName>) -> Result<(), ValidationError> {
-    let var_names = std::iter::empty()
+    let var_names: HashSet<VarName> = std::iter::empty()
         .chain(additional_globals.iter().cloned())
         .chain(config.script_vars.keys().cloned())
         .chain(config.var_definitions.keys().cloned())
         .collect();
     for window in config.window_definitions.values() {
-        validate_variables_in_widget_use(&config.widget_definitions, &var_names, &window.widget, false)?;
+        let local_var_names: HashSet<VarName> = std::iter::empty()
+            .chain(var_names.iter().cloned())
+            .chain(window.expected_args.iter().map(|x| VarName::from(x.name.clone())))
+            .collect();
+        validate_variables_in_widget_use(&config.widget_definitions, &local_var_names, &window.widget, false)?;
     }
     for def in config.widget_definitions.values() {
         validate_widget_definition(&config.widget_definitions, &var_names, def)?;
