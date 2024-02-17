@@ -1,4 +1,3 @@
-#![feature(pattern)]
 #![feature(try_blocks)]
 #![feature(unwrap_infallible)]
 #![feature(never_type)]
