@@ -181,11 +181,10 @@ The key difference: It is independent of your window manager!</p>
 <h3 id="prerequisites"><a class="header" href="#prerequisites">Prerequisites</a></h3>
 <ul>
 <li>rustc</li>
-<li>cargo (nightly toolchain)</li>
+<li>cargo</li>
 </ul>
 <p>Rather than with your system package manager,
-I recommend installing it using  <a href="https://rustup.rs/">rustup</a>,
-as this makes it easy to use the nightly toolchain necessary to build eww.</p>
+I <strong>strongly</strong> recommend installing it using  <a href="https://rustup.rs/">rustup</a>.</p>
 <p>Additionally, eww requires some dynamic libraries to be available on your system.
 The exact names of the packages that provide these may differ depending on your distribution.
 The following list of package names should work for arch linux:</p>
@@ -871,7 +870,7 @@ or use the <a href="working_with_gtk.html#gtk-debugger">GTK-Debugger</a>.</p>
 <p>Here you will find help if something doesn't work. If the issue isn't listed here, please <a href="https://github.com/elkowar/eww/issues">open an issue on the GitHub repo.</a></p>
 <h2 id="eww-does-not-compile"><a class="header" href="#eww-does-not-compile">Eww does not compile</a></h2>
 <ol>
-<li>Make sure that you are compiling eww using the nightly Rust toolchain.</li>
+<li>Make sure that you are compiling eww using a recent version of rust (run <code>rustup update</code> to be sure you have the latest version available)</li>
 <li>Make sure you have all the necessary dependencies. If there are compile-errors, the compiler will tell you what you're missing.</li>
 </ol>
 <h2 id="eww-does-not-work-on-wayland"><a class="header" href="#eww-does-not-work-on-wayland">Eww does not work on Wayland</a></h2>
