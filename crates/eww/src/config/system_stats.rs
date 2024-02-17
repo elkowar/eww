@@ -3,17 +3,21 @@ use anyhow::{Context, Result};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use std::{fs::read_to_string, sync::Mutex};
-use sysinfo::{ComponentExt, CpuExt, DiskExt, NetworkExt, NetworksExt, System, SystemExt};
+use sysinfo::System;
 
 static SYSTEM: Lazy<Mutex<System>> = Lazy::new(|| Mutex::new(System::new()));
+static DISKS: Lazy<Mutex<sysinfo::Disks>> = Lazy::new(|| Mutex::new(sysinfo::Disks::new()));
+static COMPONENTS: Lazy<Mutex<sysinfo::Components>> = Lazy::new(|| Mutex::new(sysinfo::Components::new()));
+static NETWORKS: Lazy<Mutex<sysinfo::Networks>> = Lazy::new(|| Mutex::new(sysinfo::Networks::new()));
 
 pub fn get_disks() -> String {
-    let mut c = SYSTEM.lock().unwrap();
-    c.refresh_disks_list();
+    let mut disks = DISKS.lock().unwrap();
+    disks.refresh_list();
+    disks.refresh();
 
     format!(
         "{{ {} }}",
-        c.disks()
+        disks
             .iter()
             .map(|c| {
                 let total_space = c.total_space();
@@ -34,18 +38,18 @@ pub fn get_disks() -> String {
 }
 
 pub fn get_ram() -> String {
-    let mut c = SYSTEM.lock().unwrap();
-    c.refresh_memory();
+    let mut system = SYSTEM.lock().unwrap();
+    system.refresh_memory();
 
-    let total_memory = c.total_memory();
-    let available_memory = c.available_memory();
+    let total_memory = system.total_memory();
+    let available_memory = system.available_memory();
     let used_memory = total_memory as f32 - available_memory as f32;
     format!(
         r#"{{"total_mem": {}, "free_mem": {}, "total_swap": {}, "free_swap": {}, "available_mem": {}, "used_mem": {}, "used_mem_perc": {}}}"#,
         total_memory,
-        c.free_memory(),
-        c.total_swap(),
-        c.free_swap(),
+        system.free_memory(),
+        system.total_swap(),
+        system.free_swap(),
         available_memory,
         used_memory,
         (used_memory / total_memory as f32) * 100f32,
@@ -53,12 +57,12 @@ pub fn get_ram() -> String {
 }
 
 pub fn get_temperatures() -> String {
-    let mut c = SYSTEM.lock().unwrap();
-    c.refresh_components_list();
-    c.refresh_components();
+    let mut components = COMPONENTS.lock().unwrap();
+    components.refresh_list();
+    components.refresh();
     format!(
         "{{ {} }}",
-        c.components()
+        components
             .iter()
             .map(|c| format!(
                 r#""{}": {}"#,
@@ -72,9 +76,9 @@ pub fn get_temperatures() -> String {
 }
 
 pub fn get_cpus() -> String {
-    let mut c = SYSTEM.lock().unwrap();
-    c.refresh_cpu_specifics(sysinfo::CpuRefreshKind::everything());
-    let cpus = c.cpus();
+    let mut system = SYSTEM.lock().unwrap();
+    system.refresh_cpu_specifics(sysinfo::CpuRefreshKind::everything());
+    let cpus = system.cpus();
     let json = serde_json::json!({
         "cores": cpus.iter()
             .map(|a| {
@@ -192,11 +196,12 @@ pub fn get_battery_capacity() -> Result<String> {
 }
 
 pub fn net() -> String {
-    let mut c = SYSTEM.lock().unwrap();
-    c.refresh_networks_list();
+    let mut networks = NETWORKS.lock().unwrap();
+    networks.refresh_list();
+    networks.refresh();
     let interfaces = format!(
         "{{ {} }}",
-        &c.networks()
+        &networks
             .iter()
             .map(|a| format!(r#""{}": {{ "NET_UP": {}, "NET_DOWN": {} }}"#, a.0, a.1.transmitted(), a.1.received()))
             .join(","),

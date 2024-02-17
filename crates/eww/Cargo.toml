@@ -47,7 +47,7 @@ itertools.workspace = true
 libc.workspace = true
 log.workspace = true
 maplit.workspace = true
-nix.workspace = true
+nix = { workspace = true, features = ["process", "fs", "signal"] }
 notify.workspace = true
 once_cell.workspace = true
 pretty_env_logger.workspace = true
