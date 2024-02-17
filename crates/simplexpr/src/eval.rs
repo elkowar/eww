@@ -1,6 +1,7 @@
 use cached::proc_macro::cached;
 use chrono::{Local, LocalResult, TimeZone};
 use itertools::Itertools;
+use jaq_interpret::FilterT;
 
 use crate::{
     ast::{AccessType, BinOp, SimplExpr, UnaryOp},
@@ -15,7 +16,7 @@ use std::{
 };
 
 #[derive(Debug, thiserror::Error)]
-pub struct JaqParseError(pub Option<jaq_core::parse::Error>);
+pub struct JaqParseError(pub Option<jaq_parse::Error>);
 impl std::fmt::Display for JaqParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.0 {
@@ -459,18 +460,16 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
 }
 
 #[cached(size = 10, result = true, sync_writes = true)]
-fn prepare_jaq_filter(code: String) -> Result<Arc<jaq_core::Filter>, EvalError> {
-    let (filter, mut errors) = jaq_core::parse::parse(&code, jaq_core::parse::main());
+fn prepare_jaq_filter(code: String) -> Result<Arc<jaq_interpret::Filter>, EvalError> {
+    let (filter, mut errors) = jaq_parse::parse(&code, jaq_parse::main());
     let filter = match filter {
         Some(x) => x,
         None => return Err(EvalError::JaqParseError(Box::new(JaqParseError(errors.pop())))),
     };
-    let mut defs = jaq_core::Definitions::core();
-    for def in jaq_std::std() {
-        defs.insert(def, &mut errors);
-    }
+    let mut defs = jaq_interpret::ParseCtx::new(Vec::new());
+    defs.insert_defs(jaq_std::std());
 
-    let filter = defs.finish(filter, Vec::new(), &mut errors);
+    let filter = defs.compile(filter);
 
     if let Some(error) = errors.pop() {
         return Err(EvalError::JaqParseError(Box::new(JaqParseError(Some(error)))));
@@ -479,10 +478,10 @@ fn prepare_jaq_filter(code: String) -> Result<Arc<jaq_core::Filter>, EvalError> 
 }
 
 fn run_jaq_function(json: serde_json::Value, code: String) -> Result<DynVal, EvalError> {
-    let filter = prepare_jaq_filter(code)?;
-    let inputs = jaq_core::RcIter::new(std::iter::empty());
+    let filter: Arc<jaq_interpret::Filter> = prepare_jaq_filter(code)?;
+    let inputs = jaq_interpret::RcIter::new(std::iter::empty());
     let out = filter
-        .run(jaq_core::Ctx::new([], &inputs), jaq_core::Val::from(json))
+        .run((jaq_interpret::Ctx::new([], &inputs), jaq_interpret::Val::from(json)))
         .map(|x| x.map(Into::<serde_json::Value>::into))
         .map(|x| x.map(|x| DynVal::from_string(serde_json::to_string(&x).unwrap())))
         .collect::<Result<_, _>>()

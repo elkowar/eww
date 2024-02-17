@@ -19,7 +19,10 @@ chrono-tz.workspace = true
 chrono.workspace = true
 itertools.workspace = true
 jaq-core.workspace = true
+jaq-parse.workspace = true
 jaq-std = {workspace = true, features = ["bincode"]}
+jaq-interpret.workspace = true
+jaq-syn.workspace = true
 lalrpop-util.workspace = true
 once_cell.workspace = true
 regex.workspace = true
