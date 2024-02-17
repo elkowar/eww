@@ -80,6 +80,7 @@ pub const BUILTIN_WIDGET_NAMES: &[&str] = &[
     WIDGET_NAME_REVEALER,
     WIDGET_NAME_SCROLL,
     WIDGET_NAME_OVERLAY,
+    WIDGET_NAME_STACK,
 ];
 
 //// widget definitions
@@ -107,6 +108,7 @@ pub(super) fn widget_use_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::W
         WIDGET_NAME_REVEALER => build_gtk_revealer(bargs)?.upcast(),
         WIDGET_NAME_SCROLL => build_gtk_scrolledwindow(bargs)?.upcast(),
         WIDGET_NAME_OVERLAY => build_gtk_overlay(bargs)?.upcast(),
+        WIDGET_NAME_STACK => build_gtk_stack(bargs)?.upcast(),
         _ => {
             return Err(DiagError(gen_diagnostic! {
                 msg = format!("referenced unknown widget `{}`", bargs.widget_use.name),
@@ -324,7 +326,7 @@ fn build_gtk_revealer(bargs: &mut BuilderArgs) -> Result<gtk::Revealer> {
     let gtk_widget = gtk::Revealer::new();
     def_widget!(bargs, _g, gtk_widget, {
         // @prop transition - the name of the transition. Possible values: $transition
-        prop(transition: as_string = "crossfade") { gtk_widget.set_transition_type(parse_transition(&transition)?); },
+        prop(transition: as_string = "crossfade") { gtk_widget.set_transition_type(parse_revealer_transition(&transition)?); },
         // @prop reveal - sets if the child is revealed or not
         prop(reveal: as_bool) { gtk_widget.set_reveal_child(reveal); },
         // @prop duration - the duration of the reveal transition. Default: "500ms"
@@ -971,6 +973,44 @@ fn build_gtk_calendar(bargs: &mut BuilderArgs) -> Result<gtk::Calendar> {
     Ok(gtk_widget)
 }
 
+const WIDGET_NAME_STACK: &str = "stack";
+/// @widget stack
+/// @desc A widget that displays one of its children at a time
+fn build_gtk_stack(bargs: &mut BuilderArgs) -> Result<gtk::Stack> {
+    let gtk_widget = gtk::Stack::new();
+    def_widget!(bargs, _g, gtk_widget, {
+        // @prop selected - index of child which should be shown
+        prop(selected: as_i32) { gtk_widget.set_visible_child_name(&selected.to_string()); },
+        // @prop transition - the name of the transition. Possible values: $transition
+        prop(transition: as_string = "crossfade") { gtk_widget.set_transition_type(parse_stack_transition(&transition)?); },
+        // @prop same-size - sets whether all children should be the same size
+        prop(same_size: as_bool = false) { gtk_widget.set_homogeneous(same_size); }
+    });
+
+    match bargs.widget_use.children.len().cmp(&1) {
+        Ordering::Less => {
+            Err(DiagError(gen_diagnostic!("stack must contain at least one element", bargs.widget_use.span)).into())
+        }
+        Ordering::Greater | Ordering::Equal => {
+            let children = bargs.widget_use.children.iter().map(|child| {
+                build_gtk_widget(
+                    bargs.scope_graph,
+                    bargs.widget_defs.clone(),
+                    bargs.calling_scope,
+                    child.clone(),
+                    bargs.custom_widget_invocation.clone(),
+                )
+            });
+            for (i, child) in children.enumerate() {
+                let child = child?;
+                gtk_widget.add_named(&child, &i.to_string());
+                child.show();
+            }
+            Ok(gtk_widget)
+        }
+    }
+}
+
 const WIDGET_NAME_TRANSFORM: &str = "transform";
 /// @widget transform
 /// @desc A widget that applies transformations to its content. They are applied in the following
@@ -1064,7 +1104,7 @@ fn parse_dragtype(o: &str) -> Result<DragEntryType> {
 }
 
 /// @var transition - "slideright", "slideleft", "slideup", "slidedown", "crossfade", "none"
-fn parse_transition(t: &str) -> Result<gtk::RevealerTransitionType> {
+fn parse_revealer_transition(t: &str) -> Result<gtk::RevealerTransitionType> {
     enum_parse! { "transition", t,
         "slideright" => gtk::RevealerTransitionType::SlideRight,
         "slideleft" => gtk::RevealerTransitionType::SlideLeft,
@@ -1072,6 +1112,18 @@ fn parse_transition(t: &str) -> Result<gtk::RevealerTransitionType> {
         "slidedown" => gtk::RevealerTransitionType::SlideDown,
         "fade" | "crossfade" => gtk::RevealerTransitionType::Crossfade,
         "none" => gtk::RevealerTransitionType::None,
+    }
+}
+
+/// @var transition - "slideright", "slideleft", "slideup", "slidedown", "crossfade", "none"
+fn parse_stack_transition(t: &str) -> Result<gtk::StackTransitionType> {
+    enum_parse! { "transition", t,
+        "slideright" => gtk::StackTransitionType::SlideRight,
+        "slideleft" => gtk::StackTransitionType::SlideLeft,
+        "slideup" => gtk::StackTransitionType::SlideUp,
+        "slidedown" => gtk::StackTransitionType::SlideDown,
+        "fade" | "crossfade" => gtk::StackTransitionType::Crossfade,
+        "none" => gtk::StackTransitionType::None,
     }
 }
 
