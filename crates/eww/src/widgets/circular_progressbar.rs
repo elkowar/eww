@@ -156,27 +156,24 @@ impl WidgetImpl for CircProgPriv {
     fn draw(&self, cr: &cairo::Context) -> Inhibit {
         let res: Result<()> = try {
             let value = *self.value.borrow();
-            let start_at = *self.start_at.borrow() as f64;
-            let thickness = *self.thickness.borrow() as f64;
-            let clockwise = *self.clockwise.borrow() as bool;
+            let start_at = *self.start_at.borrow();
+            let thickness = *self.thickness.borrow();
+            let clockwise = *self.clockwise.borrow();
 
             let styles = self.obj().style_context();
             let margin = styles.margin(gtk::StateFlags::NORMAL);
             // Padding is not supported yet
             let fg_color: gdk::RGBA = styles.color(gtk::StateFlags::NORMAL);
             let bg_color: gdk::RGBA = styles.style_property_for_state("background-color", gtk::StateFlags::NORMAL).get()?;
-            let (start_angle, end_angle) = if clockwise {
-                (0.0, perc_to_rad(value as f64))
-            } else {
-                (perc_to_rad(100.0 - value as f64), 2f64 * std::f64::consts::PI)
-            };
+            let (start_angle, end_angle) =
+                if clockwise { (0.0, perc_to_rad(value)) } else { (perc_to_rad(100.0 - value), 2f64 * std::f64::consts::PI) };
 
             let total_width = self.obj().allocated_width() as f64;
             let total_height = self.obj().allocated_height() as f64;
             let center = (total_width / 2.0, total_height / 2.0);
 
             let circle_width = total_width - margin.left as f64 - margin.right as f64;
-            let circle_height = total_height as f64 - margin.top as f64 - margin.bottom as f64;
+            let circle_height = total_height - margin.top as f64 - margin.bottom as f64;
             let outer_ring = f64::min(circle_width, circle_height) / 2.0;
             let inner_ring = (f64::min(circle_width, circle_height) / 2.0) - thickness;
 

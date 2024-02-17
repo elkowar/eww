@@ -179,7 +179,7 @@ impl WidgetImpl for GraphPriv {
             let (min, max) = {
                 let mut max = *self.max.borrow();
                 let min = *self.min.borrow();
-                let dynamic = *self.dynamic.borrow() as bool;
+                let dynamic = *self.dynamic.borrow();
                 if dynamic {
                     // Check for points higher than max
                     for (_, value) in history {
