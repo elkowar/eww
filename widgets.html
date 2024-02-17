@@ -359,6 +359,14 @@
 <li><strong><code>onclick</code></strong>: <em><code>string</code></em> command to run when the user selects a date. The <code>{0}</code> placeholder will be replaced by the selected day, <code>{1}</code> will be replaced by the month, and <code>{2}</code> by the year.</li>
 <li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command. Default: &quot;200ms&quot;</li>
 </ul>
+<h2 id="stack"><a class="header" href="#stack"><code>stack</code></a></h2>
+<p>A widget that displays one of its children at a time</p>
+<p><strong>Properties</strong></p>
+<ul>
+<li><strong><code>selected</code></strong>: <em><code>int</code></em> index of child which should be shown</li>
+<li><strong><code>transition</code></strong>: <em><code>string</code></em> the name of the transition. Possible values: &quot;slideright&quot;, &quot;slideleft&quot;, &quot;slideup&quot;, &quot;slidedown&quot;, &quot;crossfade&quot;, &quot;none&quot;</li>
+<li><strong><code>same-size</code></strong>: <em><code>bool</code></em> sets whether all children should be the same size</li>
+</ul>
 <h2 id="transform"><a class="header" href="#transform"><code>transform</code></a></h2>
 <p>A widget that applies transformations to its content. They are applied in the following</p>
 <p><strong>Properties</strong></p>
