@@ -1,6 +1,3 @@
-#![feature(trace_macros)]
-#![feature(extract_if)]
-#![feature(slice_concat_trait)]
 #![feature(try_blocks)]
 #![allow(rustdoc::private_intra_doc_links)]
 
