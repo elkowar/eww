@@ -163,7 +163,7 @@ pub fn lalrpop_error_to_diagnostic<T: std::fmt::Display, E: Spanned + ToDiagnost
     use lalrpop_util::ParseError::*;
     match error {
         InvalidToken { location } => gen_diagnostic!("Invalid token", Span::point(*location, file_id)),
-        UnrecognizedEOF { location, expected: _ } => gen_diagnostic! {
+        UnrecognizedEof { location, expected: _ } => gen_diagnostic! {
             msg = "Input ended unexpectedly. Check if you have any unclosed delimiters",
             label = Span::point(*location, file_id),
         },
