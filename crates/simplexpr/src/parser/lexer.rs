@@ -1,5 +1,3 @@
-use std::str::pattern::Pattern;
-
 use eww_shared_util::{Span, Spanned};
 use once_cell::sync::Lazy;
 use regex::{Regex, RegexSet};
@@ -131,10 +129,6 @@ impl<'s> Lexer<'s> {
 
     fn remaining(&self) -> &'s str {
         &self.source[self.pos..]
-    }
-
-    pub fn continues_with(&self, pat: impl Pattern<'s>) -> bool {
-        self.remaining().starts_with(pat)
     }
 
     pub fn next_token(&mut self) -> Option<Result<Sp<Token>, LexicalError>> {
