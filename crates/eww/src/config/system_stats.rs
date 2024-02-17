@@ -1,40 +1,54 @@
 use crate::util::IterAverage;
 use anyhow::{Context, Result};
-use itertools::Itertools;
 use once_cell::sync::Lazy;
 use std::{fs::read_to_string, sync::Mutex};
 use sysinfo::System;
 
+struct RefreshTime(std::time::Instant);
+impl RefreshTime {
+    pub fn new() -> Self {
+        Self(std::time::Instant::now())
+    }
+
+    pub fn next_refresh(&mut self) -> std::time::Duration {
+        let now = std::time::Instant::now();
+        let duration = now.duration_since(self.0);
+        self.0 = now;
+        duration
+    }
+}
+
 static SYSTEM: Lazy<Mutex<System>> = Lazy::new(|| Mutex::new(System::new()));
-static DISKS: Lazy<Mutex<sysinfo::Disks>> = Lazy::new(|| Mutex::new(sysinfo::Disks::new()));
-static COMPONENTS: Lazy<Mutex<sysinfo::Components>> = Lazy::new(|| Mutex::new(sysinfo::Components::new()));
-static NETWORKS: Lazy<Mutex<sysinfo::Networks>> = Lazy::new(|| Mutex::new(sysinfo::Networks::new()));
+static DISKS: Lazy<Mutex<sysinfo::Disks>> = Lazy::new(|| Mutex::new(sysinfo::Disks::new_with_refreshed_list()));
+static COMPONENTS: Lazy<Mutex<sysinfo::Components>> = Lazy::new(|| Mutex::new(sysinfo::Components::new_with_refreshed_list()));
+static NETWORKS: Lazy<Mutex<(RefreshTime, sysinfo::Networks)>> =
+    Lazy::new(|| Mutex::new((RefreshTime::new(), sysinfo::Networks::new_with_refreshed_list())));
 
 pub fn get_disks() -> String {
     let mut disks = DISKS.lock().unwrap();
     disks.refresh_list();
     disks.refresh();
 
-    format!(
-        "{{ {} }}",
-        disks
-            .iter()
-            .map(|c| {
-                let total_space = c.total_space();
-                let available_space = c.available_space();
-                let used_space = total_space - available_space;
-                format!(
-                    r#""{}": {{"name": {:?}, "total": {}, "free": {}, "used": {}, "used_perc": {}}}"#,
-                    c.mount_point().display(),
-                    c.name(),
-                    total_space,
-                    available_space,
-                    used_space,
-                    (used_space as f32 / total_space as f32) * 100f32,
-                )
-            })
-            .join(",")
-    )
+    disks
+        .iter()
+        .map(|c| {
+            let total_space = c.total_space();
+            let available_space = c.available_space();
+            let used_space = total_space - available_space;
+
+            (
+                c.mount_point().display().to_string(),
+                serde_json::json!({
+                    "name": c.name(),
+                    "total": total_space,
+                    "free": available_space,
+                    "used": used_space,
+                    "used_perc": (used_space as f32 / total_space as f32) * 100f32
+                }),
+            )
+        })
+        .collect::<serde_json::Value>()
+        .to_string()
 }
 
 pub fn get_ram() -> String {
@@ -44,42 +58,41 @@ pub fn get_ram() -> String {
     let total_memory = system.total_memory();
     let available_memory = system.available_memory();
     let used_memory = total_memory as f32 - available_memory as f32;
-    format!(
-        r#"{{"total_mem": {}, "free_mem": {}, "total_swap": {}, "free_swap": {}, "available_mem": {}, "used_mem": {}, "used_mem_perc": {}}}"#,
-        total_memory,
-        system.free_memory(),
-        system.total_swap(),
-        system.free_swap(),
-        available_memory,
-        used_memory,
-        (used_memory / total_memory as f32) * 100f32,
-    )
+    serde_json::json!({
+        "total_mem": total_memory,
+        "free_mem": system.free_memory(),
+        "total_swap": system.total_swap(),
+        "free_swap": system.free_swap(),
+        "available_mem": available_memory,
+        "used_mem": used_memory,
+        "used_mem_perc": (used_memory / total_memory as f32) * 100f32,
+    })
+    .to_string()
 }
 
 pub fn get_temperatures() -> String {
     let mut components = COMPONENTS.lock().unwrap();
     components.refresh_list();
     components.refresh();
-    format!(
-        "{{ {} }}",
-        components
-            .iter()
-            .map(|c| format!(
-                r#""{}": {}"#,
+    components
+        .iter()
+        .map(|c| {
+            (
                 c.label().to_uppercase().replace(' ', "_"),
                 // It is common for temperatures to report a non-numeric value.
                 // Tolerate it by serializing it as the string "null"
-                c.temperature().to_string().replace("NaN", "\"null\"")
-            ))
-            .join(",")
-    )
+                c.temperature().to_string().replace("NaN", "\"null\""),
+            )
+        })
+        .collect::<serde_json::Value>()
+        .to_string()
 }
 
 pub fn get_cpus() -> String {
     let mut system = SYSTEM.lock().unwrap();
     system.refresh_cpu_specifics(sysinfo::CpuRefreshKind::everything());
     let cpus = system.cpus();
-    let json = serde_json::json!({
+    serde_json::json!({
         "cores": cpus.iter()
             .map(|a| {
                 serde_json::json!({
@@ -89,8 +102,8 @@ pub fn get_cpus() -> String {
                 })
             }).collect::<Vec<_>>(),
         "avg": cpus.iter().map(|a| a.cpu_usage()).avg()
-    });
-    serde_json::to_string(&json).unwrap()
+    })
+    .to_string()
 }
 
 #[cfg(target_os = "macos")]
@@ -196,17 +209,21 @@ pub fn get_battery_capacity() -> Result<String> {
 }
 
 pub fn net() -> String {
-    let mut networks = NETWORKS.lock().unwrap();
+    let (ref mut last_refresh, ref mut networks) = &mut *NETWORKS.lock().unwrap();
+
     networks.refresh_list();
     networks.refresh();
-    let interfaces = format!(
-        "{{ {} }}",
-        &networks
-            .iter()
-            .map(|a| format!(r#""{}": {{ "NET_UP": {}, "NET_DOWN": {} }}"#, a.0, a.1.transmitted(), a.1.received()))
-            .join(","),
-    );
-    interfaces
+    let elapsed = last_refresh.next_refresh();
+
+    networks
+        .iter()
+        .map(|(name, data)| {
+            let transmitted = data.transmitted() as f64 / elapsed.as_secs_f64();
+            let received = data.received() as f64 / elapsed.as_secs_f64();
+            (name, serde_json::json!({ "NET_UP": transmitted, "NET_DOWN": received }))
+        })
+        .collect::<serde_json::Value>()
+        .to_string()
 }
 
 pub fn get_time() -> String {

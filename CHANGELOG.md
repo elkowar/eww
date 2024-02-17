@@ -32,6 +32,9 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add `tooltip` widget, which allows setting a custom tooltip (not only text), to a widget (By: Rayzeq)
 - Add `eww shell-completions` command, generating completion scripts for different shells
 
+### Fixes
+- Fixed wrong values in `EWW_NET`
+
 ## [0.4.0] (04.09.2022)
 
 ### BREAKING CHANGES

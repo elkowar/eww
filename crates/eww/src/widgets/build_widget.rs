@@ -3,7 +3,7 @@ use codespan_reporting::diagnostic::Severity;
 use eww_shared_util::{AttrName, Spanned};
 use gdk::prelude::Cast;
 use gtk::{
-    prelude::{BoxExt, ContainerExt, WidgetExt, WidgetExtManual},
+    prelude::{BoxExt, ContainerExt, WidgetExt},
     Orientation,
 };
 use itertools::Itertools;
