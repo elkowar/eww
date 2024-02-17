@@ -2,8 +2,9 @@
 
 All notable changes to eww will be listed here, starting at changes since version 0.2.0.
 
+## Unreleased
 
-## [Unreleased]
+## [0.5.0] (17.02.2024)
 
 ### BREAKING CHANGES
 - Remove `eww windows` command, replace with `eww active-windows` and `eww list-windows`
