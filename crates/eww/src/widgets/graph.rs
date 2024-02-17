@@ -171,7 +171,7 @@ impl WidgetImpl for GraphPriv {
     }
 
     fn draw(&self, cr: &cairo::Context) -> Inhibit {
-        let res: Result<()> = try {
+        let res: Result<()> = (|| {
             let history = &*self.history.borrow();
             let extra_point = *self.extra_point.borrow();
 
@@ -269,7 +269,8 @@ impl WidgetImpl for GraphPriv {
 
             cr.reset_clip();
             cr.restore()?;
-        };
+            Ok(())
+        })();
 
         if let Err(error) = res {
             error_handling_ctx::print_error(error)

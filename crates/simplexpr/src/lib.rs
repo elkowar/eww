@@ -1,6 +1,3 @@
-#![feature(try_blocks)]
-#![feature(unwrap_infallible)]
-
 pub mod ast;
 pub mod dynval;
 pub mod error;
