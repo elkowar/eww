@@ -1,5 +1,5 @@
 #![allow(clippy::comparison_chain)]
-#![feature(try_blocks, box_patterns)]
+#![feature(try_blocks)]
 
 pub mod ast_error;
 pub mod config;
