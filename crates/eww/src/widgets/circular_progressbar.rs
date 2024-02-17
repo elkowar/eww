@@ -116,6 +116,7 @@ fn calc_widget_lowest_preferred_dimension(widget: &gtk::Widget) -> (i32, i32) {
 }
 
 impl BinImpl for CircProgPriv {}
+
 impl WidgetImpl for CircProgPriv {
     // We overwrite preferred_* so that overflowing content from the children gets cropped
     //  We return min(child_width, child_height)
@@ -154,7 +155,7 @@ impl WidgetImpl for CircProgPriv {
     }
 
     fn draw(&self, cr: &cairo::Context) -> Inhibit {
-        let res: Result<()> = try {
+        let res: Result<()> = (|| {
             let value = *self.value.borrow();
             let start_at = *self.start_at.borrow();
             let thickness = *self.thickness.borrow();
@@ -218,7 +219,8 @@ impl WidgetImpl for CircProgPriv {
                 cr.reset_clip();
                 cr.restore()?;
             }
-        };
+            Ok(())
+        })();
 
         if let Err(error) = res {
             error_handling_ctx::print_error(error)

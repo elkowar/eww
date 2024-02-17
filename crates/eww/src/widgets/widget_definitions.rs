@@ -145,7 +145,7 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
     let css_provider = gtk::CssProvider::new();
     let css_provider2 = css_provider.clone();
 
-    let visible_result: Result<_> = try {
+    let visible_result: Result<_> = (|| {
         let visible_expr = bargs.widget_use.attrs.attrs.get("visible").map(|x| x.value.as_simplexpr()).transpose()?;
         if let Some(visible_expr) = visible_expr {
             let visible = bargs.scope_graph.evaluate_simplexpr_in_scope(bargs.calling_scope, &visible_expr)?.as_bool()?;
@@ -157,7 +157,8 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
                 }
             });
         }
-    };
+        Ok(())
+    })();
     if let Err(err) = visible_result {
         error_handling_ctx::print_error(err);
     }
@@ -898,7 +899,7 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
         prop(content: as_string) {
             gtk_widget.children().iter().for_each(|w| gtk_widget.remove(w));
             if !content.is_empty() {
-                let content_widget_use: DiagResult<_> = try {
+                let content_widget_use: DiagResult<_> = (||{
                     let ast = {
                         let mut yuck_files = error_handling_ctx::FILE_DATABASE.write().unwrap();
                         let (span, asts) = yuck_files.load_yuck_str("<literal-content>".to_string(), content)?;
@@ -908,8 +909,8 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
                         yuck::parser::require_single_toplevel(span, asts)?
                     };
 
-                    yuck::config::widget_use::WidgetUse::from_ast(ast)?
-                };
+                    yuck::config::widget_use::WidgetUse::from_ast(ast)
+                })();
                 let content_widget_use = content_widget_use?;
 
                 // TODO a literal should create a new scope, that I'm not even sure should inherit from root

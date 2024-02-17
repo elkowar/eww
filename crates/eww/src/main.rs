@@ -1,4 +1,3 @@
-#![feature(try_blocks)]
 #![allow(rustdoc::private_intra_doc_links)]
 
 extern crate gtk;

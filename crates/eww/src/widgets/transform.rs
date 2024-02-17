@@ -122,7 +122,7 @@ impl ContainerImpl for TransformPriv {
 impl BinImpl for TransformPriv {}
 impl WidgetImpl for TransformPriv {
     fn draw(&self, cr: &cairo::Context) -> Inhibit {
-        let res: Result<()> = try {
+        let res: Result<()> = (|| {
             let rotate = *self.rotate.borrow();
             let total_width = self.obj().allocated_width() as f64;
             let total_height = self.obj().allocated_height() as f64;
@@ -159,7 +159,8 @@ impl WidgetImpl for TransformPriv {
             }
 
             cr.restore()?;
-        };
+            Ok(())
+        })();
 
         if let Err(error) = res {
             error_handling_ctx::print_error(error)
