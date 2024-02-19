@@ -6,7 +6,6 @@ use crate::{
     paths::EwwPaths,
 };
 use anyhow::{Context, Result};
-use clap::CommandFactory as _;
 use std::{
     io::{Read, Write},
     os::unix::net::UnixStream,
@@ -20,9 +19,6 @@ pub fn handle_client_only_action(paths: &EwwPaths, action: ActionClientOnly) -> 
                 .stdin(Stdio::null())
                 .spawn()?
                 .wait()?;
-        }
-        ActionClientOnly::ShellCompletions { shell } => {
-            clap_complete::generate(shell, &mut opts::RawOpt::command(), "eww", &mut std::io::stdout());
         }
     }
     Ok(())

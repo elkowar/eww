@@ -59,6 +59,13 @@ pub(super) struct RawOpt {
 
 #[derive(Subcommand, Debug, Serialize, Deserialize, PartialEq)]
 pub enum Action {
+    /// Generate a shell completion script
+    ShellCompletions {
+        #[arg(short, long)]
+        #[serde(with = "serde_shell")]
+        shell: clap_complete::shells::Shell,
+    },
+
     /// Start the Eww daemon.
     #[command(name = "daemon", alias = "d")]
     Daemon,
@@ -75,13 +82,6 @@ pub enum ActionClientOnly {
     /// Print and watch the eww logs
     #[command(name = "logs")]
     Logs,
-
-    /// Generate a shell completion script
-    ShellCompletions {
-        #[arg(short, long)]
-        #[serde(with = "serde_shell")]
-        shell: clap_complete::shells::Shell,
-    },
 }
 
 #[derive(Subcommand, Debug, Serialize, Deserialize, PartialEq)]

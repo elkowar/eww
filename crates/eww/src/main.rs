@@ -5,6 +5,7 @@ extern crate gtk;
 extern crate gtk_layer_shell as gtk_layer_shell;
 
 use anyhow::{Context, Result};
+use clap::CommandFactory as _;
 use daemon_response::{DaemonResponse, DaemonResponseReceiver};
 use display_backend::DisplayBackend;
 use opts::ActionWithServer;
@@ -42,6 +43,11 @@ fn main() {
         pretty_env_logger::init_timed();
     } else {
         pretty_env_logger::formatted_timed_builder().filter(Some("eww"), log_level_filter).init();
+    }
+
+    if let opts::Action::ShellCompletions { shell } = opts.action {
+        clap_complete::generate(shell, &mut opts::RawOpt::command(), "eww", &mut std::io::stdout());
+        return;
     }
 
     #[allow(unused)]
@@ -87,6 +93,7 @@ fn run<B: DisplayBackend>(opts: opts::Opt, eww_binary_name: String, display_back
         .context("Failed to initialize eww paths")?;
 
     let should_restart = match &opts.action {
+        opts::Action::ShellCompletions { .. } => unreachable!(),
         opts::Action::Daemon => opts.restart,
         opts::Action::WithServer(action) => opts.restart && action.can_start_daemon(),
         opts::Action::ClientOnly(_) => false,
@@ -100,6 +107,7 @@ fn run<B: DisplayBackend>(opts: opts::Opt, eww_binary_name: String, display_back
     }
 
     let would_show_logs = match opts.action {
+        opts::Action::ShellCompletions { .. } => unreachable!(),
         opts::Action::ClientOnly(action) => {
             client::handle_client_only_action(&paths, action)?;
             false
