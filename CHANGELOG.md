@@ -6,6 +6,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 
 ### Fixes
 - The `shell-completions` subcommand is now run before anything is set up
+- Fix nix flake
 
 ## [0.5.0] (17.02.2024)
 
