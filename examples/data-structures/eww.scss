@@ -1,0 +1,29 @@
+* {
+  all: unset;
+}
+
+.layout {
+  padding: 8px;
+  border: 1px solid black;
+  border-radius: 4px;
+  background-color: bisque;
+  font-size: 16px;
+  color: black;
+}
+
+.animalLayout {
+  margin: 0 4px;
+}
+
+.animal {
+  font-size: 24px;
+  transition: 0.2s;
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, 0);
+  border: 0 solid lightcoral;
+}
+
+.animal.selected {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-width: 2px;
+}
