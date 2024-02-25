@@ -5,7 +5,7 @@ use notifier_host::{self, export::ordered_stream::OrderedStreamExt};
 struct DBusSession {
     // con: zbus::Connection,
     // name: zbus::names::WellKnownName<'static>,
-    snw: notifier_host::dbus::StatusNotifierWatcherProxy<'static>,
+    snw: notifier_host::proxy::StatusNotifierWatcherProxy<'static>,
 }
 
 async fn dbus_session() -> zbus::Result<&'static DBusSession> {
