@@ -3,8 +3,6 @@ use notifier_host::{self, export::ordered_stream::OrderedStreamExt};
 
 // DBus state shared between systray instances, to avoid creating too many connections etc.
 struct DBusSession {
-    // con: zbus::Connection,
-    // name: zbus::names::WellKnownName<'static>,
     snw: notifier_host::proxy::StatusNotifierWatcherProxy<'static>,
 }
 
@@ -22,8 +20,6 @@ async fn dbus_session() -> zbus::Result<&'static DBusSession> {
             let snw = notifier_host::register_to_watcher(&con, &name).await?;
 
             Ok(DBusSession {
-                // con,
-                // name,
                 snw,
             })
         })
