@@ -35,6 +35,8 @@ gtk-layer-shell = { version = "0.6.1", optional = true }
 gdkx11 = { version = "0.17", optional = true }
 x11rb = { version = "0.11.1", features = ["randr"], optional = true }
 
+zbus = { version = "3.7.0", default-features = false, features = ["tokio"] }
+
 anyhow.workspace  = true
 bincode.workspace = true
 chrono.workspace = true

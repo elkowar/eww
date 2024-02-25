@@ -963,6 +963,7 @@ dependencies = [
  "wait-timeout",
  "x11rb",
  "yuck",
+ "zbus",
 ]
 
 [[package]]
