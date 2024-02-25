@@ -19,14 +19,14 @@ macro_rules! def_widget {
             // If an attribute is explicitly marked as optional (? appended to type)
             // the attribute will still show up here, as a `None` value. Otherwise, all values in this map
             // will be `Some`.
-            let attr_map: Result<HashMap<eww_shared_util::AttrName, Option<simplexpr::SimplExpr>>> = try {
-                ::maplit::hashmap! {
+            let attr_map: Result<HashMap<eww_shared_util::AttrName, Option<simplexpr::SimplExpr>>> = (|| {
+                Ok(::maplit::hashmap! {
                     $(
                         eww_shared_util::AttrName(::std::stringify!($attr_name).to_owned()) =>
                             def_widget!(@get_value $args, &::std::stringify!($attr_name).replace('_', "-"), $(? $($optional)?)? $(= $default)?)
                     ),*
-                }
-            };
+                })
+            })();
 
             // Only proceed if any attributes from this `prop` where actually provided
             if let Ok(attr_map) = attr_map {

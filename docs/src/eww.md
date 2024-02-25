@@ -13,11 +13,10 @@ Configured in yuck and themed using CSS, it is easy to customize and provides al
 ### Prerequisites
 
 * rustc
-* cargo (nightly toolchain)
+* cargo
 
 Rather than with your system package manager,
-I recommend installing it using  [rustup](https://rustup.rs/),
-as this makes it easy to use the nightly toolchain necessary to build eww.
+I **strongly** recommend installing it using  [rustup](https://rustup.rs/).
 
 Additionally, eww requires some dynamic libraries to be available on your system.
 The exact names of the packages that provide these may differ depending on your distribution.

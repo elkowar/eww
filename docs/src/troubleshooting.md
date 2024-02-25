@@ -4,7 +4,7 @@ Here you will find help if something doesn't work. If the issue isn't listed her
 
 ## Eww does not compile
 
-1. Make sure that you are compiling eww using the nightly Rust toolchain.
+1. Make sure that you are compiling eww using a recent version of rust (run `rustup update` to be sure you have the latest version available)
 2. Make sure you have all the necessary dependencies. If there are compile-errors, the compiler will tell you what you're missing.
 
 ## Eww does not work on Wayland

@@ -1,6 +1,6 @@
 [package]
 name = "eww"
-version = "0.4.0"
+version = "0.5.0"
 authors = ["elkowar <5300871+elkowar@users.noreply.github.com>"]
 description = "Widgets for everyone!"
 license = "MIT"
@@ -16,6 +16,11 @@ x11 = ["gdkx11", "x11rb"]
 wayland = ["gtk-layer-shell"]
 
 [dependencies]
+simplexpr.workspace = true
+eww_shared_util.workspace = true
+yuck.workspace = true
+notifier_host.workspace = true
+
 gtk = "0.17.1"
 gdk = "0.17.1"
 glib = "0.17.8"
@@ -30,40 +35,30 @@ gtk-layer-shell = { version = "0.6.1", optional = true }
 gdkx11 = { version = "0.17", optional = true }
 x11rb = { version = "0.11.1", features = ["randr"], optional = true }
 
-regex = "1.9.3"
-bincode = "1.3.3"
-anyhow = "1.0.70"
-derive_more = "0.99"
-maplit = "1"
-clap = {version = "4.3.21", features = ["derive"] }
-serde = {version = "1.0", features = ["derive"]}
-serde_json = "1.0"
-extend = "1.2"
-grass = {version = "0.13.1", default-features = false}
-itertools = "0.11"
-log = "0.4"
-pretty_env_logger = "0.5"
-libc = "0.2"
-once_cell = "1.18"
-nix = "0.26.2"
-simple-signal = "1.1"
-unescape = "0.1"
-zbus = { version = "3.7.0", default-features = false, features = ["tokio"] }
-
-tokio = { version = "1.31.0", features = ["full"] }
-futures = "0.3.28"
-tokio-util = "0.7.8"
-
-sysinfo = "0.29.8"
-chrono = "0.4.26"
-
-wait-timeout = "0.2"
-
-notify = "6.0.1"
-
-codespan-reporting = "0.11"
-
-simplexpr = { version = "0.1.0", path = "../simplexpr" }
-eww_shared_util = { version = "0.1.0", path = "../eww_shared_util" }
-yuck = { version = "0.1.0", path = "../yuck", default-features = false}
-notifier_host = { version = "0.1.0", path = "../notifier_host" }
+anyhow.workspace  = true
+bincode.workspace = true
+chrono.workspace = true
+clap = {workspace = true, features = ["derive"] }
+clap_complete.workspace = true
+codespan-reporting.workspace = true
+derive_more.workspace = true
+extend.workspace = true
+futures.workspace = true
+grass = {workspace = true, default-features = false}
+itertools.workspace = true
+libc.workspace = true
+log.workspace = true
+maplit.workspace = true
+nix = { workspace = true, features = ["process", "fs", "signal"] }
+notify.workspace = true
+once_cell.workspace = true
+pretty_env_logger.workspace = true
+regex.workspace = true
+serde_json.workspace = true
+serde = {workspace = true, features = ["derive"]}
+simple-signal.workspace = true
+sysinfo = { workspace = true, features = ["linux-netdevs"] }
+tokio-util.workspace = true
+tokio = { workspace = true, features = ["full"] }
+unescape.workspace = true
+wait-timeout.workspace = true

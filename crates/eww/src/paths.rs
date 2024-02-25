@@ -10,6 +10,7 @@ use anyhow::{bail, Result};
 #[derive(Debug, Clone)]
 pub struct EwwPaths {
     pub log_file: PathBuf,
+    pub log_dir: PathBuf,
     pub ipc_socket_file: PathBuf,
     pub config_dir: PathBuf,
 }
@@ -43,14 +44,17 @@ impl EwwPaths {
             log::warn!("The IPC socket file's absolute path exceeds 100 bytes, the socket may fail to create.");
         }
 
-        Ok(EwwPaths {
-            config_dir,
-            log_file: std::env::var("XDG_CACHE_HOME")
-                .map(PathBuf::from)
-                .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap()).join(".cache"))
-                .join(format!("eww_{}.log", daemon_id)),
-            ipc_socket_file,
-        })
+        let log_dir = std::env::var("XDG_CACHE_HOME")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap()).join(".cache"))
+            .join("eww");
+
+        if !log_dir.exists() {
+            log::info!("Creating log dir");
+            std::fs::create_dir_all(&log_dir)?;
+        }
+
+        Ok(EwwPaths { config_dir, log_file: log_dir.join(format!("eww_{}.log", daemon_id)), log_dir, ipc_socket_file })
     }
 
     pub fn default() -> Result<Self> {
@@ -64,6 +68,10 @@ impl EwwPaths {
 
     pub fn get_log_file(&self) -> &Path {
         self.log_file.as_path()
+    }
+
+    pub fn get_log_dir(&self) -> &Path {
+        self.log_dir.as_path()
     }
 
     pub fn get_ipc_socket_file(&self) -> &Path {

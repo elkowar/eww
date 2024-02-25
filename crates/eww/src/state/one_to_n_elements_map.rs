@@ -69,6 +69,7 @@ impl<I: Copy + std::hash::Hash + std::cmp::Eq + std::fmt::Debug, T> OneToNElemen
         result
     }
 
+    #[cfg_attr(not(debug_assertions), allow(dead_code))]
     pub fn validate(&self) -> Result<()> {
         for (parent, children) in &self.parent_to_children {
             for child in children {

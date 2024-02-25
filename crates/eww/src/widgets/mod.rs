@@ -12,7 +12,7 @@ pub mod widget_definitions;
 /// This command may use placeholders which will be replaced by the values of the arguments given.
 /// This can either be the placeholder `{}`, which will be replaced by the first argument,
 /// Or a placeholder like `{0}`, `{1}`, etc, which will refer to the respective argument.
-pub(self) fn run_command<T>(timeout: std::time::Duration, cmd: &str, args: &[T])
+fn run_command<T>(timeout: std::time::Duration, cmd: &str, args: &[T])
 where
     T: 'static + std::fmt::Display + Send + Sync + Clone,
 {
