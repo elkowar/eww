@@ -95,7 +95,6 @@ pub async fn run_host_forever(host: &mut dyn Host, snw: &dbus::StatusNotifierWat
         }
     }
 
-    // TODO handle running out of events? why could this happen?
-
-    Ok(())
+    // I do not know whether this is possible to reach or not.
+    unreachable!("StatusNotifierWatcher stopped producing events")
 }
