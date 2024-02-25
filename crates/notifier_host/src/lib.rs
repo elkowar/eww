@@ -30,7 +30,7 @@
 //! If there are multiple trays running on the system, there can be multiple `StatusNotifierHost`s,
 //! but only one `StatusNotifierWatcher` (usually from whatever tray was started first).
 
-pub mod dbus;
+pub mod proxy;
 
 mod host;
 pub use host::*;

@@ -120,7 +120,7 @@ fn icon_from_name(
 }
 
 pub async fn load_icon_from_sni(
-    sni: &dbus::StatusNotifierItemProxy<'_>,
+    sni: &proxy::StatusNotifierItemProxy<'_>,
     size: i32,
     scale: i32,
 ) -> Option<gtk::gdk_pixbuf::Pixbuf> {

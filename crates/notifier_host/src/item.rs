@@ -60,13 +60,13 @@ fn split_service_name(service: &str) -> zbus::Result<(String, String)> {
 }
 
 pub struct Item {
-    pub sni: dbus::StatusNotifierItemProxy<'static>,
+    pub sni: proxy::StatusNotifierItemProxy<'static>,
 }
 
 impl Item {
     pub async fn from_address(con: &zbus::Connection, addr: &str) -> zbus::Result<Self> {
         let (addr, path) = split_service_name(addr)?;
-        let sni = dbus::StatusNotifierItemProxy::builder(con).destination(addr)?.path(path)?.build().await?;
+        let sni = proxy::StatusNotifierItemProxy::builder(con).destination(addr)?.path(path)?.build().await?;
 
         Ok(Item { sni })
     }

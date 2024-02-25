@@ -32,17 +32,17 @@ pub async fn attach_new_wellknown_name(con: &zbus::Connection) -> zbus::Result<z
 pub async fn register_to_watcher(
     con: &zbus::Connection,
     name: &zbus::names::WellKnownName<'_>,
-) -> zbus::Result<dbus::StatusNotifierWatcherProxy<'static>> {
+) -> zbus::Result<proxy::StatusNotifierWatcherProxy<'static>> {
     // register ourself to StatusNotifierWatcher
-    let snw = dbus::StatusNotifierWatcherProxy::new(con).await?;
+    let snw = proxy::StatusNotifierWatcherProxy::new(con).await?;
     snw.register_status_notifier_host(name).await?;
     Ok(snw)
 }
 
-pub async fn run_host_forever(host: &mut dyn Host, snw: &dbus::StatusNotifierWatcherProxy<'static>) -> zbus::Result<()> {
+pub async fn run_host_forever(host: &mut dyn Host, snw: &proxy::StatusNotifierWatcherProxy<'static>) -> zbus::Result<()> {
     enum ItemEvent {
-        NewItem(dbus::StatusNotifierItemRegistered),
-        GoneItem(dbus::StatusNotifierItemUnregistered),
+        NewItem(proxy::StatusNotifierItemRegistered),
+        GoneItem(proxy::StatusNotifierItemUnregistered),
     }
 
     // start listening to these streams
