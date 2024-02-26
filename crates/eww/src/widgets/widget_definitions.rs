@@ -1142,6 +1142,7 @@ fn build_systray(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
     let gtk_widget = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     let props = Rc::new(systray::Props::new());
     let props_clone = props.clone(); // copies for def_widget
+    let props_clone2 = props.clone(); // copies for def_widget
 
     def_widget!(bargs, _g, gtk_widget, {
         // @prop spacing - spacing between elements
@@ -1157,6 +1158,10 @@ fn build_systray(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
             } else {
                 props.icon_size(icon_size);
             }
+        },
+        // @prop prepend-new - prepend new icons.
+        prop(prepend_new: as_bool = true) {
+            *props_clone2.prepend_new.borrow_mut() = prepend_new;
         },
     });
 

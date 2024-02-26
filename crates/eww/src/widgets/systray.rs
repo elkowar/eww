@@ -2,7 +2,7 @@ use crate::widgets::window::Window;
 use futures::StreamExt;
 use gtk::{cairo::Surface, gdk::ffi::gdk_cairo_surface_create_from_pixbuf, prelude::*};
 use notifier_host;
-use std::{future::Future, rc::Rc};
+use std::{cell::RefCell, future::Future, rc::Rc};
 
 // DBus state shared between systray instances, to avoid creating too many connections etc.
 struct DBusSession {
@@ -32,12 +32,13 @@ fn run_async_task<F: Future>(f: F) -> F::Output {
 
 pub struct Props {
     icon_size_tx: tokio::sync::watch::Sender<i32>,
+    pub prepend_new: Rc<RefCell<bool>>,
 }
 
 impl Props {
     pub fn new() -> Self {
         let (icon_size_tx, _) = tokio::sync::watch::channel(24);
-        Self { icon_size_tx }
+        Self { icon_size_tx, prepend_new: Rc::new(RefCell::new(false)) }
     }
 
     pub fn icon_size(&self, value: i32) {
@@ -57,10 +58,16 @@ struct Tray {
     items: std::collections::HashMap<String, Item>,
 
     icon_size: tokio::sync::watch::Receiver<i32>,
+    prepend_new: Rc<RefCell<bool>>,
 }
 
 pub fn spawn_systray(container: &gtk::Box, props: &Props) {
-    let mut systray = Tray { container: container.clone(), items: Default::default(), icon_size: props.icon_size_tx.subscribe() };
+    let mut systray = Tray {
+        container: container.clone(),
+        items: Default::default(),
+        icon_size: props.icon_size_tx.subscribe(),
+        prepend_new: props.prepend_new.clone(),
+    };
 
     let task = glib::MainContext::default().spawn_local(async move {
         let s = match dbus_session().await {
@@ -85,7 +92,11 @@ pub fn spawn_systray(container: &gtk::Box, props: &Props) {
 impl notifier_host::Host for Tray {
     fn add_item(&mut self, id: &str, item: notifier_host::Item) {
         let item = Item::new(id.to_owned(), item, self.icon_size.clone());
-        self.container.add(&item.widget);
+        if *self.prepend_new.borrow() {
+            self.container.pack_end(&item.widget, true, true, 0);
+        } else {
+            self.container.pack_start(&item.widget, true, true, 0);
+        }
         if let Some(old_item) = self.items.insert(id.to_string(), item) {
             self.container.remove(&old_item.widget);
         }
