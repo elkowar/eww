@@ -1,6 +1,6 @@
 [package]
 name = "eww"
-version = "0.4.0"
+version = "0.5.0"
 authors = ["elkowar <5300871+elkowar@users.noreply.github.com>"]
 description = "Widgets for everyone!"
 license = "MIT"
@@ -16,6 +16,10 @@ x11 = ["gdkx11", "x11rb"]
 wayland = ["gtk-layer-shell"]
 
 [dependencies]
+simplexpr.workspace = true
+eww_shared_util.workspace = true
+yuck.workspace = true
+
 gtk = "0.17.1"
 gdk = "0.17.1"
 glib = "0.17.8"
@@ -66,3 +70,32 @@ codespan-reporting = "0.11"
 simplexpr = { version = "0.1.0", path = "../simplexpr" }
 eww_shared_util = { version = "0.1.0", path = "../eww_shared_util" }
 yuck = { version = "0.1.0", path = "../yuck", default-features = false}
+
+anyhow.workspace  = true
+bincode.workspace = true
+chrono.workspace = true
+clap = {workspace = true, features = ["derive"] }
+clap_complete.workspace = true
+codespan-reporting.workspace = true
+derive_more.workspace = true
+extend.workspace = true
+futures.workspace = true
+grass = {workspace = true, default-features = false}
+itertools.workspace = true
+libc.workspace = true
+log.workspace = true
+maplit.workspace = true
+nix = { workspace = true, features = ["process", "fs", "signal"] }
+notify.workspace = true
+once_cell.workspace = true
+pretty_env_logger.workspace = true
+regex.workspace = true
+serde_json.workspace = true
+serde = {workspace = true, features = ["derive"]}
+simple-signal.workspace = true
+sysinfo = { workspace = true, features = ["linux-netdevs"] }
+tokio-util.workspace = true
+tokio = { workspace = true, features = ["full"] }
+unescape.workspace = true
+wait-timeout.workspace = true
+

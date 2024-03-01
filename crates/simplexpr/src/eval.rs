@@ -1,6 +1,7 @@
 use cached::proc_macro::cached;
 use chrono::{Local, LocalResult, TimeZone};
 use itertools::Itertools;
+use jaq_interpret::FilterT;
 
 use crate::{
     ast::{AccessType, BinOp, SimplExpr, UnaryOp},
@@ -9,13 +10,13 @@ use crate::{
 use eww_shared_util::{Span, Spanned, VarName};
 use std::{
     collections::HashMap,
-    convert::{TryFrom, TryInto},
+    convert::{Infallible, TryFrom, TryInto},
     str::FromStr,
     sync::Arc,
 };
 
 #[derive(Debug, thiserror::Error)]
-pub struct JaqParseError(pub Option<jaq_core::parse::Error>);
+pub struct JaqParseError(pub Option<jaq_parse::Error>);
 impl std::fmt::Display for JaqParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.0 {
@@ -55,7 +56,7 @@ pub enum EvalError {
     JaqError(String),
 
     #[error(transparent)]
-    JaqParseError(JaqParseError),
+    JaqParseError(Box<JaqParseError>),
 
     #[error("Error parsing date: {0}")]
     ChronoError(String),
@@ -98,13 +99,13 @@ impl SimplExpr {
     pub fn try_map_var_refs<E, F: Fn(Span, VarName) -> Result<SimplExpr, E> + Copy>(self, f: F) -> Result<Self, E> {
         use SimplExpr::*;
         Ok(match self {
-            BinOp(span, box a, op, box b) => BinOp(span, Box::new(a.try_map_var_refs(f)?), op, Box::new(b.try_map_var_refs(f)?)),
+            BinOp(span, a, op, b) => BinOp(span, Box::new(a.try_map_var_refs(f)?), op, Box::new(b.try_map_var_refs(f)?)),
             Concat(span, elems) => Concat(span, elems.into_iter().map(|x| x.try_map_var_refs(f)).collect::<Result<_, _>>()?),
-            UnaryOp(span, op, box a) => UnaryOp(span, op, Box::new(a.try_map_var_refs(f)?)),
-            IfElse(span, box a, box b, box c) => {
+            UnaryOp(span, op, a) => UnaryOp(span, op, Box::new(a.try_map_var_refs(f)?)),
+            IfElse(span, a, b, c) => {
                 IfElse(span, Box::new(a.try_map_var_refs(f)?), Box::new(b.try_map_var_refs(f)?), Box::new(c.try_map_var_refs(f)?))
             }
-            JsonAccess(span, safe, box a, box b) => {
+            JsonAccess(span, safe, a, b) => {
                 JsonAccess(span, safe, Box::new(a.try_map_var_refs(f)?), Box::new(b.try_map_var_refs(f)?))
             }
             FunctionCall(span, name, args) => {
@@ -126,7 +127,7 @@ impl SimplExpr {
     }
 
     pub fn map_var_refs(self, f: impl Fn(Span, VarName) -> SimplExpr) -> Self {
-        self.try_map_var_refs(|span, var| Ok::<_, !>(f(span, var))).into_ok()
+        self.try_map_var_refs(|span, var| Ok::<_, Infallible>(f(span, var))).unwrap()
     }
 
     /// resolve partially.
@@ -154,13 +155,13 @@ impl SimplExpr {
             Literal(..) => Vec::new(),
             VarRef(span, name) => vec![(*span, name)],
             Concat(_, elems) => elems.iter().flat_map(|x| x.var_refs_with_span().into_iter()).collect(),
-            BinOp(_, box a, _, box b) | JsonAccess(_, _, box a, box b) => {
+            BinOp(_, a, _, b) | JsonAccess(_, _, a, b) => {
                 let mut refs = a.var_refs_with_span();
                 refs.extend(b.var_refs_with_span().iter());
                 refs
             }
-            UnaryOp(_, _, box x) => x.var_refs_with_span(),
-            IfElse(_, box a, box b, box c) => {
+            UnaryOp(_, _, x) => x.var_refs_with_span(),
+            IfElse(_, a, b, c) => {
                 let mut refs = a.var_refs_with_span();
                 refs.extend(b.var_refs_with_span().iter());
                 refs.extend(c.var_refs_with_span().iter());
@@ -459,30 +460,28 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
 }
 
 #[cached(size = 10, result = true, sync_writes = true)]
-fn prepare_jaq_filter(code: String) -> Result<Arc<jaq_core::Filter>, EvalError> {
-    let (filter, mut errors) = jaq_core::parse::parse(&code, jaq_core::parse::main());
+fn prepare_jaq_filter(code: String) -> Result<Arc<jaq_interpret::Filter>, EvalError> {
+    let (filter, mut errors) = jaq_parse::parse(&code, jaq_parse::main());
     let filter = match filter {
         Some(x) => x,
-        None => return Err(EvalError::JaqParseError(JaqParseError(errors.pop()))),
+        None => return Err(EvalError::JaqParseError(Box::new(JaqParseError(errors.pop())))),
     };
-    let mut defs = jaq_core::Definitions::core();
-    for def in jaq_std::std() {
-        defs.insert(def, &mut errors);
-    }
+    let mut defs = jaq_interpret::ParseCtx::new(Vec::new());
+    defs.insert_defs(jaq_std::std());
 
-    let filter = defs.finish(filter, Vec::new(), &mut errors);
+    let filter = defs.compile(filter);
 
     if let Some(error) = errors.pop() {
-        return Err(EvalError::JaqParseError(JaqParseError(Some(error))));
+        return Err(EvalError::JaqParseError(Box::new(JaqParseError(Some(error)))));
     }
     Ok(Arc::new(filter))
 }
 
 fn run_jaq_function(json: serde_json::Value, code: String) -> Result<DynVal, EvalError> {
-    let filter = prepare_jaq_filter(code)?;
-    let inputs = jaq_core::RcIter::new(std::iter::empty());
+    let filter: Arc<jaq_interpret::Filter> = prepare_jaq_filter(code)?;
+    let inputs = jaq_interpret::RcIter::new(std::iter::empty());
     let out = filter
-        .run(jaq_core::Ctx::new([], &inputs), jaq_core::Val::from(json))
+        .run((jaq_interpret::Ctx::new([], &inputs), jaq_interpret::Val::from(json)))
         .map(|x| x.map(Into::<serde_json::Value>::into))
         .map(|x| x.map(|x| DynVal::from_string(serde_json::to_string(&x).unwrap())))
         .collect::<Result<_, _>>()
