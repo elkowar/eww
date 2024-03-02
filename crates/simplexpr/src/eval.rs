@@ -467,6 +467,7 @@ fn prepare_jaq_filter(code: String) -> Result<Arc<jaq_interpret::Filter>, EvalEr
         None => return Err(EvalError::JaqParseError(Box::new(JaqParseError(errors.pop())))),
     };
     let mut defs = jaq_interpret::ParseCtx::new(Vec::new());
+    defs.insert_natives(jaq_core::core());
     defs.insert_defs(jaq_std::std());
 
     let filter = defs.compile(filter);
