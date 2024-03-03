@@ -545,5 +545,6 @@ mod tests {
         lazy_evaluation_and(r#"false && "null".test"#) => Ok(DynVal::from(false)),
         lazy_evaluation_or(r#"true || "null".test"#) => Ok(DynVal::from(true)),
         lazy_evaluation_elvis(r#""test"?: "null".test"#) => Ok(DynVal::from("test")),
+        jq_basic_index(r#"jq("[7,8,9]", ".[0]")"#) => Ok(DynVal::from(7)),
     }
 }
