@@ -27,7 +27,7 @@ enum IconError {
     NotAvailable,
 }
 
-/// Get the fallback GTK icon
+/// Get the fallback GTK icon, as a final fallback if the tray item has no icon.
 async fn fallback_icon(size: i32, scale: i32) -> Option<gtk::gdk_pixbuf::Pixbuf> {
     let theme = gtk::IconTheme::default().expect("Could not get default gtk theme");
     match theme.load_icon_for_scale("image-missing", size, scale, gtk::IconLookupFlags::FORCE_SIZE) {
@@ -95,6 +95,8 @@ fn icon_from_pixmaps(pixmaps: Vec<(i32, i32, Vec<u8>)>, size: i32) -> Option<gtk
         })
 }
 
+/// Load an icon with a given name from either the default (if `theme_path` is `None`), or from the
+/// theme at a path.
 fn icon_from_name(
     icon_name: &str,
     theme_path: Option<&str>,
@@ -128,6 +130,9 @@ pub async fn load_icon_from_sni(
     // available."
 
     let scaled_size = size * scale;
+
+    // First, see if we can get an icon from the name they provide, using either the theme they
+    // specify or the default.
     let icon_from_name: std::result::Result<gtk::gdk_pixbuf::Pixbuf, IconError> = (async {
         // fetch icon name
         let icon_name = sni.icon_name().await;
@@ -170,22 +175,21 @@ pub async fn load_icon_from_sni(
         icon_from_name(&icon_name, icon_theme_path, size, scale)
     })
     .await;
+
     match icon_from_name {
-        Ok(p) => return Some(p),
-        Err(IconError::NotAvailable) => {} // try pixbuf
-        // log and continue
+        Ok(p) => return Some(p),           // got an icon!
+        Err(IconError::NotAvailable) => {} // this error is expected, don't log
         Err(e) => log::warn!("failed to get icon by name for {}: {}", sni.destination(), e),
     };
 
-    let icon_pixmap = sni.icon_pixmap().await;
-    log::debug!("dbus: {} icon_pixmap -> {:?}", sni.destination(), icon_pixmap);
-    let icon_from_pixmaps = match icon_pixmap {
+    // Can't get it from name + theme, try the pixmap
+    let icon_from_pixmaps = match sni.icon_pixmap().await {
         Ok(ps) => match icon_from_pixmaps(ps, scaled_size) {
             Some(p) => Ok(p),
             None => Err(IconError::NotAvailable),
         },
         Err(zbus::Error::FDO(e)) => match *e {
-            // property not existing is fine
+            // property not existing is an expected error
             zbus::fdo::Error::UnknownProperty(_) | zbus::fdo::Error::InvalidArgs(_) => Err(IconError::NotAvailable),
 
             _ => Err(IconError::DBusPixmap(zbus::Error::FDO(e))),
@@ -198,5 +202,6 @@ pub async fn load_icon_from_sni(
         Err(e) => log::warn!("failed to get icon pixmap for {}: {}", sni.destination(), e),
     };
 
+    // Tray didn't provide a valid icon so use the default fallback one.
     fallback_icon(size, scale).await
 }
