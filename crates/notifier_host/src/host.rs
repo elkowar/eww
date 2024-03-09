@@ -26,7 +26,9 @@ pub trait Host {
 ///
 /// You still need to call [`run_host`] to have the instance of [`Host`] be notified of new and
 /// removed items.
-pub async fn register_as_host(con: &zbus::Connection) -> zbus::Result<(zbus::names::WellKnownName<'static>, proxy::StatusNotifierWatcherProxy<'static>)> {
+pub async fn register_as_host(
+    con: &zbus::Connection,
+) -> zbus::Result<(zbus::names::WellKnownName<'static>, proxy::StatusNotifierWatcherProxy<'static>)> {
     let snw = proxy::StatusNotifierWatcherProxy::new(con).await?;
 
     // get a well-known name
@@ -62,8 +64,7 @@ pub async fn register_as_host(con: &zbus::Connection) -> zbus::Result<(zbus::nam
 /// This async function runs forever, and only returns if it gets an error! As such, it is
 /// recommended to call this via something like `tokio::spawn` that runs this in the
 /// background.
-pub async fn run_host(host: &mut dyn Host, snw: &proxy::StatusNotifierWatcherProxy<'static>) -> zbus::Error
-{
+pub async fn run_host(host: &mut dyn Host, snw: &proxy::StatusNotifierWatcherProxy<'static>) -> zbus::Error {
     // Replacement for ? operator since we're not returning a Result.
     macro_rules! try_ {
         ($e:expr) => {
@@ -71,7 +72,7 @@ pub async fn run_host(host: &mut dyn Host, snw: &proxy::StatusNotifierWatcherPro
                 Ok(x) => x,
                 Err(e) => return e,
             }
-        }
+        };
     }
 
     enum ItemEvent {

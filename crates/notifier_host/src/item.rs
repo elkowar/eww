@@ -2,11 +2,9 @@ use crate::*;
 
 use gtk::{self, prelude::*};
 
-/// Recognised values of org.freedesktop.StatusNotifierItem.Status
+/// Recognised values of [`org.freedesktop.StatusNotifierItem.Status`].
 ///
-/// See
-/// <https://www.freedesktop.org/wiki/Specifications/StatusNotifierItem/StatusNotifierItem/#org.freedesktop.statusnotifieritem.status>
-/// for details.
+/// [`org.freedesktop.StatusNotifierItem.Status`]: https://www.freedesktop.org/wiki/Specifications/StatusNotifierItem/StatusNotifierItem/#org.freedesktop.statusnotifieritem.status
 #[derive(Debug, Clone, Copy)]
 pub enum Status {
     /// The item doesn't convey important information to the user, it can be considered an "idle"
@@ -37,35 +35,37 @@ impl std::str::FromStr for Status {
     }
 }
 
-/// Split a sevice name e.g. `:1.50:/org/ayatana/NotificationItem/nm_applet` into the address and
-/// path.
+/// A StatusNotifierItem (SNI).
 ///
-/// Original logic from <https://github.com/oknozor/stray/blob/main/stray/src/notifier_watcher/notifier_address.rs>
-fn split_service_name(service: &str) -> zbus::Result<(String, String)> {
-    if let Some((addr, path)) = service.split_once('/') {
-        Ok((addr.to_owned(), format!("/{}", path)))
-    } else if service.contains(':') {
-        // TODO why?
-        let addr = service.split(':').nth(1);
-        // Some StatusNotifierItems will not return an object path, in that case we fallback
-        // to the default path.
-        if let Some(addr) = addr {
-            Ok((addr.to_owned(), "/StatusNotifierItem".to_owned()))
-        } else {
-            Err(zbus::Error::Address(service.to_owned()))
-        }
-    } else {
-        Err(zbus::Error::Address(service.to_owned()))
-    }
-}
-
+/// At the moment, this does not wrap much of the SNI's properties and methods. As such, you should
+/// directly access the `sni` member as needed for functionalty that is not provided.
 pub struct Item {
+    /// The StatusNotifierItem that is wrapped by this instance.
     pub sni: proxy::StatusNotifierItemProxy<'static>,
 }
 
 impl Item {
-    pub async fn from_address(con: &zbus::Connection, addr: &str) -> zbus::Result<Self> {
-        let (addr, path) = split_service_name(addr)?;
+    /// Create an instance from the service's address.
+    ///
+    /// The format of `addr` is `{bus}{object_path}` (e.g.
+    /// `:1.50/org/ayatana/NotificationItem/nm_applet`), which is the format that is used for
+    /// StatusNotifierWatcher's [RegisteredStatusNotifierItems property][rsni]).
+    ///
+    /// [rsni]: https://freedesktop.org/wiki/Specifications/StatusNotifierItem/StatusNotifierWatcher/#registeredstatusnotifieritems
+    pub async fn from_address(con: &zbus::Connection, service: &str) -> zbus::Result<Self> {
+        let (addr, path) = {
+            // Based on <https://github.com/oknozor/stray/blob/main/stray/src/notifier_watcher/notifier_address.rs>
+            //
+            // TODO is the service name format actually documented anywhere?
+            if let Some((addr, path)) = service.split_once('/') {
+                (addr.to_owned(), format!("/{}", path))
+            } else if service.starts_with(':') {
+                (service[0..6].to_owned(), names::ITEM_OBJECT.to_owned())
+            } else {
+                return Err(zbus::Error::Address(service.to_owned()));
+            }
+        };
+
         let sni = proxy::StatusNotifierItemProxy::builder(con).destination(addr)?.path(path)?.build().await?;
 
         Ok(Item { sni })
@@ -80,13 +80,17 @@ impl Item {
         }
     }
 
+    /// Get the menu of this item.
     pub async fn menu(&self) -> zbus::Result<gtk::Menu> {
-        // TODO better handling if menu() method doesn't exist
+        // TODO document what this returns if there is no menu.
         let menu = dbusmenu_gtk3::Menu::new(self.sni.destination(), &self.sni.menu().await?);
         Ok(menu.upcast())
     }
 
+    /// Get the current icon.
     pub async fn icon(&self, size: i32, scale: i32) -> Option<gtk::gdk_pixbuf::Pixbuf> {
+        // TODO explain what size and scale mean here
+
         // see icon.rs
         load_icon_from_sni(&self.sni, size, scale).await
     }

@@ -950,6 +950,7 @@ dependencies = [
  "notifier_host",
  "notify",
  "once_cell",
+ "ordered-stream",
  "pretty_env_logger",
  "regex",
  "serde",

@@ -25,7 +25,7 @@
 //!
 //! The actual tray implements the [`Host`] trait to be notified of when items (called
 //! `StatusNotifierItem` in the spec and represented by [`Item`]) appear and disappear, then calls
-//! [`run_host_forever`] to run the DBus side of the protocol.
+//! [`run_host`] to run the DBus side of the protocol.
 //!
 //! If there are multiple trays running on the system, there can be multiple `StatusNotifierHost`s,
 //! but only one `StatusNotifierWatcher` (usually from whatever tray was started first).
@@ -44,6 +44,9 @@ pub use item::*;
 mod watcher;
 pub use watcher::*;
 
-pub mod export {
-    pub use zbus::export::ordered_stream;
+pub(crate) mod names {
+    pub const WATCHER_BUS: &str = "org.kde.StatusNotifierWatcher";
+    pub const WATCHER_OBJECT: &str = "/StatusNotifierWatcher";
+
+    pub const ITEM_OBJECT: &str = "/StatusNotifierItem";
 }

@@ -3,7 +3,7 @@ use crate::*;
 use gtk::{self, prelude::*};
 
 #[derive(thiserror::Error, Debug)]
-pub enum IconError {
+enum IconError {
     #[error("while fetching icon name: {0}")]
     DBusIconName(#[source] zbus::Error),
     #[error("while fetching icon theme path: {0}")]

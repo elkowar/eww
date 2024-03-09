@@ -1,5 +1,6 @@
 use gtk::{cairo::Surface, gdk::ffi::gdk_cairo_surface_create_from_pixbuf, prelude::*};
-use notifier_host::{self, export::ordered_stream::OrderedStreamExt};
+use notifier_host;
+use futures::StreamExt;
 
 // DBus state shared between systray instances, to avoid creating too many connections etc.
 struct DBusSession {
@@ -12,7 +13,6 @@ async fn dbus_session() -> zbus::Result<&'static DBusSession> {
     static DBUS_STATE: tokio::sync::OnceCell<DBusSession> = tokio::sync::OnceCell::const_new();
     DBUS_STATE
         .get_or_try_init(|| async {
-            // TODO error handling?
             let con = zbus::Connection::session().await?;
             notifier_host::Watcher::new().attach_to(&con).await?;
 
