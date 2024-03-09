@@ -43,7 +43,6 @@ All notable changes to eww will be listed here, starting at changes since versio
 ### Fixes
 - Fix wrong values in `EWW_NET`
 - Fix logfiles growing indefinitely
->>>>>>> upstream/master
 
 ## [0.4.0] (04.09.2022)
 
