@@ -1,6 +1,6 @@
+use futures::StreamExt;
 use gtk::{cairo::Surface, gdk::ffi::gdk_cairo_surface_create_from_pixbuf, prelude::*};
 use notifier_host;
-use futures::StreamExt;
 
 // DBus state shared between systray instances, to avoid creating too many connections etc.
 struct DBusSession {
@@ -18,9 +18,7 @@ async fn dbus_session() -> zbus::Result<&'static DBusSession> {
 
             let (_, snw) = notifier_host::register_as_host(&con).await?;
 
-            Ok(DBusSession {
-                snw,
-            })
+            Ok(DBusSession { snw })
         })
         .await
 }
