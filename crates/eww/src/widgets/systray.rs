@@ -16,8 +16,7 @@ async fn dbus_session() -> zbus::Result<&'static DBusSession> {
             let con = zbus::Connection::session().await?;
             notifier_host::Watcher::new().attach_to(&con).await?;
 
-            let name = notifier_host::attach_new_wellknown_name(&con).await?;
-            let snw = notifier_host::register_to_watcher(&con, &name).await?;
+            let (_, snw) = notifier_host::register_as_host(&con).await?;
 
             Ok(DBusSession {
                 snw,
@@ -68,9 +67,8 @@ pub fn spawn_systray(menubar: &gtk::MenuBar, props: &Props) {
         };
 
         systray.menubar.show();
-        if let Err(e) = notifier_host::run_host_forever(&mut systray, &s.snw).await {
-            log::error!("notifier host error: {}", e);
-        }
+        let e = notifier_host::run_host(&mut systray, &s.snw).await;
+        log::error!("notifier host error: {}", e);
     });
 
     // stop the task when the widget is dropped
