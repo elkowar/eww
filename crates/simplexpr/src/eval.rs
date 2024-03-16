@@ -467,6 +467,7 @@ fn prepare_jaq_filter(code: String) -> Result<Arc<jaq_interpret::Filter>, EvalEr
         None => return Err(EvalError::JaqParseError(Box::new(JaqParseError(errors.pop())))),
     };
     let mut defs = jaq_interpret::ParseCtx::new(Vec::new());
+    defs.insert_natives(jaq_core::core());
     defs.insert_defs(jaq_std::std());
 
     let filter = defs.compile(filter);
@@ -544,5 +545,6 @@ mod tests {
         lazy_evaluation_and(r#"false && "null".test"#) => Ok(DynVal::from(false)),
         lazy_evaluation_or(r#"true || "null".test"#) => Ok(DynVal::from(true)),
         lazy_evaluation_elvis(r#""test"?: "null".test"#) => Ok(DynVal::from("test")),
+        jq_basic_index(r#"jq("[7,8,9]", ".[0]")"#) => Ok(DynVal::from(7)),
     }
 }
