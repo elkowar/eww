@@ -48,8 +48,26 @@ macro_rules! def_widget {
                                 let $gtk_widget = gdk::glib::clone::Downgrade::downgrade(&$gtk_widget);
                                 move |$scope_graph, values| {
                                     // TODO when this fails, shouldn't we technically remove the listener somehow? Need to analyze when exactly this happens.
-                                    let $gtk_widget = gdk::glib::clone::Upgrade::upgrade(&$gtk_widget)
-                                        .context("Couldn't upgrade reference, widget got deallocated")?;
+                                    let $gtk_widget = match gdk::glib::clone::Upgrade::upgrade(&$gtk_widget) {
+                                            Some(w) => w,
+                                            None => {
+                                                // Hacky workarround to prevent the log file to
+                                                // grow way too big
+                                                let count = $crate::widgets::dup_log_count::UPGRADE_FAIL_LOG_COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                                                let max = $crate::widgets::dup_log_count::UPGRADE_FAIL_LOG_MAX_COUNT;
+                                                if count < max {
+                                                    return Err(anyhow::anyhow!("Couldn't upgrade reference, widget got deallocated"))
+                                                } else if count == max {
+                                                    return Err(anyhow::anyhow!("Reference upgrade error reached limit of {max}, stopping logging for now"))
+                                                } else {
+                                                    // The hack: we return Ok(()) to prevent the
+                                                    // parent from logging the error, this might be
+                                                    // bad since we return as if everything
+                                                    // succeeded even though we very much failed
+                                                    return Ok(())
+                                                }
+                                            }
+                                    };
                                     // values is a map of all the variables that are required to evaluate the
                                     // attributes expression.
 
