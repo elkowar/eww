@@ -59,6 +59,14 @@ I've hit a bit of a design roadblock for one of the bigger features that are in 
 
 </div>
 
+* [topbar by z4nder](https://github.com/z4nder/eww-evangelion-theme)
+
+<div align="center">
+
+![eww-top-bar](https://raw.githubusercontent.com/z4nder/eww-evangelion-theme/main/screenshots/full_with_terminals.png)
+
+</div>
+
 
 ## Contribewwting
 
