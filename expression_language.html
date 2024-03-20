@@ -226,6 +226,7 @@ not an object.
 <li><code>arraylength(value)</code>: Gets the length of the array</li>
 <li><code>objectlength(value)</code>: Gets the amount of entries in the object</li>
 <li><code>jq(value, jq_filter_string)</code>: run a <a href="https://stedolan.github.io/jq/manual/">jq</a> style command on a json value. (Uses <a href="https://crates.io/crates/jaq">jaq</a> internally).</li>
+<li><code>get_env(string)</code>: Gets the specified enviroment variable</li>
 <li><code>formattime(unix_timestamp, format_str, timezone)</code>: Gets the time in a given format from UNIX timestamp.
 Check <a href="https://docs.rs/chrono/latest/chrono/format/strftime/index.html">chrono's documentation</a> for more
 information about format string and <a href="https://docs.rs/chrono-tz/latest/chrono_tz/enum.Tz.html">chrono-tz's documentation</a>
