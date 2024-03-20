@@ -53,5 +53,21 @@ tokio = { version = "1.36.0", features = ["full"] }
 unescape = "0.1"
 wait-timeout = "0.2"
 
+# Config for 'cargo dist'
+[workspace.metadata.dist]
+cargo-dist-version = "0.10.0"
+ci = ["github"]
+installers = ["shell"]
+targets = [
+    "x86_64-unknown-linux-gnu",
+    # TODO: support musl builds
+    # "x86_64-unknown-linux-musl"
+]
+pr-run-mode = "plan"
+
 [profile.dev]
 split-debuginfo = "unpacked"
+
+[profile.dist]
+inherits = "release"
+lto = "thin"
