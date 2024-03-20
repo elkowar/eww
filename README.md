@@ -12,6 +12,7 @@ Documentation **and instructions on how to install** can be found [here](https:/
 Dharmx also wrote a nice, beginner friendly introductory guide for eww [here](https://dharmx.is-a.dev/eww-powermenu/).
 
 ## Eww needs your opinion!
+
 I've hit a bit of a design roadblock for one of the bigger features that are in the works right now.
 
 **Please read through https://github.com/elkowar/eww/discussions/453 and share your thoughts, ideas and opinions!**
@@ -31,12 +32,7 @@ I've hit a bit of a design roadblock for one of the bigger features that are in 
 <img src="https://raw.githubusercontent.com/elkowar/dots-of-war/master/eww-bar/.config/eww-bar/showcase.png" height="400" width="auto"/>
 
 * [Vertical Bar by Rxyhn](https://github.com/rxyhn/bspdots)
-
-<div align="left">
-
 ![Rxyhn-rice](https://user-images.githubusercontent.com/93292023/152228869-d618335a-7a1e-40f7-95f9-b1cf401be89e.gif)
-
-</div>
 
 * [Setup by Axarva](https://github.com/Axarva/dotfiles-2.0)
 ![Axarva-rice](https://raw.githubusercontent.com/Axarva/dotfiles-2.0/main/screenshots/center.png)
@@ -59,12 +55,12 @@ I've hit a bit of a design roadblock for one of the bigger features that are in 
 
 </div>
 
-
 ## Contribewwting
 
 If you want to contribute anything, like adding new widgets, features, or subcommands (including sample configs), you should definitely do so.
 
 ### Steps
+
 1. Fork this repository
 2. Install dependencies
 3. Smash your head against the keyboard from frustration (coding is hard)
