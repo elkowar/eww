@@ -1,8 +1,10 @@
 use crate::util::IterAverage;
 use anyhow::{Context, Result};
+use itertools::Itertools;
 use once_cell::sync::Lazy;
 use std::{fs::read_to_string, sync::Mutex};
 use sysinfo::System;
+use local_ip_address::list_afinet_netifas;
 
 struct RefreshTime(std::time::Instant);
 impl RefreshTime {
@@ -228,4 +230,18 @@ pub fn net() -> String {
 
 pub fn get_time() -> String {
     chrono::offset::Utc::now().timestamp().to_string()
+}
+
+pub fn get_ipv4() -> String {
+    let ifas = list_afinet_netifas().unwrap();
+    let joined =
+        ifas.iter().filter(|ipv| ipv.1.is_ipv4() && ipv.0 != "lo").map(|ip| format!("{}", ip.1)).collect::<Vec<_>>().join(", ");
+    joined
+}
+
+pub fn get_ipv6() -> String {
+    let ifas = list_afinet_netifas().unwrap();
+    let joined =
+        ifas.iter().filter(|ipv| ipv.1.is_ipv6() && ipv.0 != "lo").map(|ip| format!("{}", ip.1)).collect::<Vec<_>>().join(", ");
+    joined
 }
