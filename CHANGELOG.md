@@ -9,6 +9,9 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Fix nix flake
 - Fix `jq` (By: w-lfchen)
 
+### Features
+- Add `systray` widget (By: ralismark)
+
 ## [0.5.0] (17.02.2024)
 
 ### BREAKING CHANGES
