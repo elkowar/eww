@@ -9,12 +9,16 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Fix and refactor nix flake (By: w-lfchen)
 - Fix `jq` (By: w-lfchen)
 
+### Features
+- Add `systray` widget (By: ralismark)
+
 ## [0.5.0] (17.02.2024)
 
 ### BREAKING CHANGES
 - Remove `eww windows` command, replace with `eww active-windows` and `eww list-windows`
 
 ### Features
+- Add `get_env` function (By: RegenJacob)
 - Add `:namespace` window option
 - Default to building with x11 and wayland support simultaneously
 - Add `truncate-left` property on `label` widgets (By: kawaki-san)

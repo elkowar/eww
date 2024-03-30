@@ -42,7 +42,10 @@ fn main() {
     if std::env::var("RUST_LOG").is_ok() {
         pretty_env_logger::init_timed();
     } else {
-        pretty_env_logger::formatted_timed_builder().filter(Some("eww"), log_level_filter).init();
+        pretty_env_logger::formatted_timed_builder()
+            .filter(Some("eww"), log_level_filter)
+            .filter(Some("notifier_host"), log_level_filter)
+            .init();
     }
 
     if let opts::Action::ShellCompletions { shell } = opts.action {
