@@ -7,6 +7,7 @@ use crate::{
     paths::EwwPaths,
     script_var_handler::ScriptVarHandlerHandle,
     state::scope_graph::{ScopeGraph, ScopeIndex},
+    widgets::window::Window,
     window_arguments::WindowArguments,
     window_initiator::WindowInitiator,
     *,
@@ -92,7 +93,7 @@ pub struct EwwWindow {
     pub instance_id: String,
     pub name: String,
     pub scope_index: ScopeIndex,
-    pub gtk_window: gtk::Window,
+    pub gtk_window: Window,
     pub destroy_event_handler_id: Option<glib::SignalHandlerId>,
 }
 
@@ -146,150 +147,148 @@ impl<B> std::fmt::Debug for App<B> {
 }
 
 impl<B: DisplayBackend> App<B> {
-    /// Handle a [`DaemonCommand`] event.
+    /// Handle a [`DaemonCommand`] event, logging any errors that occur.
     pub fn handle_command(&mut self, event: DaemonCommand) {
-        log::debug!("Handling event: {:?}", &event);
-        let result: Result<_> = try {
-            match event {
-                DaemonCommand::NoOp => {}
-                DaemonCommand::OpenInspector => {
-                    gtk::Window::set_interactive_debugging(true);
-                }
-                DaemonCommand::UpdateVars(mappings) => {
-                    for (var_name, new_value) in mappings {
-                        self.update_global_variable(var_name, new_value);
-                    }
-                }
-                DaemonCommand::ReloadConfigAndCss(sender) => {
-                    let mut errors = Vec::new();
-
-                    let config_result = config::read_from_eww_paths(&self.paths);
-                    if let Err(e) = config_result.and_then(|new_config| self.load_config(new_config)) {
-                        errors.push(e)
-                    }
-                    match crate::config::scss::parse_scss_from_config(self.paths.get_config_dir()) {
-                        Ok((file_id, css)) => {
-                            if let Err(e) = self.load_css(file_id, &css) {
-                                errors.push(anyhow!(e));
-                            }
-                        }
-                        Err(e) => {
-                            errors.push(e);
-                        }
-                    }
-
-                    sender.respond_with_error_list(errors)?;
-                }
-                DaemonCommand::KillServer => {
-                    log::info!("Received kill command, stopping server!");
-                    self.stop_application();
-                }
-                DaemonCommand::CloseAll => {
-                    log::info!("Received close command, closing all windows");
-                    for window_name in self.open_windows.keys().cloned().collect::<Vec<String>>() {
-                        self.close_window(&window_name)?;
-                    }
-                }
-                DaemonCommand::OpenMany { windows, args, should_toggle, sender } => {
-                    let errors = windows
-                        .iter()
-                        .map(|w| {
-                            let (config_name, id) = w;
-                            if should_toggle && self.open_windows.contains_key(id) {
-                                self.close_window(id)
-                            } else {
-                                log::debug!("Config: {}, id: {}", config_name, id);
-                                let window_args = args
-                                    .iter()
-                                    .filter(|(win_id, ..)| win_id.is_empty() || win_id == id)
-                                    .map(|(_, n, v)| (n.clone(), v.clone()))
-                                    .collect();
-                                self.open_window(&WindowArguments::new_from_args(
-                                    id.to_string(),
-                                    config_name.clone(),
-                                    window_args,
-                                )?)
-                            }
-                        })
-                        .filter_map(Result::err);
-                    sender.respond_with_error_list(errors)?;
-                }
-                DaemonCommand::OpenWindow {
-                    window_name,
-                    instance_id,
-                    pos,
-                    size,
-                    anchor,
-                    screen: monitor,
-                    should_toggle,
-                    duration,
-                    sender,
-                    args,
-                } => {
-                    let instance_id = instance_id.unwrap_or_else(|| window_name.clone());
-
-                    let is_open = self.open_windows.contains_key(&instance_id);
-
-                    let result = if should_toggle && is_open {
-                        self.close_window(&instance_id)
-                    } else {
-                        self.open_window(&WindowArguments {
-                            instance_id,
-                            window_name,
-                            pos,
-                            size,
-                            monitor,
-                            anchor,
-                            duration,
-                            args: args.unwrap_or_default().into_iter().collect(),
-                        })
-                    };
-
-                    sender.respond_with_result(result)?;
-                }
-                DaemonCommand::CloseWindows { windows, sender } => {
-                    let errors = windows.iter().map(|window| self.close_window(window)).filter_map(Result::err);
-                    sender.respond_with_error_list(errors)?;
-                }
-                DaemonCommand::PrintState { all, sender } => {
-                    let scope_graph = self.scope_graph.borrow();
-                    let used_globals_names = scope_graph.currently_used_globals();
-                    let output = scope_graph
-                        .global_scope()
-                        .data
-                        .iter()
-                        .filter(|(key, _)| all || used_globals_names.contains(*key))
-                        .map(|(key, value)| format!("{}: {}", key, value))
-                        .join("\n");
-                    sender.send_success(output)?
-                }
-                DaemonCommand::GetVar { name, sender } => {
-                    let scope_graph = &*self.scope_graph.borrow();
-                    let vars = &scope_graph.global_scope().data;
-                    match vars.get(name.as_str()) {
-                        Some(x) => sender.send_success(x.to_string())?,
-                        None => sender.send_failure(format!("Variable not found \"{}\"", name))?,
-                    }
-                }
-                DaemonCommand::ListWindows(sender) => {
-                    let output = self.eww_config.get_windows().keys().join("\n");
-                    sender.send_success(output)?
-                }
-                DaemonCommand::ListActiveWindows(sender) => {
-                    let output = self.open_windows.iter().map(|(id, window)| format!("{id}: {}", window.name)).join("\n");
-                    sender.send_success(output)?
-                }
-                DaemonCommand::PrintDebug(sender) => {
-                    let output = format!("{:#?}", &self);
-                    sender.send_success(output)?
-                }
-                DaemonCommand::PrintGraph(sender) => sender.send_success(self.scope_graph.borrow().visualize())?,
-            }
-        };
-
-        if let Err(err) = result {
+        if let Err(err) = self.try_handle_command(event) {
             error_handling_ctx::print_error(err);
         }
+    }
+
+    /// Try to handle a [`DaemonCommand`] event.
+    fn try_handle_command(&mut self, event: DaemonCommand) -> Result<()> {
+        log::debug!("Handling event: {:?}", &event);
+        match event {
+            DaemonCommand::NoOp => {}
+            DaemonCommand::OpenInspector => {
+                gtk::Window::set_interactive_debugging(true);
+            }
+            DaemonCommand::UpdateVars(mappings) => {
+                for (var_name, new_value) in mappings {
+                    self.update_global_variable(var_name, new_value);
+                }
+            }
+            DaemonCommand::ReloadConfigAndCss(sender) => {
+                let mut errors = Vec::new();
+
+                let config_result = config::read_from_eww_paths(&self.paths);
+                if let Err(e) = config_result.and_then(|new_config| self.load_config(new_config)) {
+                    errors.push(e)
+                }
+                match crate::config::scss::parse_scss_from_config(self.paths.get_config_dir()) {
+                    Ok((file_id, css)) => {
+                        if let Err(e) = self.load_css(file_id, &css) {
+                            errors.push(anyhow!(e));
+                        }
+                    }
+                    Err(e) => {
+                        errors.push(e);
+                    }
+                }
+
+                sender.respond_with_error_list(errors)?;
+            }
+            DaemonCommand::KillServer => {
+                log::info!("Received kill command, stopping server!");
+                self.stop_application();
+            }
+            DaemonCommand::CloseAll => {
+                log::info!("Received close command, closing all windows");
+                for window_name in self.open_windows.keys().cloned().collect::<Vec<String>>() {
+                    self.close_window(&window_name)?;
+                }
+            }
+            DaemonCommand::OpenMany { windows, args, should_toggle, sender } => {
+                let errors = windows
+                    .iter()
+                    .map(|w| {
+                        let (config_name, id) = w;
+                        if should_toggle && self.open_windows.contains_key(id) {
+                            self.close_window(id)
+                        } else {
+                            log::debug!("Config: {}, id: {}", config_name, id);
+                            let window_args = args
+                                .iter()
+                                .filter(|(win_id, ..)| win_id.is_empty() || win_id == id)
+                                .map(|(_, n, v)| (n.clone(), v.clone()))
+                                .collect();
+                            self.open_window(&WindowArguments::new_from_args(id.to_string(), config_name.clone(), window_args)?)
+                        }
+                    })
+                    .filter_map(Result::err);
+                sender.respond_with_error_list(errors)?;
+            }
+            DaemonCommand::OpenWindow {
+                window_name,
+                instance_id,
+                pos,
+                size,
+                anchor,
+                screen: monitor,
+                should_toggle,
+                duration,
+                sender,
+                args,
+            } => {
+                let instance_id = instance_id.unwrap_or_else(|| window_name.clone());
+
+                let is_open = self.open_windows.contains_key(&instance_id);
+
+                let result = if should_toggle && is_open {
+                    self.close_window(&instance_id)
+                } else {
+                    self.open_window(&WindowArguments {
+                        instance_id,
+                        window_name,
+                        pos,
+                        size,
+                        monitor,
+                        anchor,
+                        duration,
+                        args: args.unwrap_or_default().into_iter().collect(),
+                    })
+                };
+
+                sender.respond_with_result(result)?;
+            }
+            DaemonCommand::CloseWindows { windows, sender } => {
+                let errors = windows.iter().map(|window| self.close_window(window)).filter_map(Result::err);
+                sender.respond_with_error_list(errors)?;
+            }
+            DaemonCommand::PrintState { all, sender } => {
+                let scope_graph = self.scope_graph.borrow();
+                let used_globals_names = scope_graph.currently_used_globals();
+                let output = scope_graph
+                    .global_scope()
+                    .data
+                    .iter()
+                    .filter(|(key, _)| all || used_globals_names.contains(*key))
+                    .map(|(key, value)| format!("{}: {}", key, value))
+                    .join("\n");
+                sender.send_success(output)?
+            }
+            DaemonCommand::GetVar { name, sender } => {
+                let scope_graph = &*self.scope_graph.borrow();
+                let vars = &scope_graph.global_scope().data;
+                match vars.get(name.as_str()) {
+                    Some(x) => sender.send_success(x.to_string())?,
+                    None => sender.send_failure(format!("Variable not found \"{}\"", name))?,
+                }
+            }
+            DaemonCommand::ListWindows(sender) => {
+                let output = self.eww_config.get_windows().keys().join("\n");
+                sender.send_success(output)?
+            }
+            DaemonCommand::ListActiveWindows(sender) => {
+                let output = self.open_windows.iter().map(|(id, window)| format!("{id}: {}", window.name)).join("\n");
+                sender.send_success(output)?
+            }
+            DaemonCommand::PrintDebug(sender) => {
+                let output = format!("{:#?}", &self);
+                sender.send_success(output)?
+            }
+            DaemonCommand::PrintGraph(sender) => sender.send_success(self.scope_graph.borrow().visualize())?,
+        }
+        Ok(())
     }
 
     /// Fully stop eww:
@@ -375,7 +374,7 @@ impl<B: DisplayBackend> App<B> {
 
         self.instance_id_to_args.insert(instance_id.to_string(), window_args.clone());
 
-        let open_result: Result<_> = try {
+        let open_result: Result<_> = (|| {
             let window_name: &str = &window_args.window_name;
 
             let window_def = self.eww_config.get_window(window_name)?.clone();
@@ -461,7 +460,8 @@ impl<B: DisplayBackend> App<B> {
             }
 
             self.open_windows.insert(instance_id.to_string(), eww_window);
-        };
+            Ok(())
+        })();
 
         if let Err(err) = open_result {
             self.failed_windows.insert(instance_id.to_string());
@@ -499,15 +499,15 @@ impl<B: DisplayBackend> App<B> {
     pub fn load_css(&mut self, file_id: usize, css: &str) -> Result<()> {
         if let Err(err) = self.css_provider.load_from_data(css.as_bytes()) {
             static PATTERN: Lazy<regex::Regex> = Lazy::new(|| regex::Regex::new(r"[^:]*:(\d+):(\d+)(.*)$").unwrap());
-            let nice_error_option: Option<_> = try {
+            let nice_error_option: Option<_> = (|| {
                 let captures = PATTERN.captures(err.message())?;
                 let line = captures.get(1).unwrap().as_str().parse::<usize>().ok()?;
                 let msg = captures.get(3).unwrap().as_str();
                 let db = error_handling_ctx::FILE_DATABASE.read().ok()?;
                 let line_range = db.line_range(file_id, line - 1).ok()?;
                 let span = Span(line_range.start, line_range.end - 1, file_id);
-                DiagError(gen_diagnostic!(msg, span))
-            };
+                Some(DiagError(gen_diagnostic!(msg, span)))
+            })();
             match nice_error_option {
                 Some(error) => Err(anyhow!(error)),
                 None => Err(anyhow!("CSS error: {}", err.message())),
@@ -525,15 +525,21 @@ fn initialize_window<B: DisplayBackend>(
     window_scope: ScopeIndex,
 ) -> Result<EwwWindow> {
     let monitor_geometry = monitor.geometry();
-    let window = B::initialize_window(window_init, monitor_geometry)
+    let (actual_window_rect, x, y) = match window_init.geometry {
+        Some(geometry) => {
+            let rect = get_window_rectangle(geometry, monitor_geometry);
+            (Some(rect), rect.x(), rect.y())
+        }
+        _ => (None, 0, 0),
+    };
+    let window = B::initialize_window(window_init, monitor_geometry, x, y)
         .with_context(|| format!("monitor {} is unavailable", window_init.monitor.clone().unwrap()))?;
 
     window.set_title(&format!("Eww - {}", window_init.name));
     window.set_position(gtk::WindowPosition::None);
     window.set_gravity(gdk::Gravity::Center);
 
-    if let Some(geometry) = window_init.geometry {
-        let actual_window_rect = get_window_rectangle(geometry, monitor_geometry);
+    if let Some(actual_window_rect) = actual_window_rect {
         window.set_size_request(actual_window_rect.width(), actual_window_rect.height());
         window.set_default_size(actual_window_rect.width(), actual_window_rect.height());
     }
@@ -576,11 +582,7 @@ fn initialize_window<B: DisplayBackend>(
 
 /// Apply the provided window-positioning rules to the window.
 #[cfg(feature = "x11")]
-fn apply_window_position(
-    mut window_geometry: WindowGeometry,
-    monitor_geometry: gdk::Rectangle,
-    window: &gtk::Window,
-) -> Result<()> {
+fn apply_window_position(mut window_geometry: WindowGeometry, monitor_geometry: gdk::Rectangle, window: &Window) -> Result<()> {
     let gdk_window = window.window().context("Failed to get gdk window from gtk window")?;
     window_geometry.size = Coords::from_pixels(window.size());
     let actual_window_rect = get_window_rectangle(window_geometry, monitor_geometry);
@@ -594,7 +596,7 @@ fn apply_window_position(
     Ok(())
 }
 
-fn on_screen_changed(window: &gtk::Window, _old_screen: Option<&gdk::Screen>) {
+fn on_screen_changed(window: &Window, _old_screen: Option<&gdk::Screen>) {
     let visual = gtk::prelude::GtkWindowExt::screen(window)
         .and_then(|screen| screen.rgba_visual().filter(|_| screen.is_composited()).or_else(|| screen.system_visual()));
     window.set_visual(visual.as_ref());

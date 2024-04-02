@@ -1,0 +1,19 @@
+[package]
+name = "notifier_host"
+version = "0.1.0"
+authors = ["elkowar <5300871+elkowar@users.noreply.github.com>"]
+edition = "2021"
+license = "MIT"
+description = "SystemNotifierHost implementation"
+repository = "https://github.com/elkowar/eww"
+homepage = "https://github.com/elkowar/eww"
+
+[dependencies]
+gtk = "0.17.1"
+gdk = "0.17.1"
+zbus = { version = "3.7.0", default-features = false, features = ["tokio"] }
+dbusmenu-gtk3 = "0.1.0"
+
+log.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["full"] }

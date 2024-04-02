@@ -3,16 +3,6 @@ use itertools::Itertools;
 use std::fmt::Write;
 
 #[macro_export]
-macro_rules! try_logging_errors {
-    ($context:expr => $code:block) => {{
-        let result: Result<_> = try { $code };
-        if let Err(err) = result {
-            log::error!("[{}:{}] Error while {}: {:?}", ::std::file!(), ::std::line!(), $context, err);
-        }
-    }};
-}
-
-#[macro_export]
 macro_rules! print_result_err {
     ($context:expr, $result:expr $(,)?) => {{
         if let Err(err) = $result {

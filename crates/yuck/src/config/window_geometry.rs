@@ -99,9 +99,9 @@ impl std::str::FromStr for AnchorPoint {
             Ok(AnchorPoint { x: AnchorAlignment::CENTER, y: AnchorAlignment::CENTER })
         } else {
             let (first, second) = s.split_once(' ').ok_or_else(|| AnchorPointParseError::WrongFormat(s.to_string()))?;
-            let x_y_result: Result<_, EnumParseError> = try {
-                AnchorPoint { x: AnchorAlignment::from_x_alignment(first)?, y: AnchorAlignment::from_y_alignment(second)? }
-            };
+            let x_y_result: Result<_, EnumParseError> = (move || {
+                Ok(AnchorPoint { x: AnchorAlignment::from_x_alignment(first)?, y: AnchorAlignment::from_y_alignment(second)? })
+            })();
             x_y_result.or_else(|_| {
                 Ok(AnchorPoint { x: AnchorAlignment::from_x_alignment(second)?, y: AnchorAlignment::from_y_alignment(first)? })
             })

@@ -9,6 +9,6 @@ repository = "https://github.com/elkowar/eww"
 homepage = "https://github.com/elkowar/eww"
 
 [dependencies]
-serde = {version = "1.0", features = ["derive"]}
-derive_more = "0.99"
-ref-cast = "1.0.6"
+serde.workspace = true
+derive_more.workspace = true
+ref-cast.workspace = true

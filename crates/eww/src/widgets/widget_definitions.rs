@@ -2,8 +2,8 @@
 use super::{build_widget::BuilderArgs, circular_progressbar::*, run_command, transform::*};
 use crate::{
     def_widget, enum_parse, error_handling_ctx,
-    util::{list_difference, unindent},
-    widgets::build_widget::build_gtk_widget,
+    util::{self, list_difference},
+    widgets::{build_widget::build_gtk_widget, systray},
 };
 use anyhow::{anyhow, Context, Result};
 use codespan_reporting::diagnostic::Severity;
@@ -61,6 +61,7 @@ pub const BUILTIN_WIDGET_NAMES: &[&str] = &[
     WIDGET_NAME_BOX,
     WIDGET_NAME_CENTERBOX,
     WIDGET_NAME_EVENTBOX,
+    WIDGET_NAME_TOOLTIP,
     WIDGET_NAME_CIRCULAR_PROGRESS,
     WIDGET_NAME_GRAPH,
     WIDGET_NAME_TRANSFORM,
@@ -80,14 +81,17 @@ pub const BUILTIN_WIDGET_NAMES: &[&str] = &[
     WIDGET_NAME_REVEALER,
     WIDGET_NAME_SCROLL,
     WIDGET_NAME_OVERLAY,
+    WIDGET_NAME_STACK,
+    WIDGET_NAME_SYSTRAY,
 ];
 
-//// widget definitions
+/// widget definitions
 pub(super) fn widget_use_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::Widget> {
     let gtk_widget = match bargs.widget_use.name.as_str() {
         WIDGET_NAME_BOX => build_gtk_box(bargs)?.upcast(),
         WIDGET_NAME_CENTERBOX => build_center_box(bargs)?.upcast(),
         WIDGET_NAME_EVENTBOX => build_gtk_event_box(bargs)?.upcast(),
+        WIDGET_NAME_TOOLTIP => build_tooltip(bargs)?.upcast(),
         WIDGET_NAME_CIRCULAR_PROGRESS => build_circular_progress_bar(bargs)?.upcast(),
         WIDGET_NAME_GRAPH => build_graph(bargs)?.upcast(),
         WIDGET_NAME_TRANSFORM => build_transform(bargs)?.upcast(),
@@ -107,6 +111,8 @@ pub(super) fn widget_use_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::W
         WIDGET_NAME_REVEALER => build_gtk_revealer(bargs)?.upcast(),
         WIDGET_NAME_SCROLL => build_gtk_scrolledwindow(bargs)?.upcast(),
         WIDGET_NAME_OVERLAY => build_gtk_overlay(bargs)?.upcast(),
+        WIDGET_NAME_STACK => build_gtk_stack(bargs)?.upcast(),
+        WIDGET_NAME_SYSTRAY => build_systray(bargs)?.upcast(),
         _ => {
             return Err(DiagError(gen_diagnostic! {
                 msg = format!("referenced unknown widget `{}`", bargs.widget_use.name),
@@ -126,8 +132,7 @@ static DEPRECATED_ATTRS: Lazy<HashSet<&str>> =
 /// @widget widget
 /// @desc these properties apply to _all_ widgets, and can be used anywhere!
 pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Widget) -> Result<()> {
-    let deprecated: HashSet<_> = DEPRECATED_ATTRS.to_owned();
-    let contained_deprecated: Vec<_> = bargs.unhandled_attrs.extract_if(|a, _| deprecated.contains(&a.0 as &str)).collect();
+    let contained_deprecated: Vec<_> = DEPRECATED_ATTRS.iter().filter_map(|x| bargs.unhandled_attrs.remove_entry(*x)).collect();
     if !contained_deprecated.is_empty() {
         let diag = error_handling_ctx::stringify_diagnostic(gen_diagnostic! {
             kind =  Severity::Error,
@@ -144,7 +149,7 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
     let css_provider = gtk::CssProvider::new();
     let css_provider2 = css_provider.clone();
 
-    let visible_result: Result<_> = try {
+    let visible_result: Result<_> = (|| {
         let visible_expr = bargs.widget_use.attrs.attrs.get("visible").map(|x| x.value.as_simplexpr()).transpose()?;
         if let Some(visible_expr) = visible_expr {
             let visible = bargs.scope_graph.evaluate_simplexpr_in_scope(bargs.calling_scope, &visible_expr)?.as_bool()?;
@@ -156,7 +161,8 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
                 }
             });
         }
-    };
+        Ok(())
+    })();
     if let Err(err) = visible_result {
         error_handling_ctx::print_error(err);
     }
@@ -324,7 +330,7 @@ fn build_gtk_revealer(bargs: &mut BuilderArgs) -> Result<gtk::Revealer> {
     let gtk_widget = gtk::Revealer::new();
     def_widget!(bargs, _g, gtk_widget, {
         // @prop transition - the name of the transition. Possible values: $transition
-        prop(transition: as_string = "crossfade") { gtk_widget.set_transition_type(parse_transition(&transition)?); },
+        prop(transition: as_string = "crossfade") { gtk_widget.set_transition_type(parse_revealer_transition(&transition)?); },
         // @prop reveal - sets if the child is revealed or not
         prop(reveal: as_bool) { gtk_widget.set_reveal_child(reveal); },
         // @prop duration - the duration of the reveal transition. Default: "500ms"
@@ -582,6 +588,50 @@ fn build_gtk_overlay(bargs: &mut BuilderArgs) -> Result<gtk::Overlay> {
     }
 }
 
+const WIDGET_NAME_TOOLTIP: &str = "tooltip";
+/// @widget tooltip
+/// @desc A widget that have a custom tooltip. The first child is the content of the tooltip, the second one is the content of the widget.
+fn build_tooltip(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
+    let gtk_widget = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    gtk_widget.set_has_tooltip(true);
+
+    match bargs.widget_use.children.len().cmp(&2) {
+        Ordering::Less => {
+            Err(DiagError(gen_diagnostic!("tooltip must contain exactly 2 elements", bargs.widget_use.span)).into())
+        }
+        Ordering::Greater => {
+            let (_, additional_children) = bargs.widget_use.children.split_at(2);
+            // we know that there is more than two children, so unwrapping on first and last here is fine.
+            let first_span = additional_children.first().unwrap().span();
+            let last_span = additional_children.last().unwrap().span();
+            Err(DiagError(gen_diagnostic!("tooltip must contain exactly 2 elements, but got more", first_span.to(last_span)))
+                .into())
+        }
+        Ordering::Equal => {
+            let mut children = bargs.widget_use.children.iter().map(|child| {
+                build_gtk_widget(
+                    bargs.scope_graph,
+                    bargs.widget_defs.clone(),
+                    bargs.calling_scope,
+                    child.clone(),
+                    bargs.custom_widget_invocation.clone(),
+                )
+            });
+            // we know that we have exactly two children here, so we can unwrap here.
+            let (tooltip, content) = children.next_tuple().unwrap();
+            let (tooltip_content, content) = (tooltip?, content?);
+
+            gtk_widget.add(&content);
+            gtk_widget.connect_query_tooltip(move |_this, _x, _y, _keyboard_mode, tooltip| {
+                tooltip.set_custom(Some(&tooltip_content));
+                true
+            });
+
+            Ok(gtk_widget)
+        }
+    }
+}
+
 const WIDGET_NAME_CENTERBOX: &str = "centerbox";
 /// @widget centerbox
 /// @desc a box that must contain exactly three children, which will be layed out at the start, center and end of the container.
@@ -828,7 +878,8 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
         // @prop limit-width - maximum count of characters to display
         // @prop truncate-left - whether to truncate on the left side
         // @prop show-truncated - show whether the text was truncated
-        prop(text: as_string, limit_width: as_i32 = i32::MAX, truncate_left: as_bool = false, show_truncated: as_bool = true) {
+        // @prop unindent - whether to remove leading spaces
+        prop(text: as_string, limit_width: as_i32 = i32::MAX, truncate_left: as_bool = false, show_truncated: as_bool = true, unindent: as_bool = true) {
             let limit_width = limit_width as usize;
             let char_count = text.chars().count();
             let text = if char_count > limit_width {
@@ -850,7 +901,7 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
             };
 
             let text = unescape::unescape(&text).context(format!("Failed to unescape label text {}", &text))?;
-            let text = unindent(&text);
+            let text = if unindent { util::unindent(&text) } else { text };
             gtk_widget.set_text(&text);
         },
         // @prop markup - Pango markup to display
@@ -859,6 +910,10 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
         prop(wrap: as_bool) { gtk_widget.set_line_wrap(wrap) },
         // @prop angle - the angle of rotation for the label (between 0 - 360)
         prop(angle: as_f64 = 0) { gtk_widget.set_angle(angle) },
+        // @prop gravity - the gravity of the string (south, east, west, north, auto). Text will want to face the direction of gravity.
+        prop(gravity: as_string = "south") {
+            gtk_widget.pango_context().set_base_gravity(parse_gravity(&gravity)?);
+        },
         // @prop xalign - the alignment of the label text on the x axis (between 0 - 1, 0 -> left, 0.5 -> center, 1 -> right)
         prop(xalign: as_f64 = 0.5) { gtk_widget.set_xalign(xalign as f32) },
         // @prop yalign - the alignment of the label text on the y axis (between 0 - 1, 0 -> bottom, 0.5 -> center, 1 -> top)
@@ -892,7 +947,7 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
         prop(content: as_string) {
             gtk_widget.children().iter().for_each(|w| gtk_widget.remove(w));
             if !content.is_empty() {
-                let content_widget_use: DiagResult<_> = try {
+                let content_widget_use: DiagResult<_> = (||{
                     let ast = {
                         let mut yuck_files = error_handling_ctx::FILE_DATABASE.write().unwrap();
                         let (span, asts) = yuck_files.load_yuck_str("<literal-content>".to_string(), content)?;
@@ -902,8 +957,8 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
                         yuck::parser::require_single_toplevel(span, asts)?
                     };
 
-                    yuck::config::widget_use::WidgetUse::from_ast(ast)?
-                };
+                    yuck::config::widget_use::WidgetUse::from_ast(ast)
+                })();
                 let content_widget_use = content_widget_use?;
 
                 // TODO a literal should create a new scope, that I'm not even sure should inherit from root
@@ -971,6 +1026,44 @@ fn build_gtk_calendar(bargs: &mut BuilderArgs) -> Result<gtk::Calendar> {
     Ok(gtk_widget)
 }
 
+const WIDGET_NAME_STACK: &str = "stack";
+/// @widget stack
+/// @desc A widget that displays one of its children at a time
+fn build_gtk_stack(bargs: &mut BuilderArgs) -> Result<gtk::Stack> {
+    let gtk_widget = gtk::Stack::new();
+    def_widget!(bargs, _g, gtk_widget, {
+        // @prop selected - index of child which should be shown
+        prop(selected: as_i32) { gtk_widget.set_visible_child_name(&selected.to_string()); },
+        // @prop transition - the name of the transition. Possible values: $transition
+        prop(transition: as_string = "crossfade") { gtk_widget.set_transition_type(parse_stack_transition(&transition)?); },
+        // @prop same-size - sets whether all children should be the same size
+        prop(same_size: as_bool = false) { gtk_widget.set_homogeneous(same_size); }
+    });
+
+    match bargs.widget_use.children.len().cmp(&1) {
+        Ordering::Less => {
+            Err(DiagError(gen_diagnostic!("stack must contain at least one element", bargs.widget_use.span)).into())
+        }
+        Ordering::Greater | Ordering::Equal => {
+            let children = bargs.widget_use.children.iter().map(|child| {
+                build_gtk_widget(
+                    bargs.scope_graph,
+                    bargs.widget_defs.clone(),
+                    bargs.calling_scope,
+                    child.clone(),
+                    bargs.custom_widget_invocation.clone(),
+                )
+            });
+            for (i, child) in children.enumerate() {
+                let child = child?;
+                gtk_widget.add_named(&child, &i.to_string());
+                child.show();
+            }
+            Ok(gtk_widget)
+        }
+    }
+}
+
 const WIDGET_NAME_TRANSFORM: &str = "transform";
 /// @widget transform
 /// @desc A widget that applies transformations to its content. They are applied in the following
@@ -1005,7 +1098,7 @@ fn build_circular_progress_bar(bargs: &mut BuilderArgs) -> Result<CircProg> {
         // @prop thickness - the thickness of the circle
         prop(thickness: as_f64) { w.set_property("thickness", thickness); },
         // @prop clockwise - wether the progress bar spins clockwise or counter clockwise
-        prop(clockwise: as_bool) { w.set_property("clockwise", &clockwise); },
+        prop(clockwise: as_bool) { w.set_property("clockwise", clockwise); },
     });
     Ok(w)
 }
@@ -1017,11 +1110,11 @@ fn build_graph(bargs: &mut BuilderArgs) -> Result<super::graph::Graph> {
     let w = super::graph::Graph::new();
     def_widget!(bargs, _g, w, {
         // @prop value - the value, between 0 - 100
-        prop(value: as_f64) { w.set_property("value", &value); },
+        prop(value: as_f64) { w.set_property("value", value); },
         // @prop thickness - the thickness of the line
-        prop(thickness: as_f64) { w.set_property("thickness", &thickness); },
+        prop(thickness: as_f64) { w.set_property("thickness", thickness); },
         // @prop time-range - the range of time to show
-        prop(time_range: as_duration) { w.set_property("time-range", &(time_range.as_millis() as u64)); },
+        prop(time_range: as_duration) { w.set_property("time-range", time_range.as_millis() as u64); },
         // @prop min - the minimum value to show (defaults to 0 if value_max is provided)
         // @prop max - the maximum value to show
         prop(min: as_f64 = 0, max: as_f64 = 100) {
@@ -1030,16 +1123,51 @@ fn build_graph(bargs: &mut BuilderArgs) -> Result<super::graph::Graph> {
                     format!("Graph's min ({min}) should never be higher than max ({max})")
                 )).into());
             }
-            w.set_property("min", &min);
-            w.set_property("max", &max);
+            w.set_property("min", min);
+            w.set_property("max", max);
         },
         // @prop dynamic - whether the y range should dynamically change based on value
-        prop(dynamic: as_bool) { w.set_property("dynamic", &dynamic); },
+        prop(dynamic: as_bool) { w.set_property("dynamic", dynamic); },
         // @prop line-style - changes the look of the edges in the graph. Values: "miter" (default), "round",
         // "bevel"
-        prop(line_style: as_string) { w.set_property("line-style", &line_style); },
+        prop(line_style: as_string) { w.set_property("line-style", line_style); },
     });
     Ok(w)
+}
+
+const WIDGET_NAME_SYSTRAY: &str = "systray";
+/// @widget systray
+/// @desc Tray for system notifier icons
+fn build_systray(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
+    let gtk_widget = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    let props = Rc::new(systray::Props::new());
+    let props_clone = props.clone(); // copies for def_widget
+    let props_clone2 = props.clone(); // copies for def_widget
+
+    def_widget!(bargs, _g, gtk_widget, {
+        // @prop spacing - spacing between elements
+        prop(spacing: as_i32 = 0) { gtk_widget.set_spacing(spacing) },
+        // @prop orientation - orientation of the box. possible values: $orientation
+        prop(orientation: as_string) { gtk_widget.set_orientation(parse_orientation(&orientation)?) },
+        // @prop space-evenly - space the widgets evenly.
+        prop(space_evenly: as_bool = true) { gtk_widget.set_homogeneous(space_evenly) },
+        // @prop icon-size - size of icons in the tray
+        prop(icon_size: as_i32) {
+            if icon_size <= 0 {
+                log::warn!("Icon size is not a positive number");
+            } else {
+                props.icon_size(icon_size);
+            }
+        },
+        // @prop prepend-new - prepend new icons.
+        prop(prepend_new: as_bool = true) {
+            *props_clone2.prepend_new.borrow_mut() = prepend_new;
+        },
+    });
+
+    systray::spawn_systray(&gtk_widget, &props_clone);
+
+    Ok(gtk_widget)
 }
 
 /// @var orientation - "vertical", "v", "horizontal", "h"
@@ -1064,7 +1192,7 @@ fn parse_dragtype(o: &str) -> Result<DragEntryType> {
 }
 
 /// @var transition - "slideright", "slideleft", "slideup", "slidedown", "crossfade", "none"
-fn parse_transition(t: &str) -> Result<gtk::RevealerTransitionType> {
+fn parse_revealer_transition(t: &str) -> Result<gtk::RevealerTransitionType> {
     enum_parse! { "transition", t,
         "slideright" => gtk::RevealerTransitionType::SlideRight,
         "slideleft" => gtk::RevealerTransitionType::SlideLeft,
@@ -1072,6 +1200,18 @@ fn parse_transition(t: &str) -> Result<gtk::RevealerTransitionType> {
         "slidedown" => gtk::RevealerTransitionType::SlideDown,
         "fade" | "crossfade" => gtk::RevealerTransitionType::Crossfade,
         "none" => gtk::RevealerTransitionType::None,
+    }
+}
+
+/// @var transition - "slideright", "slideleft", "slideup", "slidedown", "crossfade", "none"
+fn parse_stack_transition(t: &str) -> Result<gtk::StackTransitionType> {
+    enum_parse! { "transition", t,
+        "slideright" => gtk::StackTransitionType::SlideRight,
+        "slideleft" => gtk::StackTransitionType::SlideLeft,
+        "slideup" => gtk::StackTransitionType::SlideUp,
+        "slidedown" => gtk::StackTransitionType::SlideDown,
+        "fade" | "crossfade" => gtk::StackTransitionType::Crossfade,
+        "none" => gtk::StackTransitionType::None,
     }
 }
 
@@ -1093,6 +1233,17 @@ fn parse_justification(j: &str) -> Result<gtk::Justification> {
         "right" => gtk::Justification::Right,
         "center" => gtk::Justification::Center,
         "fill" => gtk::Justification::Fill,
+    }
+}
+
+/// @var gravity - "south", "east", "west", "north", "auto"
+fn parse_gravity(g: &str) -> Result<gtk::pango::Gravity> {
+    enum_parse! { "gravity", g,
+        "south" => gtk::pango::Gravity::South,
+        "east" => gtk::pango::Gravity::East,
+        "west" => gtk::pango::Gravity::West,
+        "north" => gtk::pango::Gravity::North,
+        "auto" => gtk::pango::Gravity::Auto,
     }
 }
 

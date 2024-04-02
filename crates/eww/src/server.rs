@@ -11,6 +11,7 @@ use anyhow::{Context, Result};
 use std::{
     cell::RefCell,
     collections::{HashMap, HashSet},
+    io::Write,
     os::unix::io::AsRawFd,
     path::Path,
     rc::Rc,
@@ -26,7 +27,7 @@ pub fn initialize_server<B: DisplayBackend>(
 ) -> Result<ForkResult> {
     let (ui_send, mut ui_recv) = tokio::sync::mpsc::unbounded_channel();
 
-    std::env::set_current_dir(&paths.get_config_dir())
+    std::env::set_current_dir(paths.get_config_dir())
         .with_context(|| format!("Failed to change working directory to {}", paths.get_config_dir().display()))?;
 
     log::info!("Loading paths: {}", &paths);
@@ -41,8 +42,10 @@ pub fn initialize_server<B: DisplayBackend>(
         }
     };
 
+    cleanup_log_dir(paths.get_log_dir())?;
+
     if should_daemonize {
-        let fork_result = do_detach(&paths.get_log_file())?;
+        let fork_result = do_detach(paths.get_log_file())?;
 
         if fork_result == ForkResult::Parent {
             return Ok(ForkResult::Parent);
@@ -100,7 +103,7 @@ pub fn initialize_server<B: DisplayBackend>(
     }
 
     // initialize all the handlers and tasks running asyncronously
-    init_async_part(app.paths.clone(), ui_send);
+    let tokio_handle = init_async_part(app.paths.clone(), ui_send);
 
     glib::MainContext::default().spawn_local(async move {
         // if an action was given to the daemon initially, execute it first.
@@ -121,22 +124,26 @@ pub fn initialize_server<B: DisplayBackend>(
         }
     });
 
+    // allow the GTK main thread to do tokio things
+    let _g = tokio_handle.enter();
+
     gtk::main();
     log::info!("main application thread finished");
 
     Ok(ForkResult::Child)
 }
 
-fn init_async_part(paths: EwwPaths, ui_send: UnboundedSender<app::DaemonCommand>) {
+fn init_async_part(paths: EwwPaths, ui_send: UnboundedSender<app::DaemonCommand>) -> tokio::runtime::Handle {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .thread_name("main-async-runtime")
+        .enable_all()
+        .build()
+        .expect("Failed to initialize tokio runtime");
+    let handle = rt.handle().clone();
+
     std::thread::Builder::new()
         .name("outer-main-async-runtime".to_string())
         .spawn(move || {
-            let rt = tokio::runtime::Builder::new_multi_thread()
-                .thread_name("main-async-runtime")
-                .enable_all()
-                .build()
-                .expect("Failed to initialize tokio runtime");
-
             rt.block_on(async {
                 let filewatch_join_handle = {
                     let ui_send = ui_send.clone();
@@ -168,6 +175,8 @@ fn init_async_part(paths: EwwPaths, ui_send: UnboundedSender<app::DaemonCommand>
             })
         })
         .expect("Failed to start outer-main-async-runtime thread");
+
+    handle
 }
 
 /// Watch configuration files for changes, sending reload events to the eww app when the files change.
@@ -262,4 +271,47 @@ fn do_detach(log_file_path: impl AsRef<Path>) -> Result<ForkResult> {
     }
 
     Ok(ForkResult::Child)
+}
+
+/// Ensure the log directory never grows larger than 100MB by deleting files older than 7 days,
+/// and truncating all other logfiles to 100MB.
+fn cleanup_log_dir(log_dir: impl AsRef<Path>) -> Result<()> {
+    // Find all files named "eww_*.log" in the log directory
+    let log_files = std::fs::read_dir(&log_dir)?
+        .filter_map(|entry| {
+            let entry = entry.ok()?;
+            let path = entry.path();
+            if let Some(file_name) = path.file_name() {
+                if file_name.to_string_lossy().starts_with("eww_") && file_name.to_string_lossy().ends_with(".log") {
+                    Some(path)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+
+    for log_file in log_files {
+        // if the file is older than a week, delete it
+        if let Ok(metadata) = log_file.metadata() {
+            if metadata.modified()?.elapsed()?.as_secs() > 60 * 60 * 24 * 7 {
+                log::info!("Deleting old log file: {}", log_file.display());
+                std::fs::remove_file(&log_file)?;
+            } else {
+                // If the file is larger than 200MB, delete the start of it until it's 100MB or less.
+                let mut file = std::fs::OpenOptions::new().append(true).open(&log_file)?;
+                let file_size = file.metadata()?.len();
+                if file_size > 200_000_000 {
+                    let mut file_content = std::fs::read(&log_file)?;
+                    let bytes_to_remove = file_content.len().saturating_sub(100_000_000);
+                    file_content.drain(0..bytes_to_remove);
+                    file.set_len(0)?;
+                    file.write_all(&file_content)?;
+                }
+            }
+        }
+    }
+    Ok(())
 }

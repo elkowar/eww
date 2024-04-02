@@ -28,7 +28,7 @@ pub struct Opt {
 #[derive(Parser, Debug, Serialize, Deserialize, PartialEq)]
 #[clap(author = "ElKowar")]
 #[clap(version, about)]
-struct RawOpt {
+pub(super) struct RawOpt {
     /// Write out debug logs. (To read the logs, run `eww logs`).
     #[arg(long = "debug", global = true)]
     log_debug: bool,
@@ -59,6 +59,13 @@ struct RawOpt {
 
 #[derive(Subcommand, Debug, Serialize, Deserialize, PartialEq)]
 pub enum Action {
+    /// Generate a shell completion script
+    ShellCompletions {
+        #[arg(short, long)]
+        #[serde(with = "serde_shell")]
+        shell: clap_complete::shells::Shell,
+    },
+
     /// Start the Eww daemon.
     #[command(name = "daemon", alias = "d")]
     Daemon,
@@ -302,4 +309,20 @@ where
 
 fn parse_duration(s: &str) -> Result<std::time::Duration, simplexpr::dynval::ConversionError> {
     DynVal::from_string(s.to_owned()).as_duration()
+}
+
+mod serde_shell {
+    use std::str::FromStr as _;
+
+    use clap_complete::Shell;
+    use serde::{Deserialize as _, Deserializer, Serialize as _, Serializer};
+
+    pub fn serialize<S: Serializer>(shell: &Shell, serializer: S) -> Result<S::Ok, S::Error> {
+        shell.to_string().serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Shell, D::Error> {
+        let s = String::deserialize(deserializer)?;
+        Shell::from_str(&s).map_err(serde::de::Error::custom)
+    }
 }

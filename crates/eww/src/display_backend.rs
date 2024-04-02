@@ -1,4 +1,4 @@
-use crate::window_initiator::WindowInitiator;
+use crate::{widgets::window::Window, window_initiator::WindowInitiator};
 
 #[cfg(feature = "wayland")]
 pub use platform_wayland::WaylandBackend;
@@ -9,7 +9,7 @@ pub use platform_x11::{set_xprops, X11Backend};
 pub trait DisplayBackend: Send + Sync + 'static {
     const IS_X11: bool;
 
-    fn initialize_window(window_init: &WindowInitiator, monitor: gdk::Rectangle) -> Option<gtk::Window>;
+    fn initialize_window(window_init: &WindowInitiator, monitor: gdk::Rectangle, x: i32, y: i32) -> Option<Window>;
 }
 
 pub struct NoBackend;
@@ -17,14 +17,14 @@ pub struct NoBackend;
 impl DisplayBackend for NoBackend {
     const IS_X11: bool = false;
 
-    fn initialize_window(_window_init: &WindowInitiator, _monitor: gdk::Rectangle) -> Option<gtk::Window> {
-        Some(gtk::Window::new(gtk::WindowType::Toplevel))
+    fn initialize_window(_window_init: &WindowInitiator, _monitor: gdk::Rectangle, x: i32, y: i32) -> Option<Window> {
+        Some(Window::new(gtk::WindowType::Toplevel, x, y))
     }
 }
 
 #[cfg(feature = "wayland")]
 mod platform_wayland {
-    use crate::window_initiator::WindowInitiator;
+    use crate::{widgets::window::Window, window_initiator::WindowInitiator};
     use gtk::prelude::*;
     use yuck::config::{window_definition::WindowStacking, window_geometry::AnchorAlignment};
 
@@ -35,8 +35,8 @@ mod platform_wayland {
     impl DisplayBackend for WaylandBackend {
         const IS_X11: bool = false;
 
-        fn initialize_window(window_init: &WindowInitiator, monitor: gdk::Rectangle) -> Option<gtk::Window> {
-            let window = gtk::Window::new(gtk::WindowType::Toplevel);
+        fn initialize_window(window_init: &WindowInitiator, monitor: gdk::Rectangle, x: i32, y: i32) -> Option<Window> {
+            let window = Window::new(gtk::WindowType::Toplevel, x, y);
             // Initialising a layer shell surface
             gtk_layer_shell::init_for_window(&window);
             // Sets the monitor where the surface is shown
@@ -112,7 +112,7 @@ mod platform_wayland {
 
 #[cfg(feature = "x11")]
 mod platform_x11 {
-    use crate::window_initiator::WindowInitiator;
+    use crate::{widgets::window::Window, window_initiator::WindowInitiator};
     use anyhow::{Context, Result};
     use gdk::Monitor;
     use gtk::{self, prelude::*};
@@ -135,10 +135,10 @@ mod platform_x11 {
     impl DisplayBackend for X11Backend {
         const IS_X11: bool = true;
 
-        fn initialize_window(window_init: &WindowInitiator, _monitor: gdk::Rectangle) -> Option<gtk::Window> {
+        fn initialize_window(window_init: &WindowInitiator, _monitor: gdk::Rectangle, x: i32, y: i32) -> Option<Window> {
             let window_type =
                 if window_init.backend_options.x11.wm_ignore { gtk::WindowType::Popup } else { gtk::WindowType::Toplevel };
-            let window = gtk::Window::new(window_type);
+            let window = Window::new(window_type, x, y);
             window.set_resizable(window_init.resizable);
             window.set_keep_above(window_init.stacking == WindowStacking::Foreground);
             window.set_keep_below(window_init.stacking == WindowStacking::Background);
@@ -151,7 +151,7 @@ mod platform_x11 {
         }
     }
 
-    pub fn set_xprops(window: &gtk::Window, monitor: Monitor, window_init: &WindowInitiator) -> Result<()> {
+    pub fn set_xprops(window: &Window, monitor: Monitor, window_init: &WindowInitiator) -> Result<()> {
         let backend = X11BackendConnection::new()?;
         backend.set_xprops_for(window, monitor, window_init)?;
         Ok(())
@@ -171,7 +171,7 @@ mod platform_x11 {
             Ok(X11BackendConnection { conn, root_window: screen.root, atoms })
         }
 
-        fn set_xprops_for(&self, window: &gtk::Window, monitor: Monitor, window_init: &WindowInitiator) -> Result<()> {
+        fn set_xprops_for(&self, window: &Window, monitor: Monitor, window_init: &WindowInitiator) -> Result<()> {
             let monitor_rect = monitor.geometry();
             let scale_factor = monitor.scale_factor() as u32;
             let gdk_window = window.window().context("Couldn't get gdk window from gtk window")?;
@@ -197,8 +197,8 @@ mod platform_x11 {
             let strut_list: Vec<u8> = match strut_def.side {
                 Side::Left   => vec![dist + mon_x, 0,                                                    0,                   0,                                                     mon_x, mon_end_y, 0,     0,         0,     0,         0,             0],
                 Side::Right  => vec![0,            root_window_geometry.width as u32 - mon_end_x + dist, 0,                   0,                                                     0,     0,         mon_x, mon_end_y, 0,     0,         0,             0],
-                Side::Top    => vec![0,            0,                                                    dist + mon_y as u32, 0,                                                     0,     0,         0,     0,         mon_x, mon_end_x, 0,             0],
-                Side::Bottom => vec![0,            0,                                                    0,                   root_window_geometry.height as u32 - mon_end_y + dist, 0,     0,         0,     0,         0,     0,         mon_x as u32,  mon_end_x],
+                Side::Top    => vec![0,            0,                                                    dist + mon_y, 0,                                                     0,     0,         0,     0,         mon_x, mon_end_x, 0,             0],
+                Side::Bottom => vec![0,            0,                                                    0,                   root_window_geometry.height as u32 - mon_end_y + dist, 0,     0,         0,     0,         0,     0,         mon_x,  mon_end_x],
                 // This should never happen but if it does the window will be anchored on the
                 // right of the screen
             }.iter().flat_map(|x| x.to_le_bytes().to_vec()).collect();

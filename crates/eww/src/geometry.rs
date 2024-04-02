@@ -1,7 +1,4 @@
 use derive_more::*;
-pub trait Rectangular {
-    fn get_rect(&self) -> Rect;
-}
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Display)]
 #[display(fmt = ".x*.y:.width*.height")]
@@ -10,16 +7,4 @@ pub struct Rect {
     pub y: i32,
     pub width: i32,
     pub height: i32,
-}
-
-impl Rectangular for Rect {
-    fn get_rect(&self) -> Rect {
-        *self
-    }
-}
-
-impl Rectangular for gdk::Rectangle {
-    fn get_rect(&self) -> Rect {
-        Rect { x: self.x(), y: self.y(), width: self.width(), height: self.height() }
-    }
 }
