@@ -1138,13 +1138,19 @@ fn build_graph(bargs: &mut BuilderArgs) -> Result<super::graph::Graph> {
 const WIDGET_NAME_SYSTRAY: &str = "systray";
 /// @widget systray
 /// @desc Tray for system notifier icons
-fn build_systray(bargs: &mut BuilderArgs) -> Result<gtk::MenuBar> {
-    let gtk_widget = gtk::MenuBar::new();
+fn build_systray(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
+    let gtk_widget = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     let props = Rc::new(systray::Props::new());
-    let props_clone = props.clone();
+    let props_clone = props.clone(); // copies for def_widget
+    let props_clone2 = props.clone(); // copies for def_widget
 
-    // copies for def_widget
     def_widget!(bargs, _g, gtk_widget, {
+        // @prop spacing - spacing between elements
+        prop(spacing: as_i32 = 0) { gtk_widget.set_spacing(spacing) },
+        // @prop orientation - orientation of the box. possible values: $orientation
+        prop(orientation: as_string) { gtk_widget.set_orientation(parse_orientation(&orientation)?) },
+        // @prop space-evenly - space the widgets evenly.
+        prop(space_evenly: as_bool = true) { gtk_widget.set_homogeneous(space_evenly) },
         // @prop icon-size - size of icons in the tray
         prop(icon_size: as_i32) {
             if icon_size <= 0 {
@@ -1153,8 +1159,10 @@ fn build_systray(bargs: &mut BuilderArgs) -> Result<gtk::MenuBar> {
                 props.icon_size(icon_size);
             }
         },
-        // @prop pack-direction - how to arrange tray items
-        prop(pack_direction: as_string) { gtk_widget.set_pack_direction(parse_packdirection(&pack_direction)?); },
+        // @prop prepend-new - prepend new icons.
+        prop(prepend_new: as_bool = true) {
+            *props_clone2.prepend_new.borrow_mut() = prepend_new;
+        },
     });
 
     systray::spawn_systray(&gtk_widget, &props_clone);
@@ -1236,16 +1244,6 @@ fn parse_gravity(g: &str) -> Result<gtk::pango::Gravity> {
         "west" => gtk::pango::Gravity::West,
         "north" => gtk::pango::Gravity::North,
         "auto" => gtk::pango::Gravity::Auto,
-    }
-}
-
-/// @var pack-direction - "right", "ltr", "left", "rtl", "down", "ttb", "up", "btt"
-fn parse_packdirection(o: &str) -> Result<gtk::PackDirection> {
-    enum_parse! { "packdirection", o,
-        "right" | "ltr" => gtk::PackDirection::Ltr,
-        "left" | "rtl" => gtk::PackDirection::Rtl,
-        "down" | "ttb" => gtk::PackDirection::Ttb,
-        "up" | "btt" => gtk::PackDirection::Btt,
     }
 }
 

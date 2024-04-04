@@ -1,6 +1,8 @@
+use crate::widgets::window::Window;
 use futures::StreamExt;
 use gtk::{cairo::Surface, gdk::ffi::gdk_cairo_surface_create_from_pixbuf, prelude::*};
 use notifier_host;
+use std::{cell::RefCell, future::Future, rc::Rc};
 
 // DBus state shared between systray instances, to avoid creating too many connections etc.
 struct DBusSession {
@@ -23,14 +25,20 @@ async fn dbus_session() -> zbus::Result<&'static DBusSession> {
         .await
 }
 
+fn run_async_task<F: Future>(f: F) -> F::Output {
+    let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().expect("Failed to initialize tokio runtime");
+    rt.block_on(f)
+}
+
 pub struct Props {
     icon_size_tx: tokio::sync::watch::Sender<i32>,
+    pub prepend_new: Rc<RefCell<bool>>,
 }
 
 impl Props {
     pub fn new() -> Self {
         let (icon_size_tx, _) = tokio::sync::watch::channel(24);
-        Self { icon_size_tx }
+        Self { icon_size_tx, prepend_new: Rc::new(RefCell::new(false)) }
     }
 
     pub fn icon_size(&self, value: i32) {
@@ -46,14 +54,20 @@ impl Props {
 }
 
 struct Tray {
-    menubar: gtk::MenuBar,
+    container: gtk::Box,
     items: std::collections::HashMap<String, Item>,
 
     icon_size: tokio::sync::watch::Receiver<i32>,
+    prepend_new: Rc<RefCell<bool>>,
 }
 
-pub fn spawn_systray(menubar: &gtk::MenuBar, props: &Props) {
-    let mut systray = Tray { menubar: menubar.clone(), items: Default::default(), icon_size: props.icon_size_tx.subscribe() };
+pub fn spawn_systray(container: &gtk::Box, props: &Props) {
+    let mut systray = Tray {
+        container: container.clone(),
+        items: Default::default(),
+        icon_size: props.icon_size_tx.subscribe(),
+        prepend_new: props.prepend_new.clone(),
+    };
 
     let task = glib::MainContext::default().spawn_local(async move {
         let s = match dbus_session().await {
@@ -64,13 +78,13 @@ pub fn spawn_systray(menubar: &gtk::MenuBar, props: &Props) {
             }
         };
 
-        systray.menubar.show();
+        systray.container.show();
         let e = notifier_host::run_host(&mut systray, &s.snw).await;
         log::error!("notifier host error: {}", e);
     });
 
     // stop the task when the widget is dropped
-    menubar.connect_destroy(move |_| {
+    container.connect_destroy(move |_| {
         task.abort();
     });
 }
@@ -78,15 +92,19 @@ pub fn spawn_systray(menubar: &gtk::MenuBar, props: &Props) {
 impl notifier_host::Host for Tray {
     fn add_item(&mut self, id: &str, item: notifier_host::Item) {
         let item = Item::new(id.to_owned(), item, self.icon_size.clone());
-        self.menubar.add(&item.widget);
+        if *self.prepend_new.borrow() {
+            self.container.pack_end(&item.widget, true, true, 0);
+        } else {
+            self.container.pack_start(&item.widget, true, true, 0);
+        }
         if let Some(old_item) = self.items.insert(id.to_string(), item) {
-            self.menubar.remove(&old_item.widget);
+            self.container.remove(&old_item.widget);
         }
     }
 
     fn remove_item(&mut self, id: &str) {
         if let Some(item) = self.items.get(id) {
-            self.menubar.remove(&item.widget);
+            self.container.remove(&item.widget);
         } else {
             log::warn!("Tried to remove nonexistent item {:?} from systray", id);
         }
@@ -96,7 +114,7 @@ impl notifier_host::Host for Tray {
 /// Item represents a single icon being shown in the system tray.
 struct Item {
     /// Main widget representing this tray item.
-    widget: gtk::MenuItem,
+    widget: gtk::EventBox,
 
     /// Async task to stop when this item gets removed.
     task: Option<glib::JoinHandle<()>>,
@@ -112,7 +130,7 @@ impl Drop for Item {
 
 impl Item {
     fn new(id: String, item: notifier_host::Item, icon_size: tokio::sync::watch::Receiver<i32>) -> Self {
-        let widget = gtk::MenuItem::new();
+        let widget = gtk::EventBox::new();
         let out_widget = widget.clone(); // copy so we can return it
 
         let task = glib::MainContext::default().spawn_local(async move {
@@ -125,8 +143,8 @@ impl Item {
     }
 
     async fn maintain(
-        widget: gtk::MenuItem,
-        item: notifier_host::Item,
+        widget: gtk::EventBox,
+        mut item: notifier_host::Item,
         mut icon_size: tokio::sync::watch::Receiver<i32>,
     ) -> zbus::Result<()> {
         // init icon
@@ -135,9 +153,8 @@ impl Item {
         icon.show();
 
         // init menu
-        match item.menu().await {
-            Ok(m) => widget.set_submenu(Some(&m)),
-            Err(e) => log::warn!("failed to get menu: {}", e),
+        if let Err(e) = item.set_menu(&widget).await {
+            log::warn!("failed to set menu: {}", e);
         }
 
         // TODO this is a lot of code duplication unfortunately, i'm not really sure how to
@@ -156,9 +173,52 @@ impl Item {
         let scale = icon.scale_factor();
         load_icon_for_item(&icon, &item, *icon_size.borrow_and_update(), scale).await;
 
+        let item = Rc::new(item);
+        let window =
+            widget.toplevel().expect("Failed to obtain toplevel window").downcast::<Window>().expect("Failed to downcast window");
+        widget.add_events(gdk::EventMask::BUTTON_PRESS_MASK);
+        widget.connect_button_press_event(glib::clone!(@strong item => move |_, evt| {
+            let (x, y) = (evt.root().0 as i32 + window.x(), evt.root().1 as i32 + window.y());
+            let item_is_menu = run_async_task(async { item.sni.item_is_menu().await });
+            let have_item_is_menu = item_is_menu.is_ok();
+            let item_is_menu = item_is_menu.unwrap_or(false);
+            log::debug!(
+                "mouse click button={}, x={}, y={}, have_item_is_menu={}, item_is_menu={}",
+                evt.button(),
+                x,
+                y,
+                have_item_is_menu,
+                item_is_menu
+            );
+
+            let result = match (evt.button(), item_is_menu) {
+                (gdk::BUTTON_PRIMARY, false) => {
+                    let result = run_async_task(async { item.sni.activate(x, y).await });
+                    if result.is_err() && !have_item_is_menu {
+                        log::debug!("fallback to context menu due to: {}", result.unwrap_err());
+                        // Some applications are in fact menu-only (don't have Activate method)
+                        // but don't report so through ItemIsMenu property. Fallback to menu if
+                        // activate failed in this case.
+                        run_async_task(async { item.popup_menu( evt, x, y).await })
+                    } else {
+                        result
+                    }
+                }
+                (gdk::BUTTON_MIDDLE, _) => run_async_task(async { item.sni.secondary_activate(x, y).await }),
+                (gdk::BUTTON_SECONDARY, _) | (gdk::BUTTON_PRIMARY, true) => {
+                    run_async_task(async { item.popup_menu( evt, x, y).await })
+                }
+                _ => Err(zbus::Error::Failure(format!("unknown button {}", evt.button()))),
+            };
+            if let Err(result) = result {
+                log::error!("failed to handle mouse click {}: {}", evt.button(), result);
+            }
+            gtk::Inhibit(true)
+        }));
+
         // updates
         let mut status_updates = item.sni.receive_new_status().await?;
-        let mut title_updates = item.sni.receive_new_status().await?;
+        let mut title_updates = item.sni.receive_new_title().await?;
         let mut icon_updates = item.sni.receive_new_icon().await?;
 
         loop {

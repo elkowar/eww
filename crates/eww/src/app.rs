@@ -7,6 +7,7 @@ use crate::{
     paths::EwwPaths,
     script_var_handler::ScriptVarHandlerHandle,
     state::scope_graph::{ScopeGraph, ScopeIndex},
+    widgets::window::Window,
     window_arguments::WindowArguments,
     window_initiator::WindowInitiator,
     *,
@@ -92,7 +93,7 @@ pub struct EwwWindow {
     pub instance_id: String,
     pub name: String,
     pub scope_index: ScopeIndex,
-    pub gtk_window: gtk::Window,
+    pub gtk_window: Window,
     pub destroy_event_handler_id: Option<glib::SignalHandlerId>,
 }
 
@@ -524,15 +525,21 @@ fn initialize_window<B: DisplayBackend>(
     window_scope: ScopeIndex,
 ) -> Result<EwwWindow> {
     let monitor_geometry = monitor.geometry();
-    let window = B::initialize_window(window_init, monitor_geometry)
+    let (actual_window_rect, x, y) = match window_init.geometry {
+        Some(geometry) => {
+            let rect = get_window_rectangle(geometry, monitor_geometry);
+            (Some(rect), rect.x(), rect.y())
+        }
+        _ => (None, 0, 0),
+    };
+    let window = B::initialize_window(window_init, monitor_geometry, x, y)
         .with_context(|| format!("monitor {} is unavailable", window_init.monitor.clone().unwrap()))?;
 
     window.set_title(&format!("Eww - {}", window_init.name));
     window.set_position(gtk::WindowPosition::None);
     window.set_gravity(gdk::Gravity::Center);
 
-    if let Some(geometry) = window_init.geometry {
-        let actual_window_rect = get_window_rectangle(geometry, monitor_geometry);
+    if let Some(actual_window_rect) = actual_window_rect {
         window.set_size_request(actual_window_rect.width(), actual_window_rect.height());
         window.set_default_size(actual_window_rect.width(), actual_window_rect.height());
     }
@@ -575,11 +582,7 @@ fn initialize_window<B: DisplayBackend>(
 
 /// Apply the provided window-positioning rules to the window.
 #[cfg(feature = "x11")]
-fn apply_window_position(
-    mut window_geometry: WindowGeometry,
-    monitor_geometry: gdk::Rectangle,
-    window: &gtk::Window,
-) -> Result<()> {
+fn apply_window_position(mut window_geometry: WindowGeometry, monitor_geometry: gdk::Rectangle, window: &Window) -> Result<()> {
     let gdk_window = window.window().context("Failed to get gdk window from gtk window")?;
     window_geometry.size = Coords::from_pixels(window.size());
     let actual_window_rect = get_window_rectangle(window_geometry, monitor_geometry);
@@ -593,7 +596,7 @@ fn apply_window_position(
     Ok(())
 }
 
-fn on_screen_changed(window: &gtk::Window, _old_screen: Option<&gdk::Screen>) {
+fn on_screen_changed(window: &Window, _old_screen: Option<&gdk::Screen>) {
     let visual = gtk::prelude::GtkWindowExt::screen(window)
         .and_then(|screen| screen.rgba_visual().filter(|_| screen.is_composited()).or_else(|| screen.system_visual()));
     window.set_visual(visual.as_ref());
