@@ -315,7 +315,7 @@ have:
 Here we have two arguments, `arg1` and `arg2` (an optional parameter).
 
 Once we have these parameters, when opening a new window, we must specify them
-(unless they are required, like `arg2`), but how? Well, we use the `--arg`
+(unless they are optional, like `arg2`), but how? Well, we use the `--arg`
 option when running the `open` command:
 
 ```bash
