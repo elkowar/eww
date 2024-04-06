@@ -877,27 +877,37 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
         // @prop text - the text to display
         // @prop limit-width - maximum count of characters to display
         // @prop truncate-left - whether to truncate on the left side
-        // @prop show-truncated - show whether the text was truncated
+        // @prop show-truncated - show whether the text was truncated. Disabling it will completly disable truncation on pango markup.
         // @prop unindent - whether to remove leading spaces
         prop(text: as_string, limit_width: as_i32 = i32::MAX, truncate_left: as_bool = false, show_truncated: as_bool = true, unindent: as_bool = true) {
-            let limit_width = limit_width as usize;
-            let char_count = text.chars().count();
-            let text = if char_count > limit_width {
-                let mut truncated: String = if truncate_left {
-                    text.chars().skip(char_count - limit_width).collect()
+            let text = if show_truncated {
+                // gtk does weird thing if we set max_width_chars to i32::MAX
+                if limit_width == i32::MAX {
+                    gtk_widget.set_max_width_chars(-1);
                 } else {
-                    text.chars().take(limit_width).collect()
-                };
-                if show_truncated {
-                    if truncate_left {
-                        truncated.insert_str(0, "...");
-                    } else {
-                        truncated.push_str("...");
-                    }
+                    gtk_widget.set_max_width_chars(limit_width);
                 }
-                truncated
-            } else {
+                if truncate_left {
+                    gtk_widget.set_ellipsize(pango::EllipsizeMode::Start);
+                } else {
+                    gtk_widget.set_ellipsize(pango::EllipsizeMode::End);
+                }
+
                 text
+            } else {
+                gtk_widget.set_ellipsize(pango::EllipsizeMode::None);
+
+                let limit_width = limit_width as usize;
+                let char_count = text.chars().count();
+                if char_count > limit_width && !show_truncated {
+                    if truncate_left {
+                        text.chars().skip(char_count - limit_width).collect()
+                    } else {
+                        text.chars().take(limit_width).collect()
+                    }
+                } else {
+                    text
+                }
             };
 
             let text = unescape::unescape(&text).context(format!("Failed to unescape label text {}", &text))?;
@@ -905,7 +915,29 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
             gtk_widget.set_text(&text);
         },
         // @prop markup - Pango markup to display
-        prop(markup: as_string) { gtk_widget.set_markup(&markup); },
+        // @prop limit-width - maximum count of characters to display
+        // @prop truncate-left - whether to truncate on the left side
+        // @prop show-truncated - show whether the text was truncated. Disabling it will completly disable truncation on pango markup.
+        prop(markup: as_string, limit_width: as_i32 = i32::MAX, truncate_left: as_bool = false, show_truncated: as_bool = true) {
+            if show_truncated {
+                // gtk does weird thing if we set max_width_chars to i32::MAX
+                if limit_width == i32::MAX {
+                    gtk_widget.set_max_width_chars(-1);
+                } else {
+                    gtk_widget.set_max_width_chars(limit_width);
+                }
+
+                if truncate_left {
+                    gtk_widget.set_ellipsize(pango::EllipsizeMode::Start);
+                } else {
+                    gtk_widget.set_ellipsize(pango::EllipsizeMode::End);
+                }
+            } else {
+                gtk_widget.set_ellipsize(pango::EllipsizeMode::None);
+            }
+
+            gtk_widget.set_markup(&markup);
+        },
         // @prop wrap - Wrap the text. This mainly makes sense if you set the width of this widget.
         prop(wrap: as_bool) { gtk_widget.set_line_wrap(wrap) },
         // @prop angle - the angle of rotation for the label (between 0 - 360)
