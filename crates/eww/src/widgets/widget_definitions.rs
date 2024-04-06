@@ -345,10 +345,12 @@ const WIDGET_NAME_CHECKBOX: &str = "checkbox";
 fn build_gtk_checkbox(bargs: &mut BuilderArgs) -> Result<gtk::CheckButton> {
     let gtk_widget = gtk::CheckButton::new();
     def_widget!(bargs, _g, gtk_widget, {
+        // @prop checked - whether the checkbox is toggled or not when created
         // @prop timeout - timeout of the command. Default: "200ms"
         // @prop onchecked - action (command) to be executed when checked by the user
         // @prop onunchecked - similar to onchecked but when the widget is unchecked
-        prop(timeout: as_duration = Duration::from_millis(200), onchecked: as_string = "", onunchecked: as_string = "") {
+        prop(checked: as_bool = false, timeout: as_duration = Duration::from_millis(200), onchecked: as_string = "", onunchecked: as_string = "") {
+            gtk_widget.set_active(checked);
             connect_signal_handler!(gtk_widget, gtk_widget.connect_toggled(move |gtk_widget| {
                 run_command(timeout, if gtk_widget.is_active() { &onchecked } else { &onunchecked }, &[] as &[&str]);
             }));

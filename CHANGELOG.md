@@ -11,6 +11,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 
 ### Features
 - Add `systray` widget (By: ralismark)
+- Add `:checked` property to checkbox (By: levnikmyskin)
 
 ## [0.5.0] (17.02.2024)
 
