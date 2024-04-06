@@ -3,7 +3,7 @@ use codespan_reporting::diagnostic::Severity;
 use eww_shared_util::{AttrName, Spanned};
 use gdk::prelude::Cast;
 use gtk::{
-    prelude::{BoxExt, ContainerExt, WidgetExt, WidgetExtManual},
+    prelude::{BoxExt, ContainerExt, WidgetExt},
     Orientation,
 };
 use itertools::Itertools;
@@ -246,7 +246,7 @@ fn build_loop_special_widget(
                         .collect_vec();
                     let mut created_children = created_children.borrow_mut();
                     for old_child in created_children.drain(..) {
-                        unsafe { old_child.destroy() };
+                        gtk_container.remove(&old_child);
                     }
                     let mut created_child_scopes = created_child_scopes.borrow_mut();
                     for child_scope in created_child_scopes.drain(..) {
@@ -313,11 +313,7 @@ fn build_children_special_widget(
                             nth_child_widget_use.clone(),
                             None,
                         )?;
-                        for old_child in child_container.children() {
-                            unsafe {
-                                old_child.destroy();
-                            }
-                        }
+                        child_container.children().iter().for_each(|f| child_container.remove(f));
                         child_container.set_child(Some(&new_child_widget));
                         new_child_widget.show();
                         Ok(())

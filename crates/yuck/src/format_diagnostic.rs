@@ -163,7 +163,7 @@ pub fn lalrpop_error_to_diagnostic<T: std::fmt::Display, E: Spanned + ToDiagnost
     use lalrpop_util::ParseError::*;
     match error {
         InvalidToken { location } => gen_diagnostic!("Invalid token", Span::point(*location, file_id)),
-        UnrecognizedEOF { location, expected: _ } => gen_diagnostic! {
+        UnrecognizedEof { location, expected: _ } => gen_diagnostic! {
             msg = "Input ended unexpectedly. Check if you have any unclosed delimiters",
             label = Span::point(*location, file_id),
         },
@@ -199,22 +199,26 @@ impl ToDiagnostic for simplexpr::eval::EvalError {
                 notes.push(format!("Hint: If you meant to use the literal value \"{}\", surround the value in quotes", name));
                 gen_diagnostic!(self).with_notes(notes)
             }
-            EvalError::Spanned(span, box EvalError::JaqParseError(simplexpr::eval::JaqParseError(Some(err)))) => {
-                let span = span.new_relative(err.span().start, err.span().end).shifted(1);
-                let mut diag = gen_diagnostic!(self, span);
+            EvalError::Spanned(span, err) => {
+                if let EvalError::JaqParseError(err) = err.as_ref() {
+                    if let Some(ref err) = err.as_ref().0 {
+                        let span = span.new_relative(err.span().start, err.span().end).shifted(1);
+                        let mut diag = gen_diagnostic!(self, span);
 
-                if let Some(label) = err.label() {
-                    diag = diag.with_label(span_to_secondary_label(span).with_message(label));
-                }
+                        if let Some(label) = err.label() {
+                            diag = diag.with_label(span_to_secondary_label(span).with_message(label));
+                        }
 
-                let expected: Vec<_> = err.expected().filter_map(|x| x.clone()).sorted().collect();
-                if !expected.is_empty() {
-                    let label = format!("Expected one of {} here", expected.join(", "));
-                    diag = diag.with_label(span_to_primary_label(span).with_message(label));
+                        let expected: Vec<_> = err.expected().filter_map(|x| x.clone()).sorted().collect();
+                        if !expected.is_empty() {
+                            let label = format!("Expected one of {} here", expected.join(", "));
+                            diag = diag.with_label(span_to_primary_label(span).with_message(label));
+                        }
+                        return diag;
+                    }
                 }
-                diag
+                return err.as_ref().to_diagnostic().with_label(span_to_primary_label(*span));
             }
-            EvalError::Spanned(span, error) => error.as_ref().to_diagnostic().with_label(span_to_primary_label(*span)),
             _ => gen_diagnostic!(self, self.span()),
         }
     }

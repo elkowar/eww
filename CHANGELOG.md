@@ -2,14 +2,29 @@
 
 All notable changes to eww will be listed here, starting at changes since version 0.2.0.
 
+## Unreleased
 
-## [Unreleased]
+### Fixes
+- The `shell-completions` subcommand is now run before anything is set up
+- Fix nix flake
+- Fix `jq` (By: w-lfchen)
 
 ### Features
-- Add `:checked` property to checkbox
+- Add `systray` widget (By: ralismark)
+- Add `:checked` property to checkbox (By: levnikmyskin)
+
+## [0.5.0] (17.02.2024)
+
+### BREAKING CHANGES
+- Remove `eww windows` command, replace with `eww active-windows` and `eww list-windows`
+
+### Features
+- Add `:icon` and `:icon-size` to the image widget (By: Adrian Perez de Castro)
+- Add `get_env` function (By: RegenJacob)
 - Add `:namespace` window option
 - Default to building with x11 and wayland support simultaneously
 - Add `truncate-left` property on `label` widgets (By: kawaki-san)
+- Add `gravity` property on `label` widgets (By: Elekrisk)
 - Add support for safe access (`?.`) in simplexpr (By: oldwomanjosiah)
 - Allow floating-point numbers in percentages for window-geometry
 - Add support for safe access with index (`?.[n]`) (By: ModProg)
@@ -21,6 +36,17 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add trigonometric functions (`sin`, `cos`, `tan`, `cot`) and degree/radian conversions (`degtorad`, `radtodeg`) (By: end-4)
 - Add `substring` function to simplexpr
 - Add `--duration` flag to `eww open`
+- Add support for referring to monitor with `<primary>`
+- Add support for multiple matchers in `monitor` field
+- Add `stack` widget (By: vladaviedov)
+- Add `unindent` property to the label widget, allowing to disable removal of leading spaces (By: nrv)
+- Switch to stable rust toolchain (1.76)
+- Add `tooltip` widget, which allows setting a custom tooltip (not only text), to a widget (By: Rayzeq)
+- Add `eww shell-completions` command, generating completion scripts for different shells
+
+### Fixes
+- Fix wrong values in `EWW_NET`
+- Fix logfiles growing indefinitely
 
 ## [0.4.0] (04.09.2022)
 
@@ -72,6 +98,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add `:onaccept` to input field, add `:onclick` to eventbox
 - Add `EWW_CMD`, `EWW_CONFIG_DIR`, `EWW_EXECUTABLE` magic variables
 - Add `overlay` widget (By: viandoxdev)
+- Add arguments option to `defwindow` (By: WilfSilver)
 
 ### Notable Internal changes
 - Rework state management completely, now making local state and dynamic widget hierarchy changes possible.

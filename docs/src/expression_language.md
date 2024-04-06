@@ -51,11 +51,12 @@ Supported currently are the following features:
 	- `arraylength(value)`: Gets the length of the array
 	- `objectlength(value)`: Gets the amount of entries in the object
 	- `jq(value, jq_filter_string)`: run a [jq](https://stedolan.github.io/jq/manual/) style command on a json value. (Uses [jaq](https://crates.io/crates/jaq) internally).
-    - `formattime(unix_timestamp, format_str, timezone)`: Gets the time in a given format from UNIX timestamp.
-      Check [chrono's documentation](https://docs.rs/chrono/latest/chrono/format/strftime/index.html) for more
-      information about format string and [chrono-tz's documentation](https://docs.rs/chrono-tz/latest/chrono_tz/enum.Tz.html)
-      for available time zones.
-    - `formattime(unix_timestamp, format_str)`: Gets the time in a given format from UNIX timestamp.
-      Same as other `formattime`, but does not accept timezone. Instead, it uses system's local timezone.
-      Check [chrono's documentation](https://docs.rs/chrono/latest/chrono/format/strftime/index.html) for more
-      information about format string.
+  - `get_env(string)`: Gets the specified enviroment variable
+  - `formattime(unix_timestamp, format_str, timezone)`: Gets the time in a given format from UNIX timestamp.
+     Check [chrono's documentation](https://docs.rs/chrono/latest/chrono/format/strftime/index.html) for more
+     information about format string and [chrono-tz's documentation](https://docs.rs/chrono-tz/latest/chrono_tz/enum.Tz.html)
+     for available time zones.
+  - `formattime(unix_timestamp, format_str)`: Gets the time in a given format from UNIX timestamp.
+     Same as other `formattime`, but does not accept timezone. Instead, it uses system's local timezone.
+     Check [chrono's documentation](https://docs.rs/chrono/latest/chrono/format/strftime/index.html) for more
+     information about format string.
