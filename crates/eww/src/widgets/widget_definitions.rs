@@ -877,7 +877,7 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
         // @prop text - the text to display
         // @prop limit-width - maximum count of characters to display
         // @prop truncate-left - whether to truncate on the left side
-        // @prop show-truncated - show whether the text was truncated. Disabling it will completly disable truncation on pango markup.
+        // @prop show-truncated - show whether the text was truncated. Disabling it will also disable dynamic truncation (the labels won't be truncated more than `limit-width`, even if there is not enough space for them), and will completly disable truncation on pango markup.
         // @prop unindent - whether to remove leading spaces
         prop(text: as_string, limit_width: as_i32 = i32::MAX, truncate_left: as_bool = false, show_truncated: as_bool = true, unindent: as_bool = true) {
             let text = if show_truncated {
@@ -917,7 +917,7 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
         // @prop markup - Pango markup to display
         // @prop limit-width - maximum count of characters to display
         // @prop truncate-left - whether to truncate on the left side
-        // @prop show-truncated - show whether the text was truncated. Disabling it will completly disable truncation on pango markup.
+        // @prop show-truncated - show whether the text was truncatedd. Disabling it will also disable dynamic truncation (the labels won't be truncated more than `limit-width`, even if there is not enough space for them), and will completly disable truncation on pango markup.
         prop(markup: as_string, limit_width: as_i32 = i32::MAX, truncate_left: as_bool = false, show_truncated: as_bool = true) {
             if show_truncated {
                 // gtk does weird thing if we set max_width_chars to i32::MAX
