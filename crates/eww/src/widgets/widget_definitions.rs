@@ -345,10 +345,12 @@ const WIDGET_NAME_CHECKBOX: &str = "checkbox";
 fn build_gtk_checkbox(bargs: &mut BuilderArgs) -> Result<gtk::CheckButton> {
     let gtk_widget = gtk::CheckButton::new();
     def_widget!(bargs, _g, gtk_widget, {
+        // @prop checked - whether the checkbox is toggled or not when created
         // @prop timeout - timeout of the command. Default: "200ms"
         // @prop onchecked - action (command) to be executed when checked by the user
         // @prop onunchecked - similar to onchecked but when the widget is unchecked
-        prop(timeout: as_duration = Duration::from_millis(200), onchecked: as_string = "", onunchecked: as_string = "") {
+        prop(checked: as_bool = false, timeout: as_duration = Duration::from_millis(200), onchecked: as_string = "", onunchecked: as_string = "") {
+            gtk_widget.set_active(checked);
             connect_signal_handler!(gtk_widget, gtk_widget.connect_toggled(move |gtk_widget| {
                 run_command(timeout, if gtk_widget.is_active() { &onchecked } else { &onunchecked }, &[] as &[&str]);
             }));
@@ -513,6 +515,18 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
     Ok(gtk_widget)
 }
 
+/// @var icon-size - "menu", "small-toolbar", "toolbar", "large-toolbar", "button", "dnd", "dialog"
+fn parse_icon_size(o: &str) -> Result<gtk::IconSize> {
+    enum_parse! { "icon-size", o,
+        "menu" => gtk::IconSize::Menu,
+        "small-toolbar" | "toolbar" => gtk::IconSize::SmallToolbar,
+        "large-toolbar" => gtk::IconSize::LargeToolbar,
+        "button" => gtk::IconSize::Button,
+        "dnd" => gtk::IconSize::Dnd,
+        "dialog" => gtk::IconSize::Dialog,
+    }
+}
+
 const WIDGET_NAME_IMAGE: &str = "image";
 /// @widget image
 /// @desc A widget displaying an image
@@ -530,7 +544,12 @@ fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
                 let pixbuf = gtk::gdk_pixbuf::Pixbuf::from_file_at_size(std::path::PathBuf::from(path), image_width, image_height)?;
                 gtk_widget.set_from_pixbuf(Some(&pixbuf));
             }
-        }
+        },
+        // @prop icon - name of a theme icon
+        // @prop icon-size - size of the theme icon
+        prop(icon: as_string, icon_size: as_string = "button") {
+            gtk_widget.set_from_icon_name(Some(&icon), parse_icon_size(&icon_size)?);
+        },
     });
     Ok(gtk_widget)
 }
