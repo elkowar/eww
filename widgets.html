@@ -337,7 +337,7 @@
 <li><strong><code>text</code></strong>: <em><code>string</code></em> the text to display</li>
 <li><strong><code>limit-width</code></strong>: <em><code>int</code></em> maximum count of characters to display</li>
 <li><strong><code>truncate-left</code></strong>: <em><code>bool</code></em> whether to truncate on the left side</li>
-<li><strong><code>show-truncated</code></strong>: <em><code>bool</code></em> show whether the text was truncated</li>
+<li><strong><code>show-truncated</code></strong>: <em><code>bool</code></em> show whether the text was truncated. Disabling it will also disable dynamic truncation (the labels won't be truncated more than <code>limit-width</code>, even if there is not enough space for them), and will completly disable truncation on pango markup.</li>
 <li><strong><code>unindent</code></strong>: <em><code>bool</code></em> whether to remove leading spaces</li>
 <li><strong><code>markup</code></strong>: <em><code>string</code></em> Pango markup to display</li>
 <li><strong><code>wrap</code></strong>: <em><code>bool</code></em> Wrap the text. This mainly makes sense if you set the width of this widget.</li>
