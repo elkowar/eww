@@ -8,6 +8,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - The `shell-completions` subcommand is now run before anything is set up
 - Fix and refactor nix flake (By: w-lfchen)
 - Fix `jq` (By: w-lfchen)
+- Labels now use gtk's truncation system (By: Rayzeq).
 
 ### Features
 - Add `systray` widget (By: ralismark)

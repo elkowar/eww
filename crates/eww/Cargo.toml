@@ -23,6 +23,7 @@ notifier_host.workspace = true
 
 gtk = "0.17.1"
 gdk = "0.17.1"
+pango = "0.17.1"
 glib = "0.17.8"
 glib-macros = "0.17.8"
 
