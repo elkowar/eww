@@ -4,11 +4,14 @@ All notable changes to eww will be listed here, starting at changes since versio
 
 ## Unreleased
 
+### Fixes
+- Fix and refactor nix flake (By: w-lfchen)
+
 ## [0.6.0] (21.04.2024)
 
 ### Fixes
 - The `shell-completions` subcommand is now run before anything is set up
-- Fix and refactor nix flake (By: w-lfchen)
+- Fix nix flake
 - Fix `jq` (By: w-lfchen)
 - Labels now use gtk's truncation system (By: Rayzeq).
 
