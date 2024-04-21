@@ -4,6 +4,9 @@ All notable changes to eww will be listed here, starting at changes since versio
 
 ## Unreleased
 
+### Fixes
+- Fix and refactor nix flake (By: w-lfchen)
+
 ## [0.6.0] (21.04.2024)
 
 ### Fixes
