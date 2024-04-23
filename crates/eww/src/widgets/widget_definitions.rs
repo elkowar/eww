@@ -918,7 +918,7 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
 
                 let limit_width = limit_width as usize;
                 let char_count = text.chars().count();
-                if char_count > limit_width && !show_truncated {
+                if char_count > limit_width {
                     if truncate_left {
                         text.chars().skip(char_count - limit_width).collect()
                     } else {
