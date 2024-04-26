@@ -335,6 +335,7 @@
 <p><strong>Properties</strong></p>
 <ul>
 <li><strong><code>text</code></strong>: <em><code>string</code></em> the text to display</li>
+<li><strong><code>truncate</code></strong>: <em><code>bool</code></em> whether to truncate text (or pango markup). If <code>show-truncated</code> is <code>false</code>, or if <code>limit-width</code> has a value, this property has no effect and truncation is enabled.</li>
 <li><strong><code>limit-width</code></strong>: <em><code>int</code></em> maximum count of characters to display</li>
 <li><strong><code>truncate-left</code></strong>: <em><code>bool</code></em> whether to truncate on the left side</li>
 <li><strong><code>show-truncated</code></strong>: <em><code>bool</code></em> show whether the text was truncated. Disabling it will also disable dynamic truncation (the labels won't be truncated more than <code>limit-width</code>, even if there is not enough space for them), and will completly disable truncation on pango markup.</li>
