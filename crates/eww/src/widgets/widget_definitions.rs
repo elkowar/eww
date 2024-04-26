@@ -894,11 +894,12 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
 
     def_widget!(bargs, _g, gtk_widget, {
         // @prop text - the text to display
+        // @prop truncate - whether to truncate text (or pango markup). If `show-truncated` is `false`, or if `limit-width` has a value, this property has no effect and truncation is enabled.
         // @prop limit-width - maximum count of characters to display
         // @prop truncate-left - whether to truncate on the left side
         // @prop show-truncated - show whether the text was truncated. Disabling it will also disable dynamic truncation (the labels won't be truncated more than `limit-width`, even if there is not enough space for them), and will completly disable truncation on pango markup.
         // @prop unindent - whether to remove leading spaces
-        prop(text: as_string, limit_width: as_i32 = i32::MAX, truncate_left: as_bool = false, show_truncated: as_bool = true, unindent: as_bool = true) {
+        prop(text: as_string, truncate: as_bool = false, limit_width: as_i32 = i32::MAX, truncate_left: as_bool = false, show_truncated: as_bool = true, unindent: as_bool = true) {
             let text = if show_truncated {
                 // gtk does weird thing if we set max_width_chars to i32::MAX
                 if limit_width == i32::MAX {
@@ -906,10 +907,14 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
                 } else {
                     gtk_widget.set_max_width_chars(limit_width);
                 }
-                if truncate_left {
-                    gtk_widget.set_ellipsize(pango::EllipsizeMode::Start);
+                if truncate || limit_width != i32::MAX {
+                    if truncate_left {
+                        gtk_widget.set_ellipsize(pango::EllipsizeMode::Start);
+                    } else {
+                        gtk_widget.set_ellipsize(pango::EllipsizeMode::End);
+                    }
                 } else {
-                    gtk_widget.set_ellipsize(pango::EllipsizeMode::End);
+                    gtk_widget.set_ellipsize(pango::EllipsizeMode::None);
                 }
 
                 text
@@ -918,7 +923,7 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
 
                 let limit_width = limit_width as usize;
                 let char_count = text.chars().count();
-                if char_count > limit_width && !show_truncated {
+                if char_count > limit_width {
                     if truncate_left {
                         text.chars().skip(char_count - limit_width).collect()
                     } else {
@@ -934,11 +939,12 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
             gtk_widget.set_text(&text);
         },
         // @prop markup - Pango markup to display
+        // @prop truncate - whether to truncate text (or pango markup). If `show-truncated` is `false`, or if `limit-width` has a value, this property has no effect and truncation is enabled.
         // @prop limit-width - maximum count of characters to display
         // @prop truncate-left - whether to truncate on the left side
         // @prop show-truncated - show whether the text was truncatedd. Disabling it will also disable dynamic truncation (the labels won't be truncated more than `limit-width`, even if there is not enough space for them), and will completly disable truncation on pango markup.
-        prop(markup: as_string, limit_width: as_i32 = i32::MAX, truncate_left: as_bool = false, show_truncated: as_bool = true) {
-            if show_truncated {
+        prop(markup: as_string, truncate: as_bool = false, limit_width: as_i32 = i32::MAX, truncate_left: as_bool = false, show_truncated: as_bool = true) {
+            if (truncate || limit_width != i32::MAX) && show_truncated {
                 // gtk does weird thing if we set max_width_chars to i32::MAX
                 if limit_width == i32::MAX {
                     gtk_widget.set_max_width_chars(-1);
