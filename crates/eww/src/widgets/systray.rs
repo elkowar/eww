@@ -106,6 +106,7 @@ impl notifier_host::Host for Tray {
     fn remove_item(&mut self, id: &str) {
         if let Some(item) = self.items.get(id) {
             self.container.remove(&item.widget);
+            self.items.remove(id);
         } else {
             log::warn!("Tried to remove nonexistent item {:?} from systray", id);
         }
