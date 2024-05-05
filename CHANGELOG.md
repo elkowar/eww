@@ -5,12 +5,22 @@ All notable changes to eww will be listed here, starting at changes since versio
 ## Unreleased
 
 ### Fixes
+- Fix and refactor nix flake (By: w-lfchen)
+
+### Features
+- Add `:truncate` property to labels, disabled by default (except in cases where truncation would be enabled in version `0.5.0` and before) (By: Rayzeq).
+
+## [0.6.0] (21.04.2024)
+
+### Fixes
 - The `shell-completions` subcommand is now run before anything is set up
 - Fix nix flake
 - Fix `jq` (By: w-lfchen)
+- Labels now use gtk's truncation system (By: Rayzeq).
 
 ### Features
 - Add `systray` widget (By: ralismark)
+- Add `:checked` property to checkbox (By: levnikmyskin)
 
 ## [0.5.0] (17.02.2024)
 
@@ -18,6 +28,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Remove `eww windows` command, replace with `eww active-windows` and `eww list-windows`
 
 ### Features
+- Add `:icon` and `:icon-size` to the image widget (By: Adrian Perez de Castro)
 - Add `get_env` function (By: RegenJacob)
 - Add `:namespace` window option
 - Default to building with x11 and wayland support simultaneously

@@ -1,6 +1,6 @@
 [package]
 name = "eww"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["elkowar <5300871+elkowar@users.noreply.github.com>"]
 description = "Widgets for everyone!"
 license = "MIT"
@@ -23,6 +23,7 @@ notifier_host.workspace = true
 
 gtk = "0.17.1"
 gdk = "0.17.1"
+pango = "0.17.1"
 glib = "0.17.8"
 glib-macros = "0.17.8"
 
