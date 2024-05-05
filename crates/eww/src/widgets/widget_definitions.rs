@@ -1219,11 +1219,11 @@ fn build_systray(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
         },
         // @prop prepend-new - prepend new icons.
         prop(prepend_new: as_bool = true) {
-            *props_clone2.clone().prepend_new.borrow_mut() = prepend_new;
+            *props_clone2.prepend_new.borrow_mut() = prepend_new;
         },
         // @prop visible-empty - visibility of the widget when the systray is empty
         prop(visible_empty: as_bool = true) {
-            *props_clone3.clone().visible_empty.borrow_mut() = visible_empty;
+            *props_clone3.visible_empty.borrow_mut() = visible_empty;
         },
     });
 
