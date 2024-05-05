@@ -34,12 +34,13 @@ fn run_async_task<F: Future>(f: F) -> F::Output {
 pub struct Props {
     icon_size_tx: tokio::sync::watch::Sender<i32>,
     pub prepend_new: Rc<RefCell<bool>>,
+    pub visible_empty: Rc<RefCell<bool>>,
 }
 
 impl Props {
     pub fn new() -> Self {
         let (icon_size_tx, _) = tokio::sync::watch::channel(24);
-        Self { icon_size_tx, prepend_new: Rc::new(RefCell::new(false)) }
+        Self { icon_size_tx, prepend_new: Rc::new(RefCell::new(false)), visible_empty: Rc::new(RefCell::new(true)) }
     }
 
     pub fn icon_size(&self, value: i32) {
@@ -60,6 +61,7 @@ struct Tray {
 
     icon_size: tokio::sync::watch::Receiver<i32>,
     prepend_new: Rc<RefCell<bool>>,
+    visible_empty: Rc<RefCell<bool>>,
 }
 
 pub fn spawn_systray(container: &gtk::Box, props: &Props) {
@@ -68,6 +70,7 @@ pub fn spawn_systray(container: &gtk::Box, props: &Props) {
         items: Default::default(),
         icon_size: props.icon_size_tx.subscribe(),
         prepend_new: props.prepend_new.clone(),
+        visible_empty: props.visible_empty.clone(),
     };
 
     let task = glib::MainContext::default().spawn_local(async move {
@@ -79,7 +82,10 @@ pub fn spawn_systray(container: &gtk::Box, props: &Props) {
             }
         };
 
-        systray.container.show();
+        if !*systray.visible_empty.borrow() {
+            systray.container.hide();
+        }
+
         let e = notifier_host::run_host(&mut systray, &s.snw).await;
         log::error!("notifier host error: {}", e);
     });
@@ -101,13 +107,20 @@ impl notifier_host::Host for Tray {
         if let Some(old_item) = self.items.insert(id.to_string(), item) {
             self.container.remove(&old_item.widget);
         }
+        if !*self.visible_empty.borrow() && !self.container.is_visible() && self.items.len() > 0 {
+            self.container.show();
+        }
     }
 
     fn remove_item(&mut self, id: &str) {
         if let Some(item) = self.items.get(id) {
             self.container.remove(&item.widget);
+            self.items.remove(id);
         } else {
             log::warn!("Tried to remove nonexistent item {:?} from systray", id);
+        }
+        if !*self.visible_empty.borrow() && self.container.is_visible() && self.items.len() == 0 {
+            self.container.hide();
         }
     }
 }
