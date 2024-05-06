@@ -6,6 +6,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 
 ### Fixes
 - Fix and refactor nix flake (By: w-lfchen)
+- Fix remove items from systray (By: vnva)
 
 ### Features
 - Add `:truncate` property to labels, disabled by default (except in cases where truncation would be enabled in version `0.5.0` and before) (By: Rayzeq).
