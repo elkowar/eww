@@ -1,5 +1,5 @@
 (defwidget bar []
-  (centerbox :orientation "h"
+  (centerbox :class "bar" :orientation "h"
     (workspaces)
     (music)
     (sidestuff)))
