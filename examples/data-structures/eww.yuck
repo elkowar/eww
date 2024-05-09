@@ -1,0 +1,73 @@
+(defvar stringArray `[
+  "🦝",
+  "🐱",
+  "🐵",
+  "🦁",
+  "🐹",
+  "🦊"
+]`)
+
+(defvar object `{
+  "🦝": "racoon",
+  "🐱": "cat",
+  "🐵": "ape",
+  "🦁": "lion",
+  "🐹": "hamster",
+  "🦊": "fox"
+}`)
+
+; You could also create an array of objects:
+; (defvar objectArray `[{ "emoji": "🦝", "name": "racoon" }, { "emoji": "🦊", "name": "fox" }]`)
+
+(defvar selected `🦝`)
+
+(defwidget animalButton [emoji]
+  (box
+    :class "animalLayout"
+    (eventbox
+      :class `animal ${selected == emoji ? "selected" : ""}`
+      :cursor "pointer"
+      :onhover "eww update selected=${emoji}"
+      emoji
+    )
+  )
+)
+
+(defwidget animalRow []
+  (box
+    :class "animals"
+    :orientation "horizontal"
+    :halign "center"
+    (for animal in stringArray
+      (animalButton
+        :emoji animal
+      )
+    )
+  )
+)
+
+(defwidget currentAnimal []
+  (box
+    `${object[selected]} ${selected}`
+  )
+)
+
+(defwidget layout []
+  (box
+    :class "layout"
+    :orientation "vertical"
+    :halign "center"
+    (animalRow)
+    (currentAnimal)
+  )
+)
+
+(defwindow data-structures
+  :monitor 0
+  :exclusive false
+  :focusable false
+  :geometry (geometry
+    :anchor "center"
+  )
+  (layout)
+)
