@@ -1,0 +1,113 @@
+(defpoll temperature :interval "20m" 
+  "curl -s 'wttr.in/Kagawa?format=%c%t' || echo 'Offline'")
+
+(defpoll volumePercent :interval "3s" 
+  "amixer -D pulse sget Master | grep 'Left:' | awk -F'[][]' '{ print $2 }' | tr -d '%'")
+(defpoll timeStr :interval "10s" "date +'%I:%M %p'")
+(defpoll dateStr :interval "600s" "date +'%a, %b %d, %Y'")
+
+(deflisten musicStatus :initial "" "./scripts/music.sh status")
+(deflisten song :initial "Looking for a song..." "./scripts/music.sh song")
+
+(deflisten workspaceCode "./scripts/workspaces.sh")
+
+(defvar showVolume false)
+(defvar showPower false)
+
+;; Widgets
+
+(defwidget mem []
+  (label :halign "start" 
+    :text " ${round(EWW_RAM.used_mem_perc,1)}%")
+)
+
+(defwidget cpu []
+  (label :halign "start"
+    :text " ${round(EWW_CPU.avg,1)}%")
+)
+
+(defwidget power []
+  (eventbox :onhover "eww update showPower=true" 
+    :onhoverlost "eww update showPower=false"
+    :cursor "hand"
+    (box :space-evenly false
+      :spacing 15
+      (button :class "os-logo text-sm hover-sky"
+        :onclick "~/.config/rofi/launcher" "")
+      (revealer	:transition "slideright"
+        :reveal showPower
+        :duration "250ms"
+        (box :space-evenly true :spacing 10
+          (button :class "red hover-sky text-sm"
+            :onclick "eww open --toggle powermenu" " ")
+        )
+      )
+    )
+  )
+)
+
+(defwidget music [] 
+  (box :spacing 10 :valign "center" :halign "end" :space-evenly false
+    (label :halign "start" :wrap false :limit-width 40 :class "sans" :text song)
+    (button :class "blue hover-sky" :onclick "mpc prev" "")
+    (button :class "green hover-sky" :onclick "mpc toggle" musicStatus)
+    (button :class "blue hover-sky" :onclick "mpc next" "")
+  )
+)
+
+(defwidget volume []
+  (eventbox :onhover "eww update showVolume=true"
+    :onhoverlost "eww update showVolume=false"
+    (box :space-evenly false :spacing 3 
+      (button :class "text-sm" " ")
+      (revealer :transition "slideright"
+        :reveal showVolume
+        :duration "350ms"
+        (scale :value volumePercent
+          :tooltip "${volumePercent}%"
+          :max 100 :min 0
+          :onchange "amixer -D pulse sset Master {}%")
+      )
+    )
+  )
+)
+
+(defwidget weather []
+  (box :class "container bold" :active false
+    (button :class "text-xs" :orientation "v" temperature)
+  )
+)
+
+(defwidget time []
+  (box :class "container bold"
+    (button :class "text-xs" :orientation "v" :tooltip dateStr timeStr)
+  )
+)
+
+(defwindow bar
+  :monitor 0
+  :reserve (struts :distance "32px" :side "top")
+  :geometry (geometry :height "32px" :width "100%"
+    :anchor "top left")
+  :stacking "bg"
+  :wm-ignore false
+  (centerbox 
+    (box :space-evenly false :halign "start" :valign "center"
+      :hexpand true :spacing 10
+      (power)
+      (box :class "container" :spacing 20 :active false
+        (mem)
+        (cpu)
+      )
+      (volume)
+    )
+
+    (literal :halign "center" :hexpand true :content workspaceCode)
+
+    (box :halign "end" :hexpand true :space-evenly false :spacing 10 
+      (music)
+      (time)
+      (weather)
+    )
+  )
+)

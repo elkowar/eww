@@ -1,0 +1,84 @@
+(defvar screenshotPath "/tmp/screenshot.png")
+
+(defwidget command [cmd ?class icon text]
+  (eventbox :cursor "hand"
+    (box :orientation "v" :space-evenly false
+      (button	:class "${class} text-lg hover-sky"
+        :onclick cmd icon)
+      (label :class "text-xs sans bold sky beyno" :text text)
+    )
+  )
+)
+
+(defwindow takeshot
+  :monitor 0
+  :geometry (geometry :height "18%" :width "32%" :anchor "center")
+  :stacking "fg"
+  :windowtype "dialog"
+  :wm-ignore true
+  (box :valign "fill" :halign "fill" :class "bg-crust"
+    (overlay :valign "fill" :halign "fill" :class "bg-crust"
+      (eventbox :cursor "hand" :valign "start" :halign "end"
+        (button	:class "red text-sm hover-sky"
+          :onclick "eww close takeshot" " ")
+      )
+      (box :valign "center" :halign "center" :orientation "v" 
+        :space-evenly false
+        (label :class "text-base beyno" :text "Screenshot")
+        (box :valign "center" :halign "center"
+          :spacing 40
+          (command :class "blue"
+            :cmd "eww close takeshot && sleep 5 && ./scripts/screenshot.sh screen &"
+            :icon ""
+            :text "Delayed"
+          )
+          (command :class "blue"
+            :cmd "eww close takeshot && sleep 0.5 && ./scripts/screenshot.sh screen &" 
+            :icon ""
+            :text "Screen"
+          )
+          (command :class "green"
+            :cmd "eww close takeshot && ./scripts/screenshot.sh window &" 
+            :icon ""
+            :text "Window"
+          )
+          (command :class "green"
+            :cmd "eww close takeshot && ./scripts/screenshot.sh area &" 
+            :icon ""
+            :text "Area"
+          )
+        )
+      )
+    )
+  )
+)
+
+(defwindow previewshot
+  :geometry (geometry :x "-50px" :y "-50px"
+    :width "500px"
+    :height "400px"
+    :anchor "bottom right"
+  )
+  (box :hexpand true :orientation "v" :class "bg-crust"
+    :space-evenly false
+    (box :valign "center" :halign "center" :spacing 40
+      (command :class "blue"
+        :cmd "eww close previewshot && ./scripts/screenshot.sh save &" 
+        :icon ""
+        :text "Save"
+      )
+      (command :class "green"
+        :cmd "eww close previewshot && ./scripts/screenshot.sh copy &" 
+        :icon ""
+        :text "Copy"
+      )
+      (command  :class "red"
+        :cmd "eww close previewshot" 
+        :icon ""
+        :text "Discard"
+      )
+    )
+    (box :class "preview" :vexpand true :hexpand true 
+      :style "background-image: url('${screenshotPath}');")
+  )
+)
