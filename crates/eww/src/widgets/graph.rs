@@ -38,6 +38,13 @@ pub struct GraphPriv {
     #[property(get, set, nick = "Time Range", blurb = "The Time Range", minimum = 0u64, maximum = u64::MAX, default = 10u64)]
     time_range: RefCell<u64>,
 
+    #[property(get, set, nick = "Flip X", blurb = "Flip the x axis", default = true)]
+    flip_x: RefCell<bool>,
+    #[property(get, set, nick = "Flip Y", blurb = "Flip the y axis", default = true)]
+    flip_y: RefCell<bool>,
+    #[property(get, set, nick = "Vertical", blurb = "Exchange the x and y axes", default = false)]
+    vertical: RefCell<bool>,
+
     history: RefCell<VecDeque<(std::time::Instant, f64)>>,
     extra_point: RefCell<Option<(std::time::Instant, f64)>>,
     last_updated_at: RefCell<std::time::Instant>,
@@ -53,6 +60,9 @@ impl Default for GraphPriv {
             max: RefCell::new(100.0),
             dynamic: RefCell::new(true),
             time_range: RefCell::new(10),
+            flip_x: RefCell::new(true),
+            flip_y: RefCell::new(true),
+            vertical: RefCell::new(false),
             history: RefCell::new(VecDeque::new()),
             extra_point: RefCell::new(None),
             last_updated_at: RefCell::new(std::time::Instant::now()),
@@ -76,6 +86,16 @@ impl GraphPriv {
             }
         }
         history.push_back(v);
+    }
+    /**
+     * Receives normalized (0-1) coordinates `x` and `y` and convert them to the
+     * point on the widget.
+     */
+    fn value_to_point(&self, width: f64, height: f64, x: f64, y: f64) -> (f64, f64) {
+        let x = if *self.flip_x.borrow() { 1.0 - x } else { x };
+        let y = if *self.flip_y.borrow() { 1.0 - y } else { y };
+        let (x, y) = if *self.vertical.borrow() { (y, x) } else { (x, y) };
+        (width * x, height * y)
     }
 }
 
@@ -109,6 +129,15 @@ impl ObjectImpl for GraphPriv {
             }
             "line-style" => {
                 self.line_style.replace(value.get().unwrap());
+            }
+            "flip-x" => {
+                self.flip_x.replace(value.get().unwrap());
+            }
+            "flip-y" => {
+                self.flip_y.replace(value.get().unwrap());
+            }
+            "vertical" => {
+                self.vertical.replace(value.get().unwrap());
             }
             x => panic!("Tried to set inexistant property of Graph: {}", x,),
         }
@@ -214,18 +243,15 @@ impl WidgetImpl for GraphPriv {
                     .iter()
                     .map(|(instant, value)| {
                         let t = last_updated_at.duration_since(*instant).as_millis() as f64;
-                        let x = width * (1.0 - (t / time_range));
-                        let y = height * (1.0 - ((value - min) / value_range));
-                        (x, y)
+                        self.value_to_point(width, height, t / time_range, (value - min) / value_range)
                     })
                     .collect::<VecDeque<(f64, f64)>>();
 
                 // Aad an extra point outside of the graph to extend the line to the left
                 if let Some((instant, value)) = extra_point {
                     let t = last_updated_at.duration_since(instant).as_millis() as f64;
-                    let x = -width * ((t - time_range) / time_range);
-                    let y = height * (1.0 - ((value - min) / value_range));
-                    points.push_front((x, y));
+                    let (x, y) = self.value_to_point(width, height, (t - time_range) / time_range, (value - min) / value_range);
+                    points.push_front(if *self.vertical.borrow() { (x, -y) } else { (-x, y) });
                 }
                 points
             };

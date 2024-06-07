@@ -1246,6 +1246,12 @@ fn build_graph(bargs: &mut BuilderArgs) -> Result<super::graph::Graph> {
         // @prop line-style - changes the look of the edges in the graph. Values: "miter" (default), "round",
         // "bevel"
         prop(line_style: as_string) { w.set_property("line-style", line_style); },
+        // @prop flip-x - whether the x axis should go from high to low
+        prop(flip_x: as_bool) { w.set_property("flip-x", flip_x); },
+        // @prop flip-y - whether the y axis should go from high to low
+        prop(flip_y: as_bool) { w.set_property("flip-y", flip_y); },
+        // @prop vertical - if set to true, the x and y axes will be exchanged
+        prop(vertical: as_bool) { w.set_property("vertical", vertical); },
     });
     Ok(w)
 }
