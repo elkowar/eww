@@ -11,6 +11,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 ### Features
 - Add `:truncate` property to labels, disabled by default (except in cases where truncation would be enabled in version `0.5.0` and before) (By: Rayzeq).
 - Add support for `:hover` css selectors for tray items (By: zeapoz)
+- Add `min` and `max` function calls to simplexpr (By: ovalkonia)
 
 ## [0.6.0] (21.04.2024)
 
