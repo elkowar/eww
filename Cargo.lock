@@ -936,6 +936,7 @@ dependencies = [
  "futures",
  "gdk",
  "gdk-pixbuf",
+ "gdk-sys",
  "gdkx11",
  "glib",
  "glib-macros",
