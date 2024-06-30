@@ -1,5 +1,6 @@
 use crate::widgets::window::Window;
 use futures::StreamExt;
+use gdk::NotifyType;
 use gtk::{cairo::Surface, gdk::ffi::gdk_cairo_surface_create_from_pixbuf, prelude::*};
 use notifier_host;
 use std::{cell::RefCell, future::Future, rc::Rc};
@@ -105,6 +106,7 @@ impl notifier_host::Host for Tray {
     fn remove_item(&mut self, id: &str) {
         if let Some(item) = self.items.get(id) {
             self.container.remove(&item.widget);
+            self.items.remove(id);
         } else {
             log::warn!("Tried to remove nonexistent item {:?} from systray", id);
         }
@@ -130,11 +132,27 @@ impl Drop for Item {
 
 impl Item {
     fn new(id: String, item: notifier_host::Item, icon_size: tokio::sync::watch::Receiver<i32>) -> Self {
-        let widget = gtk::EventBox::new();
-        let out_widget = widget.clone(); // copy so we can return it
+        let gtk_widget = gtk::EventBox::new();
+
+        // Support :hover selector
+        gtk_widget.connect_enter_notify_event(|gtk_widget, evt| {
+            if evt.detail() != NotifyType::Inferior {
+                gtk_widget.clone().set_state_flags(gtk::StateFlags::PRELIGHT, false);
+            }
+            gtk::Inhibit(false)
+        });
+
+        gtk_widget.connect_leave_notify_event(|gtk_widget, evt| {
+            if evt.detail() != NotifyType::Inferior {
+                gtk_widget.clone().unset_state_flags(gtk::StateFlags::PRELIGHT);
+            }
+            gtk::Inhibit(false)
+        });
+
+        let out_widget = gtk_widget.clone(); // copy so we can return it
 
         let task = glib::MainContext::default().spawn_local(async move {
-            if let Err(e) = Item::maintain(widget.clone(), item, icon_size).await {
+            if let Err(e) = Item::maintain(gtk_widget.clone(), item, icon_size).await {
                 log::error!("error for systray item {}: {}", id, e);
             }
         });
