@@ -26,22 +26,23 @@ pub struct WindowInitiator {
 }
 
 impl WindowInitiator {
-    pub fn new(window_def: &WindowDefinition, args: &WindowArguments) -> Result<Self> {
+    pub fn new(window_def: &WindowDefinition, args: &WindowArguments, mut global_vars: HashMap<VarName, DynVal>) -> Result<Self> {
         let vars = args.get_local_window_variables(window_def)?;
+        global_vars.extend(vars.clone());
 
         let geometry = match &window_def.geometry {
             Some(geo) => Some(geo.eval(&vars)?.override_if_given(args.anchor, args.pos, args.size)),
             None => None,
         };
-        let monitor = if args.monitor.is_none() { window_def.eval_monitor(&vars)? } else { args.monitor.clone() };
+        let monitor = if args.monitor.is_none() { window_def.eval_monitor(&global_vars)? } else { args.monitor.clone() };
         Ok(WindowInitiator {
-            backend_options: window_def.backend_options.eval(&vars)?,
+            backend_options: window_def.backend_options.eval(&global_vars)?,
             geometry,
             id: args.instance_id.clone(),
             monitor,
             name: window_def.name.clone(),
-            resizable: window_def.eval_resizable(&vars)?,
-            stacking: window_def.eval_stacking(&vars)?,
+            resizable: window_def.eval_resizable(&global_vars)?,
+            stacking: window_def.eval_stacking(&global_vars)?,
             local_variables: vars,
         })
     }
