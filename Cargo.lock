@@ -941,6 +941,7 @@ dependencies = [
  "eww_shared_util",
  "extend",
  "futures",
+ "gdk-sys",
  "gdkx11",
  "grass",
  "gtk",

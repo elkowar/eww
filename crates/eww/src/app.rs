@@ -642,7 +642,15 @@ pub fn get_monitor_from_display(display: &gdk::Display, identifier: &MonitorIden
         MonitorIdentifier::Name(name) => {
             for m in 0..display.n_monitors() {
                 if let Some(model) = display.monitor(m).and_then(|x| x.model()) {
-                    if model == *name {
+                    let plug_name;
+                    unsafe {
+                        use glib::translate::ToGlibPtr;
+                        let plug_name_pointer =
+                            gdk_sys::gdk_screen_get_monitor_plug_name(display.default_screen().to_glib_none().0, m);
+                        use std::ffi::CStr;
+                        plug_name = CStr::from_ptr(plug_name_pointer).to_str().unwrap();
+                    }
+                    if model == *name || name == plug_name {
                         return display.monitor(m);
                     }
                 }
