@@ -11,6 +11,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Fix the gtk `stack` widget (By: ovalkonia)
 - Fix values in the `EWW_NET` variable (By: mario-kr)
 - Fix the gtk `expander` widget (By: ovalkonia)
+- Fix wayland monitor names support (By: dragonnn)
 
 ### Features
 - Update rust toolchain to 1.80.1 (By: w-lfchen)
