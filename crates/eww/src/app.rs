@@ -362,14 +362,46 @@ impl<B: DisplayBackend> App<B> {
         Ok(())
     }
 
+    fn setup_close_timer(&mut self, instance_id: &str, duration: Duration) {
+        let app_evt_sender = self.app_evt_send.clone();
+
+        let (abort_send, abort_recv) = futures::channel::oneshot::channel();
+
+        glib::MainContext::default().spawn_local({
+            let instance_id = instance_id.to_string();
+            async move {
+                tokio::select! {
+                    _ = glib::timeout_future(duration) => {
+                        let (response_sender, mut response_recv) = daemon_response::create_pair();
+                        let command = DaemonCommand::CloseWindows { windows: vec![instance_id.clone()], sender: response_sender };
+                        if let Err(err) = app_evt_sender.send(command) {
+                            log::error!("Error sending close window command to daemon after gtk window destroy event: {}", err);
+                        }
+                        _ = response_recv.recv().await;
+                    }
+                    _ = abort_recv => {}
+                }
+            }
+        });
+
+        if let Some(old_abort_send) = self.window_close_timer_abort_senders.insert(instance_id.to_string(), abort_send) {
+            _ = old_abort_send.send(());
+        }
+    }
+
     fn open_window(&mut self, window_args: &WindowArguments) -> Result<()> {
         let instance_id = &window_args.instance_id;
         self.failed_windows.remove(instance_id);
         log::info!("Opening window {} as '{}'", window_args.window_name, instance_id);
 
-        // if an instance of this is already running, close it
+        // if an instance of this is already running, do nothing, but if a
+        // duration has been supplied refresh the window close timer
+        let duration = window_args.duration;
         if self.open_windows.contains_key(instance_id) {
-            self.close_window(instance_id)?;
+            if let Some(duration) = duration {
+                self.setup_close_timer(instance_id, duration);
+            }
+            return Ok(());
         }
 
         self.instance_id_to_args.insert(instance_id.to_string(), window_args.clone());
@@ -431,32 +463,8 @@ impl<B: DisplayBackend> App<B> {
                 }
             }));
 
-            let duration = window_args.duration;
             if let Some(duration) = duration {
-                let app_evt_sender = self.app_evt_send.clone();
-
-                let (abort_send, abort_recv) = futures::channel::oneshot::channel();
-
-                glib::MainContext::default().spawn_local({
-                    let instance_id = instance_id.to_string();
-                    async move {
-                        tokio::select! {
-                            _ = glib::timeout_future(duration) => {
-                                let (response_sender, mut response_recv) = daemon_response::create_pair();
-                                let command = DaemonCommand::CloseWindows { windows: vec![instance_id.clone()], sender: response_sender };
-                                if let Err(err) = app_evt_sender.send(command) {
-                                    log::error!("Error sending close window command to daemon after gtk window destroy event: {}", err);
-                                }
-                                _ = response_recv.recv().await;
-                            }
-                            _ = abort_recv => {}
-                        }
-                    }
-                });
-
-                if let Some(old_abort_send) = self.window_close_timer_abort_senders.insert(instance_id.to_string(), abort_send) {
-                    _ = old_abort_send.send(());
-                }
+                self.setup_close_timer(instance_id, duration);
             }
 
             self.open_windows.insert(instance_id.to_string(), eww_window);

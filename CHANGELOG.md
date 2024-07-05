@@ -5,6 +5,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 ## Unreleased
 
 ### Fixes
+- Fix window flicker when opening an already existing window (By: benesim)
 - Fix and refactor nix flake (By: w-lfchen)
 - Fix remove items from systray (By: vnva)
 
