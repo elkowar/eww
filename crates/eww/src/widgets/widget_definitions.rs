@@ -314,12 +314,46 @@ const WIDGET_NAME_EXPANDER: &str = "expander";
 /// @desc A widget that can expand and collapse, showing/hiding it's children.
 fn build_gtk_expander(bargs: &mut BuilderArgs) -> Result<gtk::Expander> {
     let gtk_widget = gtk::Expander::new(None);
+
+    match bargs.widget_use.children.len().cmp(&1) {
+        Ordering::Less => {
+            return Err(DiagError(gen_diagnostic!("expander must contain exactly one element", bargs.widget_use.span)).into());
+        }
+        Ordering::Greater => {
+            let (_, additional_children) = bargs.widget_use.children.split_at(1);
+            // we know that there is more than one child, so unwrapping on first and last here is fine.
+            let first_span = additional_children.first().unwrap().span();
+            let last_span = additional_children.last().unwrap().span();
+            return Err(DiagError(gen_diagnostic!(
+                "expander must contain exactly one element, but got more",
+                first_span.to(last_span)
+            ))
+            .into());
+        }
+        Ordering::Equal => {
+            let mut children = bargs.widget_use.children.iter().map(|child| {
+                build_gtk_widget(
+                    bargs.scope_graph,
+                    bargs.widget_defs.clone(),
+                    bargs.calling_scope,
+                    child.clone(),
+                    bargs.custom_widget_invocation.clone(),
+                )
+            });
+            // we have exactly one child, we can unwrap
+            let child = children.next().unwrap()?;
+            gtk_widget.add(&child);
+            child.show();
+        }
+    }
+
     def_widget!(bargs, _g, gtk_widget, {
         // @prop name - name of the expander
-        prop(name: as_string) {gtk_widget.set_label(Some(&name));},
+        prop(name: as_string) { gtk_widget.set_label(Some(&name)); },
         // @prop expanded - sets if the tree is expanded
         prop(expanded: as_bool) { gtk_widget.set_expanded(expanded); }
     });
+
     Ok(gtk_widget)
 }
 
