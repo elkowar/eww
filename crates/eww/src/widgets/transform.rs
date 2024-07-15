@@ -121,7 +121,7 @@ impl ContainerImpl for TransformPriv {
 
 impl BinImpl for TransformPriv {}
 impl WidgetImpl for TransformPriv {
-    fn draw(&self, cr: &cairo::Context) -> Inhibit {
+    fn draw(&self, cr: &cairo::Context) -> glib::Propagation {
         let res: Result<()> = (|| {
             let rotate = *self.rotate.borrow();
             let total_width = self.obj().allocated_width() as f64;
@@ -166,7 +166,7 @@ impl WidgetImpl for TransformPriv {
             error_handling_ctx::print_error(error)
         };
 
-        gtk::Inhibit(false)
+        glib::Propagation::Proceed
     }
 }
 

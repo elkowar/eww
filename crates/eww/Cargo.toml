@@ -21,19 +21,19 @@ eww_shared_util.workspace = true
 yuck.workspace = true
 notifier_host.workspace = true
 
-gtk = "0.17.1"
-gdk = "0.17.1"
-pango = "0.17.1"
-glib = "0.17.8"
-glib-macros = "0.17.8"
+gtk = "0.18.1"
+gdk = "0.18.0"
+pango = "0.18.3"
+glib = "0.18.5"
+glib-macros = "0.18.5"
 
-cairo-rs = "0.17"
-cairo-sys-rs = "0.17"
+cairo-rs = "0.18.5"
+cairo-sys-rs = "0.18.2"
 
-gdk-pixbuf = "0.17"
+gdk-pixbuf = "0.18.5"
 
-gtk-layer-shell = { version = "0.6.1", optional = true }
-gdkx11 = { version = "0.17", optional = true }
+gtk-layer-shell = { version = "0.8.1", optional = true }
+gdkx11 = { version = "0.18", optional = true }
 x11rb = { version = "0.11.1", features = ["randr"], optional = true }
 
 zbus = { version = "3.7.0", default-features = false, features = ["tokio"] }

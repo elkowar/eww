@@ -170,7 +170,7 @@ impl WidgetImpl for GraphPriv {
         (width, width)
     }
 
-    fn draw(&self, cr: &cairo::Context) -> Inhibit {
+    fn draw(&self, cr: &cairo::Context) -> glib::Propagation {
         let res: Result<()> = (|| {
             let history = &*self.history.borrow();
             let extra_point = *self.extra_point.borrow();
@@ -276,7 +276,7 @@ impl WidgetImpl for GraphPriv {
             error_handling_ctx::print_error(error)
         };
 
-        gtk::Inhibit(false)
+        glib::Propagation::Proceed
     }
 }
 

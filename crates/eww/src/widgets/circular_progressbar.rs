@@ -154,7 +154,7 @@ impl WidgetImpl for CircProgPriv {
         self.preferred_height()
     }
 
-    fn draw(&self, cr: &cairo::Context) -> Inhibit {
+    fn draw(&self, cr: &cairo::Context) -> glib::Propagation {
         let res: Result<()> = (|| {
             let value = *self.value.borrow();
             let start_at = *self.start_at.borrow();
@@ -226,7 +226,7 @@ impl WidgetImpl for CircProgPriv {
             error_handling_ctx::print_error(error)
         };
 
-        gtk::Inhibit(false)
+        glib::Propagation::Proceed
     }
 }
 

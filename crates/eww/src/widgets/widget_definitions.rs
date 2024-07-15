@@ -232,11 +232,11 @@ pub(super) fn resolve_range_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Ran
     let is_being_dragged = Rc::new(RefCell::new(false));
     gtk_widget.connect_button_press_event(glib::clone!(@strong is_being_dragged => move |_, _| {
         *is_being_dragged.borrow_mut() = true;
-        gtk::Inhibit(false)
+        glib::Propagation::Proceed
     }));
     gtk_widget.connect_button_release_event(glib::clone!(@strong is_being_dragged => move |_, _| {
         *is_being_dragged.borrow_mut() = false;
-        gtk::Inhibit(false)
+        glib::Propagation::Proceed
     }));
 
     // We keep track of the last value that has been set via gtk_widget.set_value (by a change in the value property).
@@ -507,7 +507,7 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
                     3 => run_command(timeout, &onrightclick, &[] as &[&str]),
                     _ => {},
                 }
-                gtk::Inhibit(false)
+                glib::Propagation::Proceed
             }));
         }
 
@@ -729,25 +729,25 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
         if evt.detail() != NotifyType::Inferior {
             gtk_widget.clone().set_state_flags(gtk::StateFlags::PRELIGHT, false);
         }
-        gtk::Inhibit(false)
+        glib::Propagation::Proceed
     });
 
     gtk_widget.connect_leave_notify_event(|gtk_widget, evt| {
         if evt.detail() != NotifyType::Inferior {
             gtk_widget.clone().unset_state_flags(gtk::StateFlags::PRELIGHT);
         }
-        gtk::Inhibit(false)
+        glib::Propagation::Proceed
     });
 
     // Support :active selector
     gtk_widget.connect_button_press_event(|gtk_widget, _| {
         gtk_widget.clone().set_state_flags(gtk::StateFlags::ACTIVE, false);
-        gtk::Inhibit(false)
+        glib::Propagation::Proceed
     });
 
     gtk_widget.connect_button_release_event(|gtk_widget, _| {
         gtk_widget.clone().unset_state_flags(gtk::StateFlags::ACTIVE);
-        gtk::Inhibit(false)
+        glib::Propagation::Proceed
     });
 
     def_widget!(bargs, _g, gtk_widget, {
@@ -761,7 +761,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
                 if delta != 0f64 { // Ignore the first event https://bugzilla.gnome.org/show_bug.cgi?id=675959
                     run_command(timeout, &onscroll, &[if delta < 0f64 { "up" } else { "down" }]);
                 }
-                gtk::Inhibit(false)
+                glib::Propagation::Proceed
             }));
         },
         // @prop timeout - timeout of the command. Default: "200ms"
@@ -772,7 +772,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
                 if evt.detail() != NotifyType::Inferior {
                     run_command(timeout, &onhover, &[evt.position().0, evt.position().1]);
                 }
-                gtk::Inhibit(false)
+                glib::Propagation::Proceed
             }));
         },
         // @prop timeout - timeout of the command. Default: "200ms"
@@ -783,7 +783,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
                 if evt.detail() != NotifyType::Inferior {
                     run_command(timeout, &onhoverlost, &[evt.position().0, evt.position().1]);
                 }
-                gtk::Inhibit(false)
+                glib::Propagation::Proceed
             }));
         },
         // @prop cursor - Cursor to show while hovering (see [gtk3-cursors](https://docs.gtk.org/gdk3/ctor.Cursor.new_from_name.html) for possible names)
@@ -799,7 +799,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
                         gdk_window.set_cursor(gdk::Cursor::from_name(&display, &cursor).as_ref());
                     }
                 }
-                gtk::Inhibit(false)
+                glib::Propagation::Proceed
             }));
             connect_signal_handler!(gtk_widget, gtk_widget.connect_leave_notify_event(move |widget, _evt| {
                 if _evt.detail() != NotifyType::Inferior {
@@ -808,7 +808,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
                         gdk_window.set_cursor(None);
                     }
                 }
-                gtk::Inhibit(false)
+                glib::Propagation::Proceed
             }));
         },
         // @prop timeout - timeout of the command. Default: "200ms"
@@ -878,7 +878,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
                     3 => run_command(timeout, &onrightclick, &[] as &[&str]),
                     _ => {},
                 }
-                gtk::Inhibit(false)
+                glib::Propagation::Proceed
             }));
         }
     });

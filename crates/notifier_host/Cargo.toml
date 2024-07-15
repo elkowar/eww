@@ -9,8 +9,8 @@ repository = "https://github.com/elkowar/eww"
 homepage = "https://github.com/elkowar/eww"
 
 [dependencies]
-gtk = "0.17.1"
-gdk = "0.17.1"
+gtk = "0.18.1"
+gdk = "0.18.0"
 zbus = { version = "3.7.0", default-features = false, features = ["tokio"] }
 dbusmenu-gtk3 = "0.1.0"
 
