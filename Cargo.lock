@@ -999,7 +999,6 @@ dependencies = [
  "eww_shared_util",
  "extend",
  "futures",
- "gdk-pixbuf",
  "gdkx11",
  "glib-macros",
  "grass",

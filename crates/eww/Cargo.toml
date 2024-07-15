@@ -24,8 +24,6 @@ notifier_host.workspace = true
 gtk = "0.18.1"
 glib-macros = "0.18.5"
 
-gdk-pixbuf = "0.18.5"
-
 gtk-layer-shell = { version = "0.8.1", optional = true }
 gdkx11 = { version = "0.18", optional = true }
 x11rb = { version = "0.13.1", features = ["randr"], optional = true }
