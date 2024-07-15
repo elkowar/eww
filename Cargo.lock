@@ -991,8 +991,6 @@ version = "0.6.0"
 dependencies = [
  "anyhow",
  "bincode",
- "cairo-rs",
- "cairo-sys-rs",
  "chrono",
  "clap",
  "clap_complete",

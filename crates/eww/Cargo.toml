@@ -25,9 +25,6 @@ gtk = "0.18.1"
 glib = "0.18.5"
 glib-macros = "0.18.5"
 
-cairo-rs = "0.18.5"
-cairo-sys-rs = "0.18.2"
-
 gdk-pixbuf = "0.18.5"
 
 gtk-layer-shell = { version = "0.8.1", optional = true }

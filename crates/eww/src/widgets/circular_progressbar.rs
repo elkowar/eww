@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use glib::{object_subclass, prelude::*, wrapper};
 use glib_macros::Properties;
-use gtk::{gdk, prelude::*, subclass::prelude::*};
+use gtk::{cairo, gdk, prelude::*, subclass::prelude::*};
 use std::cell::RefCell;
 
 use crate::error_handling_ctx;
