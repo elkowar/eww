@@ -105,7 +105,7 @@ fn icon_from_name(
 ) -> std::result::Result<gtk::gdk_pixbuf::Pixbuf, IconError> {
     let theme = if let Some(path) = theme_path {
         let theme = gtk::IconTheme::new();
-        theme.prepend_search_path(&path);
+        theme.prepend_search_path(path);
         theme
     } else {
         gtk::IconTheme::default().expect("Could not get default gtk theme")
