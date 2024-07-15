@@ -11,8 +11,8 @@ use eww_shared_util::Spanned;
 
 use gdk::{ModifierType, NotifyType};
 use glib::translate::FromGlib;
-use gtk::gdk;
 use gtk::{self, glib, prelude::*, DestDefaults, TargetEntry, TargetList};
+use gtk::{gdk, pango};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 
