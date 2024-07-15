@@ -1001,7 +1001,6 @@ dependencies = [
  "futures",
  "gdk-pixbuf",
  "gdkx11",
- "glib",
  "glib-macros",
  "grass",
  "gtk",

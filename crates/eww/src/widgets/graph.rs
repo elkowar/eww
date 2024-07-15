@@ -2,8 +2,8 @@ use std::{cell::RefCell, collections::VecDeque};
 // https://www.figuiere.net/technotes/notes/tn002/
 // https://github.com/gtk-rs/examples/blob/master/src/bin/listbox_model.rs
 use anyhow::{anyhow, Result};
-use glib::{object_subclass, wrapper};
 use glib_macros::Properties;
+use gtk::glib::{self, object_subclass, wrapper};
 use gtk::{cairo, gdk, prelude::*, subclass::prelude::*};
 
 use crate::error_handling_ctx;

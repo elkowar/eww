@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
-use glib::{object_subclass, wrapper};
 use glib_macros::Properties;
+use gtk::glib::{self, object_subclass, wrapper};
 use gtk::{prelude::*, subclass::prelude::*};
 use std::{cell::RefCell, str::FromStr};
 use yuck::value::NumWithUnit;

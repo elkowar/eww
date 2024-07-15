@@ -22,7 +22,6 @@ yuck.workspace = true
 notifier_host.workspace = true
 
 gtk = "0.18.1"
-glib = "0.18.5"
 glib-macros = "0.18.5"
 
 gdk-pixbuf = "0.18.5"
