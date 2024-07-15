@@ -1001,7 +1001,6 @@ dependencies = [
  "eww_shared_util",
  "extend",
  "futures",
- "gdk",
  "gdk-pixbuf",
  "gdkx11",
  "glib",
@@ -2014,7 +2013,6 @@ name = "notifier_host"
 version = "0.1.0"
 dependencies = [
  "dbusmenu-gtk3",
- "gdk",
  "gtk",
  "log",
  "thiserror",

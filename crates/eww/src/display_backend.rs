@@ -1,5 +1,7 @@
 use crate::{widgets::window::Window, window_initiator::WindowInitiator};
 
+use gtk::gdk;
+
 #[cfg(feature = "wayland")]
 pub use platform_wayland::WaylandBackend;
 
@@ -25,6 +27,7 @@ impl DisplayBackend for NoBackend {
 #[cfg(feature = "wayland")]
 mod platform_wayland {
     use crate::{widgets::window::Window, window_initiator::WindowInitiator};
+    use gtk::gdk;
     use gtk::prelude::*;
     use gtk_layer_shell::LayerShell;
     use yuck::config::{window_definition::WindowStacking, window_geometry::AnchorAlignment};
@@ -116,6 +119,7 @@ mod platform_x11 {
     use crate::{widgets::window::Window, window_initiator::WindowInitiator};
     use anyhow::{Context, Result};
     use gdk::Monitor;
+    use gtk::gdk;
     use gtk::{self, prelude::*};
     use x11rb::protocol::xproto::ConnectionExt;
 

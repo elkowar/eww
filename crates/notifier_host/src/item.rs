@@ -88,9 +88,9 @@ impl Item {
         Ok(())
     }
 
-    pub async fn popup_menu(&self, event: &gdk::EventButton, x: i32, y: i32) -> zbus::Result<()> {
+    pub async fn popup_menu(&self, event: &gtk::gdk::EventButton, x: i32, y: i32) -> zbus::Result<()> {
         if let Some(menu) = &self.gtk_menu {
-            menu.popup_at_pointer(event.downcast_ref::<gdk::Event>());
+            menu.popup_at_pointer(event.downcast_ref::<gtk::gdk::Event>());
             Ok(())
         } else {
             self.sni.context_menu(x, y).await

@@ -92,7 +92,7 @@ pub fn initialize_server<B: DisplayBackend>(
         paths,
     };
 
-    if let Some(screen) = gdk::Screen::default() {
+    if let Some(screen) = gtk::gdk::Screen::default() {
         gtk::StyleContext::add_provider_for_screen(&screen, &app.css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
     }
 

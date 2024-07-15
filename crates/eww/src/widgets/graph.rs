@@ -4,7 +4,7 @@ use std::{cell::RefCell, collections::VecDeque};
 use anyhow::{anyhow, Result};
 use glib::{object_subclass, wrapper};
 use glib_macros::Properties;
-use gtk::{prelude::*, subclass::prelude::*};
+use gtk::{gdk, prelude::*, subclass::prelude::*};
 
 use crate::error_handling_ctx;
 

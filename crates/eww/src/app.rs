@@ -17,6 +17,7 @@ use codespan_reporting::files::Files;
 use eww_shared_util::{Span, VarName};
 use gdk::Monitor;
 use glib::ObjectExt;
+use gtk::gdk;
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use simplexpr::{dynval::DynVal, SimplExpr};

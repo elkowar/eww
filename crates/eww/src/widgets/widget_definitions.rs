@@ -8,9 +8,10 @@ use crate::{
 use anyhow::{anyhow, Context, Result};
 use codespan_reporting::diagnostic::Severity;
 use eww_shared_util::Spanned;
-use gdk::{ModifierType, NotifyType};
 
+use gdk::{ModifierType, NotifyType};
 use glib::translate::FromGlib;
+use gtk::gdk;
 use gtk::{self, glib, prelude::*, DestDefaults, TargetEntry, TargetList};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
