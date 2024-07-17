@@ -1,6 +1,5 @@
 use anyhow::{anyhow, Result};
-use glib_macros::Properties;
-use gtk::glib::{self, object_subclass, prelude::*, wrapper};
+use gtk::glib::{self, object_subclass, prelude::*, wrapper, Properties};
 use gtk::{cairo, gdk, prelude::*, subclass::prelude::*};
 use std::cell::RefCell;
 

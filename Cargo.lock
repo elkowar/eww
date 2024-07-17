@@ -1000,7 +1000,6 @@ dependencies = [
  "extend",
  "futures",
  "gdkx11",
- "glib-macros",
  "grass",
  "gtk",
  "gtk-layer-shell",

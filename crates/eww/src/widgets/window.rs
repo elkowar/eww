@@ -1,5 +1,4 @@
-use glib_macros::Properties;
-use gtk::glib::{self, object_subclass, wrapper};
+use gtk::glib::{self, object_subclass, wrapper, Properties};
 use gtk::{prelude::*, subclass::prelude::*};
 use std::cell::RefCell;
 
