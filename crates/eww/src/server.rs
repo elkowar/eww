@@ -95,7 +95,7 @@ pub fn initialize_server<B: DisplayBackend>(
         paths,
     };
 
-    if let Some(screen) = gdk::Screen::default() {
+    if let Some(screen) = gtk::gdk::Screen::default() {
         gtk::StyleContext::add_provider_for_screen(&screen, &app.css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
     }
 
@@ -108,7 +108,7 @@ pub fn initialize_server<B: DisplayBackend>(
     // initialize all the handlers and tasks running asyncronously
     let tokio_handle = init_async_part(app.paths.clone(), ui_send);
 
-    glib::MainContext::default().spawn_local(async move {
+    gtk::glib::MainContext::default().spawn_local(async move {
         // if an action was given to the daemon initially, execute it first.
         if let Some(action) = action {
             app.handle_command(action);

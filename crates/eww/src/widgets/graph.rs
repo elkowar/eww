@@ -2,9 +2,8 @@ use std::{cell::RefCell, collections::VecDeque};
 // https://www.figuiere.net/technotes/notes/tn002/
 // https://github.com/gtk-rs/examples/blob/master/src/bin/listbox_model.rs
 use anyhow::{anyhow, Result};
-use glib::{object_subclass, wrapper};
-use glib_macros::Properties;
-use gtk::{prelude::*, subclass::prelude::*};
+use gtk::glib::{self, object_subclass, wrapper, Properties};
+use gtk::{cairo, gdk, prelude::*, subclass::prelude::*};
 
 use crate::error_handling_ctx;
 
@@ -170,7 +169,7 @@ impl WidgetImpl for GraphPriv {
         (width, width)
     }
 
-    fn draw(&self, cr: &cairo::Context) -> Inhibit {
+    fn draw(&self, cr: &cairo::Context) -> glib::Propagation {
         let res: Result<()> = (|| {
             let history = &*self.history.borrow();
             let extra_point = *self.extra_point.borrow();
@@ -276,7 +275,7 @@ impl WidgetImpl for GraphPriv {
             error_handling_ctx::print_error(error)
         };
 
-        gtk::Inhibit(false)
+        glib::Propagation::Proceed
     }
 }
 
