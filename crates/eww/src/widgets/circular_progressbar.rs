@@ -1,7 +1,6 @@
 use anyhow::{anyhow, Result};
-use glib::{object_subclass, prelude::*, wrapper};
-use glib_macros::Properties;
-use gtk::{prelude::*, subclass::prelude::*};
+use gtk::glib::{self, object_subclass, prelude::*, wrapper, Properties};
+use gtk::{cairo, gdk, prelude::*, subclass::prelude::*};
 use std::cell::RefCell;
 
 use crate::error_handling_ctx;
@@ -154,7 +153,7 @@ impl WidgetImpl for CircProgPriv {
         self.preferred_height()
     }
 
-    fn draw(&self, cr: &cairo::Context) -> Inhibit {
+    fn draw(&self, cr: &cairo::Context) -> glib::Propagation {
         let res: Result<()> = (|| {
             let value = *self.value.borrow();
             let start_at = *self.start_at.borrow();
@@ -226,7 +225,7 @@ impl WidgetImpl for CircProgPriv {
             error_handling_ctx::print_error(error)
         };
 
-        gtk::Inhibit(false)
+        glib::Propagation::Proceed
     }
 }
 
