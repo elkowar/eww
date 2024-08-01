@@ -20,13 +20,10 @@ eww_shared_util.workspace = true
 yuck.workspace = true
 notifier_host.workspace = true
 
-gtk = "0.18.1"
-
 gtk-layer-shell = { version = "0.8.1", optional = true }
 gdkx11 = { version = "0.18", optional = true }
 x11rb = { version = "0.13.1", features = ["randr"], optional = true }
 
-zbus = { version = "3.15.2", default-features = false, features = ["tokio"] }
 ordered-stream = "0.2.0"
 
 anyhow.workspace = true
@@ -39,6 +36,7 @@ derive_more.workspace = true
 extend.workspace = true
 futures.workspace = true
 grass = { workspace = true, default-features = false }
+gtk.workspace = true
 itertools.workspace = true
 libc.workspace = true
 log.workspace = true
@@ -56,3 +54,4 @@ tokio-util.workspace = true
 tokio = { workspace = true, features = ["full"] }
 unescape.workspace = true
 wait-timeout.workspace = true
+zbus = { workspace = true, default-features = false, features = ["tokio"] }
