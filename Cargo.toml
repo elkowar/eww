@@ -6,51 +6,51 @@ resolver = "2"
 
 simplexpr = { version = "0.1.0", path = "crates/simplexpr" }
 eww_shared_util = { version = "0.1.0", path = "crates/eww_shared_util" }
-yuck = { version = "0.1.0", path = "crates/yuck", default-features = false}
+yuck = { version = "0.1.0", path = "crates/yuck", default-features = false }
 notifier_host = { version = "0.1.0", path = "crates/notifier_host" }
 
-anyhow = "1.0.79"
+anyhow = "1.0.86"
 bincode = "1.3.3"
-cached = "0.48.0"
-chrono = "0.4.26"
-chrono-tz = "0.8.2"
-clap = {version = "4.5.1", features = ["derive"] }
-clap_complete = "4.5.1"
+cached = "0.53.1"
+chrono = "0.4.38"
+chrono-tz = "0.9.0"
+clap = { version = "4.5.1", features = ["derive"] }
+clap_complete = "4.5.12"
 codespan-reporting = "0.11"
 derive_more = "0.99"
 extend = "1.2"
-futures = "0.3.28"
-grass = {version = "0.13.1", default-features = false}
+futures = "0.3.30"
+grass = { version = "0.13.1", default-features = false }
 insta = "1.7"
 itertools = "0.12.1"
-jaq-core = "1.2.1"
-jaq-parse = "1.0.2"
-jaq-std = {version = "1.2.1", features = ["bincode"]}
-jaq-interpret = "1.2.1"
-jaq-syn = "1.1.0"
-lalrpop = { version = "0.20.0", features = ["unicode"] }
-lalrpop-util = { version = "0.20.0", features = ["unicode"] }
+jaq-core = "1.5.1"
+jaq-parse = "1.0.3"
+jaq-std = "1.6.0"
+jaq-interpret = "1.5.0"
+jaq-syn = "1.6.0"
+lalrpop = { version = "0.20.2", features = ["unicode"] }
+lalrpop-util = { version = "0.20.2", features = ["unicode"] }
 libc = "0.2"
 log = "0.4"
 maplit = "1"
-nix = "0.27.1"
+nix = "0.29.0"
 notify = "6.1.1"
 once_cell = "1.19"
 pretty_assertions = "1.4.0"
 pretty_env_logger = "0.5.0"
 ref-cast = "1.0.22"
-regex = "1.10.3"
+regex = "1.10.5"
 serde_json = "1.0"
-serde = {version = "1.0", features = ["derive"]}
+serde = { version = "1.0", features = ["derive"] }
 simple-signal = "1.1"
 smart-default = "0.7.1"
 static_assertions = "1.1.0"
 strsim = "0.11"
 strum = { version = "0.26", features = ["derive"] }
-sysinfo = "0.30.5"
+sysinfo = "0.31.2"
 thiserror = "1.0"
-tokio-util = "0.7.8"
-tokio = { version = "1.36.0", features = ["full"] }
+tokio-util = "0.7.11"
+tokio = { version = "1.39.2", features = ["full"] }
 unescape = "0.1"
 wait-timeout = "0.2"
 
