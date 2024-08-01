@@ -10,7 +10,7 @@ homepage = "https://github.com/elkowar/eww"
 
 [dependencies]
 gtk = "0.18.1"
-zbus = { version = "3.7.0", default-features = false, features = ["tokio"] }
+zbus = { version = "3.15.2", default-features = false, features = ["tokio"] }
 dbusmenu-gtk3 = "0.1.0"
 
 log.workspace = true
