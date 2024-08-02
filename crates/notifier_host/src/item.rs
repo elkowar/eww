@@ -82,7 +82,7 @@ impl Item {
     }
 
     pub async fn set_menu(&mut self, widget: &gtk::EventBox) -> zbus::Result<()> {
-        let menu = dbusmenu_gtk3::Menu::new(self.sni.destination(), &self.sni.menu().await?);
+        let menu = dbusmenu_gtk3::Menu::new(self.sni.inner().destination(), &self.sni.menu().await?);
         menu.set_attach_widget(Some(widget));
         self.gtk_menu = Some(menu);
         Ok(())

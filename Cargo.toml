@@ -54,7 +54,7 @@ tokio-util = "0.7.11"
 tokio = { version = "1.39.2", features = ["full"] }
 unescape = "0.1"
 wait-timeout = "0.2"
-zbus = { version = "3.15.2", default-features = false, features = ["tokio"] }
+zbus = { version = "4.4.0", default-features = false, features = ["tokio"] }
 
 [profile.dev]
 split-debuginfo = "unpacked"
