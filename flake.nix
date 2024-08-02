@@ -86,6 +86,7 @@
             packages = with pkgs; [
               deno
               mdbook
+              zbus-xmlgen
             ];
 
             RUST_SRC_PATH = "${rust}/lib/rustlib/src/rust/library";
