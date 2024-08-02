@@ -88,7 +88,7 @@ pub async fn run_host(host: &mut dyn Host, snw: &proxy::StatusNotifierWatcherPro
 
     // initial items first
     for svc in try_!(snw.registered_status_notifier_items().await) {
-        match Item::from_address(snw.connection(), &svc).await {
+        match Item::from_address(snw.inner().connection(), &svc).await {
             Ok(item) => {
                 item_names.insert(svc.to_owned());
                 host.add_item(&svc, item);
@@ -110,7 +110,7 @@ pub async fn run_host(host: &mut dyn Host, snw: &proxy::StatusNotifierWatcherPro
                 if item_names.contains(svc) {
                     log::info!("Got duplicate new item: {:?}", svc);
                 } else {
-                    match Item::from_address(snw.connection(), svc).await {
+                    match Item::from_address(snw.inner().connection(), svc).await {
                         Ok(item) => {
                             item_names.insert(svc.to_owned());
                             host.add_item(svc, item);
