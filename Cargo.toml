@@ -20,7 +20,7 @@ codespan-reporting = "0.11"
 derive_more = "0.99"
 extend = "1.2"
 futures = "0.3.30"
-grass = { version = "0.13.1", default-features = false }
+grass = "0.13.4"
 gtk = "0.18.1"
 insta = "1.7"
 itertools = "0.13.0"

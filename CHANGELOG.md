@@ -5,6 +5,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 ## Unreleased
 
 ### Fixes
+- Re-enable some scss features (By: w-lfchen)
 - Fix and refactor nix flake (By: w-lfchen)
 - Fix remove items from systray (By: vnva)
 
