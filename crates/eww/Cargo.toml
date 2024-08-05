@@ -35,7 +35,7 @@ codespan-reporting.workspace = true
 derive_more.workspace = true
 extend.workspace = true
 futures.workspace = true
-grass = { workspace = true, default-features = false }
+grass.workspace = true
 gtk.workspace = true
 itertools.workspace = true
 libc.workspace = true
