@@ -546,15 +546,11 @@ fn svg_to_pixbuf(
 
     let pixbuf_svg = gtk::gdk_pixbuf::PixbufLoader::with_type("svg")?;
 
-    if image_width >= 0 && image_height == -1 {
-        pixbuf_svg.set_size(image_width, image_width);
-    }
-    if image_width == -1 && image_height >= 0 {
-        pixbuf_svg.set_size(image_height, image_height);
-    }
-    if image_width >= 0 && image_height >= 0 {
-        pixbuf_svg.set_size(image_width, image_height);
-    }
+    match (image_width, image_height) {
+        (w, h) if w > 0 || h > 0 => pixbuf_svg.set_size(w, h),
+        // Add default size to prevent widget overflowing, if image is too big
+        _ => pixbuf_svg.set_size(24, 24),
+    };
 
     let svg_buf: Vec<u8> = svg_data.as_bytes().to_vec();
     pixbuf_svg.write(&svg_buf)?;
