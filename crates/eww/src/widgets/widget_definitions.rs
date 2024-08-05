@@ -574,7 +574,7 @@ fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
         // @prop image-height - height of the image
         prop(path: as_string, image_width: as_i32 = -1, image_height: as_i32 = -1, fill: as_string = "currentColor") {
             if fill != "currentColor" && !path.ends_with(".svg") {
-                log::warn!("The fill sttribute is only for SVG images");
+                log::warn!("The fill attribute is only for SVG images");
             }
 
             if path.ends_with(".gif") {
