@@ -541,7 +541,7 @@ fn svg_to_pixbuf(
         reg.replace(&svg_data, &format!("fill=\"{}\"", fill))
     } else {
         let reg = regex::Regex::new(r"<svg")?;
-        reg.replace(&svg_data, &format!(" fill=\"{}\"", fill))
+        reg.replace(&svg_data, &format!("<svg fill=\"{}\"", fill))
     };
 
     let pixbuf_svg = gtk::gdk_pixbuf::PixbufLoader::with_type("svg")?;
