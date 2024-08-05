@@ -527,6 +527,42 @@ fn parse_icon_size(o: &str) -> Result<gtk::IconSize> {
     }
 }
 
+fn svg_to_pixbuf(
+    path: std::path::PathBuf,
+    image_width: i32,
+    image_height: i32,
+    fill: &str,
+) -> Result<Option<gtk::gdk_pixbuf::Pixbuf>> {
+    let svg_data: String = std::fs::read_to_string(path)?;
+
+    // The fastest way to add/change fill color
+    let svg_data = if svg_data.contains("fill=") {
+        let reg = regex::Regex::new(r#"fill="[^"]*""#)?;
+        reg.replace(&svg_data, &format!("fill=\"{}\"", fill))
+    } else {
+        let reg = regex::Regex::new(r"<svg")?;
+        reg.replace(&svg_data, &format!(" fill=\"{}\"", fill))
+    };
+
+    let pixbuf_svg = gtk::gdk_pixbuf::PixbufLoader::with_type("svg")?;
+
+    if image_width >= 0 && image_height == -1 {
+        pixbuf_svg.set_size(image_width, image_width);
+    }
+    if image_width == -1 && image_height >= 0 {
+        pixbuf_svg.set_size(image_height, image_height);
+    }
+    if image_width >= 0 && image_height >= 0 {
+        pixbuf_svg.set_size(image_width, image_height);
+    }
+
+    let svg_buf: Vec<u8> = svg_data.as_bytes().to_vec();
+    pixbuf_svg.write(&svg_buf)?;
+    pixbuf_svg.close()?;
+
+    Ok(pixbuf_svg.pixbuf())
+}
+
 const WIDGET_NAME_IMAGE: &str = "image";
 /// @widget image
 /// @desc A widget displaying an image
@@ -536,10 +572,17 @@ fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
         // @prop path - path to the image file
         // @prop image-width - width of the image
         // @prop image-height - height of the image
-        prop(path: as_string, image_width: as_i32 = -1, image_height: as_i32 = -1) {
+        prop(path: as_string, image_width: as_i32 = -1, image_height: as_i32 = -1, fill: as_string = "currentColor") {
+            if fill != "currentColor" && !path.ends_with(".svg") {
+                log::warn!("The fill sttribute is only for SVG images");
+            }
+
             if path.ends_with(".gif") {
                 let pixbuf_animation = gtk::gdk_pixbuf::PixbufAnimation::from_file(std::path::PathBuf::from(path))?;
                 gtk_widget.set_from_animation(&pixbuf_animation);
+            } else if path.ends_with(".svg") {
+                let pixbuf_svg = svg_to_pixbuf(std::path::PathBuf::from(path), image_width, image_width, &fill)?;
+                gtk_widget.set_from_pixbuf(pixbuf_svg.as_ref());
             } else {
                 let pixbuf = gtk::gdk_pixbuf::Pixbuf::from_file_at_size(std::path::PathBuf::from(path), image_width, image_height)?;
                 gtk_widget.set_from_pixbuf(Some(&pixbuf));
