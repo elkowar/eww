@@ -527,38 +527,6 @@ fn parse_icon_size(o: &str) -> Result<gtk::IconSize> {
     }
 }
 
-fn svg_to_pixbuf(
-    path: std::path::PathBuf,
-    image_width: i32,
-    image_height: i32,
-    fill: &str,
-) -> Result<Option<gtk::gdk_pixbuf::Pixbuf>> {
-    let svg_data: String = std::fs::read_to_string(path)?;
-
-    // The fastest way to add/change fill color
-    let svg_data = if svg_data.contains("fill=") {
-        let reg = regex::Regex::new(r#"fill="[^"]*""#)?;
-        reg.replace(&svg_data, &format!("fill=\"{}\"", fill))
-    } else {
-        let reg = regex::Regex::new(r"<svg")?;
-        reg.replace(&svg_data, &format!("<svg fill=\"{}\"", fill))
-    };
-
-    let pixbuf_svg = gtk::gdk_pixbuf::PixbufLoader::with_type("svg")?;
-
-    match (image_width, image_height) {
-        (w, h) if w > 0 || h > 0 => pixbuf_svg.set_size(w, h),
-        // Add default size to prevent widget overflowing, if image is too big
-        _ => pixbuf_svg.set_size(24, 24),
-    };
-
-    let svg_buf: Vec<u8> = svg_data.as_bytes().to_vec();
-    pixbuf_svg.write(&svg_buf)?;
-    pixbuf_svg.close()?;
-
-    Ok(pixbuf_svg.pixbuf())
-}
-
 const WIDGET_NAME_IMAGE: &str = "image";
 /// @widget image
 /// @desc A widget displaying an image
@@ -568,17 +536,55 @@ fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
         // @prop path - path to the image file
         // @prop image-width - width of the image
         // @prop image-height - height of the image
-        prop(path: as_string, image_width: as_i32 = -1, image_height: as_i32 = -1, fill: as_string = "currentColor") {
-            if fill != "currentColor" && !path.ends_with(".svg") {
+        prop(path: as_string, image_width: as_i32 = -1, image_height: as_i32 = -1, fill: as_string = "") {
+            if !path.ends_with(".svg") && !fill.is_empty() {
                 log::warn!("The fill attribute is only for SVG images");
             }
 
             if path.ends_with(".gif") {
                 let pixbuf_animation = gtk::gdk_pixbuf::PixbufAnimation::from_file(std::path::PathBuf::from(path))?;
                 gtk_widget.set_from_animation(&pixbuf_animation);
-            } else if path.ends_with(".svg") {
-                let pixbuf_svg = svg_to_pixbuf(std::path::PathBuf::from(path), image_width, image_width, &fill)?;
-                gtk_widget.set_from_pixbuf(pixbuf_svg.as_ref());
+            } else if path.ends_with(".svg") && !fill.is_empty() {
+                let svg_data = std::fs::read_to_string(std::path::PathBuf::from(path.clone()))?;
+
+                // The fastest way to add/change fill color
+                let svg_data = if svg_data.contains("fill=") {
+                    let reg = regex::Regex::new(r#"fill="[^"]*""#)?;
+                    reg.replace(&svg_data, &format!("fill=\"{}\"", fill))
+                } else {
+                    let reg = regex::Regex::new(r"<svg")?;
+                    reg.replace(&svg_data, &format!("<svg fill=\"{}\"", fill))
+                };
+
+                let pixbuf_svg = gtk::gdk_pixbuf::PixbufLoader::with_type("svg")?;
+                // To determine the size of svg image
+                // NOTE: Convertions to f64 are intentional to prevent negative or zero values
+                // which cause some images with rectangular dimensions to not be displayed
+                // if at least one of the image-width/image-height attributes is used
+                //
+                // For example, we have a rectangular image with dimensions 300x130(width = 300, height = 130),
+                // and the user only wants to use the attribute :image-width 18,
+                // then the aspect ratio to calculate the height would be
+                // aspect_ratio_h = (height / width); // return 0, then aspect_ration_h * 18 = 0
+                // aspect_ratio_h = (height as f64 / width as f64); // return 0.4333333333333, then aspect_ratio_h * 18.0 = 7.8 as i32 = 7
+                pixbuf_svg.connect_size_prepared(move |pixbuf_svg, svg_width, svg_height| {
+                    let aspect_ratio_h = svg_height as f64 / svg_width as f64;
+                    let aspect_ratio_w = svg_width as f64/ svg_height as f64;
+
+                    match (image_width, image_height) {
+                        // If only define the image-width attribute, then preserve the aspect ratio for the svg height
+                        (w, _) if w >= 0 => pixbuf_svg.set_size(w, (aspect_ratio_h * w as f64) as i32),
+                        // If only define the image-height attribute, then preserve the aspect ratio for the svg width
+                        (_, h) if h >= 0 => pixbuf_svg.set_size((aspect_ratio_w * h as f64) as i32, h),
+                        // If both attributes image-width and image-height are difined, then use it
+                        (w, h) if w >= 0 && h >= 0 => pixbuf_svg.set_size(w, h),
+                        _ => {}
+                    };
+                });
+                pixbuf_svg.write(svg_data.as_bytes())?;
+                pixbuf_svg.close()?;
+
+                gtk_widget.set_from_pixbuf(pixbuf_svg.pixbuf().as_ref());
             } else {
                 let pixbuf = gtk::gdk_pixbuf::Pixbuf::from_file_at_size(std::path::PathBuf::from(path), image_width, image_height)?;
                 gtk_widget.set_from_pixbuf(Some(&pixbuf));
