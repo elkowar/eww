@@ -571,12 +571,33 @@ fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
         // @prop path - path to the image file
         // @prop image-width - width of the image
         // @prop image-height - height of the image
-        prop(path: as_string, image_width: as_i32 = -1, image_height: as_i32 = -1) {
+        prop(path: as_string, image_width: as_i32 = -1, image_height: as_i32 = -1, fill_svg: as_string = "") {
+            if !path.ends_with(".svg") && !fill_svg.is_empty() {
+                log::warn!("Fill attribute ignored, file is not an svg image");
+            }
+
             if path.ends_with(".gif") {
                 let pixbuf_animation = gtk::gdk_pixbuf::PixbufAnimation::from_file(std::path::PathBuf::from(path))?;
                 gtk_widget.set_from_animation(&pixbuf_animation);
             } else {
-                let pixbuf = gtk::gdk_pixbuf::Pixbuf::from_file_at_size(std::path::PathBuf::from(path), image_width, image_height)?;
+                let pixbuf;
+                // populate the pixel buffer
+                if path.ends_with(".svg") && !fill_svg.is_empty() {
+                    let svg_data = std::fs::read_to_string(std::path::PathBuf::from(path.clone()))?;
+                    // The fastest way to add/change fill color
+                    let svg_data = if svg_data.contains("fill=") {
+                        let reg = regex::Regex::new(r#"fill="[^"]*""#)?;
+                        reg.replace(&svg_data, &format!("fill=\"{}\"", fill_svg))
+                    } else {
+                        let reg = regex::Regex::new(r"<svg")?;
+                        reg.replace(&svg_data, &format!("<svg fill=\"{}\"", fill_svg))
+                    };
+                    let stream = gtk::gio::MemoryInputStream::from_bytes(&gtk::glib::Bytes::from(svg_data.as_bytes()));
+                    pixbuf = gtk::gdk_pixbuf::Pixbuf::from_stream_at_scale(&stream, image_width, image_height, true, None::<&gtk::gio::Cancellable>)?;
+                    stream.close(None::<&gtk::gio::Cancellable>)?;
+                } else {
+                    pixbuf = gtk::gdk_pixbuf::Pixbuf::from_file_at_size(std::path::PathBuf::from(path), image_width, image_height)?;
+                }
                 gtk_widget.set_from_pixbuf(Some(&pixbuf));
             }
         },
