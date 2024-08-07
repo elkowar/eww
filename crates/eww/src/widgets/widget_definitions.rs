@@ -571,7 +571,7 @@ fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
         // @prop path - path to the image file
         // @prop image-width - width of the image
         // @prop image-height - height of the image
-        prop(path: as_string, image_width: as_i32 = -1, image_height: as_i32 = -1, fill_svg: as_string = "") {
+        prop(path: as_string, image_width: as_i32 = -1, image_height: as_i32 = -1, preserve_aspect_ratio: as_bool = true, fill_svg: as_string = "") {
             if !path.ends_with(".svg") && !fill_svg.is_empty() {
                 log::warn!("Fill attribute ignored, file is not an svg image");
             }
@@ -593,10 +593,10 @@ fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
                         reg.replace(&svg_data, &format!("<svg fill=\"{}\"", fill_svg))
                     };
                     let stream = gtk::gio::MemoryInputStream::from_bytes(&gtk::glib::Bytes::from(svg_data.as_bytes()));
-                    pixbuf = gtk::gdk_pixbuf::Pixbuf::from_stream_at_scale(&stream, image_width, image_height, true, None::<&gtk::gio::Cancellable>)?;
+                    pixbuf = gtk::gdk_pixbuf::Pixbuf::from_stream_at_scale(&stream, image_width, image_height, preserve_aspect_ratio, None::<&gtk::gio::Cancellable>)?;
                     stream.close(None::<&gtk::gio::Cancellable>)?;
                 } else {
-                    pixbuf = gtk::gdk_pixbuf::Pixbuf::from_file_at_size(std::path::PathBuf::from(path), image_width, image_height)?;
+                    pixbuf = gtk::gdk_pixbuf::Pixbuf::from_file_at_scale(std::path::PathBuf::from(path), image_width, image_height, preserve_aspect_ratio)?;
                 }
                 gtk_widget.set_from_pixbuf(Some(&pixbuf));
             }
