@@ -571,6 +571,8 @@ fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
         // @prop path - path to the image file
         // @prop image-width - width of the image
         // @prop image-height - height of the image
+        // @prop preserve-aspect-ratio - whether to keep the aspect ratio when resizing an image. Default: true, false doesn't work for all image types
+        // @prop fill-svg - sets the color of svg images
         prop(path: as_string, image_width: as_i32 = -1, image_height: as_i32 = -1, preserve_aspect_ratio: as_bool = true, fill_svg: as_string = "") {
             if !path.ends_with(".svg") && !fill_svg.is_empty() {
                 log::warn!("Fill attribute ignored, file is not an svg image");
