@@ -1,6 +1,5 @@
 use anyhow::{anyhow, Result};
-use glib::{object_subclass, wrapper};
-use glib_macros::Properties;
+use gtk::glib::{self, object_subclass, wrapper, Properties};
 use gtk::{prelude::*, subclass::prelude::*};
 use std::{cell::RefCell, str::FromStr};
 use yuck::value::NumWithUnit;
@@ -121,7 +120,7 @@ impl ContainerImpl for TransformPriv {
 
 impl BinImpl for TransformPriv {}
 impl WidgetImpl for TransformPriv {
-    fn draw(&self, cr: &cairo::Context) -> Inhibit {
+    fn draw(&self, cr: &gtk::cairo::Context) -> glib::Propagation {
         let res: Result<()> = (|| {
             let rotate = *self.rotate.borrow();
             let total_width = self.obj().allocated_width() as f64;
@@ -166,7 +165,7 @@ impl WidgetImpl for TransformPriv {
             error_handling_ctx::print_error(error)
         };
 
-        gtk::Inhibit(false)
+        glib::Propagation::Proceed
     }
 }
 

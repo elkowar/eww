@@ -59,10 +59,10 @@ impl WindowArguments {
 
         // Ensure that the arguments passed to the window that are already interpreted by eww (id, screen)
         // are set to the correct values
-        if expected_args.contains(&"id".to_string()) {
+        if expected_args.contains(&String::from("id")) {
             local_variables.insert(VarName::from("id"), DynVal::from(self.instance_id.clone()));
         }
-        if self.monitor.is_some() && expected_args.contains(&"screen".to_string()) {
+        if self.monitor.is_some() && expected_args.contains(&String::from("screen")) {
             let mon_dyn = DynVal::from(&self.monitor.clone().unwrap());
             local_variables.insert(VarName::from("screen"), mon_dyn);
         }

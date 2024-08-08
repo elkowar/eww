@@ -5,10 +5,12 @@ All notable changes to eww will be listed here, starting at changes since versio
 ## Unreleased
 
 ### Fixes
+- Re-enable some scss features (By: w-lfchen)
 - Fix and refactor nix flake (By: w-lfchen)
 - Fix remove items from systray (By: vnva)
 
 ### Features
+- Update rust toolchain to 1.80.0 (By: w-lfchen)
 - Add `:truncate` property to labels, disabled by default (except in cases where truncation would be enabled in version `0.5.0` and before) (By: Rayzeq).
 - Add support for `:hover` css selectors for tray items (By: zeapoz)
 - Add `min` and `max` function calls to simplexpr (By: ovalkonia)

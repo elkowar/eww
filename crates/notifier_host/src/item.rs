@@ -82,15 +82,15 @@ impl Item {
     }
 
     pub async fn set_menu(&mut self, widget: &gtk::EventBox) -> zbus::Result<()> {
-        let menu = dbusmenu_gtk3::Menu::new(self.sni.destination(), &self.sni.menu().await?);
+        let menu = dbusmenu_gtk3::Menu::new(self.sni.inner().destination(), &self.sni.menu().await?);
         menu.set_attach_widget(Some(widget));
         self.gtk_menu = Some(menu);
         Ok(())
     }
 
-    pub async fn popup_menu(&self, event: &gdk::EventButton, x: i32, y: i32) -> zbus::Result<()> {
+    pub async fn popup_menu(&self, event: &gtk::gdk::EventButton, x: i32, y: i32) -> zbus::Result<()> {
         if let Some(menu) = &self.gtk_menu {
-            menu.popup_at_pointer(event.downcast_ref::<gdk::Event>());
+            menu.popup_at_pointer(event.downcast_ref::<gtk::gdk::Event>());
             Ok(())
         } else {
             self.sni.context_menu(x, y).await

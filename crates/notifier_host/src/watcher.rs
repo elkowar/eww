@@ -1,5 +1,5 @@
 use crate::names;
-use zbus::{dbus_interface, export::ordered_stream::OrderedStreamExt, Interface};
+use zbus::{export::ordered_stream::OrderedStreamExt, interface, Interface};
 
 /// An instance of [`org.kde.StatusNotifierWatcher`]. It only tracks what tray items and trays
 /// exist, and doesn't have any logic for displaying items (for that, see [`Host`][`crate::Host`]).
@@ -23,7 +23,7 @@ pub struct Watcher {
 ///
 /// Methods and properties correspond to methods and properties on the DBus service that can be
 /// used by others, while signals are events that we generate that other services listen to.
-#[dbus_interface(name = "org.kde.StatusNotifierWatcher")]
+#[interface(name = "org.kde.StatusNotifierWatcher")]
 impl Watcher {
     /// RegisterStatusNotifierHost method
     async fn register_status_notifier_host(
@@ -89,15 +89,15 @@ impl Watcher {
     }
 
     /// StatusNotifierHostRegistered signal.
-    #[dbus_interface(signal)]
+    #[zbus(signal)]
     async fn status_notifier_host_registered(ctxt: &zbus::SignalContext<'_>) -> zbus::Result<()>;
 
     /// StatusNotifierHostUnregistered signal
-    #[dbus_interface(signal)]
+    #[zbus(signal)]
     async fn status_notifier_host_unregistered(ctxt: &zbus::SignalContext<'_>) -> zbus::Result<()>;
 
     /// IsStatusNotifierHostRegistered property
-    #[dbus_interface(property)]
+    #[zbus(property)]
     async fn is_status_notifier_host_registered(&self) -> bool {
         let hosts = self.hosts.lock().unwrap(); // unwrap: mutex poisoning is okay
         !hosts.is_empty()
@@ -159,15 +159,15 @@ impl Watcher {
     }
 
     /// StatusNotifierItemRegistered signal
-    #[dbus_interface(signal)]
+    #[zbus(signal)]
     async fn status_notifier_item_registered(ctxt: &zbus::SignalContext<'_>, service: &str) -> zbus::Result<()>;
 
     /// StatusNotifierItemUnregistered signal
-    #[dbus_interface(signal)]
+    #[zbus(signal)]
     async fn status_notifier_item_unregistered(ctxt: &zbus::SignalContext<'_>, service: &str) -> zbus::Result<()>;
 
     /// RegisteredStatusNotifierItems property
-    #[dbus_interface(property)]
+    #[zbus(property)]
     async fn registered_status_notifier_items(&self) -> Vec<String> {
         let items = self.items.lock().unwrap(); // unwrap: mutex poisoning is okay
         items.iter().cloned().collect()
@@ -176,7 +176,7 @@ impl Watcher {
     // ------------------------------------------------------------------------
 
     /// ProtocolVersion property
-    #[dbus_interface(property)]
+    #[zbus(property)]
     fn protocol_version(&self) -> i32 {
         0
     }
@@ -244,7 +244,7 @@ async fn parse_service<'a>(
 ) -> zbus::fdo::Result<(zbus::names::UniqueName<'static>, &'a str)> {
     if service.starts_with('/') {
         // they sent us just the object path
-        if let Some(sender) = hdr.sender()? {
+        if let Some(sender) = hdr.sender() {
             Ok((sender.to_owned(), service))
         } else {
             log::warn!("unknown sender");

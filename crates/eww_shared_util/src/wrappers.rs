@@ -1,11 +1,11 @@
-use derive_more::*;
+use derive_more::{Debug, *};
 use ref_cast::RefCast;
 use serde::{Deserialize, Serialize};
 
 /// The name of a variable
 #[repr(transparent)]
-#[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize, AsRef, From, FromStr, Display, DebugCustom, RefCast)]
-#[debug(fmt = "VarName({})", .0)]
+#[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize, AsRef, From, FromStr, Display, Debug, RefCast)]
+#[debug("VarName({})", _0)]
 pub struct VarName(pub String);
 
 impl std::borrow::Borrow<str> for VarName {
@@ -34,8 +34,8 @@ impl From<AttrName> for VarName {
 
 /// The name of an attribute
 #[repr(transparent)]
-#[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize, AsRef, From, FromStr, Display, DebugCustom, RefCast)]
-#[debug(fmt="AttrName({})", .0)]
+#[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize, AsRef, From, FromStr, Display, Debug, RefCast)]
+#[debug("AttrName({})", _0)]
 pub struct AttrName(pub String);
 
 impl AttrName {

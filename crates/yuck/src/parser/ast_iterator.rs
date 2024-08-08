@@ -90,7 +90,7 @@ impl<I: Iterator<Item = Ast>> AstIterator<I> {
         parse_key_values(self, true)
     }
 
-    pub fn put_back(&mut self, ast: Ast) {
+    pub fn put_back(&mut self, ast: Ast) -> Option<Ast> {
         self.remaining_span.0 = ast.span().0;
         self.iter.put_back(ast)
     }
