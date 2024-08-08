@@ -1,7 +1,7 @@
-use derive_more::*;
+use derive_more::{Debug, *};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Display)]
-#[display(fmt = ".x*.y:.width*.height")]
+#[display(".x*.y:.width*.height")]
 pub struct Rect {
     pub x: i32,
     pub y: i32,
