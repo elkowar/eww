@@ -206,7 +206,7 @@ This may be the most commonly used type of variable.
 They are useful to access any quickly retrieved value repeatedly,
 and thus are the perfect choice for showing your time, date, as well as other bits of information such as pending package updates, weather, and battery level.
 
-You can also specify an initial-value. This should prevent eww from waiting for the result of a give command during startup, thus
+You can also specify an initial-value. This should prevent eww from waiting for the result of a given command during startup, thus
 making the startup time faster.
 
 **Listening variables (`deflisten`)**
