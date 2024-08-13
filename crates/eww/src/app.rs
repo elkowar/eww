@@ -1,5 +1,4 @@
 use crate::{
-    config,
     daemon_response::DaemonResponseSender,
     display_backend::DisplayBackend,
     error_handling_ctx,
@@ -24,6 +23,7 @@ use simplexpr::{dynval::DynVal, SimplExpr};
 use std::{
     cell::RefCell,
     collections::{HashMap, HashSet},
+    marker::PhantomData,
     rc::Rc,
 };
 use tokio::sync::mpsc::UnboundedSender;
@@ -88,10 +88,6 @@ pub enum DaemonCommand {
 /// An opened window.
 #[derive(Debug)]
 pub struct EwwWindow {
-    /// Every window has an id, uniquely identifying it.
-    /// If no specific ID was specified whilst starting the window,
-    /// this will be the same as the window name.
-    pub instance_id: String,
     pub name: String,
     pub scope_index: ScopeIndex,
     pub gtk_window: Window,
@@ -112,11 +108,13 @@ impl EwwWindow {
     }
 }
 
-pub struct App<B> {
-    pub display_backend: B,
+pub struct App<B: DisplayBackend> {
     pub scope_graph: Rc<RefCell<ScopeGraph>>,
     pub eww_config: config::EwwConfig,
-    /// Map of all currently open windows by their IDs
+    /// Map of all currently open windows to their unique IDs
+    /// If no specific ID was specified whilst starting the window,
+    /// it will be the same as the window name.
+    /// Therefore, only one window of a given name can exist when not using IDs.
     pub open_windows: HashMap<String, EwwWindow>,
     pub instance_id_to_args: HashMap<String, WindowArguments>,
     /// Window names that are supposed to be open, but failed.
@@ -132,9 +130,10 @@ pub struct App<B> {
     pub window_close_timer_abort_senders: HashMap<String, futures::channel::oneshot::Sender<()>>,
 
     pub paths: EwwPaths,
+    pub phantom: PhantomData<B>,
 }
 
-impl<B> std::fmt::Debug for App<B> {
+impl<B: DisplayBackend> std::fmt::Debug for App<B> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("App")
             .field("scope_graph", &*self.scope_graph.borrow())
@@ -573,7 +572,6 @@ fn initialize_window<B: DisplayBackend>(
     window.show_all();
 
     Ok(EwwWindow {
-        instance_id: window_init.id.clone(),
         name: window_init.name.clone(),
         gtk_window: window,
         scope_index: window_scope,
