@@ -1,6 +1,11 @@
 use crate::widgets::window::Window;
 use futures::StreamExt;
-use gtk::{cairo::Surface, gdk, gdk::ffi::gdk_cairo_surface_create_from_pixbuf, gdk::NotifyType, glib, prelude::*};
+use gtk::{
+    cairo::Surface,
+    gdk::{self, ffi::gdk_cairo_surface_create_from_pixbuf, NotifyType},
+    glib,
+    prelude::*,
+};
 use std::{cell::RefCell, future::Future, rc::Rc};
 
 // DBus state shared between systray instances, to avoid creating too many connections etc.
