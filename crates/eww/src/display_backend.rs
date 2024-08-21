@@ -8,6 +8,7 @@ pub use platform_x11::{set_xprops, X11Backend};
 
 pub trait DisplayBackend: Send + Sync + 'static {
     const IS_X11: bool;
+    const IS_WAYLAND: bool;
 
     fn initialize_window(window_init: &WindowInitiator, monitor: gdk::Rectangle, x: i32, y: i32) -> Option<Window>;
 }
@@ -16,6 +17,7 @@ pub struct NoBackend;
 
 impl DisplayBackend for NoBackend {
     const IS_X11: bool = false;
+    const IS_WAYLAND: bool = false;
 
     fn initialize_window(_window_init: &WindowInitiator, _monitor: gdk::Rectangle, x: i32, y: i32) -> Option<Window> {
         Some(Window::new(gtk::WindowType::Toplevel, x, y))
@@ -34,6 +36,7 @@ mod platform_wayland {
 
     impl DisplayBackend for WaylandBackend {
         const IS_X11: bool = false;
+        const IS_WAYLAND: bool = true;
 
         fn initialize_window(window_init: &WindowInitiator, monitor: gdk::Rectangle, x: i32, y: i32) -> Option<Window> {
             let window = Window::new(gtk::WindowType::Toplevel, x, y);
@@ -134,6 +137,7 @@ mod platform_x11 {
     pub struct X11Backend;
     impl DisplayBackend for X11Backend {
         const IS_X11: bool = true;
+        const IS_WAYLAND: bool = false;
 
         fn initialize_window(window_init: &WindowInitiator, _monitor: gdk::Rectangle, x: i32, y: i32) -> Option<Window> {
             let window_type =
