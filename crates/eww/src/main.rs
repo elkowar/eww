@@ -53,7 +53,6 @@ fn main() {
         return;
     }
 
-    #[allow(unused)]
     let detected_wayland = detect_wayland();
     #[allow(unused)]
     let use_wayland = opts.force_wayland || detected_wayland;
@@ -69,7 +68,7 @@ fn main() {
     #[cfg(all(not(feature = "wayland"), feature = "x11"))]
     let result = {
         if use_wayland {
-            log::warn!("Eww compiled without wayland support. falling back to X11, eventhough wayland was requested.");
+            log::warn!("Eww compiled without wayland support. Falling back to X11, eventhough wayland was requested.");
         }
         run::<display_backend::X11Backend>(opts, eww_binary_name)
     };
