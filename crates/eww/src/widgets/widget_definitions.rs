@@ -1147,7 +1147,7 @@ const WIDGET_NAME_STACK: &str = "stack";
 fn build_gtk_stack(bargs: &mut BuilderArgs) -> Result<gtk::Stack> {
     let gtk_widget = gtk::Stack::new();
 
-    if bargs.widget_use.children.len() < 1 {
+    if bargs.widget_use.children.is_empty() {
         return Err(DiagError(gen_diagnostic!("stack must contain at least one element", bargs.widget_use.span)).into());
     }
 
