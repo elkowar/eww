@@ -8,6 +8,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Re-enable some scss features (By: w-lfchen)
 - Fix and refactor nix flake (By: w-lfchen)
 - Fix remove items from systray (By: vnva)
+- Fix the gtk `stack` widget (By: ovalkonia)
 
 ### Features
 - Update rust toolchain to 1.80.1 (By: w-lfchen)

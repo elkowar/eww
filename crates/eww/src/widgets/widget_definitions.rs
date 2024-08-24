@@ -1089,6 +1089,27 @@ const WIDGET_NAME_STACK: &str = "stack";
 /// @desc A widget that displays one of its children at a time
 fn build_gtk_stack(bargs: &mut BuilderArgs) -> Result<gtk::Stack> {
     let gtk_widget = gtk::Stack::new();
+
+    if bargs.widget_use.children.len() < 1 {
+        return Err(DiagError(gen_diagnostic!("stack must contain at least one element", bargs.widget_use.span)).into());
+    }
+
+    let children = bargs.widget_use.children.iter().map(|child| {
+        build_gtk_widget(
+            bargs.scope_graph,
+            bargs.widget_defs.clone(),
+            bargs.calling_scope,
+            child.clone(),
+            bargs.custom_widget_invocation.clone(),
+        )
+    });
+
+    for (i, child) in children.enumerate() {
+        let child = child?;
+        gtk_widget.add_named(&child, &i.to_string());
+        child.show();
+    }
+
     def_widget!(bargs, _g, gtk_widget, {
         // @prop selected - index of child which should be shown
         prop(selected: as_i32) { gtk_widget.set_visible_child_name(&selected.to_string()); },
@@ -1098,28 +1119,7 @@ fn build_gtk_stack(bargs: &mut BuilderArgs) -> Result<gtk::Stack> {
         prop(same_size: as_bool = false) { gtk_widget.set_homogeneous(same_size); }
     });
 
-    match bargs.widget_use.children.len().cmp(&1) {
-        Ordering::Less => {
-            Err(DiagError(gen_diagnostic!("stack must contain at least one element", bargs.widget_use.span)).into())
-        }
-        Ordering::Greater | Ordering::Equal => {
-            let children = bargs.widget_use.children.iter().map(|child| {
-                build_gtk_widget(
-                    bargs.scope_graph,
-                    bargs.widget_defs.clone(),
-                    bargs.calling_scope,
-                    child.clone(),
-                    bargs.custom_widget_invocation.clone(),
-                )
-            });
-            for (i, child) in children.enumerate() {
-                let child = child?;
-                gtk_widget.add_named(&child, &i.to_string());
-                child.show();
-            }
-            Ok(gtk_widget)
-        }
-    }
+    Ok(gtk_widget)
 }
 
 const WIDGET_NAME_TRANSFORM: &str = "transform";
