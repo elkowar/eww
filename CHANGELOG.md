@@ -23,6 +23,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Fix nix flake
 - Fix `jq` (By: w-lfchen)
 - Labels now use gtk's truncation system (By: Rayzeq).
+- Fix the gtk `expander` widget (By: ovalkonia)
 
 ### Features
 - Add `systray` widget (By: ralismark)
