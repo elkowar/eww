@@ -1,8 +1,11 @@
 use crate::widgets::window::Window;
 use futures::StreamExt;
-use gdk::NotifyType;
-use gtk::{cairo::Surface, gdk::ffi::gdk_cairo_surface_create_from_pixbuf, prelude::*};
-use notifier_host;
+use gtk::{
+    cairo::Surface,
+    gdk::{self, ffi::gdk_cairo_surface_create_from_pixbuf, NotifyType},
+    glib,
+    prelude::*,
+};
 use std::{cell::RefCell, future::Future, rc::Rc};
 
 // DBus state shared between systray instances, to avoid creating too many connections etc.
@@ -139,14 +142,14 @@ impl Item {
             if evt.detail() != NotifyType::Inferior {
                 gtk_widget.clone().set_state_flags(gtk::StateFlags::PRELIGHT, false);
             }
-            gtk::Inhibit(false)
+            glib::Propagation::Proceed
         });
 
         gtk_widget.connect_leave_notify_event(|gtk_widget, evt| {
             if evt.detail() != NotifyType::Inferior {
                 gtk_widget.clone().unset_state_flags(gtk::StateFlags::PRELIGHT);
             }
-            gtk::Inhibit(false)
+            glib::Propagation::Proceed
         });
 
         let out_widget = gtk_widget.clone(); // copy so we can return it
@@ -231,7 +234,7 @@ impl Item {
             if let Err(result) = result {
                 log::error!("failed to handle mouse click {}: {}", evt.button(), result);
             }
-            gtk::Inhibit(true)
+            glib::Propagation::Stop
         }));
 
         // updates

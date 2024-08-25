@@ -9,7 +9,6 @@ homepage = "https://github.com/elkowar/eww"
 edition = "2021"
 
 
-
 [features]
 default = ["x11", "wayland"]
 x11 = ["gdkx11", "x11rb"]
@@ -21,34 +20,25 @@ eww_shared_util.workspace = true
 yuck.workspace = true
 notifier_host.workspace = true
 
-gtk = "0.17.1"
-gdk = "0.17.1"
-pango = "0.17.1"
-glib = "0.17.8"
-glib-macros = "0.17.8"
+gtk-layer-shell = { version = "0.8.1", optional = true }
+gdkx11 = { version = "0.18", optional = true }
+x11rb = { version = "0.13.1", features = ["randr"], optional = true }
+gdk-sys = "0.18.0"
 
-cairo-rs = "0.17"
-cairo-sys-rs = "0.17"
-
-gdk-pixbuf = "0.17"
-
-gtk-layer-shell = { version = "0.6.1", optional = true }
-gdkx11 = { version = "0.17", optional = true }
-x11rb = { version = "0.11.1", features = ["randr"], optional = true }
-
-zbus = { version = "3.7.0", default-features = false, features = ["tokio"] }
 ordered-stream = "0.2.0"
 
-anyhow.workspace  = true
+
+grass.workspace = true
+anyhow.workspace = true
 bincode.workspace = true
 chrono.workspace = true
-clap = {workspace = true, features = ["derive"] }
+clap = { workspace = true, features = ["derive"] }
 clap_complete.workspace = true
 codespan-reporting.workspace = true
 derive_more.workspace = true
 extend.workspace = true
 futures.workspace = true
-grass = {workspace = true, default-features = false}
+gtk.workspace = true
 itertools.workspace = true
 libc.workspace = true
 log.workspace = true
@@ -59,10 +49,11 @@ once_cell.workspace = true
 pretty_env_logger.workspace = true
 regex.workspace = true
 serde_json.workspace = true
-serde = {workspace = true, features = ["derive"]}
+serde = { workspace = true, features = ["derive"] }
 simple-signal.workspace = true
 sysinfo = { workspace = true }
 tokio-util.workspace = true
 tokio = { workspace = true, features = ["full"] }
 unescape.workspace = true
 wait-timeout.workspace = true
+zbus = { workspace = true, default-features = false, features = ["tokio"] }

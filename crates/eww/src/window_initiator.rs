@@ -17,7 +17,6 @@ use crate::window_arguments::WindowArguments;
 pub struct WindowInitiator {
     pub backend_options: BackendWindowOptions,
     pub geometry: Option<WindowGeometry>,
-    pub id: String,
     pub local_variables: HashMap<VarName, DynVal>,
     pub monitor: Option<MonitorIdentifier>,
     pub name: String,
@@ -37,7 +36,6 @@ impl WindowInitiator {
         Ok(WindowInitiator {
             backend_options: window_def.backend_options.eval(&vars)?,
             geometry,
-            id: args.instance_id.clone(),
             monitor,
             name: window_def.name.clone(),
             resizable: window_def.eval_resizable(&vars)?,

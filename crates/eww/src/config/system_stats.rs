@@ -212,7 +212,6 @@ pub fn net() -> String {
     let (ref mut last_refresh, ref mut networks) = &mut *NETWORKS.lock().unwrap();
 
     networks.refresh_list();
-    networks.refresh();
     let elapsed = last_refresh.next_refresh();
 
     networks

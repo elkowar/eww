@@ -8,10 +8,11 @@ use crate::{
 use anyhow::{anyhow, Context, Result};
 use codespan_reporting::diagnostic::Severity;
 use eww_shared_util::Spanned;
-use gdk::{ModifierType, NotifyType};
 
+use gdk::{ModifierType, NotifyType};
 use glib::translate::FromGlib;
 use gtk::{self, glib, prelude::*, DestDefaults, TargetEntry, TargetList};
+use gtk::{gdk, pango};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 
@@ -232,11 +233,11 @@ pub(super) fn resolve_range_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Ran
     let is_being_dragged = Rc::new(RefCell::new(false));
     gtk_widget.connect_button_press_event(glib::clone!(@strong is_being_dragged => move |_, _| {
         *is_being_dragged.borrow_mut() = true;
-        gtk::Inhibit(false)
+        glib::Propagation::Proceed
     }));
     gtk_widget.connect_button_release_event(glib::clone!(@strong is_being_dragged => move |_, _| {
         *is_being_dragged.borrow_mut() = false;
-        gtk::Inhibit(false)
+        glib::Propagation::Proceed
     }));
 
     // We keep track of the last value that has been set via gtk_widget.set_value (by a change in the value property).
@@ -314,12 +315,46 @@ const WIDGET_NAME_EXPANDER: &str = "expander";
 /// @desc A widget that can expand and collapse, showing/hiding it's children.
 fn build_gtk_expander(bargs: &mut BuilderArgs) -> Result<gtk::Expander> {
     let gtk_widget = gtk::Expander::new(None);
+
+    match bargs.widget_use.children.len().cmp(&1) {
+        Ordering::Less => {
+            return Err(DiagError(gen_diagnostic!("expander must contain exactly one element", bargs.widget_use.span)).into());
+        }
+        Ordering::Greater => {
+            let (_, additional_children) = bargs.widget_use.children.split_at(1);
+            // we know that there is more than one child, so unwrapping on first and last here is fine.
+            let first_span = additional_children.first().unwrap().span();
+            let last_span = additional_children.last().unwrap().span();
+            return Err(DiagError(gen_diagnostic!(
+                "expander must contain exactly one element, but got more",
+                first_span.to(last_span)
+            ))
+            .into());
+        }
+        Ordering::Equal => {
+            let mut children = bargs.widget_use.children.iter().map(|child| {
+                build_gtk_widget(
+                    bargs.scope_graph,
+                    bargs.widget_defs.clone(),
+                    bargs.calling_scope,
+                    child.clone(),
+                    bargs.custom_widget_invocation.clone(),
+                )
+            });
+            // we have exactly one child, we can unwrap
+            let child = children.next().unwrap()?;
+            gtk_widget.add(&child);
+            child.show();
+        }
+    }
+
     def_widget!(bargs, _g, gtk_widget, {
         // @prop name - name of the expander
-        prop(name: as_string) {gtk_widget.set_label(Some(&name));},
+        prop(name: as_string) { gtk_widget.set_label(Some(&name)); },
         // @prop expanded - sets if the tree is expanded
         prop(expanded: as_bool) { gtk_widget.set_expanded(expanded); }
     });
+
     Ok(gtk_widget)
 }
 
@@ -507,7 +542,7 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
                     3 => run_command(timeout, &onrightclick, &[] as &[&str]),
                     _ => {},
                 }
-                gtk::Inhibit(false)
+                glib::Propagation::Proceed
             }));
         }
 
@@ -536,12 +571,35 @@ fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
         // @prop path - path to the image file
         // @prop image-width - width of the image
         // @prop image-height - height of the image
-        prop(path: as_string, image_width: as_i32 = -1, image_height: as_i32 = -1) {
+        // @prop preserve-aspect-ratio - whether to keep the aspect ratio when resizing an image. Default: true, false doesn't work for all image types
+        // @prop fill-svg - sets the color of svg images
+        prop(path: as_string, image_width: as_i32 = -1, image_height: as_i32 = -1, preserve_aspect_ratio: as_bool = true, fill_svg: as_string = "") {
+            if !path.ends_with(".svg") && !fill_svg.is_empty() {
+                log::warn!("Fill attribute ignored, file is not an svg image");
+            }
+
             if path.ends_with(".gif") {
                 let pixbuf_animation = gtk::gdk_pixbuf::PixbufAnimation::from_file(std::path::PathBuf::from(path))?;
                 gtk_widget.set_from_animation(&pixbuf_animation);
             } else {
-                let pixbuf = gtk::gdk_pixbuf::Pixbuf::from_file_at_size(std::path::PathBuf::from(path), image_width, image_height)?;
+                let pixbuf;
+                // populate the pixel buffer
+                if path.ends_with(".svg") && !fill_svg.is_empty() {
+                    let svg_data = std::fs::read_to_string(std::path::PathBuf::from(path.clone()))?;
+                    // The fastest way to add/change fill color
+                    let svg_data = if svg_data.contains("fill=") {
+                        let reg = regex::Regex::new(r#"fill="[^"]*""#)?;
+                        reg.replace(&svg_data, &format!("fill=\"{}\"", fill_svg))
+                    } else {
+                        let reg = regex::Regex::new(r"<svg")?;
+                        reg.replace(&svg_data, &format!("<svg fill=\"{}\"", fill_svg))
+                    };
+                    let stream = gtk::gio::MemoryInputStream::from_bytes(&gtk::glib::Bytes::from(svg_data.as_bytes()));
+                    pixbuf = gtk::gdk_pixbuf::Pixbuf::from_stream_at_scale(&stream, image_width, image_height, preserve_aspect_ratio, None::<&gtk::gio::Cancellable>)?;
+                    stream.close(None::<&gtk::gio::Cancellable>)?;
+                } else {
+                    pixbuf = gtk::gdk_pixbuf::Pixbuf::from_file_at_scale(std::path::PathBuf::from(path), image_width, image_height, preserve_aspect_ratio)?;
+                }
                 gtk_widget.set_from_pixbuf(Some(&pixbuf));
             }
         },
@@ -729,25 +787,25 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
         if evt.detail() != NotifyType::Inferior {
             gtk_widget.clone().set_state_flags(gtk::StateFlags::PRELIGHT, false);
         }
-        gtk::Inhibit(false)
+        glib::Propagation::Proceed
     });
 
     gtk_widget.connect_leave_notify_event(|gtk_widget, evt| {
         if evt.detail() != NotifyType::Inferior {
             gtk_widget.clone().unset_state_flags(gtk::StateFlags::PRELIGHT);
         }
-        gtk::Inhibit(false)
+        glib::Propagation::Proceed
     });
 
     // Support :active selector
     gtk_widget.connect_button_press_event(|gtk_widget, _| {
         gtk_widget.clone().set_state_flags(gtk::StateFlags::ACTIVE, false);
-        gtk::Inhibit(false)
+        glib::Propagation::Proceed
     });
 
     gtk_widget.connect_button_release_event(|gtk_widget, _| {
         gtk_widget.clone().unset_state_flags(gtk::StateFlags::ACTIVE);
-        gtk::Inhibit(false)
+        glib::Propagation::Proceed
     });
 
     def_widget!(bargs, _g, gtk_widget, {
@@ -761,7 +819,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
                 if delta != 0f64 { // Ignore the first event https://bugzilla.gnome.org/show_bug.cgi?id=675959
                     run_command(timeout, &onscroll, &[if delta < 0f64 { "up" } else { "down" }]);
                 }
-                gtk::Inhibit(false)
+                glib::Propagation::Proceed
             }));
         },
         // @prop timeout - timeout of the command. Default: "200ms"
@@ -772,7 +830,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
                 if evt.detail() != NotifyType::Inferior {
                     run_command(timeout, &onhover, &[evt.position().0, evt.position().1]);
                 }
-                gtk::Inhibit(false)
+                glib::Propagation::Proceed
             }));
         },
         // @prop timeout - timeout of the command. Default: "200ms"
@@ -783,7 +841,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
                 if evt.detail() != NotifyType::Inferior {
                     run_command(timeout, &onhoverlost, &[evt.position().0, evt.position().1]);
                 }
-                gtk::Inhibit(false)
+                glib::Propagation::Proceed
             }));
         },
         // @prop cursor - Cursor to show while hovering (see [gtk3-cursors](https://docs.gtk.org/gdk3/ctor.Cursor.new_from_name.html) for possible names)
@@ -799,7 +857,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
                         gdk_window.set_cursor(gdk::Cursor::from_name(&display, &cursor).as_ref());
                     }
                 }
-                gtk::Inhibit(false)
+                glib::Propagation::Proceed
             }));
             connect_signal_handler!(gtk_widget, gtk_widget.connect_leave_notify_event(move |widget, _evt| {
                 if _evt.detail() != NotifyType::Inferior {
@@ -808,7 +866,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
                         gdk_window.set_cursor(None);
                     }
                 }
-                gtk::Inhibit(false)
+                glib::Propagation::Proceed
             }));
         },
         // @prop timeout - timeout of the command. Default: "200ms"
@@ -878,7 +936,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
                     3 => run_command(timeout, &onrightclick, &[] as &[&str]),
                     _ => {},
                 }
-                gtk::Inhibit(false)
+                glib::Propagation::Proceed
             }));
         }
     });
@@ -1088,6 +1146,27 @@ const WIDGET_NAME_STACK: &str = "stack";
 /// @desc A widget that displays one of its children at a time
 fn build_gtk_stack(bargs: &mut BuilderArgs) -> Result<gtk::Stack> {
     let gtk_widget = gtk::Stack::new();
+
+    if bargs.widget_use.children.is_empty() {
+        return Err(DiagError(gen_diagnostic!("stack must contain at least one element", bargs.widget_use.span)).into());
+    }
+
+    let children = bargs.widget_use.children.iter().map(|child| {
+        build_gtk_widget(
+            bargs.scope_graph,
+            bargs.widget_defs.clone(),
+            bargs.calling_scope,
+            child.clone(),
+            bargs.custom_widget_invocation.clone(),
+        )
+    });
+
+    for (i, child) in children.enumerate() {
+        let child = child?;
+        gtk_widget.add_named(&child, &i.to_string());
+        child.show();
+    }
+
     def_widget!(bargs, _g, gtk_widget, {
         // @prop selected - index of child which should be shown
         prop(selected: as_i32) { gtk_widget.set_visible_child_name(&selected.to_string()); },
@@ -1097,28 +1176,7 @@ fn build_gtk_stack(bargs: &mut BuilderArgs) -> Result<gtk::Stack> {
         prop(same_size: as_bool = false) { gtk_widget.set_homogeneous(same_size); }
     });
 
-    match bargs.widget_use.children.len().cmp(&1) {
-        Ordering::Less => {
-            Err(DiagError(gen_diagnostic!("stack must contain at least one element", bargs.widget_use.span)).into())
-        }
-        Ordering::Greater | Ordering::Equal => {
-            let children = bargs.widget_use.children.iter().map(|child| {
-                build_gtk_widget(
-                    bargs.scope_graph,
-                    bargs.widget_defs.clone(),
-                    bargs.calling_scope,
-                    child.clone(),
-                    bargs.custom_widget_invocation.clone(),
-                )
-            });
-            for (i, child) in children.enumerate() {
-                let child = child?;
-                gtk_widget.add_named(&child, &i.to_string());
-                child.show();
-            }
-            Ok(gtk_widget)
-        }
-    }
+    Ok(gtk_widget)
 }
 
 const WIDGET_NAME_TRANSFORM: &str = "transform";

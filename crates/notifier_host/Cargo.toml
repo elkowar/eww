@@ -9,11 +9,10 @@ repository = "https://github.com/elkowar/eww"
 homepage = "https://github.com/elkowar/eww"
 
 [dependencies]
-gtk = "0.17.1"
-gdk = "0.17.1"
-zbus = { version = "3.7.0", default-features = false, features = ["tokio"] }
 dbusmenu-gtk3 = "0.1.0"
 
+gtk.workspace = true
 log.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }
+zbus = { workspace = true, default-features = false, features = ["tokio"] }

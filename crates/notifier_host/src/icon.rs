@@ -105,7 +105,7 @@ fn icon_from_name(
 ) -> std::result::Result<gtk::gdk_pixbuf::Pixbuf, IconError> {
     let theme = if let Some(path) = theme_path {
         let theme = gtk::IconTheme::new();
-        theme.prepend_search_path(&path);
+        theme.prepend_search_path(path);
         theme
     } else {
         gtk::IconTheme::default().expect("Could not get default gtk theme")
@@ -136,7 +136,7 @@ pub async fn load_icon_from_sni(
     let icon_from_name: std::result::Result<gtk::gdk_pixbuf::Pixbuf, IconError> = (async {
         // fetch icon name
         let icon_name = sni.icon_name().await;
-        log::debug!("dbus: {} icon_name -> {:?}", sni.destination(), icon_name);
+        log::debug!("dbus: {} icon_name -> {:?}", sni.inner().destination(), icon_name);
         let icon_name = match icon_name {
             Ok(s) if s.is_empty() => return Err(IconError::NotAvailable),
             Ok(s) => s,
@@ -152,7 +152,7 @@ pub async fn load_icon_from_sni(
 
         // otherwise, fetch icon theme and lookup using icon_from_name
         let icon_theme_path = sni.icon_theme_path().await;
-        log::debug!("dbus: {} icon_theme_path -> {:?}", sni.destination(), icon_theme_path);
+        log::debug!("dbus: {} icon_theme_path -> {:?}", sni.inner().destination(), icon_theme_path);
         let icon_theme_path = match icon_theme_path {
             Ok(p) if p.is_empty() => None,
             Ok(p) => Some(p),
@@ -179,7 +179,7 @@ pub async fn load_icon_from_sni(
     match icon_from_name {
         Ok(p) => return Some(p),           // got an icon!
         Err(IconError::NotAvailable) => {} // this error is expected, don't log
-        Err(e) => log::warn!("failed to get icon by name for {}: {}", sni.destination(), e),
+        Err(e) => log::warn!("failed to get icon by name for {}: {}", sni.inner().destination(), e),
     };
 
     // Can't get it from name + theme, try the pixmap
@@ -199,7 +199,7 @@ pub async fn load_icon_from_sni(
     match icon_from_pixmaps {
         Ok(p) => return Some(p),
         Err(IconError::NotAvailable) => {}
-        Err(e) => log::warn!("failed to get icon pixmap for {}: {}", sni.destination(), e),
+        Err(e) => log::warn!("failed to get icon pixmap for {}: {}", sni.inner().destination(), e),
     };
 
     // Tray didn't provide a valid icon so use the default fallback one.

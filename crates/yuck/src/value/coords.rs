@@ -1,4 +1,4 @@
-use derive_more::*;
+use derive_more::{Debug, *};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use smart_default::SmartDefault;
@@ -14,13 +14,13 @@ pub enum Error {
     MalformedCoords,
 }
 
-#[derive(Clone, Copy, PartialEq, Deserialize, Serialize, Display, DebugCustom, SmartDefault)]
+#[derive(Clone, Copy, PartialEq, Deserialize, Serialize, Display, Debug, SmartDefault)]
 pub enum NumWithUnit {
-    #[display(fmt = "{}%", .0)]
-    #[debug(fmt = "{}%", .0)]
+    #[display("{}%", _0)]
+    #[debug("{}%", _0)]
     Percent(f32),
-    #[display(fmt = "{}px", .0)]
-    #[debug(fmt = "{}px", .0)]
+    #[display("{}px", _0)]
+    #[debug("{}px", _0)]
     #[default]
     Pixels(i32),
 }
@@ -58,7 +58,7 @@ impl FromStr for NumWithUnit {
 }
 
 #[derive(Clone, Copy, PartialEq, Deserialize, Serialize, Display, Default)]
-#[display(fmt = "{}*{}", x, y)]
+#[display("{}*{}", x, y)]
 pub struct Coords {
     pub x: NumWithUnit,
     pub y: NumWithUnit,
