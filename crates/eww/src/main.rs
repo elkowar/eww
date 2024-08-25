@@ -53,32 +53,31 @@ fn main() {
         return;
     }
 
-    #[allow(unused)]
     let detected_wayland = detect_wayland();
     #[allow(unused)]
     let use_wayland = opts.force_wayland || detected_wayland;
     #[cfg(all(feature = "wayland", feature = "x11"))]
     let result = if use_wayland {
         log::info!("Running on wayland. force_wayland={}, detected_wayland={}", opts.force_wayland, detected_wayland);
-        run(opts, eww_binary_name, display_backend::WaylandBackend)
+        run::<display_backend::WaylandBackend>(opts, eww_binary_name)
     } else {
         log::info!("Running on X11. force_wayland={}, detected_wayland={}", opts.force_wayland, detected_wayland);
-        run(opts, eww_binary_name, display_backend::X11Backend)
+        run::<display_backend::X11Backend>(opts, eww_binary_name)
     };
 
     #[cfg(all(not(feature = "wayland"), feature = "x11"))]
     let result = {
         if use_wayland {
-            log::warn!("Eww compiled without wayland support. falling back to X11, eventhough wayland was requested.");
+            log::warn!("Eww compiled without wayland support. Falling back to X11, eventhough wayland was requested.");
         }
-        run(opts, eww_binary_name, display_backend::X11Backend)
+        run::<display_backend::X11Backend>(opts, eww_binary_name)
     };
 
     #[cfg(all(feature = "wayland", not(feature = "x11")))]
-    let result = run(opts, eww_binary_name, display_backend::WaylandBackend);
+    let result = run::<display_backend::WaylandBackend>(opts, eww_binary_name);
 
     #[cfg(not(any(feature = "wayland", feature = "x11")))]
-    let result = run(opts, eww_binary_name, display_backend::NoBackend);
+    let result = run::<display_backend::NoBackend>(opts, eww_binary_name);
 
     if let Err(err) = result {
         error_handling_ctx::print_error(err);
@@ -92,7 +91,7 @@ fn detect_wayland() -> bool {
     session_type.contains("wayland") || (!wayland_display.is_empty() && !session_type.contains("x11"))
 }
 
-fn run<B: DisplayBackend>(opts: opts::Opt, eww_binary_name: String, display_backend: B) -> Result<()> {
+fn run<B: DisplayBackend>(opts: opts::Opt, eww_binary_name: String) -> Result<()> {
     let paths = opts
         .config_path
         .map(EwwPaths::from_config_dir)
@@ -132,7 +131,7 @@ fn run<B: DisplayBackend>(opts: opts::Opt, eww_binary_name: String, display_back
             if !opts.show_logs {
                 println!("Run `{} logs` to see any errors while editing your configuration.", eww_binary_name);
             }
-            let fork_result = server::initialize_server(paths.clone(), None, display_backend, !opts.no_daemonize)?;
+            let fork_result = server::initialize_server::<B>(paths.clone(), None, !opts.no_daemonize)?;
             opts.no_daemonize || fork_result == ForkResult::Parent
         }
 
@@ -164,7 +163,7 @@ fn run<B: DisplayBackend>(opts: opts::Opt, eww_binary_name: String, display_back
 
                     let (command, response_recv) = action.into_daemon_command();
                     // start the daemon and give it the command
-                    let fork_result = server::initialize_server(paths.clone(), Some(command), display_backend, true)?;
+                    let fork_result = server::initialize_server::<B>(paths.clone(), Some(command), true)?;
                     let is_parent = fork_result == ForkResult::Parent;
                     if let (Some(recv), true) = (response_recv, is_parent) {
                         listen_for_daemon_response(recv);
