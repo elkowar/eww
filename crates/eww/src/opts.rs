@@ -16,6 +16,7 @@ use crate::{
 /// Struct that gets generated from `RawOpt`.
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Opt {
+    pub force_wayland: bool,
     pub log_debug: bool,
     pub show_logs: bool,
     pub restart: bool,
@@ -27,10 +28,14 @@ pub struct Opt {
 #[derive(Parser, Debug, Serialize, Deserialize, PartialEq)]
 #[clap(author = "ElKowar")]
 #[clap(version, about)]
-struct RawOpt {
+pub(super) struct RawOpt {
     /// Write out debug logs. (To read the logs, run `eww logs`).
     #[arg(long = "debug", global = true)]
     log_debug: bool,
+
+    /// Force eww to use wayland. This is a no-op if eww was compiled without wayland support.
+    #[arg(long = "force-wayland", global = true)]
+    force_wayland: bool,
 
     /// override path to configuration directory (directory that contains eww.yuck and eww.(s)css)
     #[arg(short, long, global = true)]
@@ -54,6 +59,13 @@ struct RawOpt {
 
 #[derive(Subcommand, Debug, Serialize, Deserialize, PartialEq)]
 pub enum Action {
+    /// Generate a shell completion script
+    ShellCompletions {
+        #[arg(short, long)]
+        #[serde(with = "serde_shell")]
+        shell: clap_complete::shells::Shell,
+    },
+
     /// Start the Eww daemon.
     #[command(name = "daemon", alias = "d")]
     Daemon,
@@ -96,6 +108,10 @@ pub enum ActionWithServer {
         /// Name of the window you want to open.
         window_name: String,
 
+        // The id of the window instance
+        #[arg(long)]
+        id: Option<String>,
+
         /// The identifier of the monitor the window should open on
         #[arg(long)]
         screen: Option<MonitorIdentifier>,
@@ -115,13 +131,27 @@ pub enum ActionWithServer {
         /// If the window is already open, close it instead
         #[arg(long = "toggle")]
         should_toggle: bool,
+
+        /// Automatically close the window after a specified amount of time, i.e.: 1s
+        #[arg(long, value_parser=parse_duration)]
+        duration: Option<std::time::Duration>,
+
+        /// Define a variable for the window, i.e.: `--arg "var_name=value"`
+        #[arg(long = "arg", value_parser = parse_var_update_arg)]
+        args: Option<Vec<(VarName, DynVal)>>,
     },
 
     /// Open multiple windows at once.
     /// NOTE: This will in the future be part of eww open, and will then be removed.
     #[command(name = "open-many")]
     OpenMany {
-        windows: Vec<String>,
+        /// List the windows to open, optionally including their id, i.e.: `--window "window_name:window_id"`
+        #[arg(value_parser = parse_window_config_and_id)]
+        windows: Vec<(String, String)>,
+
+        /// Define a variable for the window, i.e.: `--arg "window_id:var_name=value"`
+        #[arg(long = "arg", value_parser = parse_window_id_args)]
+        args: Vec<(String, VarName, DynVal)>,
 
         /// If a window is already open, close it instead
         #[arg(long = "toggle")]
@@ -156,9 +186,13 @@ pub enum ActionWithServer {
     #[command(name = "get")]
     GetVar { name: String },
 
-    /// Print the names of all configured windows. Windows with a * in front of them are currently opened.
-    #[command(name = "windows")]
-    ShowWindows,
+    /// List the names of active windows
+    #[command(name = "list-windows")]
+    ListWindows,
+
+    /// Show active window IDs, formatted linewise `<window_id>: <window_name>`
+    #[command(name = "active-windows")]
+    ListActiveWindows,
 
     /// Print out the widget structure as seen by eww.
     ///
@@ -181,11 +215,30 @@ impl Opt {
 
 impl From<RawOpt> for Opt {
     fn from(other: RawOpt) -> Self {
-        let RawOpt { log_debug, config, show_logs, no_daemonize, restart, action } = other;
-        Opt { log_debug, show_logs, restart, config_path: config, action, no_daemonize }
+        let RawOpt { log_debug, force_wayland, config, show_logs, no_daemonize, restart, action } = other;
+        Opt { log_debug, force_wayland, show_logs, restart, config_path: config, action, no_daemonize }
     }
 }
 
+/// Parse a window-name:window-id pair of the form `name:id` or `name` into a tuple of `(name, id)`.
+fn parse_window_config_and_id(s: &str) -> Result<(String, String)> {
+    let (name, id) = s.split_once(':').unwrap_or((s, s));
+
+    Ok((name.to_string(), id.to_string()))
+}
+
+/// Parse a window-id specific variable value declaration with the syntax `window-id:variable_name="new_value"`
+/// into a tuple of `(id, variable_name, new_value)`.
+fn parse_window_id_args(s: &str) -> Result<(String, VarName, DynVal)> {
+    // Parse the = first so we know if an id has not been given
+    let (name, value) = parse_var_update_arg(s)?;
+
+    let (id, var_name) = name.0.split_once(':').unwrap_or(("", &name.0));
+
+    Ok((id.to_string(), var_name.into(), value))
+}
+
+/// Split the input string at `=`, parsing the value into a [`DynVal`].
 fn parse_var_update_arg(s: &str) -> Result<(VarName, DynVal)> {
     let (name, value) = s
         .split_once('=')
@@ -210,25 +263,29 @@ impl ActionWithServer {
                 let _ = send.send(DaemonResponse::Success("pong".to_owned()));
                 return (app::DaemonCommand::NoOp, Some(recv));
             }
-            ActionWithServer::OpenMany { windows, should_toggle } => {
-                return with_response_channel(|sender| app::DaemonCommand::OpenMany { windows, should_toggle, sender });
+            ActionWithServer::OpenMany { windows, args, should_toggle } => {
+                return with_response_channel(|sender| app::DaemonCommand::OpenMany { windows, args, should_toggle, sender });
             }
-            ActionWithServer::OpenWindow { window_name, pos, size, screen, anchor, should_toggle } => {
+            ActionWithServer::OpenWindow { window_name, id, pos, size, screen, anchor, should_toggle, duration, args } => {
                 return with_response_channel(|sender| app::DaemonCommand::OpenWindow {
                     window_name,
+                    instance_id: id,
                     pos,
                     size,
                     anchor,
                     screen,
                     should_toggle,
+                    duration,
                     sender,
+                    args,
                 })
             }
             ActionWithServer::CloseWindows { windows } => {
                 return with_response_channel(|sender| app::DaemonCommand::CloseWindows { windows, sender });
             }
             ActionWithServer::Reload => return with_response_channel(app::DaemonCommand::ReloadConfigAndCss),
-            ActionWithServer::ShowWindows => return with_response_channel(app::DaemonCommand::PrintWindows),
+            ActionWithServer::ListWindows => return with_response_channel(app::DaemonCommand::ListWindows),
+            ActionWithServer::ListActiveWindows => return with_response_channel(app::DaemonCommand::ListActiveWindows),
             ActionWithServer::ShowState { all } => {
                 return with_response_channel(|sender| app::DaemonCommand::PrintState { all, sender })
             }
@@ -248,4 +305,24 @@ where
 {
     let (sender, recv) = daemon_response::create_pair();
     (f(sender), Some(recv))
+}
+
+fn parse_duration(s: &str) -> Result<std::time::Duration, simplexpr::dynval::ConversionError> {
+    DynVal::from_string(s.to_owned()).as_duration()
+}
+
+mod serde_shell {
+    use std::str::FromStr as _;
+
+    use clap_complete::Shell;
+    use serde::{Deserialize as _, Deserializer, Serialize as _, Serializer};
+
+    pub fn serialize<S: Serializer>(shell: &Shell, serializer: S) -> Result<S::Ok, S::Error> {
+        shell.to_string().serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Shell, D::Error> {
+        let s = String::deserialize(deserializer)?;
+        Shell::from_str(&s).map_err(serde::de::Error::custom)
+    }
 }

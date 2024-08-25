@@ -1,76 +1,99 @@
 {
   inputs = {
-    flake-compat = { url = "github:edolstra/flake-compat"; flake = false; };
-    rust-overlay.url = "github:oxalica/rust-overlay";
+    flake-compat = {
+      url = "github:edolstra/flake-compat";
+      flake = false;
+    };
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
-    rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, rust-overlay, flake-compat, ... }:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      rust-overlay,
+      flake-compat,
+    }:
     let
-      pkgsFor = system: import nixpkgs {
-        inherit system;
+      overlays = [
+        (import rust-overlay)
+        self.overlays.default
+      ];
+      pkgsFor = system: import nixpkgs { inherit system overlays; };
 
-        overlays = [
-          self.overlays.default
-          rust-overlay.overlays.default
-        ];
-      };
-
-      targetSystems = [ "aarch64-linux" "x86_64-linux" ];
+      targetSystems = [
+        "aarch64-linux"
+        "x86_64-linux"
+      ];
       mkRustToolchain = pkgs: pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
     in
     {
-      overlays.default = final: prev:
-        let
-          rust = mkRustToolchain final;
+      overlays.default = final: prev: { inherit (self.packages.${prev.system}) eww eww-wayland; };
 
-          rustPlatform = prev.makeRustPlatform {
+      packages = nixpkgs.lib.genAttrs targetSystems (
+        system:
+        let
+          pkgs = pkgsFor system;
+          rust = mkRustToolchain pkgs;
+          rustPlatform = pkgs.makeRustPlatform {
             cargo = rust;
             rustc = rust;
           };
+          version = (builtins.fromTOML (builtins.readFile ./crates/eww/Cargo.toml)).package.version;
         in
-        {
-          eww = (prev.eww.override { inherit rustPlatform; }).overrideAttrs (old: {
-            version = self.rev or "dirty";
-            src = builtins.path { name = "eww"; path = prev.lib.cleanSource ./.; };
-            cargoDeps = rustPlatform.importCargoLock { lockFile = ./Cargo.lock; };
-            patches = [ ];
-          });
+        rec {
+          eww = rustPlatform.buildRustPackage {
+            version = "${version}-dirty";
+            pname = "eww";
 
-          eww-wayland = final.eww.override { withWayland = true; };
-        };
+            src = ./.;
+            cargoLock.lockFile = ./Cargo.lock;
+            cargoBuildFlags = [
+              "--bin"
+              "eww"
+            ];
 
-      packages = nixpkgs.lib.genAttrs targetSystems (system:
-        let
-          pkgs = pkgsFor system;
-        in
-        (self.overlays.default pkgs pkgs) // {
-          default = self.packages.${system}.eww;
+            nativeBuildInputs = with pkgs; [
+              pkg-config
+              wrapGAppsHook
+            ];
+            buildInputs = with pkgs; [
+              gtk3
+              librsvg
+              gtk-layer-shell
+              libdbusmenu-gtk3
+            ];
+          };
+
+          eww-wayland = nixpkgs.lib.warn "`eww-wayland` is deprecated due to eww building with both X11 and wayland support by default. Use `eww` instead." eww;
+          default = eww;
         }
       );
 
-      devShells = nixpkgs.lib.genAttrs targetSystems (system:
+      devShells = nixpkgs.lib.genAttrs targetSystems (
+        system:
         let
           pkgs = pkgsFor system;
           rust = mkRustToolchain pkgs;
         in
         {
           default = pkgs.mkShell {
+            inputsFrom = [ self.packages.${system}.eww ];
             packages = with pkgs; [
-              rust
-              rust-analyzer-unwrapped
-              gcc
-              gtk3
-              gtk-layer-shell
-              pkg-config
               deno
               mdbook
+              zbus-xmlgen
             ];
 
             RUST_SRC_PATH = "${rust}/lib/rustlib/src/rust/library";
           };
         }
       );
+
+      formatter = nixpkgs.lib.genAttrs targetSystems (system: (pkgsFor system).nixfmt-rfc-style);
     };
 }

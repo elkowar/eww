@@ -1,5 +1,7 @@
 use cached::proc_macro::cached;
+use chrono::{Local, LocalResult, TimeZone};
 use itertools::Itertools;
+use jaq_interpret::FilterT;
 
 use crate::{
     ast::{AccessType, BinOp, SimplExpr, UnaryOp},
@@ -8,12 +10,13 @@ use crate::{
 use eww_shared_util::{Span, Spanned, VarName};
 use std::{
     collections::HashMap,
-    convert::{TryFrom, TryInto},
+    convert::{Infallible, TryFrom, TryInto},
+    str::FromStr,
     sync::Arc,
 };
 
 #[derive(Debug, thiserror::Error)]
-pub struct JaqParseError(pub Option<jaq_core::parse::Error>);
+pub struct JaqParseError(pub Option<jaq_parse::Error>);
 impl std::fmt::Display for JaqParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.0 {
@@ -53,7 +56,10 @@ pub enum EvalError {
     JaqError(String),
 
     #[error(transparent)]
-    JaqParseError(JaqParseError),
+    JaqParseError(Box<JaqParseError>),
+
+    #[error("Error parsing date: {0}")]
+    ChronoError(String),
 
     #[error("{1}")]
     Spanned(Span, Box<EvalError>),
@@ -93,14 +99,14 @@ impl SimplExpr {
     pub fn try_map_var_refs<E, F: Fn(Span, VarName) -> Result<SimplExpr, E> + Copy>(self, f: F) -> Result<Self, E> {
         use SimplExpr::*;
         Ok(match self {
-            BinOp(span, box a, op, box b) => BinOp(span, box a.try_map_var_refs(f)?, op, box b.try_map_var_refs(f)?),
+            BinOp(span, a, op, b) => BinOp(span, Box::new(a.try_map_var_refs(f)?), op, Box::new(b.try_map_var_refs(f)?)),
             Concat(span, elems) => Concat(span, elems.into_iter().map(|x| x.try_map_var_refs(f)).collect::<Result<_, _>>()?),
-            UnaryOp(span, op, box a) => UnaryOp(span, op, box a.try_map_var_refs(f)?),
-            IfElse(span, box a, box b, box c) => {
-                IfElse(span, box a.try_map_var_refs(f)?, box b.try_map_var_refs(f)?, box c.try_map_var_refs(f)?)
+            UnaryOp(span, op, a) => UnaryOp(span, op, Box::new(a.try_map_var_refs(f)?)),
+            IfElse(span, a, b, c) => {
+                IfElse(span, Box::new(a.try_map_var_refs(f)?), Box::new(b.try_map_var_refs(f)?), Box::new(c.try_map_var_refs(f)?))
             }
-            JsonAccess(span, safe, box a, box b) => {
-                JsonAccess(span, safe, box a.try_map_var_refs(f)?, box b.try_map_var_refs(f)?)
+            JsonAccess(span, safe, a, b) => {
+                JsonAccess(span, safe, Box::new(a.try_map_var_refs(f)?), Box::new(b.try_map_var_refs(f)?))
             }
             FunctionCall(span, name, args) => {
                 FunctionCall(span, name, args.into_iter().map(|x| x.try_map_var_refs(f)).collect::<Result<_, _>>()?)
@@ -121,7 +127,7 @@ impl SimplExpr {
     }
 
     pub fn map_var_refs(self, f: impl Fn(Span, VarName) -> SimplExpr) -> Self {
-        self.try_map_var_refs(|span, var| Ok::<_, !>(f(span, var))).into_ok()
+        self.try_map_var_refs(|span, var| Ok::<_, Infallible>(f(span, var))).unwrap()
     }
 
     /// resolve partially.
@@ -149,13 +155,13 @@ impl SimplExpr {
             Literal(..) => Vec::new(),
             VarRef(span, name) => vec![(*span, name)],
             Concat(_, elems) => elems.iter().flat_map(|x| x.var_refs_with_span().into_iter()).collect(),
-            BinOp(_, box a, _, box b) | JsonAccess(_, _, box a, box b) => {
+            BinOp(_, a, _, b) | JsonAccess(_, _, a, b) => {
                 let mut refs = a.var_refs_with_span();
                 refs.extend(b.var_refs_with_span().iter());
                 refs
             }
-            UnaryOp(_, _, box x) => x.var_refs_with_span(),
-            IfElse(_, box a, box b, box c) => {
+            UnaryOp(_, _, x) => x.var_refs_with_span(),
+            IfElse(_, a, b, c) => {
                 let mut refs = a.var_refs_with_span();
                 refs.extend(b.var_refs_with_span().iter());
                 refs.extend(c.var_refs_with_span().iter());
@@ -307,11 +313,76 @@ impl SimplExpr {
 
 fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError> {
     match name {
+        "get_env" => match args.as_slice() {
+            [var_name] => {
+                let var = std::env::var(var_name.as_string()?).unwrap_or_default();
+                Ok(DynVal::from(var))
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
         "round" => match args.as_slice() {
             [num, digits] => {
                 let num = num.as_f64()?;
                 let digits = digits.as_i32()?;
                 Ok(DynVal::from(format!("{:.1$}", num, digits as usize)))
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
+        "min" => match args.as_slice() {
+            [a, b] => {
+                let a = a.as_f64()?;
+                let b = b.as_f64()?;
+                Ok(DynVal::from(f64::min(a, b)))
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
+        "max" => match args.as_slice() {
+            [a, b] => {
+                let a = a.as_f64()?;
+                let b = b.as_f64()?;
+                Ok(DynVal::from(f64::max(a, b)))
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
+        "sin" => match args.as_slice() {
+            [num] => {
+                let num = num.as_f64()?;
+                Ok(DynVal::from(num.sin()))
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
+        "cos" => match args.as_slice() {
+            [num] => {
+                let num = num.as_f64()?;
+                Ok(DynVal::from(num.cos()))
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
+        "tan" => match args.as_slice() {
+            [num] => {
+                let num = num.as_f64()?;
+                Ok(DynVal::from(num.tan()))
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
+        "cot" => match args.as_slice() {
+            [num] => {
+                let num = num.as_f64()?;
+                Ok(DynVal::from(1.0 / num.tan()))
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
+        "degtorad" => match args.as_slice() {
+            [num] => {
+                let num = num.as_f64()?;
+                Ok(DynVal::from(num.to_radians()))
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
+        "radtodeg" => match args.as_slice() {
+            [num] => {
+                let num = num.as_f64()?;
+                Ok(DynVal::from(num.to_degrees()))
             }
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
@@ -329,6 +400,18 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
                 let pattern = regex::Regex::new(&pattern.as_string()?)?;
                 let replacement = replacement.as_string()?;
                 Ok(DynVal::from(pattern.replace_all(&string, replacement.replace('$', "$$").replace('\\', "$")).into_owned()))
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
+        "substring" => match args.as_slice() {
+            [string, start, len] => {
+                let result: String = string
+                    .as_string()?
+                    .chars()
+                    .skip(start.as_i32()?.max(0) as usize)
+                    .take(len.as_i32()?.max(0) as usize)
+                    .collect();
+                Ok(DynVal::from(result))
             }
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
@@ -376,36 +459,53 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
                 .map_err(|e| EvalError::Spanned(code.span(), Box::new(e))),
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
+        "formattime" => match args.as_slice() {
+            [timestamp, format, timezone] => {
+                let timezone = match chrono_tz::Tz::from_str(&timezone.as_string()?) {
+                    Ok(x) => x,
+                    Err(_) => return Err(EvalError::ChronoError("Invalid timezone".to_string())),
+                };
+
+                Ok(DynVal::from(match timezone.timestamp_opt(timestamp.as_i64()?, 0) {
+                    LocalResult::Single(t) | LocalResult::Ambiguous(t, _) => t.format(&format.as_string()?).to_string(),
+                    LocalResult::None => return Err(EvalError::ChronoError("Invalid UNIX timestamp".to_string())),
+                }))
+            }
+            [timestamp, format] => Ok(DynVal::from(match Local.timestamp_opt(timestamp.as_i64()?, 0) {
+                LocalResult::Single(t) | LocalResult::Ambiguous(t, _) => t.format(&format.as_string()?).to_string(),
+                LocalResult::None => return Err(EvalError::ChronoError("Invalid UNIX timestamp".to_string())),
+            })),
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
 
         _ => Err(EvalError::UnknownFunction(name.to_string())),
     }
 }
 
 #[cached(size = 10, result = true, sync_writes = true)]
-fn prepare_jaq_filter(code: String) -> Result<Arc<jaq_core::Filter>, EvalError> {
-    let (filter, mut errors) = jaq_core::parse::parse(&code, jaq_core::parse::main());
+fn prepare_jaq_filter(code: String) -> Result<Arc<jaq_interpret::Filter>, EvalError> {
+    let (filter, mut errors) = jaq_parse::parse(&code, jaq_parse::main());
     let filter = match filter {
         Some(x) => x,
-        None => return Err(EvalError::JaqParseError(JaqParseError(errors.pop()))),
+        None => return Err(EvalError::JaqParseError(Box::new(JaqParseError(errors.pop())))),
     };
-    let mut defs = jaq_core::Definitions::core();
-    for def in jaq_std::std() {
-        defs.insert(def, &mut errors);
-    }
+    let mut defs = jaq_interpret::ParseCtx::new(Vec::new());
+    defs.insert_natives(jaq_core::core());
+    defs.insert_defs(jaq_std::std());
 
-    let filter = defs.finish(filter, Vec::new(), &mut errors);
+    let filter = defs.compile(filter);
 
     if let Some(error) = errors.pop() {
-        return Err(EvalError::JaqParseError(JaqParseError(Some(error))));
+        return Err(EvalError::JaqParseError(Box::new(JaqParseError(Some(error)))));
     }
     Ok(Arc::new(filter))
 }
 
 fn run_jaq_function(json: serde_json::Value, code: String) -> Result<DynVal, EvalError> {
-    let filter = prepare_jaq_filter(code)?;
-    let inputs = jaq_core::RcIter::new(std::iter::empty());
+    let filter: Arc<jaq_interpret::Filter> = prepare_jaq_filter(code)?;
+    let inputs = jaq_interpret::RcIter::new(std::iter::empty());
     let out = filter
-        .run(jaq_core::Ctx::new([], &inputs), jaq_core::Val::from(json))
+        .run((jaq_interpret::Ctx::new([], &inputs), jaq_interpret::Val::from(json)))
         .map(|x| x.map(Into::<serde_json::Value>::into))
         .map(|x| x.map(|x| DynVal::from_string(serde_json::to_string(&x).unwrap())))
         .collect::<Result<_, _>>()
@@ -468,5 +568,6 @@ mod tests {
         lazy_evaluation_and(r#"false && "null".test"#) => Ok(DynVal::from(false)),
         lazy_evaluation_or(r#"true || "null".test"#) => Ok(DynVal::from(true)),
         lazy_evaluation_elvis(r#""test"?: "null".test"#) => Ok(DynVal::from("test")),
+        jq_basic_index(r#"jq("[7,8,9]", ".[0]")"#) => Ok(DynVal::from(7)),
     }
 }

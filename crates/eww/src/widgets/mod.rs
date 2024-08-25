@@ -4,14 +4,16 @@ pub mod build_widget;
 pub mod circular_progressbar;
 pub mod def_widget_macro;
 pub mod graph;
+mod systray;
 pub mod transform;
 pub mod widget_definitions;
+pub mod window;
 
 /// Run a command that was provided as an attribute.
 /// This command may use placeholders which will be replaced by the values of the arguments given.
 /// This can either be the placeholder `{}`, which will be replaced by the first argument,
 /// Or a placeholder like `{0}`, `{1}`, etc, which will refer to the respective argument.
-pub(self) fn run_command<T>(timeout: std::time::Duration, cmd: &str, args: &[T])
+fn run_command<T>(timeout: std::time::Duration, cmd: &str, args: &[T])
 where
     T: 'static + std::fmt::Display + Send + Sync + Clone,
 {
@@ -20,7 +22,7 @@ where
     std::thread::Builder::new()
         .name("command-execution-thread".to_string())
         .spawn(move || {
-            log::debug!("Running command from widget: {}", cmd);
+            log::debug!("Running command from widget [timeout: {}ms]: {}", timeout.as_millis(), cmd);
             let child = Command::new("/bin/sh").arg("-c").arg(&cmd).spawn();
             match child {
                 Ok(mut child) => match child.wait_timeout(timeout) {

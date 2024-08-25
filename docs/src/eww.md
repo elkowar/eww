@@ -13,11 +13,10 @@ Configured in yuck and themed using CSS, it is easy to customize and provides al
 ### Prerequisites
 
 * rustc
-* cargo (nightly toolchain)
+* cargo
 
 Rather than with your system package manager,
-I recommend installing it using  [rustup](https://rustup.rs/),
-as this makes it easy to use the nightly toolchain necessary to build eww.
+I **strongly** recommend installing it using  [rustup](https://rustup.rs/).
 
 Additionally, eww requires some dynamic libraries to be available on your system.
 The exact names of the packages that provide these may differ depending on your distribution.
@@ -30,6 +29,7 @@ The following list of package names should work for arch linux:
 - gtk-layer-shell (only on Wayland)
 - pango (libpango)
 - gdk-pixbuf2 (libgdk_pixbuf-2)
+- libdbusmenu-gtk3
 - cairo (libcairo, libcairo-gobject)
 - glib2 (libgio, libglib-2, libgobject-2)
 - gcc-libs (libgcc)
@@ -53,7 +53,7 @@ cd eww
 ```
 Then build:
 ```bash
-cargo build --release
+cargo build --release --no-default-features --features x11
 ```
 **NOTE:**
 When you're on Wayland, build with:

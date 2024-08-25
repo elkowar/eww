@@ -2,16 +2,17 @@
 use super::{build_widget::BuilderArgs, circular_progressbar::*, run_command, transform::*};
 use crate::{
     def_widget, enum_parse, error_handling_ctx,
-    util::{list_difference, unindent},
-    widgets::build_widget::build_gtk_widget,
+    util::{self, list_difference},
+    widgets::{build_widget::build_gtk_widget, systray},
 };
 use anyhow::{anyhow, Context, Result};
 use codespan_reporting::diagnostic::Severity;
 use eww_shared_util::Spanned;
-use gdk::{ModifierType, NotifyType};
 
+use gdk::{ModifierType, NotifyType};
 use glib::translate::FromGlib;
 use gtk::{self, glib, prelude::*, DestDefaults, TargetEntry, TargetList};
+use gtk::{gdk, pango};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 
@@ -61,6 +62,7 @@ pub const BUILTIN_WIDGET_NAMES: &[&str] = &[
     WIDGET_NAME_BOX,
     WIDGET_NAME_CENTERBOX,
     WIDGET_NAME_EVENTBOX,
+    WIDGET_NAME_TOOLTIP,
     WIDGET_NAME_CIRCULAR_PROGRESS,
     WIDGET_NAME_GRAPH,
     WIDGET_NAME_TRANSFORM,
@@ -80,14 +82,17 @@ pub const BUILTIN_WIDGET_NAMES: &[&str] = &[
     WIDGET_NAME_REVEALER,
     WIDGET_NAME_SCROLL,
     WIDGET_NAME_OVERLAY,
+    WIDGET_NAME_STACK,
+    WIDGET_NAME_SYSTRAY,
 ];
 
-//// widget definitions
+/// widget definitions
 pub(super) fn widget_use_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::Widget> {
     let gtk_widget = match bargs.widget_use.name.as_str() {
         WIDGET_NAME_BOX => build_gtk_box(bargs)?.upcast(),
         WIDGET_NAME_CENTERBOX => build_center_box(bargs)?.upcast(),
         WIDGET_NAME_EVENTBOX => build_gtk_event_box(bargs)?.upcast(),
+        WIDGET_NAME_TOOLTIP => build_tooltip(bargs)?.upcast(),
         WIDGET_NAME_CIRCULAR_PROGRESS => build_circular_progress_bar(bargs)?.upcast(),
         WIDGET_NAME_GRAPH => build_graph(bargs)?.upcast(),
         WIDGET_NAME_TRANSFORM => build_transform(bargs)?.upcast(),
@@ -107,6 +112,8 @@ pub(super) fn widget_use_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::W
         WIDGET_NAME_REVEALER => build_gtk_revealer(bargs)?.upcast(),
         WIDGET_NAME_SCROLL => build_gtk_scrolledwindow(bargs)?.upcast(),
         WIDGET_NAME_OVERLAY => build_gtk_overlay(bargs)?.upcast(),
+        WIDGET_NAME_STACK => build_gtk_stack(bargs)?.upcast(),
+        WIDGET_NAME_SYSTRAY => build_systray(bargs)?.upcast(),
         _ => {
             return Err(DiagError(gen_diagnostic! {
                 msg = format!("referenced unknown widget `{}`", bargs.widget_use.name),
@@ -126,8 +133,7 @@ static DEPRECATED_ATTRS: Lazy<HashSet<&str>> =
 /// @widget widget
 /// @desc these properties apply to _all_ widgets, and can be used anywhere!
 pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Widget) -> Result<()> {
-    let deprecated: HashSet<_> = DEPRECATED_ATTRS.to_owned();
-    let contained_deprecated: Vec<_> = bargs.unhandled_attrs.drain_filter(|a, _| deprecated.contains(&a.0 as &str)).collect();
+    let contained_deprecated: Vec<_> = DEPRECATED_ATTRS.iter().filter_map(|x| bargs.unhandled_attrs.remove_entry(*x)).collect();
     if !contained_deprecated.is_empty() {
         let diag = error_handling_ctx::stringify_diagnostic(gen_diagnostic! {
             kind =  Severity::Error,
@@ -142,8 +148,9 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
     }
 
     let css_provider = gtk::CssProvider::new();
+    let css_provider2 = css_provider.clone();
 
-    let visible_result: Result<_> = try {
+    let visible_result: Result<_> = (|| {
         let visible_expr = bargs.widget_use.attrs.attrs.get("visible").map(|x| x.value.as_simplexpr()).transpose()?;
         if let Some(visible_expr) = visible_expr {
             let visible = bargs.scope_graph.evaluate_simplexpr_in_scope(bargs.calling_scope, &visible_expr)?.as_bool()?;
@@ -155,7 +162,8 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
                 }
             });
         }
-    };
+        Ok(())
+    })();
     if let Err(err) = visible_result {
         error_handling_ctx::print_error(err);
     }
@@ -201,11 +209,17 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
         prop(visible: as_bool = true) {
             if visible { gtk_widget.show(); } else { gtk_widget.hide(); }
         },
-        // @prop style - inline css style applied to the widget
+        // @prop style - inline scss style applied to the widget
         prop(style: as_string) {
             gtk_widget.reset_style();
-            css_provider.load_from_data(format!("* {{ {} }}", style).as_bytes())?;
+            css_provider.load_from_data(grass::from_string(format!("* {{ {} }}", style), &grass::Options::default())?.as_bytes())?;
             gtk_widget.style_context().add_provider(&css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION)
+        },
+        // @prop css - scss code applied to the widget, i.e.: `button {color: red;}`
+        prop(css: as_string) {
+            gtk_widget.reset_style();
+            css_provider2.load_from_data(grass::from_string(css, &grass::Options::default())?.as_bytes())?;
+            gtk_widget.style_context().add_provider(&css_provider2, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION)
         },
     });
     Ok(())
@@ -219,11 +233,11 @@ pub(super) fn resolve_range_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Ran
     let is_being_dragged = Rc::new(RefCell::new(false));
     gtk_widget.connect_button_press_event(glib::clone!(@strong is_being_dragged => move |_, _| {
         *is_being_dragged.borrow_mut() = true;
-        gtk::Inhibit(false)
+        glib::Propagation::Proceed
     }));
     gtk_widget.connect_button_release_event(glib::clone!(@strong is_being_dragged => move |_, _| {
         *is_being_dragged.borrow_mut() = false;
-        gtk::Inhibit(false)
+        glib::Propagation::Proceed
     }));
 
     // We keep track of the last value that has been set via gtk_widget.set_value (by a change in the value property).
@@ -244,7 +258,7 @@ pub(super) fn resolve_range_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Ran
         prop(min: as_f64) { gtk_widget.adjustment().set_lower(min)},
         // @prop max - the maximum value
         prop(max: as_f64) { gtk_widget.adjustment().set_upper(max)},
-        // @prop timeout - timeout of the command
+        // @prop timeout - timeout of the command. Default: "200ms"
         // @prop onchange - command executed once the value is changes. The placeholder `{}`, used in the command will be replaced by the new value.
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_string) {
             gtk_widget.set_sensitive(true);
@@ -285,7 +299,7 @@ fn build_gtk_combo_box_text(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText
                 gtk_widget.append_text(&i);
             }
         },
-        // @prop timeout - timeout of the command
+        // @prop timeout - timeout of the command: Default: "200ms"
         // @prop onchange - runs the code when a item was selected, replacing {} with the item as a string
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_string) {
             connect_signal_handler!(gtk_widget, gtk_widget.connect_changed(move |gtk_widget| {
@@ -301,12 +315,46 @@ const WIDGET_NAME_EXPANDER: &str = "expander";
 /// @desc A widget that can expand and collapse, showing/hiding it's children.
 fn build_gtk_expander(bargs: &mut BuilderArgs) -> Result<gtk::Expander> {
     let gtk_widget = gtk::Expander::new(None);
+
+    match bargs.widget_use.children.len().cmp(&1) {
+        Ordering::Less => {
+            return Err(DiagError(gen_diagnostic!("expander must contain exactly one element", bargs.widget_use.span)).into());
+        }
+        Ordering::Greater => {
+            let (_, additional_children) = bargs.widget_use.children.split_at(1);
+            // we know that there is more than one child, so unwrapping on first and last here is fine.
+            let first_span = additional_children.first().unwrap().span();
+            let last_span = additional_children.last().unwrap().span();
+            return Err(DiagError(gen_diagnostic!(
+                "expander must contain exactly one element, but got more",
+                first_span.to(last_span)
+            ))
+            .into());
+        }
+        Ordering::Equal => {
+            let mut children = bargs.widget_use.children.iter().map(|child| {
+                build_gtk_widget(
+                    bargs.scope_graph,
+                    bargs.widget_defs.clone(),
+                    bargs.calling_scope,
+                    child.clone(),
+                    bargs.custom_widget_invocation.clone(),
+                )
+            });
+            // we have exactly one child, we can unwrap
+            let child = children.next().unwrap()?;
+            gtk_widget.add(&child);
+            child.show();
+        }
+    }
+
     def_widget!(bargs, _g, gtk_widget, {
         // @prop name - name of the expander
-        prop(name: as_string) {gtk_widget.set_label(Some(&name));},
+        prop(name: as_string) { gtk_widget.set_label(Some(&name)); },
         // @prop expanded - sets if the tree is expanded
         prop(expanded: as_bool) { gtk_widget.set_expanded(expanded); }
     });
+
     Ok(gtk_widget)
 }
 
@@ -317,10 +365,10 @@ fn build_gtk_revealer(bargs: &mut BuilderArgs) -> Result<gtk::Revealer> {
     let gtk_widget = gtk::Revealer::new();
     def_widget!(bargs, _g, gtk_widget, {
         // @prop transition - the name of the transition. Possible values: $transition
-        prop(transition: as_string = "crossfade") { gtk_widget.set_transition_type(parse_transition(&transition)?); },
+        prop(transition: as_string = "crossfade") { gtk_widget.set_transition_type(parse_revealer_transition(&transition)?); },
         // @prop reveal - sets if the child is revealed or not
         prop(reveal: as_bool) { gtk_widget.set_reveal_child(reveal); },
-        // @prop duration - the duration of the reveal transition
+        // @prop duration - the duration of the reveal transition. Default: "500ms"
         prop(duration: as_duration = Duration::from_millis(500)) { gtk_widget.set_transition_duration(duration.as_millis() as u32); },
     });
     Ok(gtk_widget)
@@ -332,10 +380,12 @@ const WIDGET_NAME_CHECKBOX: &str = "checkbox";
 fn build_gtk_checkbox(bargs: &mut BuilderArgs) -> Result<gtk::CheckButton> {
     let gtk_widget = gtk::CheckButton::new();
     def_widget!(bargs, _g, gtk_widget, {
-        // @prop timeout - timeout of the command
+        // @prop checked - whether the checkbox is toggled or not when created
+        // @prop timeout - timeout of the command. Default: "200ms"
         // @prop onchecked - action (command) to be executed when checked by the user
         // @prop onunchecked - similar to onchecked but when the widget is unchecked
-        prop(timeout: as_duration = Duration::from_millis(200), onchecked: as_string = "", onunchecked: as_string = "") {
+        prop(checked: as_bool = false, timeout: as_duration = Duration::from_millis(200), onchecked: as_string = "", onunchecked: as_string = "") {
+            gtk_widget.set_active(checked);
             connect_signal_handler!(gtk_widget, gtk_widget.connect_toggled(move |gtk_widget| {
                 run_command(timeout, if gtk_widget.is_active() { &onchecked } else { &onunchecked }, &[] as &[&str]);
             }));
@@ -349,13 +399,13 @@ const WIDGET_NAME_COLOR_BUTTON: &str = "color-button";
 /// @widget color-button
 /// @desc A button opening a color chooser window
 fn build_gtk_color_button(bargs: &mut BuilderArgs) -> Result<gtk::ColorButton> {
-    let gtk_widget = gtk::builders::ColorButtonBuilder::new().build();
+    let gtk_widget = gtk::ColorButton::builder().build();
     def_widget!(bargs, _g, gtk_widget, {
         // @prop use-alpha - bool to whether or not use alpha
         prop(use_alpha: as_bool) {gtk_widget.set_use_alpha(use_alpha);},
 
         // @prop onchange - runs the code when the color was selected
-        // @prop timeout - timeout of the command
+        // @prop timeout - timeout of the command. Default: "200ms"
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_string) {
             connect_signal_handler!(gtk_widget, gtk_widget.connect_color_set(move |gtk_widget| {
                 run_command(timeout, &onchange, &[gtk_widget.rgba()]);
@@ -376,7 +426,7 @@ fn build_gtk_color_chooser(bargs: &mut BuilderArgs) -> Result<gtk::ColorChooserW
         prop(use_alpha: as_bool) {gtk_widget.set_use_alpha(use_alpha);},
 
         // @prop onchange - runs the code when the color was selected
-        // @prop timeout - timeout of the command
+        // @prop timeout - timeout of the command. Default: "200ms"
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_string) {
             connect_signal_handler!(gtk_widget, gtk_widget.connect_color_activated(move |_a, color| {
                 run_command(timeout, &onchange, &[*color]);
@@ -446,14 +496,14 @@ fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
         },
 
         // @prop onchange - Command to run when the text changes. The placeholder `{}` will be replaced by the value
-        // @prop timeout - timeout of the command
+        // @prop timeout - timeout of the command. Default: "200ms"
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_string) {
             connect_signal_handler!(gtk_widget, gtk_widget.connect_changed(move |gtk_widget| {
                 run_command(timeout, &onchange, &[gtk_widget.text().to_string()]);
             }));
         },
         // @prop onaccept - Command to run when the user hits return in the input field. The placeholder `{}` will be replaced by the value
-        // @prop timeout - timeout of the command
+        // @prop timeout - timeout of the command. Default: "200ms"
         prop(timeout: as_duration = Duration::from_millis(200), onaccept: as_string) {
             connect_signal_handler!(gtk_widget, gtk_widget.connect_activate(move |gtk_widget| {
                 run_command(timeout, &onaccept, &[gtk_widget.text().to_string()]);
@@ -475,7 +525,7 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
 
     def_widget!(bargs, _g, gtk_widget, {
         prop(
-            // @prop timeout - timeout of the command
+            // @prop timeout - timeout of the command. Default: "200ms"
             timeout: as_duration = Duration::from_millis(200),
             // @prop onclick - a command that get's run when the button is clicked
             onclick: as_string = "",
@@ -492,12 +542,24 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
                     3 => run_command(timeout, &onrightclick, &[] as &[&str]),
                     _ => {},
                 }
-                gtk::Inhibit(false)
+                glib::Propagation::Proceed
             }));
         }
 
     });
     Ok(gtk_widget)
+}
+
+/// @var icon-size - "menu", "small-toolbar", "toolbar", "large-toolbar", "button", "dnd", "dialog"
+fn parse_icon_size(o: &str) -> Result<gtk::IconSize> {
+    enum_parse! { "icon-size", o,
+        "menu" => gtk::IconSize::Menu,
+        "small-toolbar" | "toolbar" => gtk::IconSize::SmallToolbar,
+        "large-toolbar" => gtk::IconSize::LargeToolbar,
+        "button" => gtk::IconSize::Button,
+        "dnd" => gtk::IconSize::Dnd,
+        "dialog" => gtk::IconSize::Dialog,
+    }
 }
 
 const WIDGET_NAME_IMAGE: &str = "image";
@@ -509,15 +571,43 @@ fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
         // @prop path - path to the image file
         // @prop image-width - width of the image
         // @prop image-height - height of the image
-        prop(path: as_string, image_width: as_i32 = -1, image_height: as_i32 = -1) {
+        // @prop preserve-aspect-ratio - whether to keep the aspect ratio when resizing an image. Default: true, false doesn't work for all image types
+        // @prop fill-svg - sets the color of svg images
+        prop(path: as_string, image_width: as_i32 = -1, image_height: as_i32 = -1, preserve_aspect_ratio: as_bool = true, fill_svg: as_string = "") {
+            if !path.ends_with(".svg") && !fill_svg.is_empty() {
+                log::warn!("Fill attribute ignored, file is not an svg image");
+            }
+
             if path.ends_with(".gif") {
                 let pixbuf_animation = gtk::gdk_pixbuf::PixbufAnimation::from_file(std::path::PathBuf::from(path))?;
                 gtk_widget.set_from_animation(&pixbuf_animation);
             } else {
-                let pixbuf = gtk::gdk_pixbuf::Pixbuf::from_file_at_size(std::path::PathBuf::from(path), image_width, image_height)?;
+                let pixbuf;
+                // populate the pixel buffer
+                if path.ends_with(".svg") && !fill_svg.is_empty() {
+                    let svg_data = std::fs::read_to_string(std::path::PathBuf::from(path.clone()))?;
+                    // The fastest way to add/change fill color
+                    let svg_data = if svg_data.contains("fill=") {
+                        let reg = regex::Regex::new(r#"fill="[^"]*""#)?;
+                        reg.replace(&svg_data, &format!("fill=\"{}\"", fill_svg))
+                    } else {
+                        let reg = regex::Regex::new(r"<svg")?;
+                        reg.replace(&svg_data, &format!("<svg fill=\"{}\"", fill_svg))
+                    };
+                    let stream = gtk::gio::MemoryInputStream::from_bytes(&gtk::glib::Bytes::from(svg_data.as_bytes()));
+                    pixbuf = gtk::gdk_pixbuf::Pixbuf::from_stream_at_scale(&stream, image_width, image_height, preserve_aspect_ratio, None::<&gtk::gio::Cancellable>)?;
+                    stream.close(None::<&gtk::gio::Cancellable>)?;
+                } else {
+                    pixbuf = gtk::gdk_pixbuf::Pixbuf::from_file_at_scale(std::path::PathBuf::from(path), image_width, image_height, preserve_aspect_ratio)?;
+                }
                 gtk_widget.set_from_pixbuf(Some(&pixbuf));
             }
-        }
+        },
+        // @prop icon - name of a theme icon
+        // @prop icon-size - size of the theme icon
+        prop(icon: as_string, icon_size: as_string = "button") {
+            gtk_widget.set_from_icon_name(Some(&icon), parse_icon_size(&icon_size)?);
+        },
     });
     Ok(gtk_widget)
 }
@@ -570,6 +660,50 @@ fn build_gtk_overlay(bargs: &mut BuilderArgs) -> Result<gtk::Overlay> {
                 gtk_widget.set_overlay_pass_through(&child, true);
                 child.show();
             }
+            Ok(gtk_widget)
+        }
+    }
+}
+
+const WIDGET_NAME_TOOLTIP: &str = "tooltip";
+/// @widget tooltip
+/// @desc A widget that have a custom tooltip. The first child is the content of the tooltip, the second one is the content of the widget.
+fn build_tooltip(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
+    let gtk_widget = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    gtk_widget.set_has_tooltip(true);
+
+    match bargs.widget_use.children.len().cmp(&2) {
+        Ordering::Less => {
+            Err(DiagError(gen_diagnostic!("tooltip must contain exactly 2 elements", bargs.widget_use.span)).into())
+        }
+        Ordering::Greater => {
+            let (_, additional_children) = bargs.widget_use.children.split_at(2);
+            // we know that there is more than two children, so unwrapping on first and last here is fine.
+            let first_span = additional_children.first().unwrap().span();
+            let last_span = additional_children.last().unwrap().span();
+            Err(DiagError(gen_diagnostic!("tooltip must contain exactly 2 elements, but got more", first_span.to(last_span)))
+                .into())
+        }
+        Ordering::Equal => {
+            let mut children = bargs.widget_use.children.iter().map(|child| {
+                build_gtk_widget(
+                    bargs.scope_graph,
+                    bargs.widget_defs.clone(),
+                    bargs.calling_scope,
+                    child.clone(),
+                    bargs.custom_widget_invocation.clone(),
+                )
+            });
+            // we know that we have exactly two children here, so we can unwrap here.
+            let (tooltip, content) = children.next_tuple().unwrap();
+            let (tooltip_content, content) = (tooltip?, content?);
+
+            gtk_widget.add(&content);
+            gtk_widget.connect_query_tooltip(move |_this, _x, _y, _keyboard_mode, tooltip| {
+                tooltip.set_custom(Some(&tooltip_content));
+                true
+            });
+
             Ok(gtk_widget)
         }
     }
@@ -653,29 +787,29 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
         if evt.detail() != NotifyType::Inferior {
             gtk_widget.clone().set_state_flags(gtk::StateFlags::PRELIGHT, false);
         }
-        gtk::Inhibit(false)
+        glib::Propagation::Proceed
     });
 
     gtk_widget.connect_leave_notify_event(|gtk_widget, evt| {
         if evt.detail() != NotifyType::Inferior {
             gtk_widget.clone().unset_state_flags(gtk::StateFlags::PRELIGHT);
         }
-        gtk::Inhibit(false)
+        glib::Propagation::Proceed
     });
 
     // Support :active selector
     gtk_widget.connect_button_press_event(|gtk_widget, _| {
         gtk_widget.clone().set_state_flags(gtk::StateFlags::ACTIVE, false);
-        gtk::Inhibit(false)
+        glib::Propagation::Proceed
     });
 
     gtk_widget.connect_button_release_event(|gtk_widget, _| {
         gtk_widget.clone().unset_state_flags(gtk::StateFlags::ACTIVE);
-        gtk::Inhibit(false)
+        glib::Propagation::Proceed
     });
 
     def_widget!(bargs, _g, gtk_widget, {
-        // @prop timeout - timeout of the command
+        // @prop timeout - timeout of the command. Default: "200ms"
         // @prop onscroll - event to execute when the user scrolls with the mouse over the widget. The placeholder `{}` used in the command will be replaced with either `up` or `down`.
         prop(timeout: as_duration = Duration::from_millis(200), onscroll: as_string) {
             gtk_widget.add_events(gdk::EventMask::SCROLL_MASK);
@@ -685,10 +819,10 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
                 if delta != 0f64 { // Ignore the first event https://bugzilla.gnome.org/show_bug.cgi?id=675959
                     run_command(timeout, &onscroll, &[if delta < 0f64 { "up" } else { "down" }]);
                 }
-                gtk::Inhibit(false)
+                glib::Propagation::Proceed
             }));
         },
-        // @prop timeout - timeout of the command
+        // @prop timeout - timeout of the command. Default: "200ms"
         // @prop onhover - event to execute when the user hovers over the widget
         prop(timeout: as_duration = Duration::from_millis(200), onhover: as_string) {
             gtk_widget.add_events(gdk::EventMask::ENTER_NOTIFY_MASK);
@@ -696,10 +830,10 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
                 if evt.detail() != NotifyType::Inferior {
                     run_command(timeout, &onhover, &[evt.position().0, evt.position().1]);
                 }
-                gtk::Inhibit(false)
+                glib::Propagation::Proceed
             }));
         },
-        // @prop timeout - timeout of the command
+        // @prop timeout - timeout of the command. Default: "200ms"
         // @prop onhoverlost - event to execute when the user losts hovers over the widget
         prop(timeout: as_duration = Duration::from_millis(200), onhoverlost: as_string) {
             gtk_widget.add_events(gdk::EventMask::LEAVE_NOTIFY_MASK);
@@ -707,7 +841,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
                 if evt.detail() != NotifyType::Inferior {
                     run_command(timeout, &onhoverlost, &[evt.position().0, evt.position().1]);
                 }
-                gtk::Inhibit(false)
+                glib::Propagation::Proceed
             }));
         },
         // @prop cursor - Cursor to show while hovering (see [gtk3-cursors](https://docs.gtk.org/gdk3/ctor.Cursor.new_from_name.html) for possible names)
@@ -723,7 +857,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
                         gdk_window.set_cursor(gdk::Cursor::from_name(&display, &cursor).as_ref());
                     }
                 }
-                gtk::Inhibit(false)
+                glib::Propagation::Proceed
             }));
             connect_signal_handler!(gtk_widget, gtk_widget.connect_leave_notify_event(move |widget, _evt| {
                 if _evt.detail() != NotifyType::Inferior {
@@ -732,10 +866,10 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
                         gdk_window.set_cursor(None);
                     }
                 }
-                gtk::Inhibit(false)
+                glib::Propagation::Proceed
             }));
         },
-        // @prop timeout - timeout of the command
+        // @prop timeout - timeout of the command. Default: "200ms"
         // @prop ondropped - Command to execute when something is dropped on top of this element. The placeholder `{}` used in the command will be replaced with the uri to the dropped thing.
         prop(timeout: as_duration = Duration::from_millis(200), ondropped: as_string) {
             gtk_widget.drag_dest_set(
@@ -785,7 +919,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
         // TODO the fact that we have the same code here as for button is ugly, as we want to keep consistency
 
         prop(
-            // @prop timeout - timeout of the command
+            // @prop timeout - timeout of the command. Default: "200ms"
             timeout: as_duration = Duration::from_millis(200),
             // @prop onclick - a command that get's run when the button is clicked
             onclick: as_string = "",
@@ -802,7 +936,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
                     3 => run_command(timeout, &onrightclick, &[] as &[&str]),
                     _ => {},
                 }
-                gtk::Inhibit(false)
+                glib::Propagation::Proceed
             }));
         }
     });
@@ -818,30 +952,91 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
 
     def_widget!(bargs, _g, gtk_widget, {
         // @prop text - the text to display
+        // @prop truncate - whether to truncate text (or pango markup). If `show-truncated` is `false`, or if `limit-width` has a value, this property has no effect and truncation is enabled.
         // @prop limit-width - maximum count of characters to display
-        // @prop show_truncated - show whether the text was truncated
-        prop(text: as_string, limit_width: as_i32 = i32::MAX, show_truncated: as_bool = true) {
-            let truncated = text.chars().count() > limit_width as usize;
-            let mut text = text.chars().take(limit_width as usize).collect::<String>();
+        // @prop truncate-left - whether to truncate on the left side
+        // @prop show-truncated - show whether the text was truncated. Disabling it will also disable dynamic truncation (the labels won't be truncated more than `limit-width`, even if there is not enough space for them), and will completly disable truncation on pango markup.
+        // @prop unindent - whether to remove leading spaces
+        prop(text: as_string, truncate: as_bool = false, limit_width: as_i32 = i32::MAX, truncate_left: as_bool = false, show_truncated: as_bool = true, unindent: as_bool = true) {
+            let text = if show_truncated {
+                // gtk does weird thing if we set max_width_chars to i32::MAX
+                if limit_width == i32::MAX {
+                    gtk_widget.set_max_width_chars(-1);
+                } else {
+                    gtk_widget.set_max_width_chars(limit_width);
+                }
+                if truncate || limit_width != i32::MAX {
+                    if truncate_left {
+                        gtk_widget.set_ellipsize(pango::EllipsizeMode::Start);
+                    } else {
+                        gtk_widget.set_ellipsize(pango::EllipsizeMode::End);
+                    }
+                } else {
+                    gtk_widget.set_ellipsize(pango::EllipsizeMode::None);
+                }
 
-            if show_truncated && truncated {
-                text.push_str("...");
-            }
+                text
+            } else {
+                gtk_widget.set_ellipsize(pango::EllipsizeMode::None);
+
+                let limit_width = limit_width as usize;
+                let char_count = text.chars().count();
+                if char_count > limit_width {
+                    if truncate_left {
+                        text.chars().skip(char_count - limit_width).collect()
+                    } else {
+                        text.chars().take(limit_width).collect()
+                    }
+                } else {
+                    text
+                }
+            };
 
             let text = unescape::unescape(&text).context(format!("Failed to unescape label text {}", &text))?;
-            let text = unindent(&text);
+            let text = if unindent { util::unindent(&text) } else { text };
             gtk_widget.set_text(&text);
         },
         // @prop markup - Pango markup to display
-        prop(markup: as_string) { gtk_widget.set_markup(&markup); },
+        // @prop truncate - whether to truncate text (or pango markup). If `show-truncated` is `false`, or if `limit-width` has a value, this property has no effect and truncation is enabled.
+        // @prop limit-width - maximum count of characters to display
+        // @prop truncate-left - whether to truncate on the left side
+        // @prop show-truncated - show whether the text was truncatedd. Disabling it will also disable dynamic truncation (the labels won't be truncated more than `limit-width`, even if there is not enough space for them), and will completly disable truncation on pango markup.
+        prop(markup: as_string, truncate: as_bool = false, limit_width: as_i32 = i32::MAX, truncate_left: as_bool = false, show_truncated: as_bool = true) {
+            if (truncate || limit_width != i32::MAX) && show_truncated {
+                // gtk does weird thing if we set max_width_chars to i32::MAX
+                if limit_width == i32::MAX {
+                    gtk_widget.set_max_width_chars(-1);
+                } else {
+                    gtk_widget.set_max_width_chars(limit_width);
+                }
+
+                if truncate_left {
+                    gtk_widget.set_ellipsize(pango::EllipsizeMode::Start);
+                } else {
+                    gtk_widget.set_ellipsize(pango::EllipsizeMode::End);
+                }
+            } else {
+                gtk_widget.set_ellipsize(pango::EllipsizeMode::None);
+            }
+
+            gtk_widget.set_markup(&markup);
+        },
         // @prop wrap - Wrap the text. This mainly makes sense if you set the width of this widget.
         prop(wrap: as_bool) { gtk_widget.set_line_wrap(wrap) },
         // @prop angle - the angle of rotation for the label (between 0 - 360)
         prop(angle: as_f64 = 0) { gtk_widget.set_angle(angle) },
+        // @prop gravity - the gravity of the string (south, east, west, north, auto). Text will want to face the direction of gravity.
+        prop(gravity: as_string = "south") {
+            gtk_widget.pango_context().set_base_gravity(parse_gravity(&gravity)?);
+        },
         // @prop xalign - the alignment of the label text on the x axis (between 0 - 1, 0 -> left, 0.5 -> center, 1 -> right)
         prop(xalign: as_f64 = 0.5) { gtk_widget.set_xalign(xalign as f32) },
         // @prop yalign - the alignment of the label text on the y axis (between 0 - 1, 0 -> bottom, 0.5 -> center, 1 -> top)
-        prop(yalign: as_f64 = 0.5) { gtk_widget.set_yalign(yalign as f32) }
+        prop(yalign: as_f64 = 0.5) { gtk_widget.set_yalign(yalign as f32) },
+        // @prop justify - the justification of the label text (left, right, center, fill)
+        prop(justify: as_string = "left") {
+            gtk_widget.set_justify(parse_justification(&justify)?);
+        },
     });
     Ok(gtk_widget)
 }
@@ -867,7 +1062,7 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
         prop(content: as_string) {
             gtk_widget.children().iter().for_each(|w| gtk_widget.remove(w));
             if !content.is_empty() {
-                let content_widget_use: DiagResult<_> = try {
+                let content_widget_use: DiagResult<_> = (||{
                     let ast = {
                         let mut yuck_files = error_handling_ctx::FILE_DATABASE.write().unwrap();
                         let (span, asts) = yuck_files.load_yuck_str("<literal-content>".to_string(), content)?;
@@ -877,8 +1072,8 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
                         yuck::parser::require_single_toplevel(span, asts)?
                     };
 
-                    yuck::config::widget_use::WidgetUse::from_ast(ast)?
-                };
+                    yuck::config::widget_use::WidgetUse::from_ast(ast)
+                })();
                 let content_widget_use = content_widget_use?;
 
                 // TODO a literal should create a new scope, that I'm not even sure should inherit from root
@@ -930,7 +1125,7 @@ fn build_gtk_calendar(bargs: &mut BuilderArgs) -> Result<gtk::Calendar> {
         // @prop show-week-numbers - show week numbers
         prop(show_week_numbers: as_bool) { gtk_widget.set_show_week_numbers(show_week_numbers) },
         // @prop onclick - command to run when the user selects a date. The `{0}` placeholder will be replaced by the selected day, `{1}` will be replaced by the month, and `{2}` by the year.
-        // @prop timeout - timeout of the command
+        // @prop timeout - timeout of the command. Default: "200ms"
         prop(timeout: as_duration = Duration::from_millis(200), onclick: as_string) {
             connect_signal_handler!(gtk_widget, gtk_widget.connect_day_selected(move |w| {
                 run_command(
@@ -941,6 +1136,44 @@ fn build_gtk_calendar(bargs: &mut BuilderArgs) -> Result<gtk::Calendar> {
             }));
         }
 
+    });
+
+    Ok(gtk_widget)
+}
+
+const WIDGET_NAME_STACK: &str = "stack";
+/// @widget stack
+/// @desc A widget that displays one of its children at a time
+fn build_gtk_stack(bargs: &mut BuilderArgs) -> Result<gtk::Stack> {
+    let gtk_widget = gtk::Stack::new();
+
+    if bargs.widget_use.children.is_empty() {
+        return Err(DiagError(gen_diagnostic!("stack must contain at least one element", bargs.widget_use.span)).into());
+    }
+
+    let children = bargs.widget_use.children.iter().map(|child| {
+        build_gtk_widget(
+            bargs.scope_graph,
+            bargs.widget_defs.clone(),
+            bargs.calling_scope,
+            child.clone(),
+            bargs.custom_widget_invocation.clone(),
+        )
+    });
+
+    for (i, child) in children.enumerate() {
+        let child = child?;
+        gtk_widget.add_named(&child, &i.to_string());
+        child.show();
+    }
+
+    def_widget!(bargs, _g, gtk_widget, {
+        // @prop selected - index of child which should be shown
+        prop(selected: as_i32) { gtk_widget.set_visible_child_name(&selected.to_string()); },
+        // @prop transition - the name of the transition. Possible values: $transition
+        prop(transition: as_string = "crossfade") { gtk_widget.set_transition_type(parse_stack_transition(&transition)?); },
+        // @prop same-size - sets whether all children should be the same size
+        prop(same_size: as_bool = false) { gtk_widget.set_homogeneous(same_size); }
     });
 
     Ok(gtk_widget)
@@ -959,9 +1192,9 @@ fn build_transform(bargs: &mut BuilderArgs) -> Result<Transform> {
         prop(translate_x: as_string) { w.set_property("translate-x", translate_x); },
         // @prop translate-y - the amount to translate in the y direction (px or %)
         prop(translate_y: as_string) { w.set_property("translate-y", translate_y); },
-        // @prop scale_x - the amount to scale in the x direction (px or %)
+        // @prop scale-x - the amount to scale in the x direction (px or %)
         prop(scale_x: as_string) { w.set_property("scale-x", scale_x); },
-        // @prop scale_y - the amount to scale in the y direction (px or %)
+        // @prop scale-y - the amount to scale in the y direction (px or %)
         prop(scale_y: as_string) { w.set_property("scale-y", scale_y); },
     });
     Ok(w)
@@ -974,13 +1207,13 @@ fn build_circular_progress_bar(bargs: &mut BuilderArgs) -> Result<CircProg> {
     let w = CircProg::new();
     def_widget!(bargs, _g, w, {
         // @prop value - the value, between 0 - 100
-        prop(value: as_f64) { w.set_property("value", value); },
-        // @prop start-at - the angle that the circle should start at
-        prop(start_at: as_f64) { w.set_property("start-at", start_at); },
+        prop(value: as_f64) { w.set_property("value", value.clamp(0.0, 100.0)); },
+        // @prop start-at - the percentage that the circle should start at
+        prop(start_at: as_f64) { w.set_property("start-at", start_at.clamp(0.0, 100.0)); },
         // @prop thickness - the thickness of the circle
         prop(thickness: as_f64) { w.set_property("thickness", thickness); },
         // @prop clockwise - wether the progress bar spins clockwise or counter clockwise
-        prop(clockwise: as_bool) { w.set_property("clockwise", &clockwise); },
+        prop(clockwise: as_bool) { w.set_property("clockwise", clockwise); },
     });
     Ok(w)
 }
@@ -992,11 +1225,11 @@ fn build_graph(bargs: &mut BuilderArgs) -> Result<super::graph::Graph> {
     let w = super::graph::Graph::new();
     def_widget!(bargs, _g, w, {
         // @prop value - the value, between 0 - 100
-        prop(value: as_f64) { w.set_property("value", &value); },
+        prop(value: as_f64) { w.set_property("value", value); },
         // @prop thickness - the thickness of the line
-        prop(thickness: as_f64) { w.set_property("thickness", &thickness); },
+        prop(thickness: as_f64) { w.set_property("thickness", thickness); },
         // @prop time-range - the range of time to show
-        prop(time_range: as_duration) { w.set_property("time-range", &(time_range.as_millis() as u64)); },
+        prop(time_range: as_duration) { w.set_property("time-range", time_range.as_millis() as u64); },
         // @prop min - the minimum value to show (defaults to 0 if value_max is provided)
         // @prop max - the maximum value to show
         prop(min: as_f64 = 0, max: as_f64 = 100) {
@@ -1005,16 +1238,57 @@ fn build_graph(bargs: &mut BuilderArgs) -> Result<super::graph::Graph> {
                     format!("Graph's min ({min}) should never be higher than max ({max})")
                 )).into());
             }
-            w.set_property("min", &min);
-            w.set_property("max", &max);
+            w.set_property("min", min);
+            w.set_property("max", max);
         },
         // @prop dynamic - whether the y range should dynamically change based on value
-        prop(dynamic: as_bool) { w.set_property("dynamic", &dynamic); },
+        prop(dynamic: as_bool) { w.set_property("dynamic", dynamic); },
         // @prop line-style - changes the look of the edges in the graph. Values: "miter" (default), "round",
         // "bevel"
-        prop(line_style: as_string) { w.set_property("line-style", &line_style); },
+        prop(line_style: as_string) { w.set_property("line-style", line_style); },
+        // @prop flip-x - whether the x axis should go from high to low
+        prop(flip_x: as_bool) { w.set_property("flip-x", flip_x); },
+        // @prop flip-y - whether the y axis should go from high to low
+        prop(flip_y: as_bool) { w.set_property("flip-y", flip_y); },
+        // @prop vertical - if set to true, the x and y axes will be exchanged
+        prop(vertical: as_bool) { w.set_property("vertical", vertical); },
     });
     Ok(w)
+}
+
+const WIDGET_NAME_SYSTRAY: &str = "systray";
+/// @widget systray
+/// @desc Tray for system notifier icons
+fn build_systray(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
+    let gtk_widget = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    let props = Rc::new(systray::Props::new());
+    let props_clone = props.clone(); // copies for def_widget
+    let props_clone2 = props.clone(); // copies for def_widget
+
+    def_widget!(bargs, _g, gtk_widget, {
+        // @prop spacing - spacing between elements
+        prop(spacing: as_i32 = 0) { gtk_widget.set_spacing(spacing) },
+        // @prop orientation - orientation of the box. possible values: $orientation
+        prop(orientation: as_string) { gtk_widget.set_orientation(parse_orientation(&orientation)?) },
+        // @prop space-evenly - space the widgets evenly.
+        prop(space_evenly: as_bool = true) { gtk_widget.set_homogeneous(space_evenly) },
+        // @prop icon-size - size of icons in the tray
+        prop(icon_size: as_i32) {
+            if icon_size <= 0 {
+                log::warn!("Icon size is not a positive number");
+            } else {
+                props.icon_size(icon_size);
+            }
+        },
+        // @prop prepend-new - prepend new icons.
+        prop(prepend_new: as_bool = true) {
+            *props_clone2.prepend_new.borrow_mut() = prepend_new;
+        },
+    });
+
+    systray::spawn_systray(&gtk_widget, &props_clone);
+
+    Ok(gtk_widget)
 }
 
 /// @var orientation - "vertical", "v", "horizontal", "h"
@@ -1039,7 +1313,7 @@ fn parse_dragtype(o: &str) -> Result<DragEntryType> {
 }
 
 /// @var transition - "slideright", "slideleft", "slideup", "slidedown", "crossfade", "none"
-fn parse_transition(t: &str) -> Result<gtk::RevealerTransitionType> {
+fn parse_revealer_transition(t: &str) -> Result<gtk::RevealerTransitionType> {
     enum_parse! { "transition", t,
         "slideright" => gtk::RevealerTransitionType::SlideRight,
         "slideleft" => gtk::RevealerTransitionType::SlideLeft,
@@ -1047,6 +1321,18 @@ fn parse_transition(t: &str) -> Result<gtk::RevealerTransitionType> {
         "slidedown" => gtk::RevealerTransitionType::SlideDown,
         "fade" | "crossfade" => gtk::RevealerTransitionType::Crossfade,
         "none" => gtk::RevealerTransitionType::None,
+    }
+}
+
+/// @var transition - "slideright", "slideleft", "slideup", "slidedown", "crossfade", "none"
+fn parse_stack_transition(t: &str) -> Result<gtk::StackTransitionType> {
+    enum_parse! { "transition", t,
+        "slideright" => gtk::StackTransitionType::SlideRight,
+        "slideleft" => gtk::StackTransitionType::SlideLeft,
+        "slideup" => gtk::StackTransitionType::SlideUp,
+        "slidedown" => gtk::StackTransitionType::SlideDown,
+        "fade" | "crossfade" => gtk::StackTransitionType::Crossfade,
+        "none" => gtk::StackTransitionType::None,
     }
 }
 
@@ -1058,6 +1344,27 @@ fn parse_align(o: &str) -> Result<gtk::Align> {
         "center" => gtk::Align::Center,
         "start" => gtk::Align::Start,
         "end" => gtk::Align::End,
+    }
+}
+
+/// @var justification - "left", "right", "center", "fill"
+fn parse_justification(j: &str) -> Result<gtk::Justification> {
+    enum_parse! { "justification", j,
+        "left" => gtk::Justification::Left,
+        "right" => gtk::Justification::Right,
+        "center" => gtk::Justification::Center,
+        "fill" => gtk::Justification::Fill,
+    }
+}
+
+/// @var gravity - "south", "east", "west", "north", "auto"
+fn parse_gravity(g: &str) -> Result<gtk::pango::Gravity> {
+    enum_parse! { "gravity", g,
+        "south" => gtk::pango::Gravity::South,
+        "east" => gtk::pango::Gravity::East,
+        "west" => gtk::pango::Gravity::West,
+        "north" => gtk::pango::Gravity::North,
+        "auto" => gtk::pango::Gravity::Auto,
     }
 }
 

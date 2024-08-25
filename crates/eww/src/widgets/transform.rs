@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use glib::{object_subclass, wrapper};
+use gtk::glib::{self, object_subclass, wrapper, Properties};
 use gtk::{prelude::*, subclass::prelude::*};
 use std::{cell::RefCell, str::FromStr};
 use yuck::value::NumWithUnit;
@@ -11,12 +11,24 @@ wrapper! {
     @extends gtk::Bin, gtk::Container, gtk::Widget;
 }
 
+#[derive(Properties)]
+#[properties(wrapper_type = Transform)]
 pub struct TransformPriv {
+    #[property(get, set, nick = "Rotate", blurb = "The Rotation", minimum = f64::MIN, maximum = f64::MAX, default = 0f64)]
     rotate: RefCell<f64>,
+
+    #[property(get, set, nick = "Translate x", blurb = "The X Translation", default = None)]
     translate_x: RefCell<Option<String>>,
+
+    #[property(get, set, nick = "Translate y", blurb = "The Y Translation", default = None)]
     translate_y: RefCell<Option<String>>,
+
+    #[property(get, set, nick = "Scale x", blurb = "The amount to scale in x", default = None)]
     scale_x: RefCell<Option<String>>,
+
+    #[property(get, set, nick = "Scale y", blurb = "The amount to scale in y", default = None)]
     scale_y: RefCell<Option<String>>,
+
     content: RefCell<Option<gtk::Widget>>,
 }
 
@@ -36,63 +48,37 @@ impl Default for TransformPriv {
 
 impl ObjectImpl for TransformPriv {
     fn properties() -> &'static [glib::ParamSpec] {
-        use once_cell::sync::Lazy;
-        static PROPERTIES: Lazy<Vec<glib::ParamSpec>> = Lazy::new(|| {
-            vec![
-                glib::ParamSpecDouble::new(
-                    "rotate",
-                    "Rotate",
-                    "The Rotation",
-                    f64::MIN,
-                    f64::MAX,
-                    0f64,
-                    glib::ParamFlags::READWRITE,
-                ),
-                glib::ParamSpecString::new("translate-x", "Translate x", "The X Translation", None, glib::ParamFlags::READWRITE),
-                glib::ParamSpecString::new("translate-y", "Translate y", "The Y Translation", None, glib::ParamFlags::READWRITE),
-                glib::ParamSpecString::new("scale-x", "Scale x", "The amount to scale in x", None, glib::ParamFlags::READWRITE),
-                glib::ParamSpecString::new("scale-y", "Scale y", "The amount to scale in y", None, glib::ParamFlags::READWRITE),
-            ]
-        });
-
-        PROPERTIES.as_ref()
+        Self::derived_properties()
     }
 
-    fn set_property(&self, obj: &Self::Type, _id: usize, value: &glib::Value, pspec: &glib::ParamSpec) {
+    fn set_property(&self, _id: usize, value: &glib::Value, pspec: &glib::ParamSpec) {
         match pspec.name() {
             "rotate" => {
                 self.rotate.replace(value.get().unwrap());
-                obj.queue_draw(); // Queue a draw call with the updated value
+                self.obj().queue_draw(); // Queue a draw call with the updated value
             }
             "translate-x" => {
                 self.translate_x.replace(value.get().unwrap());
-                obj.queue_draw(); // Queue a draw call with the updated value
+                self.obj().queue_draw(); // Queue a draw call with the updated value
             }
             "translate-y" => {
                 self.translate_y.replace(value.get().unwrap());
-                obj.queue_draw(); // Queue a draw call with the updated value
+                self.obj().queue_draw(); // Queue a draw call with the updated value
             }
             "scale-x" => {
                 self.scale_x.replace(value.get().unwrap());
-                obj.queue_draw(); // Queue a draw call with the updated value
+                self.obj().queue_draw(); // Queue a draw call with the updated value
             }
             "scale-y" => {
                 self.scale_y.replace(value.get().unwrap());
-                obj.queue_draw(); // Queue a draw call with the updated value
+                self.obj().queue_draw(); // Queue a draw call with the updated value
             }
             x => panic!("Tried to set inexistant property of Transform: {}", x,),
         }
     }
 
-    fn property(&self, _obj: &Self::Type, _id: usize, pspec: &glib::ParamSpec) -> glib::Value {
-        match pspec.name() {
-            "rotate" => self.rotate.borrow().to_value(),
-            "translate_x" => self.translate_x.borrow().to_value(),
-            "translate_y" => self.translate_y.borrow().to_value(),
-            "scale_x" => self.scale_x.borrow().to_value(),
-            "scale_y" => self.scale_y.borrow().to_value(),
-            x => panic!("Tried to access inexistant property of Transform: {}", x,),
-        }
+    fn property(&self, id: usize, pspec: &glib::ParamSpec) -> glib::Value {
+        self.derived_property(id, pspec)
     }
 }
 
@@ -116,29 +102,29 @@ impl Default for Transform {
 
 impl Transform {
     pub fn new() -> Self {
-        glib::Object::new::<Self>(&[]).expect("Failed to create Transform Widget")
+        glib::Object::new::<Self>()
     }
 }
 
 impl ContainerImpl for TransformPriv {
-    fn add(&self, container: &Self::Type, widget: &gtk::Widget) {
+    fn add(&self, widget: &gtk::Widget) {
         if let Some(content) = &*self.content.borrow() {
             // TODO: Handle this error when populating children widgets instead
             error_handling_ctx::print_error(anyhow!("Error, trying to add multiple children to a circular-progress widget"));
-            self.parent_remove(container, content);
+            self.parent_remove(content);
         }
-        self.parent_add(container, widget);
+        self.parent_add(widget);
         self.content.replace(Some(widget.clone()));
     }
 }
 
 impl BinImpl for TransformPriv {}
 impl WidgetImpl for TransformPriv {
-    fn draw(&self, widget: &Self::Type, cr: &cairo::Context) -> Inhibit {
-        let res: Result<()> = try {
+    fn draw(&self, cr: &gtk::cairo::Context) -> glib::Propagation {
+        let res: Result<()> = (|| {
             let rotate = *self.rotate.borrow();
-            let total_width = widget.allocated_width() as f64;
-            let total_height = widget.allocated_height() as f64;
+            let total_width = self.obj().allocated_width() as f64;
+            let total_height = self.obj().allocated_height() as f64;
 
             cr.save()?;
 
@@ -168,17 +154,18 @@ impl WidgetImpl for TransformPriv {
 
             // Children widget
             if let Some(child) = &*self.content.borrow() {
-                widget.propagate_draw(child, cr);
+                self.obj().propagate_draw(child, cr);
             }
 
             cr.restore()?;
-        };
+            Ok(())
+        })();
 
         if let Err(error) = res {
             error_handling_ctx::print_error(error)
         };
 
-        gtk::Inhibit(false)
+        glib::Propagation::Proceed
     }
 }
 

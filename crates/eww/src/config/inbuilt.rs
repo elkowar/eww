@@ -1,4 +1,4 @@
-use std::{collections::HashMap, time::Duration};
+use std::collections::HashMap;
 
 use simplexpr::{dynval::DynVal, SimplExpr};
 use yuck::config::{
@@ -10,7 +10,7 @@ use crate::{config::system_stats::*, paths::EwwPaths};
 use eww_shared_util::VarName;
 
 macro_rules! define_builtin_vars {
-    ($interval:expr, $($name:literal => $fun:expr),*$(,)?) => {
+    ($($name:literal [$interval:literal] => $fun:expr),*$(,)?) => {
         pub static INBUILT_VAR_NAMES: &[&'static str] = &[$($name),*];
         pub fn get_inbuilt_vars() -> HashMap<VarName, ScriptVarDefinition> {
             maplit::hashmap! {
@@ -20,7 +20,7 @@ macro_rules! define_builtin_vars {
                     run_while_expr: SimplExpr::Literal(DynVal::from(true)),
                     command: VarSource::Function($fun),
                     initial_value: None,
-                    interval: $interval,
+                    interval: std::time::Duration::from_secs($interval),
                     name_span: eww_shared_util::span::Span::DUMMY,
                 })
                 ),*
@@ -29,22 +29,22 @@ macro_rules! define_builtin_vars {
     }
 }
 
-define_builtin_vars! { Duration::new(2, 0),
+define_builtin_vars! {
     // @desc EWW_TEMPS - Heat of the components in Celcius
     // @prop { <name>: temperature }
-    "EWW_TEMPS" => || Ok(DynVal::from(get_temperatures())),
+    "EWW_TEMPS" [2] => || Ok(DynVal::from(get_temperatures())),
 
-    // @desc EWW_RAM - Information on ram and swap usage in kB.
+    // @desc EWW_RAM - Information on ram and swap usage in bytes.
     // @prop { total_mem, free_mem, total_swap, free_swap, available_mem, used_mem, used_mem_perc }
-    "EWW_RAM" => || Ok(DynVal::from(get_ram())),
+    "EWW_RAM" [2] => || Ok(DynVal::from(get_ram())),
 
     // @desc EWW_DISK - Information on on all mounted partitions (Might report inaccurately on some filesystems, like btrfs and zfs) Example: `{EWW_DISK["/"]}`
     // @prop { <mount_point>: { name, total, free, used, used_perc } }
-    "EWW_DISK" => || Ok(DynVal::from(get_disks())),
+    "EWW_DISK" [2] => || Ok(DynVal::from(get_disks())),
 
     // @desc EWW_BATTERY - Battery capacity in procent of the main battery
     // @prop { <name>: { capacity, status } }
-    "EWW_BATTERY" => || Ok(DynVal::from(
+    "EWW_BATTERY" [2] => || Ok(DynVal::from(
         match get_battery_capacity() {
             Err(e) => {
                 log::error!("Couldn't get the battery capacity: {:?}", e);
@@ -56,11 +56,14 @@ define_builtin_vars! { Duration::new(2, 0),
 
     // @desc EWW_CPU - Information on the CPU cores: frequency and usage (No MacOS support)
     // @prop { cores: [{ core, freq, usage }], avg }
-    "EWW_CPU" => || Ok(DynVal::from(get_cpus())),
+    "EWW_CPU" [2] => || Ok(DynVal::from(get_cpus())) ,
 
     // @desc EWW_NET - Bytes up/down on all interfaces
     // @prop { <name>: { up, down } }
-    "EWW_NET" => || Ok(DynVal::from(net())),
+    "EWW_NET" [2] => || Ok(DynVal::from(net())) ,
+
+    // @desc EWW_TIME - the current UNIX timestamp
+    "EWW_TIME" [1] => || Ok(DynVal::from(get_time())) ,
 }
 
 macro_rules! define_magic_constants {

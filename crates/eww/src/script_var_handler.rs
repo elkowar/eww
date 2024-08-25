@@ -33,7 +33,7 @@ pub fn init(evt_send: UnboundedSender<DaemonCommand>) -> ScriptVarHandlerHandle 
                 .build()
                 .expect("Failed to initialize tokio runtime for script var handlers");
             rt.block_on(async {
-                let _: Result<_> = try {
+                let _: Result<_> = async {
                     let mut handler = ScriptVarHandler {
                         listen_handler: ListenVarHandler::new(evt_send.clone())?,
                         poll_handler: PollVarHandler::new(evt_send)?,
@@ -53,7 +53,9 @@ pub fn init(evt_send: UnboundedSender<DaemonCommand>) -> ScriptVarHandlerHandle 
                         },
                         else => break,
                     };
-                };
+                    Ok(())
+                }
+                .await;
             })
         })
         .expect("Failed to start script-var-handler thread");
@@ -158,9 +160,10 @@ impl PollVarHandler {
         self.poll_handles.insert(var.name.clone(), cancellation_token.clone());
         let evt_send = self.evt_send.clone();
         tokio::spawn(async move {
-            let result: Result<_> = try {
+            let result: Result<_> = (|| {
                 evt_send.send(app::DaemonCommand::UpdateVars(vec![(var.name.clone(), run_poll_once(&var)?)]))?;
-            };
+                Ok(())
+            })();
             if let Err(err) = result {
                 crate::error_handling_ctx::print_error(err);
             }
@@ -168,9 +171,10 @@ impl PollVarHandler {
             crate::loop_select_exiting! {
                 _ = cancellation_token.cancelled() => break,
                 _ = tokio::time::sleep(var.interval) => {
-                    let result: Result<_> = try {
+                    let result: Result<_> = (|| {
                         evt_send.send(app::DaemonCommand::UpdateVars(vec![(var.name.clone(), run_poll_once(&var)?)]))?;
-                    };
+                        Ok(())
+                    })();
 
                     if let Err(err) = result {
                         crate::error_handling_ctx::print_error(err);
@@ -233,17 +237,18 @@ impl ListenVarHandler {
 
         let evt_send = self.evt_send.clone();
         tokio::spawn(async move {
-            crate::try_logging_errors!(format!("Executing listen var-command {}", &var.command) =>  {
+            let result: Result<_> = async {
                 let mut handle = unsafe {
                     tokio::process::Command::new("sh")
-                    .args(&["-c", &var.command])
-                    .stdout(std::process::Stdio::piped())
-                    .stderr(std::process::Stdio::piped())
-                    .stdin(std::process::Stdio::null())
-                    .pre_exec(|| {
-                        let _ = setpgid(Pid::from_raw(0), Pid::from_raw(0));
-                        Ok(())
-                    }).spawn()?
+                        .args(["-c", &var.command])
+                        .stdout(std::process::Stdio::piped())
+                        .stderr(std::process::Stdio::piped())
+                        .stdin(std::process::Stdio::null())
+                        .pre_exec(|| {
+                            let _ = setpgid(Pid::from_raw(0), Pid::from_raw(0));
+                            Ok(())
+                        })
+                        .spawn()?
                 };
                 let mut stdout_lines = BufReader::new(handle.stdout.take().unwrap()).lines();
                 let mut stderr_lines = BufReader::new(handle.stderr.take().unwrap()).lines();
@@ -268,7 +273,19 @@ impl ListenVarHandler {
                 if let Some(completion_notify) = completion_notify {
                     completion_notify.completed().await;
                 }
-            });
+                Ok(())
+            }
+            .await;
+
+            if let Err(err) = result {
+                log::error!(
+                    "[{}:{}] Error while executing listen-var command {}: {:?}",
+                    ::std::file!(),
+                    ::std::line!(),
+                    &var.command,
+                    err
+                );
+            }
         });
     }
 

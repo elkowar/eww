@@ -41,6 +41,8 @@ Config(
   window_definitions: {
     "some-window": WindowDefinition(
       name: "some-window",
+      expected_args: [],
+      args_span: Span(18446744073709551615, 18446744073709551615, 18446744073709551615),
       geometry: Some(WindowGeometry(
         anchor_point: AnchorPoint(
           x: START,
@@ -56,7 +58,7 @@ Config(
         ),
       )),
       stacking: Foreground,
-      monitor_number: Some(12),
+      monitor_number: Some(Literal(DynVal("12", Span(278, 280, 0)))),
       widget: Basic(BasicWidgetUse(
         name: "bar",
         attrs: Attributes(
@@ -71,6 +73,63 @@ Config(
         children: [],
         span: Span(463, 479, 0),
         name_span: Span(464, 467, 0),
+      )),
+      resizable: true,
+      backend_options: BackendWindowOptions(
+        wm_ignore: false,
+        sticky: true,
+        window_type: Dock,
+        struts: StrutDefinition(
+          side: Left,
+          dist: Pixels(30),
+        ),
+      ),
+    ),
+    "some-window-with-args": WindowDefinition(
+      name: "some-window-with-args",
+      expected_args: [
+        AttrSpec(
+          name: AttrName("arg"),
+          optional: false,
+          span: Span(523, 526, 0),
+        ),
+        AttrSpec(
+          name: AttrName("arg2"),
+          optional: false,
+          span: Span(527, 531, 0),
+        ),
+      ],
+      args_span: Span(522, 532, 0),
+      geometry: Some(WindowGeometry(
+        anchor_point: AnchorPoint(
+          x: START,
+          y: START,
+        ),
+        offset: Coords(
+          x: Pixels(0),
+          y: Pixels(0),
+        ),
+        size: Coords(
+          x: Percent(12),
+          y: Pixels(20),
+        ),
+      )),
+      stacking: Foreground,
+      monitor_number: Some(Literal(DynVal("12", Span(595, 597, 0)))),
+      widget: Basic(BasicWidgetUse(
+        name: "bar",
+        attrs: Attributes(
+          span: Span(784, 795, 0),
+          attrs: {
+            AttrName("arg"): AttrEntry(
+              key_span: Span(785, 789, 0),
+              value: SimplExpr(Span(790, 795, 0), Literal(DynVal("bla", Span(790, 795, 0)))),
+            ),
+          },
+        ),
+        children: [],
+        span: Span(780, 796, 0),
+        name_span: Span(781, 784, 0),
       )),
       resizable: true,
       backend_options: BackendWindowOptions(

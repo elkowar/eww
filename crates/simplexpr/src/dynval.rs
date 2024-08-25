@@ -13,6 +13,10 @@ pub struct ConversionError {
     pub source: Option<Box<dyn std::error::Error + Sync + Send + 'static>>,
 }
 
+#[derive(Debug, thiserror::Error)]
+#[error("Failed to parse duration. Must be a number of milliseconds, or a string like \"150ms\"")]
+pub struct DurationParseError;
+
 impl ConversionError {
     pub fn new(value: DynVal, target_type: &'static str, source: impl std::error::Error + 'static + Sync + Send) -> Self {
         ConversionError { value, target_type, source: Some(Box::new(source)) }
@@ -102,6 +106,14 @@ impl TryFrom<serde_json::Value> for DynVal {
     }
 }
 
+impl From<Vec<DynVal>> for DynVal {
+    fn from(v: Vec<DynVal>) -> Self {
+        let span = if let (Some(first), Some(last)) = (v.first(), v.last()) { first.span().to(last.span()) } else { Span::DUMMY };
+        let elements = v.into_iter().map(|x| x.as_string().unwrap()).collect::<Vec<_>>();
+        DynVal(serde_json::to_string(&elements).unwrap(), span)
+    }
+}
+
 impl From<std::time::Duration> for DynVal {
     fn from(d: std::time::Duration) -> Self {
         DynVal(format!("{}ms", d.as_millis()), Span::DUMMY)
@@ -164,6 +176,10 @@ impl DynVal {
         self.0.parse().map_err(|e| ConversionError::new(self.clone(), "i32", e))
     }
 
+    pub fn as_i64(&self) -> Result<i64> {
+        self.0.parse().map_err(|e| ConversionError::new(self.clone(), "i64", e))
+    }
+
     pub fn as_bool(&self) -> Result<bool> {
         self.0.parse().map_err(|e| ConversionError::new(self.clone(), "bool", e))
     }
@@ -188,8 +204,10 @@ impl DynVal {
         } else if s.ends_with('h') {
             let hours = s.trim_end_matches('h').parse::<f64>().map_err(|e| ConversionError::new(self.clone(), "number", e))?;
             Ok(Duration::from_secs(f64::floor(hours * 60f64 * 60f64) as u64))
+        } else if let Ok(millis) = s.parse() {
+            Ok(Duration::from_millis(millis))
         } else {
-            Err(ConversionError { value: self.clone(), target_type: "duration", source: None })
+            Err(ConversionError { value: self.clone(), target_type: "duration", source: Some(Box::new(DurationParseError)) })
         }
     }
 

@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
-use glib::{object_subclass, wrapper};
-use gtk::{prelude::*, subclass::prelude::*};
+use gtk::glib::{self, object_subclass, prelude::*, wrapper, Properties};
+use gtk::{cairo, gdk, prelude::*, subclass::prelude::*};
 use std::cell::RefCell;
 
 use crate::error_handling_ctx;
@@ -10,11 +10,21 @@ wrapper! {
     @extends gtk::Bin, gtk::Container, gtk::Widget;
 }
 
+#[derive(Properties)]
+#[properties(wrapper_type = CircProg)]
 pub struct CircProgPriv {
+    #[property(get, set, nick = "Starting at", blurb = "Starting at", minimum = 0f64, maximum = 100f64, default = 0f64)]
     start_at: RefCell<f64>,
+
+    #[property(get, set, nick = "Value", blurb = "The value", minimum = 0f64, maximum = 100f64, default = 0f64)]
     value: RefCell<f64>,
+
+    #[property(get, set, nick = "Thickness", blurb = "Thickness", minimum = 0f64, maximum = 100f64, default = 1f64)]
     thickness: RefCell<f64>,
+
+    #[property(get, set, nick = "Clockwise", blurb = "Clockwise", default = true)]
     clockwise: RefCell<bool>,
+
     content: RefCell<Option<gtk::Widget>>,
 }
 
@@ -33,40 +43,14 @@ impl Default for CircProgPriv {
 
 impl ObjectImpl for CircProgPriv {
     fn properties() -> &'static [glib::ParamSpec] {
-        use once_cell::sync::Lazy;
-        static PROPERTIES: Lazy<Vec<glib::ParamSpec>> = Lazy::new(|| {
-            vec![
-                glib::ParamSpecDouble::new("value", "Value", "The value", 0f64, 100f64, 0f64, glib::ParamFlags::READWRITE),
-                glib::ParamSpecDouble::new(
-                    "thickness",
-                    "Thickness",
-                    "Thickness",
-                    0f64,
-                    100f64,
-                    1f64,
-                    glib::ParamFlags::READWRITE,
-                ),
-                glib::ParamSpecDouble::new(
-                    "start-at",
-                    "Starting at",
-                    "Starting at",
-                    0f64,
-                    100f64,
-                    0f64,
-                    glib::ParamFlags::READWRITE,
-                ),
-                glib::ParamSpecBoolean::new("clockwise", "Clockwise", "Clockwise", true, glib::ParamFlags::READWRITE),
-            ]
-        });
-
-        PROPERTIES.as_ref()
+        Self::derived_properties()
     }
 
-    fn set_property(&self, obj: &Self::Type, _id: usize, value: &glib::Value, pspec: &glib::ParamSpec) {
+    fn set_property(&self, _id: usize, value: &glib::Value, pspec: &glib::ParamSpec) {
         match pspec.name() {
             "value" => {
                 self.value.replace(value.get().unwrap());
-                obj.queue_draw(); // Queue a draw call with the updated value
+                self.obj().queue_draw(); // Queue a draw call with the updated value
             }
             "thickness" => {
                 self.thickness.replace(value.get().unwrap());
@@ -81,14 +65,8 @@ impl ObjectImpl for CircProgPriv {
         }
     }
 
-    fn property(&self, _obj: &Self::Type, _id: usize, pspec: &glib::ParamSpec) -> glib::Value {
-        match pspec.name() {
-            "value" => self.value.borrow().to_value(),
-            "start-at" => self.start_at.borrow().to_value(),
-            "thickness" => self.thickness.borrow().to_value(),
-            "clockwise" => self.clockwise.borrow().to_value(),
-            x => panic!("Tried to access inexistant property of CircProg: {}", x,),
-        }
+    fn property(&self, id: usize, pspec: &glib::ParamSpec) -> glib::Value {
+        self.derived_property(id, pspec)
     }
 }
 
@@ -112,18 +90,18 @@ impl Default for CircProg {
 
 impl CircProg {
     pub fn new() -> Self {
-        glib::Object::new::<Self>(&[]).expect("Failed to create CircularProgress Widget")
+        glib::Object::new::<Self>()
     }
 }
 
 impl ContainerImpl for CircProgPriv {
-    fn add(&self, container: &Self::Type, widget: &gtk::Widget) {
+    fn add(&self, widget: &gtk::Widget) {
         if let Some(content) = &*self.content.borrow() {
             // TODO: Handle this error when populating children widgets instead
             error_handling_ctx::print_error(anyhow!("Error, trying to add multiple children to a circular-progress widget"));
-            self.parent_remove(container, content);
+            self.parent_remove(content);
         }
-        self.parent_add(container, widget);
+        self.parent_add(widget);
         self.content.replace(Some(widget.clone()));
     }
 }
@@ -137,11 +115,12 @@ fn calc_widget_lowest_preferred_dimension(widget: &gtk::Widget) -> (i32, i32) {
 }
 
 impl BinImpl for CircProgPriv {}
+
 impl WidgetImpl for CircProgPriv {
     // We overwrite preferred_* so that overflowing content from the children gets cropped
     //  We return min(child_width, child_height)
-    fn preferred_width(&self, widget: &Self::Type) -> (i32, i32) {
-        let styles = widget.style_context();
+    fn preferred_width(&self) -> (i32, i32) {
+        let styles = self.obj().style_context();
         let margin = styles.margin(gtk::StateFlags::NORMAL);
 
         if let Some(child) = &*self.content.borrow() {
@@ -153,12 +132,12 @@ impl WidgetImpl for CircProgPriv {
         }
     }
 
-    fn preferred_width_for_height(&self, widget: &Self::Type, _height: i32) -> (i32, i32) {
-        self.preferred_width(widget)
+    fn preferred_width_for_height(&self, _height: i32) -> (i32, i32) {
+        self.preferred_width()
     }
 
-    fn preferred_height(&self, widget: &Self::Type) -> (i32, i32) {
-        let styles = widget.style_context();
+    fn preferred_height(&self) -> (i32, i32) {
+        let styles = self.obj().style_context();
         let margin = styles.margin(gtk::StateFlags::NORMAL);
 
         if let Some(child) = &*self.content.borrow() {
@@ -170,34 +149,31 @@ impl WidgetImpl for CircProgPriv {
         }
     }
 
-    fn preferred_height_for_width(&self, widget: &Self::Type, _width: i32) -> (i32, i32) {
-        self.preferred_height(widget)
+    fn preferred_height_for_width(&self, _width: i32) -> (i32, i32) {
+        self.preferred_height()
     }
 
-    fn draw(&self, widget: &Self::Type, cr: &cairo::Context) -> Inhibit {
-        let res: Result<()> = try {
+    fn draw(&self, cr: &cairo::Context) -> glib::Propagation {
+        let res: Result<()> = (|| {
             let value = *self.value.borrow();
-            let start_at = *self.start_at.borrow() as f64;
-            let thickness = *self.thickness.borrow() as f64;
-            let clockwise = *self.clockwise.borrow() as bool;
+            let start_at = *self.start_at.borrow();
+            let thickness = *self.thickness.borrow();
+            let clockwise = *self.clockwise.borrow();
 
-            let styles = widget.style_context();
+            let styles = self.obj().style_context();
             let margin = styles.margin(gtk::StateFlags::NORMAL);
             // Padding is not supported yet
             let fg_color: gdk::RGBA = styles.color(gtk::StateFlags::NORMAL);
             let bg_color: gdk::RGBA = styles.style_property_for_state("background-color", gtk::StateFlags::NORMAL).get()?;
-            let (start_angle, end_angle) = if clockwise {
-                (0.0, perc_to_rad(value as f64))
-            } else {
-                (perc_to_rad(100.0 - value as f64), 2f64 * std::f64::consts::PI)
-            };
+            let (start_angle, end_angle) =
+                if clockwise { (0.0, perc_to_rad(value)) } else { (perc_to_rad(100.0 - value), 2f64 * std::f64::consts::PI) };
 
-            let total_width = widget.allocated_width() as f64;
-            let total_height = widget.allocated_height() as f64;
+            let total_width = self.obj().allocated_width() as f64;
+            let total_height = self.obj().allocated_height() as f64;
             let center = (total_width / 2.0, total_height / 2.0);
 
             let circle_width = total_width - margin.left as f64 - margin.right as f64;
-            let circle_height = total_height as f64 - margin.top as f64 - margin.bottom as f64;
+            let circle_height = total_height - margin.top as f64 - margin.bottom as f64;
             let outer_ring = f64::min(circle_width, circle_height) / 2.0;
             let inner_ring = (f64::min(circle_width, circle_height) / 2.0) - thickness;
 
@@ -237,18 +213,19 @@ impl WidgetImpl for CircProgPriv {
                 cr.clip();
 
                 // Children widget
-                widget.propagate_draw(child, cr);
+                self.obj().propagate_draw(child, cr);
 
                 cr.reset_clip();
                 cr.restore()?;
             }
-        };
+            Ok(())
+        })();
 
         if let Err(error) = res {
             error_handling_ctx::print_error(error)
         };
 
-        gtk::Inhibit(false)
+        glib::Propagation::Proceed
     }
 }
 

@@ -53,7 +53,7 @@ pub fn anyhow_err_to_diagnostic(err: &anyhow::Error) -> Option<Diagnostic<usize>
 }
 
 pub fn stringify_diagnostic(mut diagnostic: codespan_reporting::diagnostic::Diagnostic<usize>) -> anyhow::Result<String> {
-    diagnostic.labels.drain_filter(|label| Span(label.range.start, label.range.end, label.file_id).is_dummy());
+    diagnostic.labels.retain(|label| !Span(label.range.start, label.range.end, label.file_id).is_dummy());
 
     let mut config = term::Config::default();
     let mut chars = Chars::box_drawing();
