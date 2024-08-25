@@ -20,6 +20,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add support for `:hover` css selectors for tray items (By: zeapoz)
 - Add scss support for the `:style` widget property (By: ovalkonia)
 - Add `min` and `max` function calls to simplexpr (By: ovalkonia)
+- Add `flip-x`, `flip-y`, `vertical` options to the graph widget to determine its direction
 
 ## [0.6.0] (21.04.2024)
 
