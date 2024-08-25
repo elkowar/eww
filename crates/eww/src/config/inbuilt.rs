@@ -42,7 +42,7 @@ define_builtin_vars! {
     // @prop { <mount_point>: { name, total, free, used, used_perc } }
     "EWW_DISK" [2] => || Ok(DynVal::from(get_disks())),
 
-    // @desc EWW_BATTERY - Battery capacity in procent of the main battery
+    // @desc EWW_BATTERY - Battery capacity in percent of the main battery
     // @prop { <name>: { capacity, status } }
     "EWW_BATTERY" [2] => || Ok(DynVal::from(
         match get_battery_capacity() {
