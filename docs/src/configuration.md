@@ -381,6 +381,8 @@ If you want to display a list of values, you can use the `for`-Element to fill a
 This can be useful in many situations, for example when generating a workspace list from a JSON representation of your workspaces.
 In many cases, this can be used instead of `literal`, and should most likely be preferred in those cases.
 
+To see how to declare and use more advanced data structures, check out the [data structures example](/examples/data-structures/eww.yuck).
+
 ## Splitting up your configuration
 
 As time passes, your configuration might grow larger and larger. Luckily, you can easily split up your configuration into multiple files!
