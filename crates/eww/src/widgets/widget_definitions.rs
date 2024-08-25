@@ -209,10 +209,10 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
         prop(visible: as_bool = true) {
             if visible { gtk_widget.show(); } else { gtk_widget.hide(); }
         },
-        // @prop style - inline css style applied to the widget
+        // @prop style - inline scss style applied to the widget
         prop(style: as_string) {
             gtk_widget.reset_style();
-            css_provider.load_from_data(format!("* {{ {} }}", style).as_bytes())?;
+            css_provider.load_from_data(grass::from_string(format!("* {{ {} }}", style), &grass::Options::default())?.as_bytes())?;
             gtk_widget.style_context().add_provider(&css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION)
         },
         // @prop css - scss code applied to the widget, i.e.: `button {color: red;}`
