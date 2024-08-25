@@ -23,9 +23,12 @@ notifier_host.workspace = true
 gtk-layer-shell = { version = "0.8.1", optional = true }
 gdkx11 = { version = "0.18", optional = true }
 x11rb = { version = "0.13.1", features = ["randr"], optional = true }
+gdk-sys = "0.18.0"
 
 ordered-stream = "0.2.0"
 
+
+grass.workspace = true
 anyhow.workspace = true
 bincode.workspace = true
 chrono.workspace = true
@@ -35,7 +38,6 @@ codespan-reporting.workspace = true
 derive_more.workspace = true
 extend.workspace = true
 futures.workspace = true
-grass.workspace = true
 gtk.workspace = true
 itertools.workspace = true
 libc.workspace = true

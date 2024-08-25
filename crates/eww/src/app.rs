@@ -625,6 +625,18 @@ fn get_gdk_monitor(identifier: Option<MonitorIdentifier>) -> Result<Monitor> {
     Ok(monitor)
 }
 
+/// Get the name of monitor plug for given monitor number
+/// workaround gdk not providing this information on wayland in regular calls
+/// gdk_screen_get_monitor_plug_name is deprecated but works fine for that case
+fn get_monitor_plug_name(display: &gdk::Display, monitor_num: i32) -> Option<&str> {
+    unsafe {
+        use glib::translate::ToGlibPtr;
+        let plug_name_pointer = gdk_sys::gdk_screen_get_monitor_plug_name(display.default_screen().to_glib_none().0, monitor_num);
+        use std::ffi::CStr;
+        CStr::from_ptr(plug_name_pointer).to_str().ok()
+    }
+}
+
 /// Returns the [Monitor][gdk::Monitor] structure corresponding to the identifer.
 /// Outside of x11, only [MonitorIdentifier::Numeric] is supported
 pub fn get_monitor_from_display(display: &gdk::Display, identifier: &MonitorIdentifier) -> Option<gdk::Monitor> {
@@ -642,7 +654,7 @@ pub fn get_monitor_from_display(display: &gdk::Display, identifier: &MonitorIden
         MonitorIdentifier::Name(name) => {
             for m in 0..display.n_monitors() {
                 if let Some(model) = display.monitor(m).and_then(|x| x.model()) {
-                    if model == *name {
+                    if model == *name || Some(name.as_str()) == get_monitor_plug_name(display, m) {
                         return display.monitor(m);
                     }
                 }
