@@ -61,7 +61,7 @@ This field can be:
 - the string `<primary>`, in which case eww tries to identify the primary display (which may fail, especially on wayland)
 - an integer, declaring the monitor index
 - the name of the monitor
-- a string containing a JSON-array of monitor matchers, such as: `'["<primary>" "HDMI-A-1" "PHL 345B1C" 0]'`. Eww will try to find a match in order, allowing you to specify fallbacks.
+- a string containing a JSON-array of monitor matchers, such as: `'["<primary>", "HDMI-A-1", "PHL 345B1C", 0]'`. Eww will try to find a match in order, allowing you to specify fallbacks.
 
 
 **`geometry`-properties**
