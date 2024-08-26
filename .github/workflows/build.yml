@@ -8,6 +8,7 @@ on:
 
 env:
    CARGO_TERM_COLOR: always
+   RUSTFLAGS:        "-Dwarnings"
 
 jobs:
    build:
@@ -31,15 +32,15 @@ jobs:
 
          - name: Check formatting
            run: cargo fmt -- --check
-         - name: Check with default features
-           run: cargo check
 
          - name: Run tests
            run: cargo test
 
+         - name: Check with default features
+           run: cargo clippy
          - name: Check x11 only
-           run: cargo check --no-default-features --features=x11
+           run: cargo clippy --no-default-features --features=x11
          - name: Check wayland only
-           run: cargo check --no-default-features --features=wayland
+           run: cargo clippy --no-default-features --features=wayland
          - name: Check no-backend
-           run: cargo check --no-default-features
+           run: cargo clippy --no-default-features
