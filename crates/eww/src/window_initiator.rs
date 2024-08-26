@@ -12,15 +12,20 @@ use yuck::config::{
 use crate::window_arguments::WindowArguments;
 
 /// This stores all the information required to create a window and is created
-/// via combining information from the [`WindowDefinition`] and the [`WindowInitiator`]
+/// via combining information from the [`WindowDefinition`] and the [`WindowInitiator`].
 #[derive(Debug, Clone)]
 pub struct WindowInitiator {
+    // it would be more efficient to make everything work when not using x11 or wayland instead of simply disabling the warning.
+    // however, this is probably not worth the effort since i don't think anyonre is seriously building eww without backend support for either x11 or wayland
+    #[cfg_attr(not(any(feature = "wayland", feature = "x11")), allow(dead_code))]
     pub backend_options: BackendWindowOptions,
     pub geometry: Option<WindowGeometry>,
     pub local_variables: HashMap<VarName, DynVal>,
     pub monitor: Option<MonitorIdentifier>,
     pub name: String,
+    #[cfg_attr(not(any(feature = "wayland", feature = "x11")), allow(dead_code))]
     pub resizable: bool,
+    #[cfg_attr(not(any(feature = "wayland", feature = "x11")), allow(dead_code))]
     pub stacking: WindowStacking,
 }
 
