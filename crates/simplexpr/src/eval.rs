@@ -268,24 +268,31 @@ impl SimplExpr {
 
                 let is_safe = *safe == AccessType::Safe;
 
-                match val.as_json_value()? {
-                    serde_json::Value::Array(val) => {
-                        let index = index.as_i32()?;
-                        let indexed_value = val.get(index as usize).unwrap_or(&serde_json::Value::Null);
-                        Ok(DynVal::from(indexed_value).at(*span))
+                // Needs to be done first as `as_json_value` fails on empty string
+                if is_safe && val.as_string()?.is_empty() {
+                    Ok(DynVal::from(&serde_json::Value::Null).at(*span))
+                } else {
+                    match val.as_json_value()? {
+                        serde_json::Value::Array(val) => {
+                            let index = index.as_i32()?;
+                            let indexed_value = val.get(index as usize).unwrap_or(&serde_json::Value::Null);
+                            Ok(DynVal::from(indexed_value).at(*span))
+                        }
+                        serde_json::Value::Object(val) => {
+                            let indexed_value = val
+                                .get(&index.as_string()?)
+                                .or_else(|| val.get(&index.as_i32().ok()?.to_string()))
+                                .unwrap_or(&serde_json::Value::Null);
+                            Ok(DynVal::from(indexed_value).at(*span))
+                        }
+                        // TODO decide if this should be removed
+                        // this would be a json string in a string: '""'
+                        serde_json::Value::String(val) if val.is_empty() && is_safe => {
+                            Ok(DynVal::from(&serde_json::Value::Null).at(*span))
+                        }
+                        serde_json::Value::Null if is_safe => Ok(DynVal::from(&serde_json::Value::Null).at(*span)),
+                        _ => Err(EvalError::CannotIndex(format!("{}", val)).at(*span)),
                     }
-                    serde_json::Value::Object(val) => {
-                        let indexed_value = val
-                            .get(&index.as_string()?)
-                            .or_else(|| val.get(&index.as_i32().ok()?.to_string()))
-                            .unwrap_or(&serde_json::Value::Null);
-                        Ok(DynVal::from(indexed_value).at(*span))
-                    }
-                    serde_json::Value::String(val) if val.is_empty() && is_safe => {
-                        Ok(DynVal::from(&serde_json::Value::Null).at(*span))
-                    }
-                    serde_json::Value::Null if is_safe => Ok(DynVal::from(&serde_json::Value::Null).at(*span)),
-                    _ => Err(EvalError::CannotIndex(format!("{}", val)).at(*span)),
                 }
             }
             SimplExpr::FunctionCall(span, function_name, args) => {
@@ -564,6 +571,8 @@ mod tests {
         string_to_string(r#""Hello""#) => Ok(DynVal::from("Hello".to_string())),
         safe_access_to_existing(r#"{ "a": { "b": 2 } }.a?.b"#) => Ok(DynVal::from(2)),
         safe_access_to_missing(r#"{ "a": { "b": 2 } }.b?.b"#) => Ok(DynVal::from(&serde_json::Value::Null)),
+        safe_access_to_empty(r#"""?.test"#) => Ok(DynVal::from(&serde_json::Value::Null)),
+        safe_access_to_empty_json_string(r#"'""'?.test"#) => Ok(DynVal::from(&serde_json::Value::Null)),
         safe_access_index_to_existing(r#"[1, 2]?.[1]"#) => Ok(DynVal::from(2)),
         safe_access_index_to_missing(r#""null"?.[1]"#) => Ok(DynVal::from(&serde_json::Value::Null)),
         safe_access_index_to_non_indexable(r#"32?.[1]"#) => Err(super::EvalError::CannotIndex("32".to_string())),
