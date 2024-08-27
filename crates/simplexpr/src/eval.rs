@@ -270,29 +270,28 @@ impl SimplExpr {
 
                 // Needs to be done first as `as_json_value` fails on empty string
                 if is_safe && val.as_string()?.is_empty() {
-                    Ok(DynVal::from(&serde_json::Value::Null).at(*span))
-                } else {
-                    match val.as_json_value()? {
-                        serde_json::Value::Array(val) => {
-                            let index = index.as_i32()?;
-                            let indexed_value = val.get(index as usize).unwrap_or(&serde_json::Value::Null);
-                            Ok(DynVal::from(indexed_value).at(*span))
-                        }
-                        serde_json::Value::Object(val) => {
-                            let indexed_value = val
-                                .get(&index.as_string()?)
-                                .or_else(|| val.get(&index.as_i32().ok()?.to_string()))
-                                .unwrap_or(&serde_json::Value::Null);
-                            Ok(DynVal::from(indexed_value).at(*span))
-                        }
-                        // TODO decide if this should be removed
-                        // this would be a json string in a string: '""'
-                        serde_json::Value::String(val) if val.is_empty() && is_safe => {
-                            Ok(DynVal::from(&serde_json::Value::Null).at(*span))
-                        }
-                        serde_json::Value::Null if is_safe => Ok(DynVal::from(&serde_json::Value::Null).at(*span)),
-                        _ => Err(EvalError::CannotIndex(format!("{}", val)).at(*span)),
+                    return Ok(DynVal::from(&serde_json::Value::Null).at(*span));
+                }
+                match val.as_json_value()? {
+                    serde_json::Value::Array(val) => {
+                        let index = index.as_i32()?;
+                        let indexed_value = val.get(index as usize).unwrap_or(&serde_json::Value::Null);
+                        Ok(DynVal::from(indexed_value).at(*span))
                     }
+                    serde_json::Value::Object(val) => {
+                        let indexed_value = val
+                            .get(&index.as_string()?)
+                            .or_else(|| val.get(&index.as_i32().ok()?.to_string()))
+                            .unwrap_or(&serde_json::Value::Null);
+                        Ok(DynVal::from(indexed_value).at(*span))
+                    }
+                    // TODO decide if this should be removed
+                    // this would be a json string in a string: '""'
+                    serde_json::Value::String(val) if val.is_empty() && is_safe => {
+                        Ok(DynVal::from(&serde_json::Value::Null).at(*span))
+                    }
+                    serde_json::Value::Null if is_safe => Ok(DynVal::from(&serde_json::Value::Null).at(*span)),
+                    _ => Err(EvalError::CannotIndex(format!("{}", val)).at(*span)),
                 }
             }
             SimplExpr::FunctionCall(span, function_name, args) => {
