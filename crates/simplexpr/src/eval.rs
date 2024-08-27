@@ -285,11 +285,6 @@ impl SimplExpr {
                             .unwrap_or(&serde_json::Value::Null);
                         Ok(DynVal::from(indexed_value).at(*span))
                     }
-                    // TODO decide if this should be removed
-                    // this would be a json string in a string: '""'
-                    serde_json::Value::String(val) if val.is_empty() && is_safe => {
-                        Ok(DynVal::from(&serde_json::Value::Null).at(*span))
-                    }
                     serde_json::Value::Null if is_safe => Ok(DynVal::from(&serde_json::Value::Null).at(*span)),
                     _ => Err(EvalError::CannotIndex(format!("{}", val)).at(*span)),
                 }
