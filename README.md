@@ -12,6 +12,7 @@ Documentation **and instructions on how to install** can be found [here](https:/
 Dharmx also wrote a nice, beginner friendly introductory guide for eww [here](https://dharmx.is-a.dev/eww-powermenu/).
 
 ## Eww needs your opinion!
+
 I've hit a bit of a design roadblock for one of the bigger features that are in the works right now.
 
 **Please read through https://github.com/elkowar/eww/discussions/453 and share your thoughts, ideas and opinions!**
@@ -59,12 +60,12 @@ I've hit a bit of a design roadblock for one of the bigger features that are in 
 
 </div>
 
-
 ## Contribewwting
 
 If you want to contribute anything, like adding new widgets, features, or subcommands (including sample configs), you should definitely do so.
 
 ### Steps
+
 1. Fork this repository
 2. Install dependencies
 3. Smash your head against the keyboard from frustration (coding is hard)
