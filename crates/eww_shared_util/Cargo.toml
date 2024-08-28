@@ -12,3 +12,4 @@ homepage = "https://github.com/elkowar/eww"
 serde.workspace = true
 derive_more.workspace = true
 ref-cast.workspace = true
+chrono = { workspace = true, features = ["unstable-locales"] }

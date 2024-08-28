@@ -16,7 +16,7 @@ eww_shared_util.workspace = true
 
 cached.workspace = true
 chrono-tz.workspace = true
-chrono.workspace = true
+chrono = { workspace = true, features = ["unstable-locales"] }
 itertools.workspace = true
 jaq-core.workspace = true
 jaq-parse.workspace = true
