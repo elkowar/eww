@@ -173,10 +173,10 @@ impl WidgetImpl for TransformPriv {
                 None => 1.0,
             };
 
-            cr.scale(scale_x, scale_y);
             cr.translate(transform_origin_x, transform_origin_y);
             cr.rotate(perc_to_rad(rotate));
             cr.translate(translate_x - transform_origin_x, translate_y - transform_origin_y);
+            cr.scale(scale_x, scale_y);
 
             // Children widget
             if let Some(child) = &*self.content.borrow() {
