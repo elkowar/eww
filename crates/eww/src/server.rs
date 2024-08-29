@@ -33,7 +33,6 @@ pub fn initialize_server<B: DisplayBackend>(
     log::info!("Loading paths: {}", &paths);
 
     let read_config = config::read_from_eww_paths(&paths);
-
     let eww_config = match read_config {
         Ok(config) => config,
         Err(err) => {
@@ -41,6 +40,10 @@ pub fn initialize_server<B: DisplayBackend>(
             config::EwwConfig::default()
         }
     };
+
+    for (name, definition) in config::inbuilt::get_magic_constants(&paths) {
+        std::env::set_var(name.0, definition.initial_value.0);
+    }
 
     cleanup_log_dir(paths.get_log_dir())?;
 
