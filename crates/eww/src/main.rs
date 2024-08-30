@@ -58,10 +58,10 @@ fn main() {
     let use_wayland = opts.force_wayland || detected_wayland;
     #[cfg(all(feature = "wayland", feature = "x11"))]
     let result = if use_wayland {
-        log::info!("Running on wayland. force_wayland={}, detected_wayland={}", opts.force_wayland, detected_wayland);
+        log::debug!("Running on wayland. force_wayland={}, detected_wayland={}", opts.force_wayland, detected_wayland);
         run::<display_backend::WaylandBackend>(opts, eww_binary_name)
     } else {
-        log::info!("Running on X11. force_wayland={}, detected_wayland={}", opts.force_wayland, detected_wayland);
+        log::debug!("Running on X11. force_wayland={}, detected_wayland={}", opts.force_wayland, detected_wayland);
         run::<display_backend::X11Backend>(opts, eww_binary_name)
     };
 
