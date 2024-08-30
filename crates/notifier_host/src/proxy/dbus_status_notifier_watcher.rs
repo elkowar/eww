@@ -12,7 +12,11 @@
 //! [Writing a client proxy]: https://dbus2.github.io/zbus/client.html
 //! [D-Bus standard interfaces]: https://dbus.freedesktop.org/doc/dbus-specification.html#standard-interfaces,
 use zbus::proxy;
-#[proxy(interface = "org.kde.StatusNotifierWatcher", assume_defaults = true)]
+#[proxy(
+    default_service = "org.kde.StatusNotifierWatcher",
+    interface = "org.kde.StatusNotifierWatcher",
+    default_path = "/StatusNotifierWatcher"
+)]
 trait StatusNotifierWatcher {
     /// RegisterStatusNotifierHost method
     fn register_status_notifier_host(&self, service: &str) -> zbus::Result<()>;
