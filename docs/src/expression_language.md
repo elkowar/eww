@@ -28,8 +28,8 @@ Supported currently are the following features:
     - if the left side is `""` or a JSON `null`, then returns the right side,
       otherwise evaluates to the left side.
 - Safe Access operator (`?.`) or (`?.[index]`)
-    - if the left side is an empty string a JSON `null`, then return `null`. Otherwise,
-      attempt to index. Note that indexing an empty JSON string (`'""'`) is an error here.
+    - if the left side is an empty string or a JSON `null`, then return `null`. Otherwise,
+      attempt to index. Note that indexing an empty JSON string (`'""'`) is an error.
     - This can still cause an error to occur if the left hand side exists but is
       not an object or an array.
       (`Number` or `String`).
