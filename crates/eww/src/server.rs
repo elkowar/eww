@@ -57,7 +57,7 @@ pub fn initialize_server<B: DisplayBackend>(
 ┏━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃Initializing eww daemon┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━┛
-    "#
+"#
     );
 
     simple_signal::set_handler(&[simple_signal::Signal::Int, simple_signal::Signal::Term], move |_| {
