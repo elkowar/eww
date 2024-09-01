@@ -22,6 +22,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add `min` and `max` function calls to simplexpr (By: ovalkonia)
 - Add `flip-x`, `flip-y`, `vertical` options to the graph widget to determine its direction
 - Add `transform-origin-x`/`transform-origin-y` properties to transform widget (By: mario-kr)
+- Add keyboard support for button presses (By: julianschuler)
 
 ## [0.6.0] (21.04.2024)
 
