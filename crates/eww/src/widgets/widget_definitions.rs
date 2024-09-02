@@ -801,26 +801,26 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
     // Support :hover selector
     gtk_widget.connect_enter_notify_event(|gtk_widget, evt| {
         if evt.detail() != NotifyType::Inferior {
-            gtk_widget.clone().set_state_flags(gtk::StateFlags::PRELIGHT, false);
+            gtk_widget.set_state_flags(gtk::StateFlags::PRELIGHT, false);
         }
         glib::Propagation::Proceed
     });
 
     gtk_widget.connect_leave_notify_event(|gtk_widget, evt| {
         if evt.detail() != NotifyType::Inferior {
-            gtk_widget.clone().unset_state_flags(gtk::StateFlags::PRELIGHT);
+            gtk_widget.unset_state_flags(gtk::StateFlags::PRELIGHT);
         }
         glib::Propagation::Proceed
     });
 
     // Support :active selector
     gtk_widget.connect_button_press_event(|gtk_widget, _| {
-        gtk_widget.clone().set_state_flags(gtk::StateFlags::ACTIVE, false);
+        gtk_widget.set_state_flags(gtk::StateFlags::ACTIVE, false);
         glib::Propagation::Proceed
     });
 
     gtk_widget.connect_button_release_event(|gtk_widget, _| {
-        gtk_widget.clone().unset_state_flags(gtk::StateFlags::ACTIVE);
+        gtk_widget.unset_state_flags(gtk::StateFlags::ACTIVE);
         glib::Propagation::Proceed
     });
 
@@ -942,7 +942,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
             onrightclick: as_string = ""
         ) {
             gtk_widget.add_events(gdk::EventMask::BUTTON_PRESS_MASK);
-            connect_signal_handler!(gtk_widget, gtk_widget.connect_button_press_event(move |_, evt| {
+            connect_signal_handler!(gtk_widget, gtk_widget.connect_button_release_event(move |_, evt| {
                 match evt.button() {
                     1 => run_command(timeout, &onclick, &[] as &[&str]),
                     2 => run_command(timeout, &onmiddleclick, &[] as &[&str]),
@@ -1193,8 +1193,7 @@ fn build_gtk_stack(bargs: &mut BuilderArgs) -> Result<gtk::Stack> {
 
 const WIDGET_NAME_TRANSFORM: &str = "transform";
 /// @widget transform
-/// @desc A widget that applies transformations to its content. They are applied in the following
-/// order: rotate->translate->scale)
+/// @desc A widget that applies transformations to its content. They are applied in the following order: rotate -> translate -> scale
 fn build_transform(bargs: &mut BuilderArgs) -> Result<Transform> {
     let w = Transform::new();
     def_widget!(bargs, _g, w, {
