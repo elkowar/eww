@@ -518,7 +518,7 @@ fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
 
 const WIDGET_NAME_BUTTON: &str = "button";
 /// @widget button
-/// @desc A button
+/// @desc A button containing any widget as it's child. Events are triggered on release.
 fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
     let gtk_widget = gtk::Button::new();
 
@@ -526,11 +526,11 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
         prop(
             // @prop timeout - timeout of the command. Default: "200ms"
             timeout: as_duration = Duration::from_millis(200),
-            // @prop onclick - a command that get's run when the button is clicked
+            // @prop onclick - command to run when the button is activated either by leftclicking or keyboard
             onclick: as_string = "",
-            // @prop onmiddleclick - a command that get's run when the button is middleclicked
+            // @prop onmiddleclick - command to run when the button is middleclicked
             onmiddleclick: as_string = "",
-            // @prop onrightclick - a command that get's run when the button is rightclicked
+            // @prop onrightclick - command to run when the button is rightclicked
             onrightclick: as_string = ""
         ) {
             // animate button upon right-/middleclick (if gtk theme supports it)
@@ -934,11 +934,11 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
         prop(
             // @prop timeout - timeout of the command. Default: "200ms"
             timeout: as_duration = Duration::from_millis(200),
-            // @prop onclick - a command that get's run when the button is clicked
+            // @prop onclick - command to run when the widget is clicked
             onclick: as_string = "",
-            // @prop onmiddleclick - a command that get's run when the button is middleclicked
+            // @prop onmiddleclick - command to run when the widget is middleclicked
             onmiddleclick: as_string = "",
-            // @prop onrightclick - a command that get's run when the button is rightclicked
+            // @prop onrightclick - command to run when the widget is rightclicked
             onrightclick: as_string = ""
         ) {
             gtk_widget.add_events(gdk::EventMask::BUTTON_PRESS_MASK);
