@@ -220,6 +220,9 @@ impl ScopeGraph {
             let listener = Rc::new(listener);
             for required_var in &listener.needed_variables {
                 scope.listeners.entry(required_var.clone()).or_default().push(listener.clone());
+                // debug print: if this number grows indefinetly, something is wrong, otherwise this shows that there is activity
+                // TODO: remove
+                log::info!("{:?} listeners for {required_var}", scope.listeners.get(&required_var.clone()).map(|x| x.len()));
             }
 
             let required_variables = self.lookup_variables_in_scope(scope_index, &listener.needed_variables)?;
