@@ -288,9 +288,6 @@ fn build_children_special_widget(
     gtk_container: &gtk::Container,
     custom_widget_invocation: Rc<CustomWidgetInvocation>,
 ) -> Result<()> {
-    // open a new scope for the children
-    // TODO this might be unnecessary, evaluate whether we can just use the calling_scope
-    let scope = tree.register_new_scope("children".into(), Some(calling_scope), calling_scope, HashMap::new())?;
     if let Some(nth) = widget_use.nth_expr {
         // TODORW this might not be necessary, if I can keep a copy of the widget I can destroy it directly, no need to go through the container.
         // This should be a custom gtk::Bin subclass,..
@@ -309,6 +306,12 @@ fn build_children_special_widget(
                             .children
                             .get(nth_value as usize)
                             .with_context(|| format!("No child at index {}", nth_value))?;
+                        let scope = tree.register_new_scope(
+                            format!("child {nth_value}"),
+                            Some(custom_widget_invocation.scope),
+                            calling_scope,
+                            HashMap::new(),
+                        )?;
                         let new_child_widget =
                             build_gtk_widget(tree, widget_defs.clone(), scope, nth_child_widget_use.clone(), None)?;
                         child_container.children().iter().for_each(|f| child_container.remove(f));
@@ -321,6 +324,12 @@ fn build_children_special_widget(
         )?;
     } else {
         for child in &custom_widget_invocation.children {
+            let scope = tree.register_new_scope(
+                String::from("child"),
+                Some(custom_widget_invocation.scope),
+                calling_scope,
+                HashMap::new(),
+            )?;
             let child_widget = build_gtk_widget(tree, widget_defs.clone(), scope, child.clone(), None)?;
             gtk_container.add(&child_widget);
         }
