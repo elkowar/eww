@@ -324,8 +324,12 @@ fn build_children_special_widget(
         )?;
     } else {
         for child in &custom_widget_invocation.children {
-            let scope =
-                tree.register_new_scope(String::from("child"), Some(custom_widget_invocation.scope), calling_scope, HashMap::new())?;
+            let scope = tree.register_new_scope(
+                String::from("child"),
+                Some(custom_widget_invocation.scope),
+                calling_scope,
+                HashMap::new(),
+            )?;
             let child_widget = build_gtk_widget(tree, widget_defs.clone(), scope, child.clone(), None)?;
             gtk_container.add(&child_widget);
         }
