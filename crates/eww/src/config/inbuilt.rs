@@ -81,17 +81,17 @@ macro_rules! define_magic_constants {
     }
 }
 define_magic_constants! { eww_paths,
-    // @desc EWW_CONFIG_DIR (Magic constant) - Path to the eww configuration of the current process
+    // @desc EWW_CONFIG_DIR - Path to the eww configuration of the current process
     "EWW_CONFIG_DIR" => DynVal::from_string(eww_paths.get_config_dir().to_string_lossy().into_owned()),
 
-    // @desc EWW_CMD (Magic constant) - eww command running in the current configuration, useful in event handlers. I.e.: `:onclick "${EWW_CMD} update foo=bar"`
+    // @desc EWW_CMD - eww command running in the current configuration, useful in event handlers. I.e.: `:onclick "${EWW_CMD} update foo=bar"`
     "EWW_CMD" => DynVal::from_string(
         format!("\"{}\" --config \"{}\"",
             std::env::current_exe().map(|x| x.to_string_lossy().into_owned()).unwrap_or_else(|_| "eww".to_string()),
             eww_paths.get_config_dir().to_string_lossy().into_owned()
         )
     ),
-    // @desc EWW_EXECUTABLE (Magic constant) - Full path of the eww executable
+    // @desc EWW_EXECUTABLE - Full path of the eww executable
     "EWW_EXECUTABLE" => DynVal::from_string(
         std::env::current_exe().map(|x| x.to_string_lossy().into_owned()).unwrap_or_else(|_| "eww".to_string()),
     ),
