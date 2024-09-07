@@ -31,9 +31,6 @@ pub fn print_error(err: anyhow::Error) {
 }
 
 pub fn format_error(err: &anyhow::Error) -> String {
-    for err in err.chain() {
-        format!("chain: {}", err);
-    }
     anyhow_err_to_diagnostic(err).and_then(|diag| stringify_diagnostic(diag).ok()).unwrap_or_else(|| format!("{:?}", err))
 }
 

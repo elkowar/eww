@@ -100,9 +100,8 @@ impl<I: Iterator<Item = Ast>> Iterator for AstIterator<I> {
     type Item = Ast;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next().map(|x| {
+        self.iter.next().inspect(|x| {
             self.remaining_span.0 = x.span().1;
-            x
         })
     }
 }
