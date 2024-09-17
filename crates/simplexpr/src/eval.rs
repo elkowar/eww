@@ -455,9 +455,9 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
         "jq" => match args.as_slice() {
-            [json, code] => run_jaq_function(json.as_json_value()?, code.as_string()?, "")
+            [json, code] => run_jaq_function(json.as_json_value()?, code.as_string()?)
                 .map_err(|e| EvalError::Spanned(code.span(), Box::new(e))),
-            [json, code, args] => run_jaq_function(json.as_json_value()?, code.as_string()?, &args.as_string()?)
+            [json, code, args] => run_jaq_with_args(json.as_json_value()?, code.as_string()?, &args.as_string()?)
                 .map_err(|e| EvalError::Spanned(code.span(), Box::new(e))),
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
@@ -507,20 +507,27 @@ fn prepare_jaq_filter(code: String) -> Result<Arc<jaq_interpret::Filter>, EvalEr
     Ok(Arc::new(filter))
 }
 
-fn run_jaq_function(json: serde_json::Value, code: String, args: &str) -> Result<DynVal, EvalError> {
-    let inputs = jaq_interpret::RcIter::new(std::iter::empty());
+/// duplication for a slight performance increase
+fn run_jaq_with_args(json: serde_json::Value, code: String, args: &str) -> Result<DynVal, EvalError> {
     prepare_jaq_filter(code)?
-        .run((jaq_interpret::Ctx::new([], &inputs), jaq_interpret::Val::from(json)))
+        .run((jaq_interpret::Ctx::new([], &jaq_interpret::RcIter::new(std::iter::empty())), jaq_interpret::Val::from(json)))
         .map(|r| r.map(Into::<serde_json::Value>::into))
-        .map(|r| {
-            r.map(|v| match v {
-                // Per jq docs, "raw-output" behavior simply omits
-                // quotation marks from strings, and outputs what would
-                // otherwise be valid JSON, so this should replicate that.
-                serde_json::Value::String(contents) if args == "r" => DynVal::from_string(contents),
-                anyval => DynVal::from_string(serde_json::to_string(&anyval).unwrap()),
+        .map(|x| {
+            x.map(|val| match (args, val) {
+                ("r", serde_json::Value::String(s)) => DynVal::from_string(s),
+                // silently ignore invalid args
+                (_, v) => DynVal::from_string(serde_json::to_string(&v).unwrap()),
             })
         })
+        .collect::<Result<DynVal, _>>()
+        .map_err(|e| EvalError::JaqError(e.to_string()))
+}
+
+fn run_jaq_function(json: serde_json::Value, code: String) -> Result<DynVal, EvalError> {
+    prepare_jaq_filter(code)?
+        .run((jaq_interpret::Ctx::new([], &jaq_interpret::RcIter::new(std::iter::empty())), jaq_interpret::Val::from(json)))
+        .map(|r| r.map(Into::<serde_json::Value>::into))
+        .map(|x| x.map(|x| DynVal::from_string(serde_json::to_string(&x).unwrap())))
         .collect::<Result<_, _>>()
         .map_err(|e| EvalError::JaqError(e.to_string()))
 }
