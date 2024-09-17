@@ -590,6 +590,7 @@ mod tests {
         jq_basic_index(r#"jq("[7,8,9]", ".[0]")"#) => Ok(DynVal::from(7)),
         jq_raw_arg(r#"jq("[ \"foo\" ]", ".[0]", "r")"#) => Ok(DynVal::from("foo")),
         jq_empty_arg(r#"jq("[ \"foo\" ]", ".[0]", "")"#) => Ok(DynVal::from(r#""foo""#)),
+        jq_invalid_arg(r#"jq("[ \"foo\" ]", ".[0]", "hello")"#) => Ok(DynVal::from(r#""foo""#)),
         jq_no_arg(r#"jq("[ \"foo\" ]", ".[0]")"#) => Ok(DynVal::from(r#""foo""#)),
     }
 }
