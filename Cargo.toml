@@ -13,7 +13,7 @@ anyhow = "1.0.86"
 bincode = "1.3.3"
 cached = "0.53.1"
 chrono = "0.4.38"
-chrono-tz = "0.9.0"
+chrono-tz = "0.10.0"
 clap = { version = "4.5.1", features = ["derive"] }
 clap_complete = "4.5.12"
 codespan-reporting = "0.11"
@@ -35,8 +35,8 @@ jaq-parse = "1.0.3"
 jaq-std = "1.6.0"
 jaq-interpret = "1.5.0"
 jaq-syn = "1.6.0"
-lalrpop = { version = "0.20.2", features = ["unicode"] }
-lalrpop-util = { version = "0.20.2", features = ["unicode"] }
+lalrpop = { version = "0.21", features = ["unicode"] }
+lalrpop-util = { version = "0.21", features = ["unicode"] }
 libc = "0.2"
 log = "0.4"
 maplit = "1"
