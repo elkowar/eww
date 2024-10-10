@@ -1,17 +1,17 @@
 {
   "nodes": {
     "flake-compat": {
-      "flake": false,
       "locked": {
-        "lastModified": 1696426674,
-        "narHash": "sha256-kvjfFW7WAETZlt09AgDn1MrtKzP7t90Vf7vypd3OL1U=",
+        "lastModified": 1709944340,
+        "narHash": "sha256-xr54XK0SjczlUxRo5YwodibUSlpivS9bqHt8BNyWVQA=",
         "owner": "edolstra",
         "repo": "flake-compat",
-        "rev": "0f9255e01c2351cc7d116c072cb317785dd33b33",
+        "rev": "baa7aa7bd0a570b3b9edd0b8da859fee3ffaa4d4",
         "type": "github"
       },
       "original": {
         "owner": "edolstra",
+        "ref": "refs/pull/65/head",
         "repo": "flake-compat",
         "type": "github"
       }
