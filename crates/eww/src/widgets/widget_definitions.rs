@@ -312,7 +312,8 @@ fn build_gtk_combo_box_text(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText
 
 const WIDGET_NAME_EXPANDER: &str = "expander";
 /// @widget expander
-/// @desc A widget that can expand and collapse, showing/hiding it's children.
+/// @desc A widget that can expand and collapse, showing/hiding it's children. Should contain
+/// exactly one child.
 fn build_gtk_expander(bargs: &mut BuilderArgs) -> Result<gtk::Expander> {
     let gtk_widget = gtk::Expander::new(None);
 
