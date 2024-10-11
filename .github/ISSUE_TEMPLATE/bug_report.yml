@@ -1,4 +1,4 @@
-name: Bug report
+ name: Bug report
 description: Report a bug you have encountered
 title: "[BUG] "
 labels: bug
@@ -37,3 +37,9 @@ body:
       description: "If applicable, provide additional context or screenshots here."
     validations:
       required: false
+  - type: textarea
+    attributes:
+      label: "Platform and environment"
+      description: "Does this happen on wayland, X11, or on both? What WM/Compositor are you using? Which version of eww are you using? (when using a git version, optimally provide the exact commit ref).
+    validations:
+      required: true
