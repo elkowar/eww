@@ -38,16 +38,16 @@ use yuck::{
 /// thus not connecting a new handler unless the condition is met.
 macro_rules! connect_signal_handler {
     ($widget:ident, if $cond:expr, $connect_expr:expr) => {{
+        const KEY:&str = std::concat!("signal-handler:", std::line!());
         unsafe {
-            let key = ::std::concat!("signal-handler:", ::std::line!());
-            let old = $widget.data::<gtk::glib::SignalHandlerId>(key);
+            let old = $widget.data::<gtk::glib::SignalHandlerId>(KEY);
 
             if let Some(old) = old {
                  let a = old.as_ref().as_raw();
                  $widget.disconnect(gtk::glib::SignalHandlerId::from_glib(a));
             }
 
-            $widget.set_data::<gtk::glib::SignalHandlerId>(key, $connect_expr);
+            $widget.set_data::<gtk::glib::SignalHandlerId>(KEY, $connect_expr);
         }
     }};
     ($widget:ident, $connect_expr:expr) => {{
@@ -495,7 +495,6 @@ fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
         prop(value: as_string) {
             gtk_widget.set_text(&value);
         },
-
         // @prop onchange - Command to run when the text changes. The placeholder `{}` will be replaced by the value
         // @prop timeout - timeout of the command. Default: "200ms"
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_string) {
@@ -520,7 +519,7 @@ fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
 
 const WIDGET_NAME_BUTTON: &str = "button";
 /// @widget button
-/// @desc A button
+/// @desc A button containing any widget as it's child. Events are triggered on release.
 fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
     let gtk_widget = gtk::Button::new();
 
@@ -528,15 +527,22 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
         prop(
             // @prop timeout - timeout of the command. Default: "200ms"
             timeout: as_duration = Duration::from_millis(200),
-            // @prop onclick - a command that get's run when the button is clicked
+            // @prop onclick - command to run when the button is activated either by leftclicking or keyboard
             onclick: as_string = "",
-            // @prop onmiddleclick - a command that get's run when the button is middleclicked
+            // @prop onmiddleclick - command to run when the button is middleclicked
             onmiddleclick: as_string = "",
-            // @prop onrightclick - a command that get's run when the button is rightclicked
+            // @prop onrightclick - command to run when the button is rightclicked
             onrightclick: as_string = ""
         ) {
-            gtk_widget.add_events(gdk::EventMask::BUTTON_PRESS_MASK);
-            connect_signal_handler!(gtk_widget, gtk_widget.connect_button_press_event(move |_, evt| {
+            // animate button upon right-/middleclick (if gtk theme supports it)
+            // since we do this, we can't use `connect_clicked` as that would always run `onclick` as well
+            connect_signal_handler!(gtk_widget, gtk_widget.connect_button_press_event(move |button, _| {
+                button.emit_activate();
+                glib::Propagation::Proceed
+            }));
+            let onclick_ = onclick.clone();
+            // mouse click events
+            connect_signal_handler!(gtk_widget, gtk_widget.connect_button_release_event(move |_, evt| {
                 match evt.button() {
                     1 => run_command(timeout, &onclick, &[] as &[&str]),
                     2 => run_command(timeout, &onmiddleclick, &[] as &[&str]),
@@ -545,8 +551,18 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
                 }
                 glib::Propagation::Proceed
             }));
+            // keyboard events
+            connect_signal_handler!(gtk_widget, gtk_widget.connect_key_release_event(move |_, evt| {
+                match evt.scancode() {
+                    // return
+                    36 => run_command(timeout, &onclick_, &[] as &[&str]),
+                    // space
+                    65 => run_command(timeout, &onclick_, &[] as &[&str]),
+                    _ => {},
+                }
+                glib::Propagation::Proceed
+            }));
         }
-
     });
     Ok(gtk_widget)
 }
@@ -786,26 +802,26 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
     // Support :hover selector
     gtk_widget.connect_enter_notify_event(|gtk_widget, evt| {
         if evt.detail() != NotifyType::Inferior {
-            gtk_widget.clone().set_state_flags(gtk::StateFlags::PRELIGHT, false);
+            gtk_widget.set_state_flags(gtk::StateFlags::PRELIGHT, false);
         }
         glib::Propagation::Proceed
     });
 
     gtk_widget.connect_leave_notify_event(|gtk_widget, evt| {
         if evt.detail() != NotifyType::Inferior {
-            gtk_widget.clone().unset_state_flags(gtk::StateFlags::PRELIGHT);
+            gtk_widget.unset_state_flags(gtk::StateFlags::PRELIGHT);
         }
         glib::Propagation::Proceed
     });
 
     // Support :active selector
     gtk_widget.connect_button_press_event(|gtk_widget, _| {
-        gtk_widget.clone().set_state_flags(gtk::StateFlags::ACTIVE, false);
+        gtk_widget.set_state_flags(gtk::StateFlags::ACTIVE, false);
         glib::Propagation::Proceed
     });
 
     gtk_widget.connect_button_release_event(|gtk_widget, _| {
-        gtk_widget.clone().unset_state_flags(gtk::StateFlags::ACTIVE);
+        gtk_widget.unset_state_flags(gtk::StateFlags::ACTIVE);
         glib::Propagation::Proceed
     });
 
@@ -916,21 +932,18 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
                 };
             }));
         },
-
-        // TODO the fact that we have the same code here as for button is ugly, as we want to keep consistency
-
         prop(
             // @prop timeout - timeout of the command. Default: "200ms"
             timeout: as_duration = Duration::from_millis(200),
-            // @prop onclick - a command that get's run when the button is clicked
+            // @prop onclick - command to run when the widget is clicked
             onclick: as_string = "",
-            // @prop onmiddleclick - a command that get's run when the button is middleclicked
+            // @prop onmiddleclick - command to run when the widget is middleclicked
             onmiddleclick: as_string = "",
-            // @prop onrightclick - a command that get's run when the button is rightclicked
+            // @prop onrightclick - command to run when the widget is rightclicked
             onrightclick: as_string = ""
         ) {
             gtk_widget.add_events(gdk::EventMask::BUTTON_PRESS_MASK);
-            connect_signal_handler!(gtk_widget, gtk_widget.connect_button_press_event(move |_, evt| {
+            connect_signal_handler!(gtk_widget, gtk_widget.connect_button_release_event(move |_, evt| {
                 match evt.button() {
                     1 => run_command(timeout, &onclick, &[] as &[&str]),
                     2 => run_command(timeout, &onmiddleclick, &[] as &[&str]),
@@ -941,7 +954,6 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
             }));
         }
     });
-
     Ok(gtk_widget)
 }
 
@@ -1182,8 +1194,7 @@ fn build_gtk_stack(bargs: &mut BuilderArgs) -> Result<gtk::Stack> {
 
 const WIDGET_NAME_TRANSFORM: &str = "transform";
 /// @widget transform
-/// @desc A widget that applies transformations to its content. They are applied in the following
-/// order: rotate->translate->scale)
+/// @desc A widget that applies transformations to its content. They are applied in the following order: rotate -> translate -> scale
 fn build_transform(bargs: &mut BuilderArgs) -> Result<Transform> {
     let w = Transform::new();
     def_widget!(bargs, _g, w, {
