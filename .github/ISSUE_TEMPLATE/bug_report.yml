@@ -40,6 +40,6 @@ body:
   - type: textarea
     attributes:
       label: "Platform and environment"
-      description: "Does this happen on wayland, X11, or on both? What WM/Compositor are you using? Which version of eww are you using? (when using a git version, optimally provide the exact commit ref).
+      description: "Does this happen on wayland, X11, or on both? What WM/Compositor are you using? Which version of eww are you using? (when using a git version, optimally provide the exact commit ref)."
     validations:
       required: true
