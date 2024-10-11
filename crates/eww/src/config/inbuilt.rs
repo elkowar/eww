@@ -30,7 +30,7 @@ macro_rules! define_builtin_vars {
 }
 
 define_builtin_vars! {
-    // @desc EWW_TEMPS - Heat of the components in Celcius
+    // @desc EWW_TEMPS - Heat of the components in degree Celsius
     // @prop { <name>: temperature }
     "EWW_TEMPS" [2] => || Ok(DynVal::from(get_temperatures())),
 

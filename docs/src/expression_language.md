@@ -40,6 +40,7 @@ Supported currently are the following features:
 - some function calls:
     - `round(number, decimal_digits)`: Round a number to the given amount of decimals
     - `sin(number)`, `cos(number)`, `tan(number)`, `cot(number)`: Calculate the trigonometric value of a given number in **radians**
+    - `min(a, b)`, `max(a, b)`: Get the smaller or bigger number out of two given numbers
     - `degtorad(number)`: Converts a number from degrees to radians
     - `radtodeg(number)`: Converts a number from radians to degrees
     - `replace(string, regex, replacement)`: Replace matches of a given regex in a string
