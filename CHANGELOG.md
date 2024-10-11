@@ -4,6 +4,10 @@ All notable changes to eww will be listed here, starting at changes since versio
 
 ## Unreleased
 
+### BREAKING CHANGES
+- #1176 changed safe access (`?.`) behavior:
+  Attempting to index in an empty JSON string (`'""'`) is now an error.
+
 ### Fixes
 - Re-enable some scss features (By: w-lfchen)
 - Fix and refactor nix flake (By: w-lfchen)
