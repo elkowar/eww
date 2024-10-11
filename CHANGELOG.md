@@ -5,7 +5,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 ## Unreleased
 
 ### BREAKING CHANGES
-- #1176 changed safe access (`?.`) behavior:
+- [#1176](https://github.com/elkowar/eww/pull/1176) changed safe access (`?.`) behavior:
   Attempting to index in an empty JSON string (`'""'`) is now an error.
 
 ### Fixes
