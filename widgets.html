@@ -269,13 +269,13 @@
 <li><strong><code>password</code></strong>: <em><code>bool</code></em> if the input is obscured</li>
 </ul>
 <h2 id="button"><a class="header" href="#button"><code>button</code></a></h2>
-<p>A button</p>
+<p>A button containing any widget as it's child. Events are triggered on release.</p>
 <p><strong>Properties</strong></p>
 <ul>
 <li><strong><code>timeout</code></strong>: <em><code>duration</code></em> timeout of the command. Default: &quot;200ms&quot;</li>
-<li><strong><code>onclick</code></strong>: <em><code>string</code></em> a command that get's run when the button is clicked</li>
-<li><strong><code>onmiddleclick</code></strong>: <em><code>string</code></em> a command that get's run when the button is middleclicked</li>
-<li><strong><code>onrightclick</code></strong>: <em><code>string</code></em> a command that get's run when the button is rightclicked</li>
+<li><strong><code>onclick</code></strong>: <em><code>string</code></em> command to run when the button is activated either by leftclicking or keyboard</li>
+<li><strong><code>onmiddleclick</code></strong>: <em><code>string</code></em> command to run when the button is middleclicked</li>
+<li><strong><code>onrightclick</code></strong>: <em><code>string</code></em> command to run when the button is rightclicked</li>
 </ul>
 <h2 id="image"><a class="header" href="#image"><code>image</code></a></h2>
 <p>A widget displaying an image</p>
@@ -328,9 +328,9 @@
 <li><strong><code>ondropped</code></strong>: <em><code>string</code></em> Command to execute when something is dropped on top of this element. The placeholder <code>{}</code> used in the command will be replaced with the uri to the dropped thing.</li>
 <li><strong><code>dragvalue</code></strong>: <em><code>string</code></em> URI that will be provided when dragging from this widget</li>
 <li><strong><code>dragtype</code></strong>: <em><code>string</code></em> Type of value that should be dragged from this widget. Possible values: &quot;file&quot;, &quot;text&quot;</li>
-<li><strong><code>onclick</code></strong>: <em><code>string</code></em> a command that get's run when the button is clicked</li>
-<li><strong><code>onmiddleclick</code></strong>: <em><code>string</code></em> a command that get's run when the button is middleclicked</li>
-<li><strong><code>onrightclick</code></strong>: <em><code>string</code></em> a command that get's run when the button is rightclicked</li>
+<li><strong><code>onclick</code></strong>: <em><code>string</code></em> command to run when the widget is clicked</li>
+<li><strong><code>onmiddleclick</code></strong>: <em><code>string</code></em> command to run when the widget is middleclicked</li>
+<li><strong><code>onrightclick</code></strong>: <em><code>string</code></em> command to run when the widget is rightclicked</li>
 </ul>
 <h2 id="label"><a class="header" href="#label"><code>label</code></a></h2>
 <p>A text widget giving you more control over how the text is displayed</p>
@@ -379,7 +379,7 @@
 <li><strong><code>same-size</code></strong>: <em><code>bool</code></em> sets whether all children should be the same size</li>
 </ul>
 <h2 id="transform"><a class="header" href="#transform"><code>transform</code></a></h2>
-<p>A widget that applies transformations to its content. They are applied in the following</p>
+<p>A widget that applies transformations to its content. They are applied in the following order: rotate -&gt; translate -&gt; scale</p>
 <p><strong>Properties</strong></p>
 <ul>
 <li><strong><code>rotate</code></strong>: <em><code>float</code></em> the percentage to rotate</li>
