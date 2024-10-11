@@ -558,6 +558,7 @@ not an object.
 <ul>
 <li><code>round(number, decimal_digits)</code>: Round a number to the given amount of decimals</li>
 <li><code>sin(number)</code>, <code>cos(number)</code>, <code>tan(number)</code>, <code>cot(number)</code>: Calculate the trigonometric value of a given number in <strong>radians</strong></li>
+<li><code>min(a, b)</code>, <code>max(a, b)</code>: Get the smaller or bigger number out of two given numbers</li>
 <li><code>degtorad(number)</code>: Converts a number from degrees to radians</li>
 <li><code>radtodeg(number)</code>: Converts a number from radians to degrees</li>
 <li><code>replace(string, regex, replacement)</code>: Replace matches of a given regex in a string</li>
@@ -601,7 +602,7 @@ or use the <a href="working_with_gtk.html#gtk-debugger">GTK-Debugger</a>.</p>
 <p>These are variables that are always there, without you having to import them.</p>
 <p>The delay between all the updating variables except <code>EWW_TIME</code> is 2s, for <code>EWW_TIME</code> it is 1s.</p>
 <h3 id="eww_temps"><a class="header" href="#eww_temps"><code>EWW_TEMPS</code></a></h3>
-<p>Heat of the components in Celcius</p>
+<p>Heat of the components in degree Celsius</p>
 <h4 id="structure"><a class="header" href="#structure">Structure</a></h4>
 <pre><code>{ &lt;name&gt;: temperature }
 </code></pre>
@@ -665,7 +666,7 @@ or use the <a href="working_with_gtk.html#gtk-debugger">GTK-Debugger</a>.</p>
 <li><strong><code>onchange</code></strong>: <em><code>string</code></em> runs the code when a item was selected, replacing {} with the item as a string</li>
 </ul>
 <h2 id="expander"><a class="header" href="#expander"><code>expander</code></a></h2>
-<p>A widget that can expand and collapse, showing/hiding it's children.</p>
+<p>A widget that can expand and collapse, showing/hiding it's children. Should contain</p>
 <p><strong>Properties</strong></p>
 <ul>
 <li><strong><code>name</code></strong>: <em><code>string</code></em> name of the expander</li>
