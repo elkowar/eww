@@ -4,6 +4,10 @@ All notable changes to eww will be listed here, starting at changes since versio
 
 ## Unreleased
 
+### BREAKING CHANGES
+- [#1176](https://github.com/elkowar/eww/pull/1176) changed safe access (`?.`) behavior:
+  Attempting to index in an empty JSON string (`'""'`) is now an error.
+
 ### Fixes
 - Re-enable some scss features (By: w-lfchen)
 - Fix and refactor nix flake (By: w-lfchen)
@@ -23,6 +27,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add `flip-x`, `flip-y`, `vertical` options to the graph widget to determine its direction
 - Add `transform-origin-x`/`transform-origin-y` properties to transform widget (By: mario-kr)
 - Add keyboard support for button presses (By: julianschuler)
+- Support empty string for safe access operator (By: ModProg)
 
 ## [0.6.0] (21.04.2024)
 
