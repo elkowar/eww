@@ -540,10 +540,10 @@ otherwise evaluates to the left side.</li>
 </li>
 <li>Safe Access operator (<code>?.</code>) or (<code>?.[index]</code>)
 <ul>
-<li>if the left side is <code>&quot;&quot;</code> or a JSON <code>null</code>, then return <code>null</code>. Otherwise,
-attempt to index.</li>
+<li>if the left side is an empty string or a JSON <code>null</code>, then return <code>null</code>. Otherwise,
+attempt to index. Note that indexing an empty JSON string (<code>'&quot;&quot;'</code>) is an error.</li>
 <li>This can still cause an error to occur if the left hand side exists but is
-not an object.
+not an object or an array.
 (<code>Number</code> or <code>String</code>).</li>
 </ul>
 </li>
