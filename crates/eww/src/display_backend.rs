@@ -28,13 +28,13 @@ impl DisplayBackend for NoBackend {
 
 #[cfg(feature = "wayland")]
 mod platform_wayland {
+    use super::DisplayBackend;
     use crate::{widgets::window::Window, window_initiator::WindowInitiator};
     use gtk::gdk;
     use gtk::prelude::*;
     use gtk_layer_shell::{KeyboardMode, LayerShell};
-    use yuck::config::{window_definition::WindowStacking, window_geometry::AnchorAlignment};
     use yuck::config::backend_window_options::WlWindowFocusable;
-    use super::DisplayBackend;
+    use yuck::config::{window_definition::WindowStacking, window_geometry::AnchorAlignment};
 
     pub struct WaylandBackend;
 
