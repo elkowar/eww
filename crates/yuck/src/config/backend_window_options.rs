@@ -7,6 +7,7 @@ use simplexpr::{
     SimplExpr,
 };
 
+use super::{attributes::Attributes, window_definition::EnumParseError};
 use crate::{
     enum_parse,
     error::DiagResult,
@@ -15,7 +16,6 @@ use crate::{
 };
 use eww_shared_util::{Span, VarName};
 use simplexpr::dynval::ConversionError;
-use super::{attributes::Attributes, window_definition::EnumParseError};
 
 use crate::error::{DiagError, DiagResultExt};
 
