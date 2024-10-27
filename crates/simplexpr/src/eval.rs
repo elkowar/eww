@@ -600,5 +600,9 @@ mod tests {
         lazy_evaluation_or(r#"true || "null".test"#) => Ok(DynVal::from(true)),
         lazy_evaluation_elvis(r#""test"?: "null".test"#) => Ok(DynVal::from("test")),
         jq_basic_index(r#"jq("[7,8,9]", ".[0]")"#) => Ok(DynVal::from(7)),
+        jq_raw_arg(r#"jq("[ \"foo\" ]", ".[0]", "r")"#) => Ok(DynVal::from("foo")),
+        jq_empty_arg(r#"jq("[ \"foo\" ]", ".[0]", "")"#) => Ok(DynVal::from(r#""foo""#)),
+        jq_invalid_arg(r#"jq("[ \"foo\" ]", ".[0]", "hello")"#) => Ok(DynVal::from(r#""foo""#)),
+        jq_no_arg(r#"jq("[ \"foo\" ]", ".[0]")"#) => Ok(DynVal::from(r#""foo""#)),
     }
 }
