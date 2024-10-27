@@ -525,17 +525,15 @@ fn prepare_jaq_filter(code: String) -> Result<Arc<jaq_interpret::Filter>, EvalEr
 }
 
 fn run_jaq_function(json: serde_json::Value, code: String, args: &str) -> Result<DynVal, EvalError> {
-    let inputs = jaq_interpret::RcIter::new(std::iter::empty());
+    use jaq_interpret::{Ctx, RcIter, Val};
     prepare_jaq_filter(code)?
-        .run((jaq_interpret::Ctx::new([], &inputs), jaq_interpret::Val::from(json)))
+        .run((Ctx::new([], &RcIter::new(std::iter::empty())), Val::from(json)))
         .map(|r| r.map(Into::<serde_json::Value>::into))
-        .map(|r| {
-            r.map(|v| match v {
-                // Per jq docs, "raw-output" behavior simply omits
-                // quotation marks from strings, and outputs what would
-                // otherwise be valid JSON, so this should replicate that.
-                serde_json::Value::String(contents) if args == "r" => DynVal::from_string(contents),
-                anyval => DynVal::from_string(serde_json::to_string(&anyval).unwrap()),
+        .map(|x| {
+            x.map(|val| match (args, val) {
+                ("r", serde_json::Value::String(s)) => DynVal::from_string(s),
+                // invalid arguments are silently ignored
+                (_, v) => DynVal::from_string(serde_json::to_string(&v).unwrap()),
             })
         })
         .collect::<Result<_, _>>()
