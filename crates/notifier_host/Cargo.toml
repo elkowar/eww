@@ -10,6 +10,8 @@ homepage = "https://github.com/elkowar/eww"
 
 [dependencies]
 dbusmenu-gtk3 = "0.1.0"
+quick-xml = { version = "0.37.1", features = ["serialize"] }
+serde = "1.0.215"
 
 gtk.workspace = true
 log.workspace = true
