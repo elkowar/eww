@@ -24,6 +24,8 @@ Supported currently are the following features:
 - comparisons (`==`, `!=`, `>`, `<`, `<=`, `>=`)
 - boolean operations (`||`, `&&`, `!`)
 - regex match operator (`=~`)
+    - Rust regex style, left hand is regex, right hand is string
+    - ex: workspace.name =~ '^special:.+$'
 - elvis operator (`?:`)
     - if the left side is `""` or a JSON `null`, then returns the right side,
       otherwise evaluates to the left side.
