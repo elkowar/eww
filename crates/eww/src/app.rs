@@ -367,14 +367,24 @@ impl<B: DisplayBackend> App<B> {
         self.failed_windows.remove(instance_id);
         log::info!("Opening window {} as '{}'", window_args.window_name, instance_id);
 
-        // if an instance of this is already running, close it
-        if self.open_windows.contains_key(instance_id) {
-            self.close_window(instance_id)?;
-        }
-
+        // if an instance of this is already running and arguments haven't change, only update duration
+        let reuse_window = if self.open_windows.contains_key(instance_id) {
+            if self.instance_id_to_args.get(instance_id).is_some_and(|args| window_args.can_reuse_window_with_args(args)) {
+                true
+            } else {
+                self.close_window(instance_id)?;
+                false
+            }
+        } else {
+            false
+        };
         self.instance_id_to_args.insert(instance_id.to_string(), window_args.clone());
 
         let open_result: Result<_> = (|| {
+            if reuse_window {
+                return Ok(());
+            }
+
             let window_name: &str = &window_args.window_name;
 
             let window_def = self.eww_config.get_window(window_name)?.clone();
@@ -431,43 +441,50 @@ impl<B: DisplayBackend> App<B> {
                 }
             }));
 
-            let duration = window_args.duration;
-            if let Some(duration) = duration {
-                let app_evt_sender = self.app_evt_send.clone();
-
-                let (abort_send, abort_recv) = futures::channel::oneshot::channel();
-
-                glib::MainContext::default().spawn_local({
-                    let instance_id = instance_id.to_string();
-                    async move {
-                        tokio::select! {
-                            _ = glib::timeout_future(duration) => {
-                                let (response_sender, mut response_recv) = daemon_response::create_pair();
-                                let command = DaemonCommand::CloseWindows { windows: vec![instance_id.clone()], sender: response_sender };
-                                if let Err(err) = app_evt_sender.send(command) {
-                                    log::error!("Error sending close window command to daemon after gtk window destroy event: {}", err);
-                                }
-                                _ = response_recv.recv().await;
-                            }
-                            _ = abort_recv => {}
-                        }
-                    }
-                });
-
-                if let Some(old_abort_send) = self.window_close_timer_abort_senders.insert(instance_id.to_string(), abort_send) {
-                    _ = old_abort_send.send(());
-                }
-            }
-
             self.open_windows.insert(instance_id.to_string(), eww_window);
             Ok(())
         })();
+
+        self.update_window_duration(instance_id, window_args.duration);
 
         if let Err(err) = open_result {
             self.failed_windows.insert(instance_id.to_string());
             Err(err).with_context(|| format!("failed to open window `{}`", instance_id))
         } else {
             Ok(())
+        }
+    }
+
+    fn update_window_duration(&mut self, instance_id: &str, duration: Option<std::time::Duration>) {
+        if let Some(duration) = duration {
+            let app_evt_sender = self.app_evt_send.clone();
+
+            let (abort_send, abort_recv) = futures::channel::oneshot::channel();
+
+            glib::MainContext::default().spawn_local({
+                let instance_id = instance_id.to_string();
+                async move {
+                    tokio::select! {
+                        _ = glib::timeout_future(duration) => {
+                            let (response_sender, mut response_recv) = daemon_response::create_pair();
+                            let command = DaemonCommand::CloseWindows { windows: vec![instance_id.clone()], sender: response_sender };
+                            if let Err(err) = app_evt_sender.send(command) {
+                                log::error!("Error sending close window command to daemon after gtk window destroy event: {}", err);
+                            }
+                            _ = response_recv.recv().await;
+                        }
+                        _ = abort_recv => {}
+                    }
+                }
+            });
+
+            if let Some(old_abort_send) = self.window_close_timer_abort_senders.insert(instance_id.to_string(), abort_send) {
+                _ = old_abort_send.send(());
+            }
+        } else {
+            if let Some(old_abort_send) = self.window_close_timer_abort_senders.remove(instance_id) {
+                _ = old_abort_send.send(());
+            }
         }
     }
 
