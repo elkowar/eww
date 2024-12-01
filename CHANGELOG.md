@@ -16,6 +16,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Fix values in the `EWW_NET` variable (By: mario-kr)
 - Fix the gtk `expander` widget (By: ovalkonia)
 - Fix wayland monitor names support (By: dragonnn)
+- Render image widget at full resolution when display scaling is enabled (By: zane-weissman)
 
 ### Features
 - Update rust toolchain to 1.81.0 (By: w-lfchen)
