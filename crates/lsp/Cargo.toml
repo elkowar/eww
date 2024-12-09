@@ -4,5 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+dashmap = "6.1.0"
 tokio.workspace = true
 tower-lsp = "0.20.0"
+yuck = { path = "../yuck"}
+eww_shared_util = { path = "../eww_shared_util"}
+codespan-reporting.workspace = true
