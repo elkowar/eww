@@ -60,6 +60,14 @@ I've hit a bit of a design roadblock for one of the bigger features that are in 
 
 </div>
 
+* [Activate Linux by Nycta](https://github.com/Nycta-b424b3c7/eww_activate-linux)
+
+<div align="left">
+
+![Activate Linux](https://raw.githubusercontent.com/Nycta-b424b3c7/eww_activate-linux/refs/heads/master/activate-linux.png)
+
+</div>
+
 ## Contribewwting
 
 If you want to contribute anything, like adding new widgets, features, or subcommands (including sample configs), you should definitely do so.
