@@ -45,6 +45,7 @@ use yuck::{
 pub enum DaemonCommand {
     NoOp,
     UpdateVars(Vec<(VarName, DynVal)>),
+    PollVars(Vec<VarName>),
     ReloadConfigAndCss(DaemonResponseSender),
     OpenInspector,
     OpenMany {
@@ -165,6 +166,11 @@ impl<B: DisplayBackend> App<B> {
             DaemonCommand::UpdateVars(mappings) => {
                 for (var_name, new_value) in mappings {
                     self.update_global_variable(var_name, new_value);
+                }
+            }
+            DaemonCommand::PollVars(names) => {
+                for var_name in names {
+                    self.force_poll_variable(var_name);
                 }
             }
             DaemonCommand::ReloadConfigAndCss(sender) => {
@@ -332,6 +338,23 @@ impl<B: DisplayBackend> App<B> {
                     Ok(Err(err)) => error_handling_ctx::print_error(anyhow!(err)),
                     Err(err) => error_handling_ctx::print_error(anyhow!(err)),
                 };
+            }
+        }
+    }
+
+    fn force_poll_variable(&mut self, name: VarName) {
+        match self.eww_config.get_script_var(&name) {
+            Err(err) => error_handling_ctx::print_error(err),
+            Ok(var) => {
+                if let ScriptVarDefinition::Poll(poll_var) = var {
+                    log::debug!("force-polling var {}", &name);
+                    match script_var_handler::run_poll_once(&poll_var) {
+                        Err(err) => error_handling_ctx::print_error(err),
+                        Ok(value) => self.update_global_variable(name, value),
+                    }
+                } else {
+                    error_handling_ctx::print_error(anyhow!("Script var '{}' is not polling", name))
+                }
             }
         }
     }
