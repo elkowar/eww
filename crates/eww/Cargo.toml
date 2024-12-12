@@ -20,7 +20,7 @@ eww_shared_util.workspace = true
 yuck.workspace = true
 notifier_host.workspace = true
 
-gtk-layer-shell = { version = "0.8.1", optional = true }
+gtk-layer-shell = { version = "0.8.1", optional = true, features=["v0_6"] }
 gdkx11 = { version = "0.18", optional = true }
 x11rb = { version = "0.13.1", features = ["randr"], optional = true }
 gdk-sys = "0.18.0"
