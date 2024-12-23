@@ -345,6 +345,22 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
             }
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
+        "powi" => match args.as_slice() {
+            [num, n] => {
+                let num = num.as_f64()?;
+                let n = n.as_i32()?;
+                Ok(DynVal::from(f64::powi(num, n)))
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
+        "powf" => match args.as_slice() {
+            [num, n] => {
+                let num = num.as_f64()?;
+                let n = n.as_f64()?;
+                Ok(DynVal::from(f64::powf(num, n)))
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
         "sin" => match args.as_slice() {
             [num] => {
                 let num = num.as_f64()?;
