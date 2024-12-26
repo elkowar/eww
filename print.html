@@ -296,7 +296,7 @@ Depending on if you are using X11 or Wayland, some additional properties exist:
 <table><thead><tr><th align="right">Property</th><th>Description</th></tr></thead><tbody>
 <tr><td align="right"><code>stacking</code></td><td>Where the window should appear in the stack. Possible values: <code>fg</code>, <code>bg</code>, <code>overlay</code>, <code>bottom</code>.</td></tr>
 <tr><td align="right"><code>exclusive</code></td><td>Whether the compositor should reserve space for the window automatically. Either <code>true</code> or <code>false</code>.</td></tr>
-<tr><td align="right"><code>focusable</code></td><td>Whether the window should be able to be focused. This is necessary for any widgets that use the keyboard to work. Either <code>true</code> or <code>false</code>.</td></tr>
+<tr><td align="right"><code>focusable</code></td><td>Whether the window should be able to be focused. This is necessary for any widgets that use the keyboard to work. Possible values: <code>none</code>, <code>exclusive</code> and <code>ondemand</code>.</td></tr>
 <tr><td align="right"><code>namespace</code></td><td>Set the wayland layersurface namespace eww uses. Accepts a <code>string</code> value.</td></tr>
 </tbody></table>
 <h2 id="your-first-widget"><a class="header" href="#your-first-widget">Your first widget</a></h2>
