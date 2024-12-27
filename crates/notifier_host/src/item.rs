@@ -1,6 +1,8 @@
 use crate::*;
 
 use gtk::{self, prelude::*};
+use serde::Deserialize;
+use zbus::fdo::IntrospectableProxy;
 
 /// Recognised values of [`org.freedesktop.StatusNotifierItem.Status`].
 ///
@@ -61,7 +63,12 @@ impl Item {
             if let Some((addr, path)) = service.split_once('/') {
                 (addr.to_owned(), format!("/{}", path))
             } else if service.starts_with(':') {
-                (service[0..6].to_owned(), names::ITEM_OBJECT.to_owned())
+                (
+                    service.to_owned(),
+                    resolve_pathless_address(con, service, "/".to_owned())
+                        .await?
+                        .ok_or_else(|| zbus::Error::Failure(format!("no StatusNotifierItem found for {service}")))?,
+                )
             } else {
                 return Err(zbus::Error::Address(service.to_owned()));
             }
@@ -104,4 +111,60 @@ impl Item {
         // see icon.rs
         load_icon_from_sni(&self.sni, size, scale).await
     }
+}
+
+#[derive(Deserialize)]
+struct DBusNode {
+    #[serde(default)]
+    interface: Vec<DBusInterface>,
+
+    #[serde(default)]
+    node: Vec<DBusNode>,
+
+    #[serde(rename = "@name")]
+    name: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct DBusInterface {
+    #[serde(rename = "@name")]
+    name: String,
+}
+
+async fn resolve_pathless_address(con: &zbus::Connection, service: &str, path: String) -> zbus::Result<Option<String>> {
+    let introspection_xml =
+        IntrospectableProxy::builder(con).destination(service)?.path(path.as_str())?.build().await?.introspect().await?;
+
+    let dbus_node =
+        quick_xml::de::from_str::<DBusNode>(&introspection_xml).map_err(|err| zbus::Error::Failure(err.to_string()))?;
+
+    if dbus_node.interface.iter().any(|interface| interface.name == "org.kde.StatusNotifierItem") {
+        // This item implements the desired interface, so bubble it back up
+        Ok(Some(path))
+    } else {
+        for node in dbus_node.node {
+            if let Some(name) = node.name {
+                if name == "StatusNotifierItem" {
+                    // If this exists, then there's a good chance DBus may not think anything
+                    // implements the desired interface, so just bubble this up instead.
+                    return Ok(Some(join_to_path(&path, name)));
+                }
+
+                let path = Box::pin(resolve_pathless_address(con, service, join_to_path(&path, name))).await?;
+
+                if path.is_some() {
+                    // Return the first item found from a child
+                    return Ok(path);
+                }
+            }
+        }
+
+        // No children had the item we want...
+        Ok(None)
+    }
+}
+
+fn join_to_path(path: &str, name: String) -> String {
+    // Make sure we don't double-up on the leading slash
+    format!("{path}/{name}", path = if path == "/" { "" } else { path })
 }
