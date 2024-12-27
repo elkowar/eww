@@ -1,38 +1,36 @@
 name: Build and deploy Github pages
 on:
-    push:
-        branches:
-            - master
-        paths:
-            - "docs/**"
-            - "gen-docs.ts"
-            - "crates/eww/src/widgets/widget_definitions.rs"
-            - "crates/eww/src/config/inbuilt.rs"
-            - ".github/workflows/**"
+  push:
+    branches:
+      - master
+    paths:
+      - "docs/**"
+      - "gen-docs.ts"
+      - "crates/eww/src/widgets/widget_definitions.rs"
+      - "crates/eww/src/config/inbuilt.rs"
+      - ".github/workflows/**"
 jobs:
-    build:
-        name: Build mdBook
-        runs-on: ubuntu-latest
-        steps:
-            # Checkout
-            - uses: actions/checkout@master
-
-            # Build widget documentation
-            - name: Use deno to build widget documentation
-              uses: denoland/setup-deno@main
-              with:
-                  deno-version: "v1.x"
-            - run: deno run --allow-read --allow-write gen-docs.ts ./crates/eww/src/widgets/widget_definitions.rs ./crates/eww/src/config/inbuilt.rs
-
-            # Build & deploy
-            - name: build mdBook page
-              uses: peaceiris/actions-mdbook@v1
-              with:
-                  mdbook-version: '0.4.8'
-            - run: mdbook build docs
-
-            - name: Deploy
-              uses: peaceiris/actions-gh-pages@v3
-              with:
-                  github_token: ${{ secrets.GITHUB_TOKEN }}
-                  publish_dir: ./docs/book/
+  build:
+    name: Build mdBook
+    runs-on: ubuntu-latest
+    if: github.repository == 'elkowar/eww'
+    steps:
+      # Checkout
+      - uses: actions/checkout@master
+      # Build widget documentation
+      - name: Use deno to build widget documentation
+        uses: denoland/setup-deno@main
+        with:
+          deno-version: "v1.x"
+      - run: deno run --allow-read --allow-write gen-docs.ts ./crates/eww/src/widgets/widget_definitions.rs ./crates/eww/src/config/inbuilt.rs
+      # Build & deploy
+      - name: build mdBook page
+        uses: peaceiris/actions-mdbook@v1
+        with:
+          mdbook-version: '0.4.8'
+      - run: mdbook build docs
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs/book/
