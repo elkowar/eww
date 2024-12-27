@@ -472,7 +472,9 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
         "jq" => match args.as_slice() {
-            [json, code] => run_jaq_function(json.as_json_value()?, code.as_string()?)
+            [json, code] => run_jaq_function(json.as_json_value()?, code.as_string()?, "")
+                .map_err(|e| EvalError::Spanned(code.span(), Box::new(e))),
+            [json, code, args] => run_jaq_function(json.as_json_value()?, code.as_string()?, &args.as_string()?)
                 .map_err(|e| EvalError::Spanned(code.span(), Box::new(e))),
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
@@ -522,16 +524,20 @@ fn prepare_jaq_filter(code: String) -> Result<Arc<jaq_interpret::Filter>, EvalEr
     Ok(Arc::new(filter))
 }
 
-fn run_jaq_function(json: serde_json::Value, code: String) -> Result<DynVal, EvalError> {
-    let filter: Arc<jaq_interpret::Filter> = prepare_jaq_filter(code)?;
-    let inputs = jaq_interpret::RcIter::new(std::iter::empty());
-    let out = filter
-        .run((jaq_interpret::Ctx::new([], &inputs), jaq_interpret::Val::from(json)))
-        .map(|x| x.map(Into::<serde_json::Value>::into))
-        .map(|x| x.map(|x| DynVal::from_string(serde_json::to_string(&x).unwrap())))
+fn run_jaq_function(json: serde_json::Value, code: String, args: &str) -> Result<DynVal, EvalError> {
+    use jaq_interpret::{Ctx, RcIter, Val};
+    prepare_jaq_filter(code)?
+        .run((Ctx::new([], &RcIter::new(std::iter::empty())), Val::from(json)))
+        .map(|r| r.map(Into::<serde_json::Value>::into))
+        .map(|x| {
+            x.map(|val| match (args, val) {
+                ("r", serde_json::Value::String(s)) => DynVal::from_string(s),
+                // invalid arguments are silently ignored
+                (_, v) => DynVal::from_string(serde_json::to_string(&v).unwrap()),
+            })
+        })
         .collect::<Result<_, _>>()
-        .map_err(|e| EvalError::JaqError(e.to_string()))?;
-    Ok(out)
+        .map_err(|e| EvalError::JaqError(e.to_string()))
 }
 
 #[cfg(test)]
@@ -592,5 +598,9 @@ mod tests {
         lazy_evaluation_or(r#"true || "null".test"#) => Ok(DynVal::from(true)),
         lazy_evaluation_elvis(r#""test"?: "null".test"#) => Ok(DynVal::from("test")),
         jq_basic_index(r#"jq("[7,8,9]", ".[0]")"#) => Ok(DynVal::from(7)),
+        jq_raw_arg(r#"jq("[ \"foo\" ]", ".[0]", "r")"#) => Ok(DynVal::from("foo")),
+        jq_empty_arg(r#"jq("[ \"foo\" ]", ".[0]", "")"#) => Ok(DynVal::from(r#""foo""#)),
+        jq_invalid_arg(r#"jq("[ \"foo\" ]", ".[0]", "hello")"#) => Ok(DynVal::from(r#""foo""#)),
+        jq_no_arg(r#"jq("[ \"foo\" ]", ".[0]")"#) => Ok(DynVal::from(r#""foo""#)),
     }
 }
