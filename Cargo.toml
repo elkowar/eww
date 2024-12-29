@@ -54,8 +54,8 @@ smart-default = "0.7.1"
 static_assertions = "1.1.0"
 strsim = "0.11"
 strum = { version = "0.26", features = ["derive"] }
-sysinfo = "0.31.2"
-thiserror = "1.0"
+sysinfo = "0.33.1"
+thiserror = "2.0.0"
 tokio-util = "0.7.11"
 tokio = { version = "1.39.2", features = ["full"] }
 unescaper = "0.1"
