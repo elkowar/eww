@@ -16,6 +16,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Fix values in the `EWW_NET` variable (By: mario-kr)
 - Fix the gtk `expander` widget (By: ovalkonia)
 - Fix wayland monitor names support (By: dragonnn)
+- `get_locale` now follows POSIX standard for locale selection (By: mirhahn, w-lfchen)
 
 ### Features
 - Add OnDemand support for focusable on wayland (By: GallowsDove)
