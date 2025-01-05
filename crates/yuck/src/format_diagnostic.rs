@@ -217,7 +217,7 @@ impl ToDiagnostic for simplexpr::eval::EvalError {
                         return diag;
                     }
                 }
-                return err.as_ref().to_diagnostic().with_label(span_to_primary_label(*span));
+                err.as_ref().to_diagnostic().with_label(span_to_primary_label(*span))
             }
             _ => gen_diagnostic!(self, self.span()),
         }

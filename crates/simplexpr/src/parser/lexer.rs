@@ -265,7 +265,7 @@ impl<'s> Lexer<'s> {
     }
 }
 
-impl<'s> Iterator for Lexer<'s> {
+impl Iterator for Lexer<'_> {
     type Item = Result<Sp<Token>, LexicalError>;
 
     fn next(&mut self) -> Option<Self::Item> {
