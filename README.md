@@ -11,11 +11,14 @@ Documentation **and instructions on how to install** can be found [here](https:/
 
 Dharmx also wrote a nice, beginner friendly introductory guide for eww [here](https://dharmx.is-a.dev/eww-powermenu/).
 
-## Eww needs your opinion!
+## Check out another cool project by me
 
-I've hit a bit of a design roadblock for one of the bigger features that are in the works right now.
+<img src="https://raw.githubusercontent.com/elkowar/yolk/refs/heads/main/.github/images/yolk_logo.svg" height="100" align="right"/>
 
-**Please read through https://github.com/elkowar/eww/discussions/453 and share your thoughts, ideas and opinions!**
+I'm currently busy working [yolk](https://github.com/elkowar/yolk),
+which is a dotfile management solution that supports a unique spin on templating: *templating without template files*.
+
+To find out more, check out the [website and documentation](https://elkowar.github.io/yolk)! 
 
 ## Examples
 
@@ -57,6 +60,14 @@ I've hit a bit of a design roadblock for one of the bigger features that are in 
 <div align="center">
 
 ![eww-top-bar](https://user-images.githubusercontent.com/72156551/153045183-227b62b2-223a-4a5b-a499-3f31044b5b65.gif)
+
+</div>
+
+* [Activate Linux by Nycta](https://github.com/Nycta-b424b3c7/eww_activate-linux)
+
+<div align="left">
+
+![Activate Linux](https://raw.githubusercontent.com/Nycta-b424b3c7/eww_activate-linux/refs/heads/master/activate-linux.png)
 
 </div>
 

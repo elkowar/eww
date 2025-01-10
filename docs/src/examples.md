@@ -7,4 +7,4 @@ An eww bar configuration:
 
 A demo on how to declare and use data structures:
 
-![Data structure example](/examples/data-structures/data-structures-preview.png)
+![Data structure example](https://github.com/elkowar/eww/raw/master/examples/data-structures/data-structures-preview.png)

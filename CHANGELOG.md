@@ -16,9 +16,12 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Fix values in the `EWW_NET` variable (By: mario-kr)
 - Fix the gtk `expander` widget (By: ovalkonia)
 - Fix wayland monitor names support (By: dragonnn)
+- `get_locale` now follows POSIX standard for locale selection (By: mirhahn, w-lfchen)
 
 ### Features
 - Add `eww poll` subcommand to force-poll a variable (By: kiana-S)
+- Add OnDemand support for focusable on wayland (By: GallowsDove)
+- Add jq `raw-output` support (By: RomanHargrave)
 - Update rust toolchain to 1.81.0 (By: w-lfchen)
 - Add `:fill-svg` and `:preserve-aspect-ratio` properties to images (By: hypernova7, w-lfchen)
 - Add `:truncate` property to labels, disabled by default (except in cases where truncation would be enabled in version `0.5.0` and before) (By: Rayzeq).

@@ -7,6 +7,7 @@ use simplexpr::{
     SimplExpr,
 };
 
+use super::{attributes::Attributes, window_definition::EnumParseError};
 use crate::{
     enum_parse,
     error::DiagResult,
@@ -14,8 +15,7 @@ use crate::{
     value::{coords, NumWithUnit},
 };
 use eww_shared_util::{Span, VarName};
-
-use super::{attributes::Attributes, window_definition::EnumParseError};
+use simplexpr::dynval::ConversionError;
 
 use crate::error::{DiagError, DiagResultExt};
 
@@ -27,6 +27,8 @@ pub enum Error {
     CoordsError(#[from] coords::Error),
     #[error(transparent)]
     EvalError(#[from] EvalError),
+    #[error(transparent)]
+    ConversionError(#[from] ConversionError),
 }
 
 /// Backend-specific options of a window
@@ -45,6 +47,7 @@ impl BackendWindowOptionsDef {
     pub fn from_attrs(attrs: &mut Attributes) -> DiagResult<Self> {
         let struts = attrs.ast_optional("reserve")?;
         let window_type = attrs.ast_optional("windowtype")?;
+        let focusable = attrs.ast_optional("focusable")?;
         let x11 = X11BackendWindowOptionsDef {
             sticky: attrs.ast_optional("sticky")?,
             struts,
@@ -53,7 +56,7 @@ impl BackendWindowOptionsDef {
         };
         let wayland = WlBackendWindowOptionsDef {
             exclusive: attrs.ast_optional("exclusive")?,
-            focusable: attrs.ast_optional("focusable")?,
+            focusable,
             namespace: attrs.ast_optional("namespace")?,
         };
 
@@ -109,7 +112,7 @@ impl X11BackendWindowOptionsDef {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct WlBackendWindowOptions {
     pub exclusive: bool,
-    pub focusable: bool,
+    pub focusable: WlWindowFocusable,
     pub namespace: Option<String>,
 }
 
@@ -122,10 +125,13 @@ pub struct WlBackendWindowOptionsDef {
 }
 
 impl WlBackendWindowOptionsDef {
-    fn eval(&self, local_variables: &HashMap<VarName, DynVal>) -> Result<WlBackendWindowOptions, EvalError> {
+    fn eval(&self, local_variables: &HashMap<VarName, DynVal>) -> Result<WlBackendWindowOptions, Error> {
         Ok(WlBackendWindowOptions {
             exclusive: eval_opt_expr_as_bool(&self.exclusive, false, local_variables)?,
-            focusable: eval_opt_expr_as_bool(&self.focusable, false, local_variables)?,
+            focusable: match &self.focusable {
+                Some(expr) => WlWindowFocusable::from_dynval(&expr.eval(local_variables)?)?,
+                None => WlWindowFocusable::default(),
+            },
             namespace: match &self.namespace {
                 Some(expr) => Some(expr.eval(local_variables)?.as_string()?),
                 None => None,
@@ -143,6 +149,28 @@ fn eval_opt_expr_as_bool(
         Some(expr) => expr.eval(local_variables)?.as_bool()?,
         None => default,
     })
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, smart_default::SmartDefault, serde::Serialize)]
+pub enum WlWindowFocusable {
+    #[default]
+    None,
+    Exclusive,
+    OnDemand,
+}
+impl FromStr for WlWindowFocusable {
+    type Err = EnumParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        enum_parse! { "focusable", s,
+            "none" => Self::None,
+            "exclusive" => Self::Exclusive,
+            "ondemand" => Self::OnDemand,
+            // legacy support
+            "true" => Self::Exclusive,
+            "false" => Self::None,
+        }
+    }
 }
 
 /// Window type of an x11 window
@@ -182,7 +210,7 @@ pub enum Side {
     Bottom,
 }
 
-impl std::str::FromStr for Side {
+impl FromStr for Side {
     type Err = EnumParseError;
 
     fn from_str(s: &str) -> Result<Side, Self::Err> {
