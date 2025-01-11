@@ -26,8 +26,7 @@ static NETWORKS: Lazy<Mutex<(RefreshTime, sysinfo::Networks)>> =
 
 pub fn get_disks() -> String {
     let mut disks = DISKS.lock().unwrap();
-    disks.refresh_list();
-    disks.refresh();
+    disks.refresh(true);
 
     disks
         .iter()
@@ -72,16 +71,13 @@ pub fn get_ram() -> String {
 
 pub fn get_temperatures() -> String {
     let mut components = COMPONENTS.lock().unwrap();
-    components.refresh_list();
-    components.refresh();
+    components.refresh(true);
     components
         .iter()
         .map(|c| {
             (
                 c.label().to_uppercase().replace(' ', "_"),
-                // It is common for temperatures to report a non-numeric value.
-                // Tolerate it by serializing it as the string "null"
-                c.temperature().to_string().replace("NaN", "\"null\""),
+                c.temperature().map_or_else(|| String::from("\"null\""), |temp| temp.to_string()),
             )
         })
         .collect::<serde_json::Value>()
@@ -257,7 +253,7 @@ pub fn get_battery_capacity() -> Result<String> {
 pub fn net() -> String {
     let (ref mut last_refresh, ref mut networks) = &mut *NETWORKS.lock().unwrap();
 
-    networks.refresh_list();
+    networks.refresh(true);
     let elapsed = last_refresh.next_refresh();
 
     networks
