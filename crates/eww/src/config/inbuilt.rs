@@ -38,8 +38,9 @@ define_builtin_vars! {
     // @prop { total_mem, free_mem, total_swap, free_swap, available_mem, used_mem, used_mem_perc }
     "EWW_RAM" [2] => || Ok(DynVal::from(get_ram())),
 
-    // @desc EWW_DISK - Information on on all mounted partitions (Might report inaccurately on some filesystems, like btrfs and zfs) Example: `{EWW_DISK["/"]}`
-    // @prop { <mount_point>: { name, total, free, used, used_perc } }
+    // @desc EWW_DISK - Information on all mounted partitions (Might report inaccurately on some filesystems, like btrfs and zfs).
+    // `read` and `written` provide the read/written bytes per second over the latest interval. Example: `{EWW_DISK["/"]}`
+    // @prop { <mount_point>: { name, total, free, used, used_perc, read, written } }
     "EWW_DISK" [2] => || Ok(DynVal::from(get_disks())),
 
     // @desc EWW_BATTERY - Battery capacity in percent of the main battery

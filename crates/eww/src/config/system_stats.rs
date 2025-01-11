@@ -19,14 +19,17 @@ impl RefreshTime {
 }
 
 static SYSTEM: Lazy<Mutex<System>> = Lazy::new(|| Mutex::new(System::new()));
-static DISKS: Lazy<Mutex<sysinfo::Disks>> = Lazy::new(|| Mutex::new(sysinfo::Disks::new_with_refreshed_list()));
+static DISKS: Lazy<Mutex<(RefreshTime, sysinfo::Disks)>> =
+    Lazy::new(|| Mutex::new((RefreshTime::new(), sysinfo::Disks::new_with_refreshed_list())));
 static COMPONENTS: Lazy<Mutex<sysinfo::Components>> = Lazy::new(|| Mutex::new(sysinfo::Components::new_with_refreshed_list()));
 static NETWORKS: Lazy<Mutex<(RefreshTime, sysinfo::Networks)>> =
     Lazy::new(|| Mutex::new((RefreshTime::new(), sysinfo::Networks::new_with_refreshed_list())));
 
 pub fn get_disks() -> String {
-    let mut disks = DISKS.lock().unwrap();
+    let (ref mut last_refresh, ref mut disks) = *DISKS.lock().unwrap();
     disks.refresh(true);
+
+    let elapsed = last_refresh.next_refresh();
 
     disks
         .iter()
@@ -34,6 +37,7 @@ pub fn get_disks() -> String {
             let total_space = c.total_space();
             let available_space = c.available_space();
             let used_space = total_space - available_space;
+            let usage = c.usage();
 
             (
                 c.mount_point().display().to_string(),
@@ -42,7 +46,9 @@ pub fn get_disks() -> String {
                     "total": total_space,
                     "free": available_space,
                     "used": used_space,
-                    "used_perc": (used_space as f32 / total_space as f32) * 100f32
+                    "used_perc": (used_space as f32 / total_space as f32) * 100f32,
+                    "read": usage.read_bytes as f64 / elapsed.as_secs_f64(),
+                    "written": usage.written_bytes as f64 / elapsed.as_secs_f64(),
                 }),
             )
         })
@@ -251,7 +257,7 @@ pub fn get_battery_capacity() -> Result<String> {
 }
 
 pub fn net() -> String {
-    let (ref mut last_refresh, ref mut networks) = &mut *NETWORKS.lock().unwrap();
+    let (ref mut last_refresh, ref mut networks) = *NETWORKS.lock().unwrap();
 
     networks.refresh(true);
     let elapsed = last_refresh.next_refresh();

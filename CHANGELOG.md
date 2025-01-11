@@ -31,6 +31,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add `transform-origin-x`/`transform-origin-y` properties to transform widget (By: mario-kr)
 - Add keyboard support for button presses (By: julianschuler)
 - Support empty string for safe access operator (By: ModProg)
+- Add `read` and `written` to the `EWW_DISK` magic variable (By: bkueng)
 
 ## [0.6.0] (21.04.2024)
 
