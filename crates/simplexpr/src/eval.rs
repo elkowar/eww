@@ -500,6 +500,14 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
             })),
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
+        "log" => match args.as_slice() {
+            [num, n] => {
+                let num = num.as_f64()?;
+                let n = n.as_f64()?;
+                Ok(DynVal::from(f64::log(num, n)))
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
 
         _ => Err(EvalError::UnknownFunction(name.to_string())),
     }
