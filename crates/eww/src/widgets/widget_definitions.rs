@@ -952,7 +952,16 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
                 }
                 glib::Propagation::Proceed
             }));
-        }
+        },
+        // @prop keypress - The key to press followed by the separator '|>' then followed by the
+        // command to execute.
+        // @prop timeout - timeout of the command. Default "200ms"
+        prop(
+            timeout: as_duration = Duration::from_millis(200),
+            keypress: as_string
+        ) {
+            on_keypress(gtk_widget.as_ref(), timeout, keypress);
+        },
     });
     Ok(gtk_widget)
 }
@@ -1397,4 +1406,40 @@ fn connect_first_map<W: IsA<gtk::Widget>, F: Fn(&W) + 'static>(widget: &W, func:
             func(w)
         }
     }));
+}
+
+const KEYPRESS_COMMAND_SEPARATOR: &str = "|>";
+fn on_keypress(gtk_widget: &gtk::Widget, timeout: Duration, keypress: String) -> () {
+    let parsed_keypress = keypress
+        .split_once(KEYPRESS_COMMAND_SEPARATOR)
+        .map(|(key_name, command)| (key_name.trim().to_owned(), command.trim().to_owned()));
+
+    match parsed_keypress {
+        Some((wanted_key_name, command)) => handle_keypress(gtk_widget, timeout, wanted_key_name, command),
+        None => log::error!(
+            "The 'keypress' property must be in the format: '[KEY] {} [COMMAND]', but got: {}",
+            KEYPRESS_COMMAND_SEPARATOR,
+            keypress
+        ),
+    };
+}
+
+fn handle_keypress(gtk_widget: &gtk::Widget, timeout: Duration, wanted_key_name: String, command: String) -> () {
+    connect_signal_handler!(
+        gtk_widget,
+        gtk_widget.connect_key_press_event(move |gtk_widget, event_key| {
+            match event_key.keyval().name().map(|pressed_key_name| pressed_key_name.to_string()) {
+                Some(pressed_key_name) => {
+                    log::debug!("Key '{}' pressed on widget: {}", pressed_key_name, gtk_widget.path());
+
+                    if wanted_key_name == pressed_key_name {
+                        run_command(timeout, &command, &[] as &[&str]);
+                    };
+                }
+                None => (),
+            };
+
+            glib::Propagation::Proceed
+        })
+    );
 }

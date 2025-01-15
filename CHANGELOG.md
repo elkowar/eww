@@ -32,6 +32,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add keyboard support for button presses (By: julianschuler)
 - Support empty string for safe access operator (By: ModProg)
 - Add `log` function calls to simplexpr (By: topongo)
+- Add support for `:keypress` for eventbox (By: AlexandrePicavet)
 
 ## [0.6.0] (21.04.2024)
 
