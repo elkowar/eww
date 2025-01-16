@@ -1,6 +1,6 @@
 {
   inputs = {
-    flake-compat.url = "github:edolstra/flake-compat/refs/pull/65/head";
+    flake-compat.url = "github:edolstra/flake-compat";
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     rust-overlay = {
       url = "github:oxalica/rust-overlay";

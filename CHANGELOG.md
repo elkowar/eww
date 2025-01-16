@@ -21,7 +21,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 ### Features
 - Add OnDemand support for focusable on wayland (By: GallowsDove)
 - Add jq `raw-output` support (By: RomanHargrave)
-- Update rust toolchain to 1.81.0 (By: w-lfchen)
+- Update rust toolchain to 1.83.0 (By: w-lfchen)
 - Add `:fill-svg` and `:preserve-aspect-ratio` properties to images (By: hypernova7, w-lfchen)
 - Add `:truncate` property to labels, disabled by default (except in cases where truncation would be enabled in version `0.5.0` and before) (By: Rayzeq).
 - Add support for `:hover` css selectors for tray items (By: zeapoz)

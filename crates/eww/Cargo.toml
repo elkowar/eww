@@ -20,10 +20,10 @@ eww_shared_util.workspace = true
 yuck.workspace = true
 notifier_host.workspace = true
 
-gtk-layer-shell = { version = "0.8.1", optional = true, features=["v0_6"] }
-gdkx11 = { version = "0.18", optional = true }
+gtk-layer-shell = { version = "0.8.2", optional = true, features = ["v0_6"] }
+gdkx11 = { version = "0.18.2", optional = true }
 x11rb = { version = "0.13.1", features = ["randr"], optional = true }
-gdk-sys = "0.18.0"
+gdk-sys = "0.18.2"
 
 ordered-stream = "0.2.0"
 
@@ -54,6 +54,6 @@ simple-signal.workspace = true
 sysinfo = { workspace = true }
 tokio-util.workspace = true
 tokio = { workspace = true, features = ["full"] }
-unescape.workspace = true
+unescaper.workspace = true
 wait-timeout.workspace = true
 zbus = { workspace = true, default-features = false, features = ["tokio"] }
