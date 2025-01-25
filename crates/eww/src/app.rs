@@ -68,6 +68,7 @@ pub enum DaemonCommand {
     },
     CloseWindows {
         windows: Vec<String>,
+        auto_reopen: bool,
         sender: DaemonResponseSender,
     },
     KillServer,
@@ -147,16 +148,35 @@ impl<B: DisplayBackend> std::fmt::Debug for App<B> {
     }
 }
 
+/// Wait until the .model() is available for all monitors (or there is a timeout)
+async fn wait_for_monitor_model() {
+    let display = gdk::Display::default().expect("could not get default display");
+    let start = std::time::Instant::now();
+    loop {
+        while gtk::events_pending() && !gtk::main_iteration_do(false) {}
+        let all_monitors_set =
+            (0..display.n_monitors()).all(|i| display.monitor(i).and_then(|monitor| monitor.model()).is_some());
+        if all_monitors_set {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+        if std::time::Instant::now() - start > Duration::from_millis(500) {
+            log::warn!("Timed out waiting for monitor model to be set");
+            break;
+        }
+    }
+}
+
 impl<B: DisplayBackend> App<B> {
     /// Handle a [`DaemonCommand`] event, logging any errors that occur.
-    pub fn handle_command(&mut self, event: DaemonCommand) {
-        if let Err(err) = self.try_handle_command(event) {
+    pub async fn handle_command(&mut self, event: DaemonCommand) {
+        if let Err(err) = self.try_handle_command(event).await {
             error_handling_ctx::print_error(err);
         }
     }
 
     /// Try to handle a [`DaemonCommand`] event.
-    fn try_handle_command(&mut self, event: DaemonCommand) -> Result<()> {
+    async fn try_handle_command(&mut self, event: DaemonCommand) -> Result<()> {
         log::debug!("Handling event: {:?}", &event);
         match event {
             DaemonCommand::NoOp => {}
@@ -174,6 +194,10 @@ impl<B: DisplayBackend> App<B> {
                 }
             }
             DaemonCommand::ReloadConfigAndCss(sender) => {
+                // Wait for all monitor models to be set. When a new monitor gets added, this
+                // might not immediately be the case. And if we were to wait inside the
+                // connect_monitor_added callback, model() never gets set. So instead we wait here.
+                wait_for_monitor_model().await;
                 let mut errors = Vec::new();
 
                 let config_result = config::read_from_eww_paths(&self.paths);
@@ -200,7 +224,7 @@ impl<B: DisplayBackend> App<B> {
             DaemonCommand::CloseAll => {
                 log::info!("Received close command, closing all windows");
                 for window_name in self.open_windows.keys().cloned().collect::<Vec<String>>() {
-                    self.close_window(&window_name)?;
+                    self.close_window(&window_name, false)?;
                 }
             }
             DaemonCommand::OpenMany { windows, args, should_toggle, sender } => {
@@ -209,7 +233,7 @@ impl<B: DisplayBackend> App<B> {
                     .map(|w| {
                         let (config_name, id) = w;
                         if should_toggle && self.open_windows.contains_key(id) {
-                            self.close_window(id)
+                            self.close_window(id, false)
                         } else {
                             log::debug!("Config: {}, id: {}", config_name, id);
                             let window_args = args
@@ -240,7 +264,7 @@ impl<B: DisplayBackend> App<B> {
                 let is_open = self.open_windows.contains_key(&instance_id);
 
                 let result = if should_toggle && is_open {
-                    self.close_window(&instance_id)
+                    self.close_window(&instance_id, false)
                 } else {
                     self.open_window(&WindowArguments {
                         instance_id,
@@ -256,9 +280,10 @@ impl<B: DisplayBackend> App<B> {
 
                 sender.respond_with_result(result)?;
             }
-            DaemonCommand::CloseWindows { windows, sender } => {
-                let errors = windows.iter().map(|window| self.close_window(window)).filter_map(Result::err);
-                sender.respond_with_error_list(errors)?;
+            DaemonCommand::CloseWindows { windows, auto_reopen, sender } => {
+                let errors = windows.iter().map(|window| self.close_window(window, auto_reopen)).filter_map(Result::err);
+                // Ignore sending errors, as the channel might already be closed
+                let _ = sender.respond_with_error_list(errors);
             }
             DaemonCommand::PrintState { all, sender } => {
                 let scope_graph = self.scope_graph.borrow();
@@ -360,7 +385,7 @@ impl<B: DisplayBackend> App<B> {
     }
 
     /// Close a window and do all the required cleanups in the scope_graph and script_var_handler
-    fn close_window(&mut self, instance_id: &str) -> Result<()> {
+    fn close_window(&mut self, instance_id: &str, auto_reopen: bool) -> Result<()> {
         if let Some(old_abort_send) = self.window_close_timer_abort_senders.remove(instance_id) {
             _ = old_abort_send.send(());
         }
@@ -380,7 +405,17 @@ impl<B: DisplayBackend> App<B> {
             self.script_var_handler.stop_for_variable(unused_var.clone());
         }
 
-        self.instance_id_to_args.remove(instance_id);
+        if auto_reopen {
+            self.failed_windows.insert(instance_id.to_string());
+            // There might be an alternative monitor available already, so try to re-open it immediately.
+            // This can happen for example when a monitor gets disconnected and another connected,
+            // and the connection event happens before the disconnect.
+            if let Some(window_arguments) = self.instance_id_to_args.get(instance_id) {
+                let _ = self.open_window(&window_arguments.clone());
+            }
+        } else {
+            self.instance_id_to_args.remove(instance_id);
+        }
 
         Ok(())
     }
@@ -392,7 +427,7 @@ impl<B: DisplayBackend> App<B> {
 
         // if an instance of this is already running, close it
         if self.open_windows.contains_key(instance_id) {
-            self.close_window(instance_id)?;
+            self.close_window(instance_id, false)?;
         }
 
         self.instance_id_to_args.insert(instance_id.to_string(), window_args.clone());
@@ -445,9 +480,17 @@ impl<B: DisplayBackend> App<B> {
                 move |_| {
                     // we don't care about the actual error response from the daemon as this is mostly just a fallback.
                     // Generally, this should get disconnected before the gtk window gets destroyed.
-                    // It serves as a fallback for when the window is closed manually.
+                    // This callback is triggered in 2 cases:
+                    // - When the monitor of this window gets disconnected
+                    // - When the window is closed manually.
+                    // We don't distinguish here and assume the window should be reopened once a monitor
+                    // becomes available again
                     let (response_sender, _) = daemon_response::create_pair();
-                    let command = DaemonCommand::CloseWindows { windows: vec![instance_id.clone()], sender: response_sender };
+                    let command = DaemonCommand::CloseWindows {
+                        windows: vec![instance_id.clone()],
+                        auto_reopen: true,
+                        sender: response_sender,
+                    };
                     if let Err(err) = app_evt_sender.send(command) {
                         log::error!("Error sending close window command to daemon after gtk window destroy event: {}", err);
                     }
@@ -466,7 +509,7 @@ impl<B: DisplayBackend> App<B> {
                         tokio::select! {
                             _ = glib::timeout_future(duration) => {
                                 let (response_sender, mut response_recv) = daemon_response::create_pair();
-                                let command = DaemonCommand::CloseWindows { windows: vec![instance_id.clone()], sender: response_sender };
+                                let command = DaemonCommand::CloseWindows { windows: vec![instance_id.clone()], auto_reopen: false, sender: response_sender };
                                 if let Err(err) = app_evt_sender.send(command) {
                                     log::error!("Error sending close window command to daemon after gtk window destroy event: {}", err);
                                 }

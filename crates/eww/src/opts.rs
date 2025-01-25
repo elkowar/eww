@@ -292,7 +292,7 @@ impl ActionWithServer {
                 })
             }
             ActionWithServer::CloseWindows { windows } => {
-                return with_response_channel(|sender| app::DaemonCommand::CloseWindows { windows, sender });
+                return with_response_channel(|sender| app::DaemonCommand::CloseWindows { windows, auto_reopen: false, sender });
             }
             ActionWithServer::Reload => return with_response_channel(app::DaemonCommand::ReloadConfigAndCss),
             ActionWithServer::ListWindows => return with_response_channel(app::DaemonCommand::ListWindows),
