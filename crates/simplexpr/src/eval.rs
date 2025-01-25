@@ -508,6 +508,33 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
             }
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
+        "byteshumanreadable" => match args.as_slice() {
+            [size, digits] => {
+                let mut size = size.as_f64()?;
+                let digits = if size > 0.0 { digits.as_i32()? } else { 0 };
+                let mut suffix = "B";
+                while size >= 1024.0 {
+                    match suffix {
+                        "B" => {
+                            suffix = "KB";
+                        }
+                        "KB" => {
+                            suffix = "MB";
+                        }
+                        "MB" => {
+                            suffix = "GB";
+                        }
+                        "GB" => {
+                            suffix = "TB";
+                        }
+                        _ => break,
+                    }
+                    size /= 1024.0;
+                }
+                Ok(DynVal::from(format!("{:.1$} ", size, digits as usize) + suffix))
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
 
         _ => Err(EvalError::UnknownFunction(name.to_string())),
     }
@@ -610,5 +637,7 @@ mod tests {
         jq_empty_arg(r#"jq("[ \"foo\" ]", ".[0]", "")"#) => Ok(DynVal::from(r#""foo""#)),
         jq_invalid_arg(r#"jq("[ \"foo\" ]", ".[0]", "hello")"#) => Ok(DynVal::from(r#""foo""#)),
         jq_no_arg(r#"jq("[ \"foo\" ]", ".[0]")"#) => Ok(DynVal::from(r#""foo""#)),
+        byteshumanreadable1(r#"byteshumanreadable(2048,1)"#) => Ok(DynVal::from("2.0 KB")),
+        byteshumanreadable2(r#"byteshumanreadable(10000000000,3)"#) => Ok(DynVal::from("9.313 GB")),
     }
 }
