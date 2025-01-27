@@ -970,7 +970,8 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
         // @prop truncate-left - whether to truncate on the left side
         // @prop show-truncated - show whether the text was truncated. Disabling it will also disable dynamic truncation (the labels won't be truncated more than `limit-width`, even if there is not enough space for them), and will completly disable truncation on pango markup.
         // @prop unindent - whether to remove leading spaces
-        prop(text: as_string, truncate: as_bool = false, limit_width: as_i32 = i32::MAX, truncate_left: as_bool = false, show_truncated: as_bool = true, unindent: as_bool = true) {
+        // @prop lines - maximum number of lines to display (only works when `limit-width` has a value)
+        prop(text: as_string, truncate: as_bool = false, limit_width: as_i32 = i32::MAX, truncate_left: as_bool = false, show_truncated: as_bool = true, unindent: as_bool = true, lines: as_i32 = -1) {
             let text = if show_truncated {
                 // gtk does weird thing if we set max_width_chars to i32::MAX
                 if limit_width == i32::MAX {
@@ -1007,6 +1008,7 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
 
             let text = unescape::unescape(&text).context(format!("Failed to unescape label text {}", &text))?;
             let text = if unindent { util::unindent(&text) } else { text };
+            gtk_widget.set_lines(lines);
             gtk_widget.set_text(&text);
         },
         // @prop markup - Pango markup to display
