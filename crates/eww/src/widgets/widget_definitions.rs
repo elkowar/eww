@@ -970,8 +970,7 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
         // @prop truncate-left - whether to truncate on the left side
         // @prop show-truncated - show whether the text was truncated. Disabling it will also disable dynamic truncation (the labels won't be truncated more than `limit-width`, even if there is not enough space for them), and will completly disable truncation on pango markup.
         // @prop unindent - whether to remove leading spaces
-        // @prop lines - maximum number of lines to display (only works when `limit-width` has a value)
-        prop(text: as_string, truncate: as_bool = false, limit_width: as_i32 = i32::MAX, truncate_left: as_bool = false, show_truncated: as_bool = true, unindent: as_bool = true, lines: as_i32 = -1) {
+        prop(text: as_string, truncate: as_bool = false, limit_width: as_i32 = i32::MAX, truncate_left: as_bool = false, show_truncated: as_bool = true, unindent: as_bool = true) {
             let text = if show_truncated {
                 // gtk does weird thing if we set max_width_chars to i32::MAX
                 if limit_width == i32::MAX {
@@ -1008,14 +1007,13 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
 
             let text = unescape::unescape(&text).context(format!("Failed to unescape label text {}", &text))?;
             let text = if unindent { util::unindent(&text) } else { text };
-            gtk_widget.set_lines(lines);
             gtk_widget.set_text(&text);
         },
         // @prop markup - Pango markup to display
         // @prop truncate - whether to truncate text (or pango markup). If `show-truncated` is `false`, or if `limit-width` has a value, this property has no effect and truncation is enabled.
         // @prop limit-width - maximum count of characters to display
         // @prop truncate-left - whether to truncate on the left side
-        // @prop show-truncated - show whether the text was truncatedd. Disabling it will also disable dynamic truncation (the labels won't be truncated more than `limit-width`, even if there is not enough space for them), and will completly disable truncation on pango markup.
+        // @prop show-truncated - show whether the text was truncated. Disabling it will also disable dynamic truncation (the labels won't be truncated more than `limit-width`, even if there is not enough space for them), and will completly disable truncation on pango markup.
         prop(markup: as_string, truncate: as_bool = false, limit_width: as_i32 = i32::MAX, truncate_left: as_bool = false, show_truncated: as_bool = true) {
             if (truncate || limit_width != i32::MAX) && show_truncated {
                 // gtk does weird thing if we set max_width_chars to i32::MAX
@@ -1052,6 +1050,14 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
         prop(justify: as_string = "left") {
             gtk_widget.set_justify(parse_justification(&justify)?);
         },
+        // @prop wrap-mode - how text is wrapped. possible options: $wrap-mode
+        prop(wrap_mode: as_string = "word") {
+            gtk_widget.set_wrap_mode(parse_wrap_mode(&wrap_mode)?);
+        },
+        // @prop lines - maximum number of lines to display (only works when `limit-width` has a value)
+        prop(lines: as_i32 = -1) {
+            gtk_widget.set_lines(lines);
+        }
     });
     Ok(gtk_widget)
 }
@@ -1383,6 +1389,14 @@ fn parse_gravity(g: &str) -> Result<gtk::pango::Gravity> {
         "west" => gtk::pango::Gravity::West,
         "north" => gtk::pango::Gravity::North,
         "auto" => gtk::pango::Gravity::Auto,
+    }
+}
+
+/// @var wrap-mode - "word", "char"
+fn parse_wrap_mode(w: &str) -> Result<gtk::pango::WrapMode> {
+    enum_parse! { "wrap-mode", w,
+        "word" => gtk::pango::WrapMode::Word,
+        "char" => gtk::pango::WrapMode::Char
     }
 }
 
