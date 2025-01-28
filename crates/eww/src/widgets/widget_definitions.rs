@@ -1054,7 +1054,7 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
         prop(wrap_mode: as_string = "word") {
             gtk_widget.set_wrap_mode(parse_wrap_mode(&wrap_mode)?);
         },
-        // @prop lines - maximum number of lines to display (only works when `limit-width` has a value)
+        // @prop lines - maximum number of lines to display (only works when `limit-width` has a value). A value of -1 (default) disables the limit.
         prop(lines: as_i32 = -1) {
             gtk_widget.set_lines(lines);
         }
