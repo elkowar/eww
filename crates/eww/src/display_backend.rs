@@ -28,13 +28,13 @@ impl DisplayBackend for NoBackend {
 
 #[cfg(feature = "wayland")]
 mod platform_wayland {
+    use super::DisplayBackend;
     use crate::{widgets::window::Window, window_initiator::WindowInitiator};
     use gtk::gdk;
     use gtk::prelude::*;
-    use gtk_layer_shell::LayerShell;
+    use gtk_layer_shell::{KeyboardMode, LayerShell};
+    use yuck::config::backend_window_options::WlWindowFocusable;
     use yuck::config::{window_definition::WindowStacking, window_geometry::AnchorAlignment};
-
-    use super::DisplayBackend;
 
     pub struct WaylandBackend;
 
@@ -70,7 +70,11 @@ mod platform_wayland {
             }
 
             // Sets the keyboard interactivity
-            window.set_keyboard_interactivity(window_init.backend_options.wayland.focusable);
+            match window_init.backend_options.wayland.focusable {
+                WlWindowFocusable::None => window.set_keyboard_mode(KeyboardMode::None),
+                WlWindowFocusable::Exclusive => window.set_keyboard_mode(KeyboardMode::Exclusive),
+                WlWindowFocusable::OnDemand => window.set_keyboard_mode(KeyboardMode::OnDemand),
+            }
 
             if let Some(geometry) = window_init.geometry {
                 // Positioning surface

@@ -86,12 +86,12 @@ Depending on if you are using X11 or Wayland, some additional properties exist:
 
 #### Wayland
 
-|    Property | Description                                                  |
-| ----------: | ------------------------------------------------------------ |
-|  `stacking` | Where the window should appear in the stack. Possible values: `fg`, `bg`, `overlay`, `bottom`. |
-| `exclusive` | Whether the compositor should reserve space for the window automatically. Either `true` or `false`. |
-| `focusable` | Whether the window should be able to be focused. This is necessary for any widgets that use the keyboard to work. Either `true` or `false`. |
-| `namespace` | Set the wayland layersurface namespace eww uses. Accepts a `string` value. |
+|    Property | Description                                                                                                                                                            |
+| ----------: |------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|  `stacking` | Where the window should appear in the stack. Possible values: `fg`, `bg`, `overlay`, `bottom`.                                                                         |
+| `exclusive` | Whether the compositor should reserve space for the window automatically. Either `true` or `false`.                                                                    |
+| `focusable` | Whether the window should be able to be focused. This is necessary for any widgets that use the keyboard to work. Possible values: `none`, `exclusive` and `ondemand`. |
+| `namespace` | Set the wayland layersurface namespace eww uses. Accepts a `string` value.                                                                                             |
 
 
 
@@ -208,6 +208,9 @@ and thus are the perfect choice for showing your time, date, as well as other bi
 
 You can also specify an initial-value. This should prevent eww from waiting for the result of a given command during startup, thus
 making the startup time faster.
+
+To externally update a polling variable, `eww update` can be used like with basic variables to assign a value.
+You can also call `eww poll` to poll the variable outside of its usual interval, or even while it isn't running at all.
 
 **Listening variables (`deflisten`)**
 
