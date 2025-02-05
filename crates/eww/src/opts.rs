@@ -98,6 +98,16 @@ pub enum ActionWithServer {
         mappings: Vec<(VarName, DynVal)>,
     },
 
+    /// Update a polling variable using its script.
+    ///
+    /// This will force the variable to be updated even if its
+    /// automatic polling is disabled.
+    #[command(name = "poll")]
+    Poll {
+        /// Variables to be polled
+        names: Vec<VarName>,
+    },
+
     /// Open the GTK debugger
     #[command(name = "inspector", alias = "debugger")]
     OpenInspector,
@@ -254,6 +264,7 @@ impl ActionWithServer {
     pub fn into_daemon_command(self) -> (app::DaemonCommand, Option<daemon_response::DaemonResponseReceiver>) {
         let command = match self {
             ActionWithServer::Update { mappings } => app::DaemonCommand::UpdateVars(mappings),
+            ActionWithServer::Poll { names } => app::DaemonCommand::PollVars(names),
             ActionWithServer::OpenInspector => app::DaemonCommand::OpenInspector,
 
             ActionWithServer::KillServer => app::DaemonCommand::KillServer,
