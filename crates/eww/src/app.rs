@@ -217,7 +217,10 @@ impl<B: DisplayBackend> App<B> {
                                 .filter(|(win_id, ..)| win_id.is_empty() || win_id == id)
                                 .map(|(_, n, v)| (n.clone(), v.clone()))
                                 .collect();
-                            self.open_window(&WindowArguments::new_from_args(id.to_string(), config_name.clone(), window_args)?)
+                            self.open_window(
+                                &WindowArguments::new_from_args(id.to_string(), config_name.clone(), window_args)?,
+                                false,
+                            )
                         }
                     })
                     .filter_map(Result::err);
@@ -242,16 +245,19 @@ impl<B: DisplayBackend> App<B> {
                 let result = if should_toggle && is_open {
                     self.close_window(&instance_id)
                 } else {
-                    self.open_window(&WindowArguments {
-                        instance_id,
-                        window_name,
-                        pos,
-                        size,
-                        monitor,
-                        anchor,
-                        duration,
-                        args: args.unwrap_or_default().into_iter().collect(),
-                    })
+                    self.open_window(
+                        &WindowArguments {
+                            instance_id,
+                            window_name,
+                            pos,
+                            size,
+                            monitor,
+                            anchor,
+                            duration,
+                            args: args.unwrap_or_default().into_iter().collect(),
+                        },
+                        false,
+                    )
                 };
 
                 sender.respond_with_result(result)?;
@@ -385,13 +391,13 @@ impl<B: DisplayBackend> App<B> {
         Ok(())
     }
 
-    fn open_window(&mut self, window_args: &WindowArguments) -> Result<()> {
+    fn open_window(&mut self, window_args: &WindowArguments, dirty: bool) -> Result<()> {
         let instance_id = &window_args.instance_id;
         self.failed_windows.remove(instance_id);
         log::info!("Opening window {} as '{}'", window_args.window_name, instance_id);
 
         // if an instance of this is already running and arguments haven't change, only update duration
-        let reuse_window = if self.open_windows.contains_key(instance_id) {
+        let reuse_window = if !dirty && self.open_windows.contains_key(instance_id) {
             if self.instance_id_to_args.get(instance_id).is_some_and(|args| window_args.can_reuse_window_with_args(args)) {
                 true
             } else {
@@ -530,7 +536,7 @@ impl<B: DisplayBackend> App<B> {
             let window_arguments = self.instance_id_to_args.get(instance_id).with_context(|| {
                 format!("Cannot reopen window, initial parameters were not saved correctly for {instance_id}")
             })?;
-            self.open_window(&window_arguments.clone())?;
+            self.open_window(&window_arguments.clone(), true)?;
         }
         Ok(())
     }
