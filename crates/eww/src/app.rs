@@ -431,23 +431,20 @@ impl<B: DisplayBackend> App<B> {
         self.failed_windows.remove(instance_id);
         log::info!("Opening window {} as '{}'", window_args.window_name, instance_id);
 
-        // if an instance of this is already running and arguments haven't change, only update duration
-        let reuse_window = if !dirty && self.open_windows.contains_key(instance_id) {
-            if self.instance_id_to_args.get(instance_id).is_some_and(|args| window_args.can_reuse_window_with_args(args)) {
-                true
-            } else {
-                self.close_window(instance_id, false)?;
-                false
-            }
-        } else {
-            false
-        };
-        self.instance_id_to_args.insert(instance_id.to_string(), window_args.clone());
+        // if an instance of this is already running and arguments haven't changed, only update duration
+        let reuse_window = !dirty
+            && self.open_windows.contains_key(instance_id)
+            && self.instance_id_to_args.get(instance_id).is_some_and(|args| window_args.can_reuse_window_with_args(args));
 
         let open_result: Result<_> = (|| {
             if reuse_window {
                 return Ok(());
             }
+            if self.open_windows.contains_key(instance_id) {
+                self.close_window(instance_id, false)?;
+            }
+
+            self.instance_id_to_args.insert(instance_id.to_string(), window_args.clone());
 
             let window_name: &str = &window_args.window_name;
 
