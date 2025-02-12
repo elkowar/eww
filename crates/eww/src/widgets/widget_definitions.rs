@@ -459,7 +459,7 @@ fn build_gtk_scale(bargs: &mut BuilderArgs) -> Result<gtk::Scale> {
         // @prop draw-value - draw the value of the property
         prop(draw_value: as_bool = false) { gtk_widget.set_draw_value(draw_value) },
 
-        // @prop value-pos - position of the drawn value
+        // @prop value-pos - position of the drawn value. possible values: $position
         prop(value_pos: as_string) { gtk_widget.set_value_pos(parse_position_type(&value_pos)?) },
 
         // @prop round-digits - Sets the number of decimals to round the value to when it changes
@@ -1384,9 +1384,9 @@ fn parse_justification(j: &str) -> Result<gtk::Justification> {
     }
 }
 
-/// @var value-pos - "left", "right", "top", "bottom"
+/// @var position - "left", "right", "top", "bottom"
 fn parse_position_type(g: &str) -> Result<gtk::PositionType> {
-    enum_parse! { "gravity", g,
+    enum_parse! { "position", g,
         "left" => gtk::PositionType::Left,
         "right" => gtk::PositionType::Right,
         "top" => gtk::PositionType::Top,
