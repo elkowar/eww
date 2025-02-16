@@ -71,6 +71,14 @@ To find out more, check out the [website and documentation](https://elkowar.gith
 
 </div>
 
+* [Hyprland + EWW](https://github.com/Angell6991/eww)
+
+<div align="left">
+
+![Hyprland + EWW](https://github.com/Angell6991/eww/blob/master/Images/eww_01.png)
+
+</div>
+
 ## Contribewwting
 
 If you want to contribute anything, like adding new widgets, features, or subcommands (including sample configs), you should definitely do so.
