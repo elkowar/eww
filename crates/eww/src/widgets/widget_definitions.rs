@@ -1008,7 +1008,7 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
                 }
             };
 
-            let text = unescape::unescape(&text).context(format!("Failed to unescape label text {}", &text))?;
+            let text = if text.contains("\\u") { unescaper::unescape(&text)? } else { text };
             let text = if unindent { util::unindent(&text) } else { text };
             gtk_widget.set_text(&text);
         },
