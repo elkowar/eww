@@ -174,7 +174,11 @@ pub enum ActionWithServer {
 
     /// Reload the configuration
     #[command(name = "reload", alias = "r")]
-    Reload,
+    Reload {
+        /// Only Reload the eww.(s)css file
+        #[arg(long = "onlycss")]
+        onlycss: bool,
+    },
 
     /// Kill the eww daemon
     #[command(name = "kill", alias = "k")]
@@ -294,7 +298,9 @@ impl ActionWithServer {
             ActionWithServer::CloseWindows { windows } => {
                 return with_response_channel(|sender| app::DaemonCommand::CloseWindows { windows, sender });
             }
-            ActionWithServer::Reload => return with_response_channel(app::DaemonCommand::ReloadConfigAndCss),
+            ActionWithServer::Reload { onlycss } => {
+                return with_response_channel(|sender| app::DaemonCommand::ReloadConfigAndCss { onlycss, sender });
+            }
             ActionWithServer::ListWindows => return with_response_channel(app::DaemonCommand::ListWindows),
             ActionWithServer::ListActiveWindows => return with_response_channel(app::DaemonCommand::ListActiveWindows),
             ActionWithServer::ShowState { all } => {
