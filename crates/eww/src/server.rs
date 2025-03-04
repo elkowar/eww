@@ -191,7 +191,9 @@ async fn run_filewatch<P: AsRef<Path>>(config_dir: P, evt_send: UnboundedSender<
         Ok(notify::Event { kind: notify::EventKind::Modify(_), paths, .. }) => {
             let relevant_files_changed = paths.iter().any(|path| {
                 let ext = path.extension().unwrap_or_default();
-                ext == "yuck" || ext == "scss" || ext == "css"
+                let skip = path.with_extension("").file_name().unwrap_or_default().to_str().expect("").ends_with("__");
+
+                !skip && (ext == "yuck" || ext == "scss" || ext == "css")
             });
             if relevant_files_changed {
                 if let Err(err) = tx.send(()) {
