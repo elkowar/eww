@@ -153,7 +153,6 @@ async fn wait_for_monitor_model() {
     let display = gdk::Display::default().expect("could not get default display");
     let start = std::time::Instant::now();
     loop {
-        while gtk::events_pending() && !gtk::main_iteration_do(false) {}
         let all_monitors_set =
             (0..display.n_monitors()).all(|i| display.monitor(i).and_then(|monitor| monitor.model()).is_some());
         if all_monitors_set {
