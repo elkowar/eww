@@ -87,15 +87,4 @@ impl WindowArguments {
 
         Ok(local_variables)
     }
-
-    // Compares all values except `duration`, since it's not used by the window itself
-    pub fn can_reuse_window_with_args(&self, other: &Self) -> bool {
-        self.window_name == other.window_name
-            && self.instance_id == other.instance_id
-            && self.anchor == other.anchor
-            && self.args == other.args
-            && self.monitor == other.monitor
-            && self.pos == other.pos
-            && self.size == other.size
-    }
 }
