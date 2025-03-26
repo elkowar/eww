@@ -36,6 +36,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add `log` function calls to simplexpr (By: topongo)
 - Add `:lines` and `:wrap-mode` properties to label widget (By: vaporii)
 - Add `value-pos` to scale widget (By: ipsvn)
+- Add `byteshumanreadable` function calls to simplexpr (By: bkueng)
 
 ## [0.6.0] (21.04.2024)
 

@@ -68,3 +68,6 @@ Supported currently are the following features:
      Same as other `formattime`, but does not accept timezone. Instead, it uses system's local timezone.
      Check [chrono's documentation](https://docs.rs/chrono/latest/chrono/format/strftime/index.html) for more
      information about format string.
+  - `byteshumanreadable(size, decimal_digits, unit)`: Convert and round a given value in bytes to a human-readable format.
+     `unit` is optional, and can be either `'binary'` (default) or `'decimal'` to use a power of 1024 or 1000 respectively.
+     E.g. `byteshumanreadable(2048, 2)` returns `"2.00 KB"`.
