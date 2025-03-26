@@ -46,7 +46,10 @@ pub enum DaemonCommand {
     NoOp,
     UpdateVars(Vec<(VarName, DynVal)>),
     PollVars(Vec<VarName>),
-    ReloadConfigAndCss(DaemonResponseSender),
+    ReloadConfigAndCss {
+        onlycss: bool,
+        sender: DaemonResponseSender,
+    },
     OpenInspector,
     OpenMany {
         windows: Vec<(String, String)>,
@@ -173,12 +176,14 @@ impl<B: DisplayBackend> App<B> {
                     self.force_poll_variable(var_name);
                 }
             }
-            DaemonCommand::ReloadConfigAndCss(sender) => {
+            DaemonCommand::ReloadConfigAndCss { onlycss, sender } => {
                 let mut errors = Vec::new();
 
-                let config_result = config::read_from_eww_paths(&self.paths);
-                if let Err(e) = config_result.and_then(|new_config| self.load_config(new_config)) {
-                    errors.push(e)
+                if !onlycss {
+                    let config_result = config::read_from_eww_paths(&self.paths);
+                    if let Err(e) = config_result.and_then(|new_config| self.load_config(new_config)) {
+                        errors.push(e)
+                    }
                 }
                 match crate::config::scss::parse_scss_from_config(self.paths.get_config_dir()) {
                     Ok((file_id, css)) => {

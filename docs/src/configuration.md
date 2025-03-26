@@ -19,6 +19,8 @@ as well as most layout-related CSS properties such as flexbox, `float`, absolute
 To get started, you'll need to create two files: `eww.yuck` and `eww.scss` (or `eww.css`, if you prefer).
 These files must be placed under `$XDG_CONFIG_HOME/eww` (this is most likely `~/.config/eww`).
 
+Keep in mind that all `.yuck`, `.css` and `.scss` files on the config folder are monitored recursively. Any changes to these files will automatically trigger a reload of all the eww configuration, recreating all the windows on the process. If this behaviour is not desired see [Unmonitoring Files and Only Reloading GTK CSS](working_with_gtk.md).
+
 Now that those files are created, you can start writing your first widget!
 
 ## Creating your first window

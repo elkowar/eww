@@ -12,6 +12,8 @@ If you have **NO** clue about how to do CSS, check out some online guides or tut
 
 SCSS is _very_ close to CSS, so if you know CSS you'll have no problem learning SCSS.
 
+If you need to make specific CSS changes, such as modifying colors or font styles, without recreating all windows, use the `--onlycss` flag when reloading eww. Additionally, to complement this feature, you can append `__` to the filename to exclude it from monitoring like: `colors__.scss`, or simply use symlinks as an alternative.
+
 ## GTK-Debugger
 
 The debugger can be used for **a lot** of things, especially if something doesn't work or isn't styled right.
