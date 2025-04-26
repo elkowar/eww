@@ -18,7 +18,7 @@ Dharmx also wrote a nice, beginner friendly introductory guide for eww [here](ht
 I'm currently busy working [yolk](https://github.com/elkowar/yolk),
 which is a dotfile management solution that supports a unique spin on templating: *templating without template files*.
 
-To find out more, check out the [website and documentation](https://elkowar.github.io/yolk)! 
+To find out more, check out the [website and documentation](https://elkowar.github.io/yolk)!
 
 ## Examples
 
@@ -82,3 +82,7 @@ If you want to contribute anything, like adding new widgets, features, or subcom
 3. Smash your head against the keyboard from frustration (coding is hard)
 4. Write down your changes in CHANGELOG.md
 5. Open a pull request once you're finished
+
+## Widget
+
+https://en.wikipedia.org/wiki/Wikipedia:Widget
