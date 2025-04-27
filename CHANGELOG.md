@@ -20,6 +20,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - `get_locale` now follows POSIX standard for locale selection (By: mirhahn, w-lfchen)
 
 ### Features
+- Add `--onlycss` flag to `eww reload` (By: nwnbark)
 - Add `eww poll` subcommand to force-poll a variable (By: kiana-S)
 - Add OnDemand support for focusable on wayland (By: GallowsDove)
 - Add jq `raw-output` support (By: RomanHargrave)

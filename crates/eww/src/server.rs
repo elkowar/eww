@@ -191,7 +191,9 @@ async fn run_filewatch<P: AsRef<Path>>(config_dir: P, evt_send: UnboundedSender<
         Ok(notify::Event { kind: notify::EventKind::Modify(_), paths, .. }) => {
             let relevant_files_changed = paths.iter().any(|path| {
                 let ext = path.extension().unwrap_or_default();
-                ext == "yuck" || ext == "scss" || ext == "css"
+                let skip = path.with_extension("").file_name().unwrap_or_default().to_str().expect("").ends_with("__");
+
+                !skip && (ext == "yuck" || ext == "scss" || ext == "css")
             });
             if relevant_files_changed {
                 if let Err(err) = tx.send(()) {
@@ -222,7 +224,7 @@ async fn run_filewatch<P: AsRef<Path>>(config_dir: P, evt_send: UnboundedSender<
                 // and eww being too fast, thus reading the file while it's empty.
                 // There should be some cleaner solution for this, but this will do for now.
                 tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-                evt_send.send(app::DaemonCommand::ReloadConfigAndCss(daemon_resp_sender))?;
+                evt_send.send(app::DaemonCommand::ReloadConfigAndCss { onlycss: false, sender: daemon_resp_sender })?;
                 tokio::spawn(async move {
                     match daemon_resp_response.recv().await {
                         Some(daemon_response::DaemonResponse::Success(_)) => log::info!("Reloaded config successfully"),
