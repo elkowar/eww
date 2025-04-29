@@ -1405,7 +1405,7 @@ fn parse_gravity(g: &str) -> Result<gtk::pango::Gravity> {
     }
 }
 
-/// @var wrap-mode - "word", "char"
+/// @var wrap-mode - "word", "char", "wordchar"
 fn parse_wrap_mode(w: &str) -> Result<gtk::pango::WrapMode> {
     enum_parse! { "wrap-mode", w,
         "word" => gtk::pango::WrapMode::Word,
