@@ -1053,7 +1053,7 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
         prop(justify: as_string = "left") {
             gtk_widget.set_justify(parse_justification(&justify)?);
         },
-        // @prop wrap-mode - how text is wrapped. possible options: $wrap-mode
+        // @prop wrap-mode - how text is wrapped. possible options: $wrap_mode
         prop(wrap_mode: as_string = "word") {
             gtk_widget.set_wrap_mode(parse_wrap_mode(&wrap_mode)?);
         },
@@ -1405,7 +1405,7 @@ fn parse_gravity(g: &str) -> Result<gtk::pango::Gravity> {
     }
 }
 
-/// @var wrap-mode - "word", "char", "wordchar"
+/// @var wrap_mode - "word", "char", "wordchar"
 fn parse_wrap_mode(w: &str) -> Result<gtk::pango::WrapMode> {
     enum_parse! { "wrap-mode", w,
         "word" => gtk::pango::WrapMode::Word,
