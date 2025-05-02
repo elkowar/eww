@@ -25,6 +25,9 @@ pub struct CircProgPriv {
     #[property(get, set, nick = "Clockwise", blurb = "Clockwise", default = true)]
     clockwise: RefCell<bool>,
 
+    #[property(get, set, nick = "Rounded", blurb = "Rounded", default = true)]
+    rounded: RefCell<bool>,
+
     content: RefCell<Option<gtk::Widget>>,
 }
 
@@ -36,6 +39,7 @@ impl Default for CircProgPriv {
             value: RefCell::new(0.0),
             thickness: RefCell::new(1.0),
             clockwise: RefCell::new(true),
+            rounded: RefCell::new(true),
             content: RefCell::new(None),
         }
     }
@@ -60,6 +64,9 @@ impl ObjectImpl for CircProgPriv {
             }
             "clockwise" => {
                 self.clockwise.replace(value.get().unwrap());
+            }
+            "rounded" => {
+                self.rounded.replace(value.get().unwrap());
             }
             x => panic!("Tried to set inexistant property of CircProg: {}", x,),
         }
@@ -159,6 +166,7 @@ impl WidgetImpl for CircProgPriv {
             let start_at = *self.start_at.borrow();
             let thickness = *self.thickness.borrow();
             let clockwise = *self.clockwise.borrow();
+            let rounded = *self.rounded.borrow();
 
             let styles = self.obj().style_context();
             let margin = styles.margin(gtk::StateFlags::NORMAL);
@@ -177,6 +185,8 @@ impl WidgetImpl for CircProgPriv {
             let outer_ring = f64::min(circle_width, circle_height) / 2.0;
             let inner_ring = (f64::min(circle_width, circle_height) / 2.0) - thickness;
 
+            let round_corner = if rounded { cairo::LineCap::Round } else { cairo::LineCap::Butt };
+
             cr.save()?;
 
             // Centering
@@ -194,13 +204,11 @@ impl WidgetImpl for CircProgPriv {
             cr.fill()?;
 
             // Foreground Ring
-            cr.move_to(center.0, center.1);
-            cr.arc(center.0, center.1, outer_ring, start_angle, end_angle);
+            cr.set_line_width(thickness);
+            cr.set_line_cap(round_corner);
+            cr.arc(center.0, center.1, inner_ring + thickness / 2.0, start_angle, end_angle);
             cr.set_source_rgba(fg_color.red(), fg_color.green(), fg_color.blue(), fg_color.alpha());
-            cr.move_to(center.0, center.1);
-            cr.arc(center.0, center.1, inner_ring, start_angle, end_angle);
-            cr.set_fill_rule(cairo::FillRule::EvenOdd); // Substract one circle from the other
-            cr.fill()?;
+            cr.stroke()?;
             cr.restore()?;
 
             // Draw the children widget, clipping it to the inside
