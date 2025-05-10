@@ -112,6 +112,13 @@ mod platform_wayland {
                 } else {
                     window.set_layer_shell_margin(gtk_layer_shell::Edge::Top, yoffset);
                 }
+                // https://github.com/elkowar/eww/issues/296
+                if window_init.backend_options.wayland.exclusive
+                    && geometry.anchor_point.x != AnchorAlignment::CENTER
+                    && geometry.anchor_point.y != AnchorAlignment::CENTER
+                {
+                    log::warn!("When ':exclusive true' the anchor has to include 'center', otherwise exlcusive won't work")
+                }
             }
             if window_init.backend_options.wayland.exclusive {
                 window.auto_exclusive_zone_enable();
