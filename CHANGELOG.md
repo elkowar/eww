@@ -20,6 +20,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - `get_locale` now follows POSIX standard for locale selection (By: mirhahn, w-lfchen)
 
 ### Features
+- Add warning and docs for incompatible `:anchor` and `:exclusive` options
 - Add `eww poll` subcommand to force-poll a variable (By: kiana-S)
 - Add OnDemand support for focusable on wayland (By: GallowsDove)
 - Add jq `raw-output` support (By: RomanHargrave)
@@ -36,6 +37,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add `log` function calls to simplexpr (By: topongo)
 - Add `:lines` and `:wrap-mode` properties to label widget (By: vaporii)
 - Add `value-pos` to scale widget (By: ipsvn)
+- Add `floor` and `ceil` function calls to simplexpr (By: wsbankenstein)
 
 ## [0.6.0] (21.04.2024)
 
