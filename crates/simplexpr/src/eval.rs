@@ -330,18 +330,16 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
         "floor" => match args.as_slice() {
-            [num, digits] => {
+            [num] => {
                 let num = num.as_f64()?;
-                let digits = digits.as_i32()?;
-                Ok(DynVal::from(format!("{:.1$}", num.floor(), digits as usize)))
+                Ok(DynVal::from(num.floor()))
             }
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
         "ceil" => match args.as_slice() {
-            [num, digits] => {
+            [num] => {
                 let num = num.as_f64()?;
-                let digits = digits.as_i32()?;
-                Ok(DynVal::from(format!("{:.1$}", num.ceil(), digits as usize)))
+                Ok(DynVal::from(num.ceil()))
             }
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
