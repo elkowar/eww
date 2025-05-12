@@ -1252,7 +1252,14 @@ fn build_graph(bargs: &mut BuilderArgs) -> Result<super::graph::Graph> {
     let w = super::graph::Graph::new();
     def_widget!(bargs, _g, w, {
         // @prop value - the value, between 0 - 100
-        prop(value: as_f64) { w.set_property("value", value); },
+        prop(value: as_f64) {
+            if value.is_nan() || value.is_infinite() {
+                return Err(DiagError(gen_diagnostic!(
+                    format!("Graph's value should never be NaN or infinite")
+                )).into());
+            }
+            w.set_property("value", value);
+        },
         // @prop thickness - the thickness of the line
         prop(thickness: as_f64) { w.set_property("thickness", thickness); },
         // @prop time-range - the range of time to show
