@@ -41,8 +41,8 @@ Supported currently are the following features:
     - for this, the object/array value needs to refer to a variable that contains a valid json string.
 - some function calls:
     - `round(number, decimal_digits)`: Round a number to the given amount of decimals
-    - `floor(number)`: Round a number up to the nearest integer
-    - `ceil(number)`: Round a number down to the nearest integer
+    - `floor(number)`: Round a number down to the nearest integer
+    - `ceil(number)`: Round a number up to the nearest integer
     - `sin(number)`, `cos(number)`, `tan(number)`, `cot(number)`: Calculate the trigonometric value of a given number in **radians**
     - `min(a, b)`, `max(a, b)`: Get the smaller or bigger number out of two given numbers
     - `powi(num, n)`, `powf(num, n)`: Raise number `num` to power `n`. `powi` expects `n` to be of type `i32`
