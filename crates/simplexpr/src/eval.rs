@@ -11,7 +11,6 @@ use eww_shared_util::{get_locale, Span, Spanned, VarName};
 use std::{
     collections::HashMap,
     convert::{Infallible, TryFrom, TryInto},
-    fmt::Write,
     str::FromStr,
     sync::Arc,
 };
@@ -505,8 +504,8 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
                         let format = format.as_string()?;
                         let delayed_format = t.format_localized(&format, get_locale());
                         let mut buffer = String::new();
-                        if write!(&mut buffer, "{delayed_format}").is_err() {
-                            return Err(EvalError::ChronoError("Invalid time formatting string".to_string() + &format));
+                        if delayed_format.write_to(&mut buffer).is_err() {
+                            return Err(EvalError::ChronoError("Invalid time formatting string: ".to_string() + &format));
                         }
                         buffer
                     }
@@ -518,8 +517,8 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
                     let format = format.as_string()?;
                     let delayed_format = t.format_localized(&format, get_locale());
                     let mut buffer = String::new();
-                    if write!(&mut buffer, "{delayed_format}").is_err() {
-                        return Err(EvalError::ChronoError("Invalid time formatting string".to_string() + &format));
+                    if delayed_format.write_to(&mut buffer).is_err() {
+                        return Err(EvalError::ChronoError("Invalid time formatting string: ".to_string() + &format));
                     }
                     buffer
                 }
