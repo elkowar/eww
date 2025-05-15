@@ -9,6 +9,7 @@ All notable changes to eww will be listed here, starting at changes since versio
   Attempting to index in an empty JSON string (`'""'`) is now an error.
 
 ### Fixes
+- Fix systray widget: bar gets unresponsive when application changes icon rapidly (By: 5ila5)
 - Fix crash on NaN or infinite graph value (By: luca3s)
 - Re-enable some scss features (By: w-lfchen)
 - Fix and refactor nix flake (By: w-lfchen)
