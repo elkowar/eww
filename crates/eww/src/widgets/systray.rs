@@ -237,6 +237,11 @@ impl Item {
             glib::Propagation::Stop
         }));
 
+        // Track when we last updated the icon to implement debouncing
+        let mut last_icon_update = std::time::Instant::now();
+        // Flag to track if an icon update is pending
+        let needs_icon_update = Rc::new(std::sync::atomic::AtomicBool::new(false));
+
         // updates
         let mut status_updates = item.sni.receive_new_status().await?;
         let mut title_updates = item.sni.receive_new_title().await?;
@@ -244,24 +249,54 @@ impl Item {
 
         loop {
             tokio::select! {
+                biased; // Process signals first before trying updates
+
                 Some(_) = status_updates.next() => {
                     // set status
-                    match item.status().await? {
-                        notifier_host::Status::Passive => widget.hide(),
-                        notifier_host::Status::Active | notifier_host::Status::NeedsAttention => widget.show(),
+                    match item.status().await {
+                        Ok(status) => match status {
+                            notifier_host::Status::Passive => widget.hide(),
+                            notifier_host::Status::Active | notifier_host::Status::NeedsAttention => widget.show(),
+                        },
+                        Err(e) => log::warn!("Failed to update status: {}", e),
                     }
                 }
+
                 Ok(_) = icon_size.changed() => {
-                    // set icon
-                    load_icon_for_item(&icon, &item, *icon_size.borrow_and_update(), scale).await;
+                    // set icon (without debouncing since this is user-initiated)
+                    let size = *icon_size.borrow_and_update();
+                    load_icon_for_item(&icon, &item, size, scale).await;
+                    last_icon_update = std::time::Instant::now();
+                    needs_icon_update.store(false, std::sync::atomic::Ordering::SeqCst);
                 }
+
                 Some(_) = title_updates.next() => {
                     // set title
-                    widget.set_tooltip_text(Some(&item.sni.title().await?));
+                    match item.sni.title().await {
+                        Ok(title) => widget.set_tooltip_text(Some(&title)),
+                        Err(e) => log::warn!("Failed to update title: {}", e),
+                    }
                 }
+
                 Some(_) = icon_updates.next() => {
-                    // set icon
-                    load_icon_for_item(&icon, &item, *icon_size.borrow_and_update(), scale).await;
+
+                    // Only update if it's been at least 100ms since the last update
+                    if last_icon_update.elapsed() > std::time::Duration::from_millis(100) {
+                        // set icon
+                        load_icon_for_item(&icon, &item, *icon_size.borrow(), scale).await;
+                        last_icon_update = std::time::Instant::now();
+                        needs_icon_update.store(false, std::sync::atomic::Ordering::SeqCst);
+                    } else {
+                        // Mark that we need an update, but don't necessarily update right now
+                        needs_icon_update.store(true, std::sync::atomic::Ordering::SeqCst);
+                    }
+                }
+
+                // Periodically check if we need an icon update but had to skip it due to debouncing
+                _ = tokio::time::sleep(std::time::Duration::from_millis(100)), if needs_icon_update.load(std::sync::atomic::Ordering::SeqCst) => {
+                    load_icon_for_item(&icon, &item, *icon_size.borrow(), scale).await;
+                    last_icon_update = std::time::Instant::now();
+                    needs_icon_update.store(false, std::sync::atomic::Ordering::SeqCst);
                 }
             }
         }
