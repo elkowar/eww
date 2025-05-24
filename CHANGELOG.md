@@ -41,6 +41,10 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add `value-pos` to scale widget (By: ipsvn)
 - Add `floor` and `ceil` function calls to simplexpr (By: wsbankenstein)
 
+### Notable fixes and other changes
+- Window will no longer be closed if `eww open` was called on an already opened window
+and timer set by the `--duration` option will be updated or removed (By: Elvyria)
+
 ## [0.6.0] (21.04.2024)
 
 ### Fixes
