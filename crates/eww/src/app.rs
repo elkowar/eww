@@ -485,10 +485,11 @@ impl<B: DisplayBackend> App<B> {
         let open_window_ids: Vec<String> =
             self.open_windows.keys().cloned().chain(self.failed_windows.iter().cloned()).dedup().collect();
         for instance_id in &open_window_ids {
-            let window_arguments = self.instance_id_to_args.get(instance_id).with_context(|| {
+            let window_arguments = self.instance_id_to_args.remove(instance_id).with_context(|| {
                 format!("Cannot reopen window, initial parameters were not saved correctly for {instance_id}")
             })?;
-            self.open_window(&window_arguments.clone())?;
+            let _ = self.close_window(instance_id);
+            self.open_window(&window_arguments)?;
         }
         Ok(())
     }
