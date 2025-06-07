@@ -3,6 +3,7 @@ use anyhow::{Context, Result};
 use once_cell::sync::Lazy;
 use std::{fs::read_to_string, sync::Mutex};
 use sysinfo::System;
+use crate::regex;
 
 struct RefreshTime(std::time::Instant);
 impl RefreshTime {
@@ -202,7 +203,82 @@ pub fn get_battery_capacity() -> Result<String> {
     Ok(serde_json::to_string(&(Data { batteries, total_avg: (current / total) * 100_f64 })).unwrap())
 }
 
-#[cfg(any(target_os = "netbsd", target_os = "freebsd", target_os = "openbsd"))]
+#[cfg(target_os = "openbsd")]
+pub fn get_battery_capacity() -> Result<String> {
+    // on openbsd, the battery information can be obtained from sysctl
+    // which is provided by the acpibat/acpisbs driver
+    // do note that acpisbs would need to get a proper implmentation though
+    if let Ok(sysctl_sensors) = String::from_utf8(
+        // the whole hw.sensors table is queried to get the full list of batteries
+        // without prior knowledge of the system
+        // afterwards, only specific batteries are queried
+        std::process::Command::new("sysctl").arg("hw.sensors")
+            .output()
+            .context("\nError while getting the battery values on OpenBSD, with `sysctl hw.sensors`: ")?
+            .stdout,
+    ) {
+        let mut json = String::from('{');
+        let mut count: usize = 0;
+        let mut total_charge: f32 = 0.0;
+
+        // now, there are a few drivers that i'm aware of that handle batteries:
+        // - acpibat
+        // - acpisbs (TODO! i have no system where acpisbs is used so i can't reliably test)
+        // using regex, these can be filtered out, by using a regex on a unique entry
+        let re_bat = regex!(r"acpibat(\d+)\..+=(\d+\.\d+) Wh \(remaining capacity\)");
+        for (i, bat) in re_bat.captures_iter(&sysctl_sensors).enumerate() {
+            let bat_idx = bat.get(1).unwrap().as_str();
+            let bat_wh = bat.get(2).unwrap().as_str();
+
+            // now that the index of the battery is known, more queries can be
+            // performed:
+            // - last full capcity
+            // - battery state
+            let re_lfcap = regex::Regex::new(&format!(r"acpibat{}\..+=(\d+\.\d+) Wh \(last full capacity\)", bat_idx)).unwrap();
+            let lfcap = re_lfcap.captures(&sysctl_sensors).unwrap().get(1).unwrap().as_str().parse::<f32>().unwrap();
+
+            let re_batstate = regex::Regex::new(&format!(r"acpibat{}\..+=\d+ \(battery (.+)\)", bat_idx)).unwrap();
+            let bat_state = re_batstate.captures(&sysctl_sensors).unwrap().get(1).unwrap().as_str();
+
+            // the current percentual capacity of the battery is it's current
+            // charge (Wh) divided by the last "full" charge (Wh), which results
+            // in a number between 0 and 1, so scale it by 100 to get the percentage
+            let bat_cap = {
+                let wh  = bat_wh.parse::<f32>().unwrap();
+
+                if lfcap == 0.0 {
+                    0.0
+                } else {
+                    (wh / lfcap) * 100.0
+                }
+            };
+
+            // unfortunately, sysctl doesn't provide the average charge
+            // while apm does, it sucks to have to call yet another program
+            // for a simple status update. so, instead, just calculate the total
+            // while looping over all batteries
+            total_charge += bat_cap;
+            count += i;
+
+            json.push_str(&format!(
+                r#""BAT{}": {{ "status": "{}", "capacity": {} }}, "#,
+                bat_idx,
+                bat_state,
+                bat_cap
+            ));
+        }
+
+        json.push_str(&format!(r#""total_avg": {}}}"#, total_charge / (count + 1) as f32));
+        return Ok(json);
+    } else {
+        // if that fails, fallback to apm, at the cost of not knowing the charge of each
+        // individual battery (afaik apm on openbsd doesn't always support multiple batteries)
+
+        return Err(anyhow::anyhow!("getting battery information with sysctl failed, giving up"));
+    }
+}
+
+#[cfg(any(target_os = "netbsd", target_os = "freebsd"))]
 pub fn get_battery_capacity() -> Result<String> {
     let batteries = String::from_utf8(
         // I have only tested `apm` on FreeBSD, but it *should* work on all of the listed targets,
