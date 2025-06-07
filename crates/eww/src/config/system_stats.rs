@@ -1,9 +1,9 @@
+use crate::regex;
 use crate::util::IterAverage;
 use anyhow::{Context, Result};
 use once_cell::sync::Lazy;
 use std::{fs::read_to_string, sync::Mutex};
 use sysinfo::System;
-use crate::regex;
 
 struct RefreshTime(std::time::Instant);
 impl RefreshTime {
@@ -212,7 +212,8 @@ pub fn get_battery_capacity() -> Result<String> {
         // the whole hw.sensors table is queried to get the full list of batteries
         // without prior knowledge of the system
         // afterwards, only specific batteries are queried
-        std::process::Command::new("sysctl").arg("hw.sensors")
+        std::process::Command::new("sysctl")
+            .arg("hw.sensors")
             .output()
             .context("\nError while getting the battery values on OpenBSD, with `sysctl hw.sensors`: ")?
             .stdout,
@@ -237,13 +238,17 @@ pub fn get_battery_capacity() -> Result<String> {
             let re_lfcap = regex::Regex::new(&format!(r"acpibat{}\..+=(\d+\.\d+) Wh \(last full capacity\)", bat_idx)).unwrap();
             let lfcap = re_lfcap.captures(&sysctl_sensors).unwrap().get(1).unwrap().as_str().parse::<f32>().unwrap();
 
+            // a thing that's a bit annoying is the fact that there's no clear
+            // charging/discharging that can be just matched; it's connected/not connected
+            // instead, which means that the whole thing needs to be normalized first
+            // to match the much more commonly worked with Linux handler
             let re_batstate = regex::Regex::new(&format!(r"acpibat{}\..+=\d+ \(battery (.+)\)", bat_idx)).unwrap();
             let bat_state = if let Some(s) = re_batstate.captures(&sysctl_sensors).unwrap().get(1) {
                 match s.as_str() {
                     "charging" => "Charging",
                     "discharging" => "Discharging",
                     "idle" => "Not Charging",
-                    _ => "Unknown"
+                    _ => "Unknown",
                 }
             } else {
                 "Unknown"
@@ -253,7 +258,7 @@ pub fn get_battery_capacity() -> Result<String> {
             // charge (Wh) divided by the last "full" charge (Wh), which results
             // in a number between 0 and 1, so scale it by 100 to get the percentage
             let bat_cap = {
-                let wh  = bat_wh.parse::<f32>().unwrap();
+                let wh = bat_wh.parse::<f32>().unwrap();
 
                 if lfcap == 0.0 {
                     0.0
@@ -269,12 +274,7 @@ pub fn get_battery_capacity() -> Result<String> {
             total_charge += bat_cap;
             count += i;
 
-            json.push_str(&format!(
-                r#""BAT{}": {{ "status": "{}", "capacity": {} }}, "#,
-                bat_idx,
-                bat_state,
-                bat_cap
-            ));
+            json.push_str(&format!(r#""BAT{}": {{ "status": "{}", "capacity": {} }}, "#, bat_idx, bat_state, bat_cap));
         }
 
         json.push_str(&format!(r#""total_avg": {}}}"#, total_charge / (count + 1) as f32));
@@ -285,31 +285,23 @@ pub fn get_battery_capacity() -> Result<String> {
         std::process::Command::new("apm")
             .output()
             .context("\nError while getting the battery values on OpenBSD, with `apm`: ")?
-            .stdout)
-    {
+            .stdout,
+    ) {
         let re_total = regex!(r"(\d+)% remaining");
         let total_charge = re_total.captures(&apm_stats).unwrap().get(1).unwrap().as_str();
 
-        // a thing that's a bit annoying is the fact that there's no clear
-        // charging/discharging that can be just matched; it's connected/not connected
-        // instead, which means that the whole thing needs to be normalized first
         let re_state = regex!(r"adapter state: (.+)");
         let state = if let Some(s) = re_state.captures(&apm_stats).unwrap().get(1) {
             match s.as_str() {
                 "not connected" => "Discharging",
                 "connected" => "Charging",
-                _ => "Unknown"
+                _ => "Unknown",
             }
         } else {
             "Unknown"
         };
 
-        Ok(format!(
-            r#"{{"BAT0":{{"status":{},"capacity":{}}},"total_avg":{}}}"#,
-            state,
-            total_charge,
-            total_charge
-        ))
+        Ok(format!(r#"{{"BAT0":{{"status":{},"capacity":{}}},"total_avg":{}}}"#, state, total_charge, total_charge))
     } else {
         // if all hope is lost, just return a dummy table, instead of crashing
         Ok(r#"{"BAT0":{"status":"Unknown","capacity":0.0},"total_avg":0.0}"#)
