@@ -1,3 +1,4 @@
+use crate::regex;
 use crate::util::IterAverage;
 use anyhow::{Context, Result};
 use once_cell::sync::Lazy;
@@ -202,7 +203,120 @@ pub fn get_battery_capacity() -> Result<String> {
     Ok(serde_json::to_string(&(Data { batteries, total_avg: (current / total) * 100_f64 })).unwrap())
 }
 
-#[cfg(any(target_os = "netbsd", target_os = "freebsd", target_os = "openbsd"))]
+#[cfg(target_os = "openbsd")]
+pub fn get_battery_capacity() -> Result<String> {
+    // on openbsd, the battery information can be obtained from sysctl
+    // which is provided by the acpibat/acpisbs driver
+    // do note that acpisbs would need to get a proper implmentation though
+    if let Ok(sysctl_sensors) = String::from_utf8(
+        // the whole hw.sensors table is queried to get the full list of batteries
+        // without prior knowledge of the system
+        // afterwards, only specific batteries are queried
+        std::process::Command::new("sysctl")
+            .arg("hw.sensors")
+            .output()
+            .context("\nError while getting the battery values on OpenBSD, with `sysctl hw.sensors`: ")?
+            .stdout,
+    ) {
+        let mut json = String::from('{');
+        let mut count: usize = 0;
+        let mut total_charge: f32 = 0.0;
+
+        // now, there are a few drivers that i'm aware of that handle batteries:
+        // - acpibat
+        // - acpisbs (TODO! i have no system where acpisbs is used so i can't reliably test)
+        // using regex, these can be filtered out, by using a regex on a unique entry
+        let re_bat = regex!(r"acpibat(\d+)\..+=(\d+\.\d+) Wh \(remaining capacity\)");
+        for (i, bat) in re_bat.captures_iter(&sysctl_sensors).enumerate() {
+            let bat_idx = bat.get(1).unwrap().as_str();
+            let bat_wh = bat.get(2).unwrap().as_str();
+
+            // now that the index of the battery is known, more queries can be
+            // performed:
+            // - last full capcity
+            // - battery state
+            let re_lfcap = regex::Regex::new(&format!(r"acpibat{}\..+=(\d+\.\d+) Wh \(last full capacity\)", bat_idx)).unwrap();
+            let lfcap = re_lfcap.captures(&sysctl_sensors).unwrap().get(1).unwrap().as_str().parse::<f32>().unwrap();
+
+            // a thing that's a bit annoying is the fact that there's no clear
+            // charging/discharging that can be just matched; it's connected/not connected
+            // instead, which means that the whole thing needs to be normalized first
+            // to match the much more commonly worked with Linux handler
+            let re_batstate = regex::Regex::new(&format!(r"acpibat{}\..+=\d+ \(battery (.+)\)", bat_idx)).unwrap();
+            let bat_state = if let Some(s) = re_batstate.captures(&sysctl_sensors).unwrap().get(1) {
+                match s.as_str() {
+                    "charging" => "Charging",
+                    "discharging" => "Discharging",
+                    "idle" => "Not Charging",
+                    _ => "Unknown",
+                }
+            } else {
+                "Unknown"
+            };
+
+            // the current percentual capacity of the battery is it's current
+            // charge (Wh) divided by the last "full" charge (Wh), which results
+            // in a number between 0 and 1, so scale it by 100 to get the percentage
+            let bat_cap = {
+                let wh = bat_wh.parse::<f32>().unwrap();
+
+                if lfcap == 0.0 {
+                    0.0
+                } else {
+                    (wh / lfcap) * 100.0
+                }
+            };
+
+            // unfortunately, sysctl doesn't provide the average charge
+            // while apm does, it sucks to have to call yet another program
+            // for a simple status update. so, instead, just calculate the total
+            // while looping over all batteries
+            total_charge += bat_cap;
+            count += i;
+
+            json.push_str(&format!(r#""BAT{}": {{ "status": "{}", "capacity": {} }}, "#, bat_idx, bat_state, bat_cap));
+        }
+
+        Ok(if (count + 1) > 0 {
+            json.push_str(&format!(r#""total_avg": {}}}"#, total_charge / (count + 1) as f32));
+            json
+        } else {
+            String::from("")
+        })
+    } else if let Ok(apm_stats) = String::from_utf8(
+        // if that fails, fallback to apm, at the cost of not knowing the charge of each
+        // individual battery (afaik apm on openbsd doesn't seem to show multiple batteries)
+        std::process::Command::new("apm")
+            .output()
+            .context("\nError while getting the battery values on OpenBSD, with `apm`: ")?
+            .stdout,
+    ) {
+        let re_total = regex!(r"(\d+)% remaining");
+        let total_charge = re_total.captures(&apm_stats).unwrap().get(1);
+
+        let re_state = regex!(r"adapter state: (.+)");
+        let state = if let Some(s) = re_state.captures(&apm_stats).unwrap().get(1) {
+            match s.as_str() {
+                "not connected" => "Discharging",
+                "connected" => "Charging",
+                _ => "Unknown",
+            }
+        } else {
+            "Unknown"
+        };
+
+        Ok(if let Some(tc) = total_charge {
+            format!(r#"{{"BAT0":{{"status":{},"capacity":{}}},"total_avg":{}}}"#, state, tc.as_str(), tc.as_str())
+        } else {
+            String::from("")
+        })
+    } else {
+        // if all hope is lost, just return an empty string, instead of crashing
+        Ok(String::from(""))
+    }
+}
+
+#[cfg(any(target_os = "netbsd", target_os = "freebsd"))]
 pub fn get_battery_capacity() -> Result<String> {
     let batteries = String::from_utf8(
         // I have only tested `apm` on FreeBSD, but it *should* work on all of the listed targets,
@@ -227,7 +341,6 @@ pub fn get_battery_capacity() -> Result<String> {
     // last 4 lines are repeated for each battery.
     // see also:
     // https://www.freebsd.org/cgi/man.cgi?query=apm&manpath=FreeBSD+13.1-RELEASE+and+Ports
-    // https://man.openbsd.org/amd64/apm.8
     // https://man.netbsd.org/apm.8
     let mut json = String::from('{');
     let re_total = regex!(r"(?m)^Remaining battery life: (\d+)%");
