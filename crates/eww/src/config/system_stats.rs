@@ -311,8 +311,8 @@ pub fn get_battery_capacity() -> Result<String> {
             String::from("")
         })
     } else {
-        // if all hope is lost, just return a dummy table, instead of crashing
-        Ok(String::from(r#"{"BAT0":{"status":"Unknown","capacity":0.0},"total_avg":0.0}"#))
+        // if all hope is lost, just return an empty string, instead of crashing
+        Ok(String::from(""))
     }
 }
 
