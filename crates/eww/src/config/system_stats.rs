@@ -238,7 +238,16 @@ pub fn get_battery_capacity() -> Result<String> {
             let lfcap = re_lfcap.captures(&sysctl_sensors).unwrap().get(1).unwrap().as_str().parse::<f32>().unwrap();
 
             let re_batstate = regex::Regex::new(&format!(r"acpibat{}\..+=\d+ \(battery (.+)\)", bat_idx)).unwrap();
-            let bat_state = re_batstate.captures(&sysctl_sensors).unwrap().get(1).unwrap().as_str();
+            let bat_state = if let Some(s) = re_batstate.captures(&sysctl_sensors).unwrap().get(1) {
+                match s.as_str() {
+                    "charging" => "Charging",
+                    "discharging" => "Discharging",
+                    "idle" => "Not Charging",
+                    _ => "Unknown"
+                }
+            } else {
+                "Unknown"
+            };
 
             // the current percentual capacity of the battery is it's current
             // charge (Wh) divided by the last "full" charge (Wh), which results
@@ -269,12 +278,41 @@ pub fn get_battery_capacity() -> Result<String> {
         }
 
         json.push_str(&format!(r#""total_avg": {}}}"#, total_charge / (count + 1) as f32));
-        return Ok(json);
-    } else {
+        Ok(json)
+    } else if Ok(apm_stats) = String::from_utf8(
         // if that fails, fallback to apm, at the cost of not knowing the charge of each
-        // individual battery (afaik apm on openbsd doesn't always support multiple batteries)
+        // individual battery (afaik apm on openbsd doesn't seem to show multiple batteries)
+        std::process::Command::new("apm")
+            .output()
+            .context("\nError while getting the battery values on OpenBSD, with `apm`: ")?
+            .stdout)
+    {
+        let re_total = regex!(r"(\d+)% remaining");
+        let total_charge = re_total.captures(&apm_stats).unwrap().get(1).unwrap().as_str();
 
-        return Err(anyhow::anyhow!("getting battery information with sysctl failed, giving up"));
+        // a thing that's a bit annoying is the fact that there's no clear
+        // charging/discharging that can be just matched; it's connected/not connected
+        // instead, which means that the whole thing needs to be normalized first
+        let re_state = regex!(r"adapter state: (.+)");
+        let state = if let Some(s) = re_state.captures(&apm_stats).unwrap().get(1) {
+            match s.as_str() {
+                "not connected" => "Discharging",
+                "connected" => "Charging",
+                _ => "Unknown"
+            }
+        } else {
+            "Unknown"
+        };
+
+        Ok(format!(
+            r#"{{"BAT0":{{"status":{},"capacity":{}}},"total_avg":{}}}"#,
+            state,
+            total_charge,
+            total_charge
+        ))
+    } else {
+        // if all hope is lost, just return a dummy table, instead of crashing
+        Ok(r#"{"BAT0":{"status":"Unknown","capacity":0.0},"total_avg":0.0}"#)
     }
 }
 
@@ -303,7 +341,6 @@ pub fn get_battery_capacity() -> Result<String> {
     // last 4 lines are repeated for each battery.
     // see also:
     // https://www.freebsd.org/cgi/man.cgi?query=apm&manpath=FreeBSD+13.1-RELEASE+and+Ports
-    // https://man.openbsd.org/amd64/apm.8
     // https://man.netbsd.org/apm.8
     let mut json = String::from('{');
     let re_total = regex!(r"(?m)^Remaining battery life: (\d+)%");
