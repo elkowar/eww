@@ -277,9 +277,13 @@ pub fn get_battery_capacity() -> Result<String> {
             json.push_str(&format!(r#""BAT{}": {{ "status": "{}", "capacity": {} }}, "#, bat_idx, bat_state, bat_cap));
         }
 
-        json.push_str(&format!(r#""total_avg": {}}}"#, total_charge / (count + 1) as f32));
-        Ok(json)
-    } else if Ok(apm_stats) = String::from_utf8(
+        Ok(if (count + 1) > 0 {
+            json.push_str(&format!(r#""total_avg": {}}}"#, total_charge / (count + 1) as f32));
+            json
+        } else {
+            String::from("")
+        })
+    } else if let Ok(apm_stats) = String::from_utf8(
         // if that fails, fallback to apm, at the cost of not knowing the charge of each
         // individual battery (afaik apm on openbsd doesn't seem to show multiple batteries)
         std::process::Command::new("apm")
@@ -288,7 +292,7 @@ pub fn get_battery_capacity() -> Result<String> {
             .stdout,
     ) {
         let re_total = regex!(r"(\d+)% remaining");
-        let total_charge = re_total.captures(&apm_stats).unwrap().get(1).unwrap().as_str();
+        let total_charge = re_total.captures(&apm_stats).unwrap().get(1);
 
         let re_state = regex!(r"adapter state: (.+)");
         let state = if let Some(s) = re_state.captures(&apm_stats).unwrap().get(1) {
@@ -301,10 +305,14 @@ pub fn get_battery_capacity() -> Result<String> {
             "Unknown"
         };
 
-        Ok(format!(r#"{{"BAT0":{{"status":{},"capacity":{}}},"total_avg":{}}}"#, state, total_charge, total_charge))
+        Ok(if let Some(tc) = total_charge {
+            format!(r#"{{"BAT0":{{"status":{},"capacity":{}}},"total_avg":{}}}"#, state, tc.as_str(), tc.as_str())
+        } else {
+            String::from("")
+        })
     } else {
         // if all hope is lost, just return a dummy table, instead of crashing
-        Ok(r#"{"BAT0":{"status":"Unknown","capacity":0.0},"total_avg":0.0}"#)
+        Ok(String::from(r#"{"BAT0":{"status":"Unknown","capacity":0.0},"total_avg":0.0}"#))
     }
 }
 
