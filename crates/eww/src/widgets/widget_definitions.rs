@@ -459,6 +459,9 @@ fn build_gtk_scale(bargs: &mut BuilderArgs) -> Result<gtk::Scale> {
         // @prop draw-value - draw the value of the property
         prop(draw_value: as_bool = false) { gtk_widget.set_draw_value(draw_value) },
 
+        // @prop value-pos - position of the drawn value. possible values: $position
+        prop(value_pos: as_string) { gtk_widget.set_value_pos(parse_position_type(&value_pos)?) },
+
         // @prop round-digits - Sets the number of decimals to round the value to when it changes
         prop(round_digits: as_i32 = 0) { gtk_widget.set_round_digits(round_digits) }
 
@@ -1013,7 +1016,7 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
         // @prop truncate - whether to truncate text (or pango markup). If `show-truncated` is `false`, or if `limit-width` has a value, this property has no effect and truncation is enabled.
         // @prop limit-width - maximum count of characters to display
         // @prop truncate-left - whether to truncate on the left side
-        // @prop show-truncated - show whether the text was truncatedd. Disabling it will also disable dynamic truncation (the labels won't be truncated more than `limit-width`, even if there is not enough space for them), and will completly disable truncation on pango markup.
+        // @prop show-truncated - show whether the text was truncated. Disabling it will also disable dynamic truncation (the labels won't be truncated more than `limit-width`, even if there is not enough space for them), and will completly disable truncation on pango markup.
         prop(markup: as_string, truncate: as_bool = false, limit_width: as_i32 = i32::MAX, truncate_left: as_bool = false, show_truncated: as_bool = true) {
             if (truncate || limit_width != i32::MAX) && show_truncated {
                 // gtk does weird thing if we set max_width_chars to i32::MAX
@@ -1050,6 +1053,14 @@ fn build_gtk_label(bargs: &mut BuilderArgs) -> Result<gtk::Label> {
         prop(justify: as_string = "left") {
             gtk_widget.set_justify(parse_justification(&justify)?);
         },
+        // @prop wrap-mode - how text is wrapped. possible options: $wrap_mode
+        prop(wrap_mode: as_string = "word") {
+            gtk_widget.set_wrap_mode(parse_wrap_mode(&wrap_mode)?);
+        },
+        // @prop lines - maximum number of lines to display (only works when `limit-width` has a value). A value of -1 (default) disables the limit.
+        prop(lines: as_i32 = -1) {
+            gtk_widget.set_lines(lines);
+        }
     });
     Ok(gtk_widget)
 }
@@ -1241,7 +1252,14 @@ fn build_graph(bargs: &mut BuilderArgs) -> Result<super::graph::Graph> {
     let w = super::graph::Graph::new();
     def_widget!(bargs, _g, w, {
         // @prop value - the value, between 0 - 100
-        prop(value: as_f64) { w.set_property("value", value); },
+        prop(value: as_f64) {
+            if value.is_nan() || value.is_infinite() {
+                return Err(DiagError(gen_diagnostic!(
+                    format!("Graph's value should never be NaN or infinite")
+                )).into());
+            }
+            w.set_property("value", value);
+        },
         // @prop thickness - the thickness of the line
         prop(thickness: as_f64) { w.set_property("thickness", thickness); },
         // @prop time-range - the range of time to show
@@ -1373,6 +1391,16 @@ fn parse_justification(j: &str) -> Result<gtk::Justification> {
     }
 }
 
+/// @var position - "left", "right", "top", "bottom"
+fn parse_position_type(g: &str) -> Result<gtk::PositionType> {
+    enum_parse! { "position", g,
+        "left" => gtk::PositionType::Left,
+        "right" => gtk::PositionType::Right,
+        "top" => gtk::PositionType::Top,
+        "bottom" => gtk::PositionType::Bottom,
+    }
+}
+
 /// @var gravity - "south", "east", "west", "north", "auto"
 fn parse_gravity(g: &str) -> Result<gtk::pango::Gravity> {
     enum_parse! { "gravity", g,
@@ -1381,6 +1409,15 @@ fn parse_gravity(g: &str) -> Result<gtk::pango::Gravity> {
         "west" => gtk::pango::Gravity::West,
         "north" => gtk::pango::Gravity::North,
         "auto" => gtk::pango::Gravity::Auto,
+    }
+}
+
+/// @var wrap_mode - "word", "char", "wordchar"
+fn parse_wrap_mode(w: &str) -> Result<gtk::pango::WrapMode> {
+    enum_parse! { "wrap-mode", w,
+        "word" => gtk::pango::WrapMode::Word,
+        "char" => gtk::pango::WrapMode::Char,
+        "wordchar" => gtk::pango::WrapMode::WordChar
     }
 }
 

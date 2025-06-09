@@ -329,6 +329,20 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
             }
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
+        "floor" => match args.as_slice() {
+            [num] => {
+                let num = num.as_f64()?;
+                Ok(DynVal::from(num.floor()))
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
+        "ceil" => match args.as_slice() {
+            [num] => {
+                let num = num.as_f64()?;
+                Ok(DynVal::from(num.ceil()))
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
         "min" => match args.as_slice() {
             [a, b] => {
                 let a = a.as_f64()?;
@@ -487,14 +501,26 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
 
                 Ok(DynVal::from(match timezone.timestamp_opt(timestamp.as_i64()?, 0) {
                     LocalResult::Single(t) | LocalResult::Ambiguous(t, _) => {
-                        t.format_localized(&format.as_string()?, get_locale()).to_string()
+                        let format = format.as_string()?;
+                        let delayed_format = t.format_localized(&format, get_locale());
+                        let mut buffer = String::new();
+                        if delayed_format.write_to(&mut buffer).is_err() {
+                            return Err(EvalError::ChronoError("Invalid time formatting string: ".to_string() + &format));
+                        }
+                        buffer
                     }
                     LocalResult::None => return Err(EvalError::ChronoError("Invalid UNIX timestamp".to_string())),
                 }))
             }
             [timestamp, format] => Ok(DynVal::from(match Local.timestamp_opt(timestamp.as_i64()?, 0) {
                 LocalResult::Single(t) | LocalResult::Ambiguous(t, _) => {
-                    t.format_localized(&format.as_string()?, get_locale()).to_string()
+                    let format = format.as_string()?;
+                    let delayed_format = t.format_localized(&format, get_locale());
+                    let mut buffer = String::new();
+                    if delayed_format.write_to(&mut buffer).is_err() {
+                        return Err(EvalError::ChronoError("Invalid time formatting string: ".to_string() + &format));
+                    }
+                    buffer
                 }
                 LocalResult::None => return Err(EvalError::ChronoError("Invalid UNIX timestamp".to_string())),
             })),
