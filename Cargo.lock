@@ -401,6 +401,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "428d9aa8fbc0670b7b8d6030a7fadd0f86151cae55e4dbbece15f3780a3dfaf3"
 
 [[package]]
+name = "bytesize"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a3c8f83209414aacf0eeae3cf730b18d6981697fba62f200fcfb92b9f082acba"
+
+[[package]]
 name = "cached"
 version = "0.53.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2683,6 +2689,7 @@ dependencies = [
 name = "simplexpr"
 version = "0.1.0"
 dependencies = [
+ "bytesize",
  "cached",
  "chrono",
  "chrono-tz",
