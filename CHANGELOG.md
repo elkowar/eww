@@ -9,6 +9,8 @@ All notable changes to eww will be listed here, starting at changes since versio
   Attempting to index in an empty JSON string (`'""'`) is now an error.
 
 ### Fixes
+- Fix crash on invalid `formattime` format string (By: luca3s)
+- Fix crash on NaN or infinite graph value (By: luca3s)
 - Re-enable some scss features (By: w-lfchen)
 - Fix and refactor nix flake (By: w-lfchen)
 - Fix remove items from systray (By: vnva)
@@ -20,6 +22,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - `get_locale` now follows POSIX standard for locale selection (By: mirhahn, w-lfchen)
 
 ### Features
+- Add warning and docs for incompatible `:anchor` and `:exclusive` options
 - Add `eww poll` subcommand to force-poll a variable (By: kiana-S)
 - Add OnDemand support for focusable on wayland (By: GallowsDove)
 - Add jq `raw-output` support (By: RomanHargrave)
@@ -36,7 +39,9 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add `log` function calls to simplexpr (By: topongo)
 - Add `:lines` and `:wrap-mode` properties to label widget (By: vaporii)
 - Add `value-pos` to scale widget (By: ipsvn)
+- Add `floor` and `ceil` function calls to simplexpr (By: wsbankenstein)
 - Add `uppercase` and `lowercase` functions for expressions (By: dod-101)
+
 
 ## [0.6.0] (21.04.2024)
 
