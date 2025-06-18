@@ -1,3 +1,4 @@
+use bytesize::ByteSize;
 use cached::proc_macro::cached;
 use chrono::{Local, LocalResult, TimeZone};
 use itertools::Itertools;
@@ -60,6 +61,9 @@ pub enum EvalError {
 
     #[error("Error parsing date: {0}")]
     ChronoError(String),
+
+    #[error("Error parsing byte format mode: {0}")]
+    ByteFormatModeError(String),
 
     #[error("{1}")]
     Spanned(Span, Box<EvalError>),
@@ -534,6 +538,34 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
             }
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
+        "formatbytes" => {
+            let (bytes, short, mode) = match args.as_slice() {
+                [bytes] => (bytes.as_i64()?, false, "iec".to_owned()),
+                [bytes, short] => (bytes.as_i64()?, short.as_bool()?, "iec".to_owned()),
+                [bytes, short, mode] => (bytes.as_i64()?, short.as_bool()?, mode.as_string()?),
+                _ => return Err(EvalError::WrongArgCount(name.to_string())),
+            };
+            let neg = bytes < 0;
+            let disp = ByteSize(bytes.abs() as u64).display();
+            let disp = match mode.as_str() {
+                "iec" => {
+                    if short {
+                        disp.iec_short()
+                    } else {
+                        disp.iec()
+                    }
+                }
+                "si" => {
+                    if short {
+                        disp.si_short()
+                    } else {
+                        disp.si()
+                    }
+                }
+                _ => return Err(EvalError::ByteFormatModeError(mode)),
+            };
+            Ok(DynVal::from(if neg { format!("-{disp}") } else { disp.to_string() }))
+        }
 
         _ => Err(EvalError::UnknownFunction(name.to_string())),
     }
