@@ -1241,6 +1241,8 @@ fn build_circular_progress_bar(bargs: &mut BuilderArgs) -> Result<CircProg> {
         prop(thickness: as_f64) { w.set_property("thickness", thickness); },
         // @prop clockwise - wether the progress bar spins clockwise or counter clockwise
         prop(clockwise: as_bool) { w.set_property("clockwise", clockwise); },
+        // @prop rounded - wether the progress bar tip rounded or butt
+        prop(rounded: as_bool) { w.set_property("rounded", rounded); },
     });
     Ok(w)
 }
