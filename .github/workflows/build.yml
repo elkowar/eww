@@ -1,45 +1,36 @@
 name: build
-
 on:
-   push:
-      branches: [master]
-   pull_request:
-      branches: [master]
-
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
 env:
-   CARGO_TERM_COLOR: always
-
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-Dwarnings"
 jobs:
-   build:
-      runs-on: ubuntu-latest
-      steps:
-         - name: Install dependencies
-           run: sudo apt-get update && sudo apt-get install libgtk-3-dev libgtk-layer-shell-dev libdbusmenu-gtk3-dev
-
-         - uses: actions/checkout@v4
-
-         - name: Setup rust
-           uses: dtolnay/rust-toolchain@stable
-           with:
-               components: clippy,rustfmt
-
-         - name: Load rust cache
-           uses: Swatinem/rust-cache@v2
-
-         - name: Setup problem matchers
-           uses: r7kamura/rust-problem-matchers@v1
-
-         - name: Check formatting
-           run: cargo fmt -- --check
-         - name: Check with default features
-           run: cargo check
-
-         - name: Run tests
-           run: cargo test
-
-         - name: Check x11 only
-           run: cargo check --no-default-features --features=x11
-         - name: Check wayland only
-           run: cargo check --no-default-features --features=wayland
-         - name: Check no-backend
-           run: cargo check --no-default-features
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install libgtk-3-dev libgtk-layer-shell-dev libdbusmenu-gtk3-dev
+      - uses: actions/checkout@v4
+      - name: Setup rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy,rustfmt
+      - name: Load rust cache
+        uses: Swatinem/rust-cache@v2
+      - name: Setup problem matchers
+        uses: r7kamura/rust-problem-matchers@v1
+      - name: Check formatting
+        run: cargo fmt -- --check
+      - name: Run tests
+        run: cargo test
+      - name: Check with default features
+        run: cargo clippy
+      - name: Check x11 only
+        run: cargo clippy --no-default-features --features=x11
+      - name: Check wayland only
+        run: cargo clippy --no-default-features --features=wayland
+      - name: Check no-backend
+        run: cargo clippy --no-default-features
