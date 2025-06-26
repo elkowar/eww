@@ -854,7 +854,7 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
             }));
         },
         // @prop timeout - timeout of the command. Default: "200ms"
-        // @prop onhoverlost - event to execute when the user losts hovers over the widget
+        // @prop onhoverlost - event to execute when the user loses hover over the widget
         prop(timeout: as_duration = Duration::from_millis(200), onhoverlost: as_string) {
             gtk_widget.add_events(gdk::EventMask::LEAVE_NOTIFY_MASK);
             connect_signal_handler!(gtk_widget, gtk_widget.connect_leave_notify_event(move |_, evt| {
