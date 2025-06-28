@@ -329,6 +329,20 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
             }
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
+        "floor" => match args.as_slice() {
+            [num] => {
+                let num = num.as_f64()?;
+                Ok(DynVal::from(num.floor()))
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
+        "ceil" => match args.as_slice() {
+            [num] => {
+                let num = num.as_f64()?;
+                Ok(DynVal::from(num.ceil()))
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
         "min" => match args.as_slice() {
             [a, b] => {
                 let a = a.as_f64()?;
@@ -342,6 +356,22 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
                 let a = a.as_f64()?;
                 let b = b.as_f64()?;
                 Ok(DynVal::from(f64::max(a, b)))
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
+        "powi" => match args.as_slice() {
+            [num, n] => {
+                let num = num.as_f64()?;
+                let n = n.as_i32()?;
+                Ok(DynVal::from(f64::powi(num, n)))
+            }
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
+        "powf" => match args.as_slice() {
+            [num, n] => {
+                let num = num.as_f64()?;
+                let n = n.as_f64()?;
+                Ok(DynVal::from(f64::powf(num, n)))
             }
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
@@ -456,7 +486,9 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
         "jq" => match args.as_slice() {
-            [json, code] => run_jaq_function(json.as_json_value()?, code.as_string()?)
+            [json, code] => run_jaq_function(json.as_json_value()?, code.as_string()?, "")
+                .map_err(|e| EvalError::Spanned(code.span(), Box::new(e))),
+            [json, code, args] => run_jaq_function(json.as_json_value()?, code.as_string()?, &args.as_string()?)
                 .map_err(|e| EvalError::Spanned(code.span(), Box::new(e))),
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
@@ -469,17 +501,37 @@ fn call_expr_function(name: &str, args: Vec<DynVal>) -> Result<DynVal, EvalError
 
                 Ok(DynVal::from(match timezone.timestamp_opt(timestamp.as_i64()?, 0) {
                     LocalResult::Single(t) | LocalResult::Ambiguous(t, _) => {
-                        t.format_localized(&format.as_string()?, get_locale()).to_string()
+                        let format = format.as_string()?;
+                        let delayed_format = t.format_localized(&format, get_locale());
+                        let mut buffer = String::new();
+                        if delayed_format.write_to(&mut buffer).is_err() {
+                            return Err(EvalError::ChronoError("Invalid time formatting string: ".to_string() + &format));
+                        }
+                        buffer
                     }
                     LocalResult::None => return Err(EvalError::ChronoError("Invalid UNIX timestamp".to_string())),
                 }))
             }
             [timestamp, format] => Ok(DynVal::from(match Local.timestamp_opt(timestamp.as_i64()?, 0) {
                 LocalResult::Single(t) | LocalResult::Ambiguous(t, _) => {
-                    t.format_localized(&format.as_string()?, get_locale()).to_string()
+                    let format = format.as_string()?;
+                    let delayed_format = t.format_localized(&format, get_locale());
+                    let mut buffer = String::new();
+                    if delayed_format.write_to(&mut buffer).is_err() {
+                        return Err(EvalError::ChronoError("Invalid time formatting string: ".to_string() + &format));
+                    }
+                    buffer
                 }
                 LocalResult::None => return Err(EvalError::ChronoError("Invalid UNIX timestamp".to_string())),
             })),
+            _ => Err(EvalError::WrongArgCount(name.to_string())),
+        },
+        "log" => match args.as_slice() {
+            [num, n] => {
+                let num = num.as_f64()?;
+                let n = n.as_f64()?;
+                Ok(DynVal::from(f64::log(num, n)))
+            }
             _ => Err(EvalError::WrongArgCount(name.to_string())),
         },
 
@@ -506,16 +558,20 @@ fn prepare_jaq_filter(code: String) -> Result<Arc<jaq_interpret::Filter>, EvalEr
     Ok(Arc::new(filter))
 }
 
-fn run_jaq_function(json: serde_json::Value, code: String) -> Result<DynVal, EvalError> {
-    let filter: Arc<jaq_interpret::Filter> = prepare_jaq_filter(code)?;
-    let inputs = jaq_interpret::RcIter::new(std::iter::empty());
-    let out = filter
-        .run((jaq_interpret::Ctx::new([], &inputs), jaq_interpret::Val::from(json)))
-        .map(|x| x.map(Into::<serde_json::Value>::into))
-        .map(|x| x.map(|x| DynVal::from_string(serde_json::to_string(&x).unwrap())))
+fn run_jaq_function(json: serde_json::Value, code: String, args: &str) -> Result<DynVal, EvalError> {
+    use jaq_interpret::{Ctx, RcIter, Val};
+    prepare_jaq_filter(code)?
+        .run((Ctx::new([], &RcIter::new(std::iter::empty())), Val::from(json)))
+        .map(|r| r.map(Into::<serde_json::Value>::into))
+        .map(|x| {
+            x.map(|val| match (args, val) {
+                ("r", serde_json::Value::String(s)) => DynVal::from_string(s),
+                // invalid arguments are silently ignored
+                (_, v) => DynVal::from_string(serde_json::to_string(&v).unwrap()),
+            })
+        })
         .collect::<Result<_, _>>()
-        .map_err(|e| EvalError::JaqError(e.to_string()))?;
-    Ok(out)
+        .map_err(|e| EvalError::JaqError(e.to_string()))
 }
 
 #[cfg(test)]
@@ -576,5 +632,9 @@ mod tests {
         lazy_evaluation_or(r#"true || "null".test"#) => Ok(DynVal::from(true)),
         lazy_evaluation_elvis(r#""test"?: "null".test"#) => Ok(DynVal::from("test")),
         jq_basic_index(r#"jq("[7,8,9]", ".[0]")"#) => Ok(DynVal::from(7)),
+        jq_raw_arg(r#"jq("[ \"foo\" ]", ".[0]", "r")"#) => Ok(DynVal::from("foo")),
+        jq_empty_arg(r#"jq("[ \"foo\" ]", ".[0]", "")"#) => Ok(DynVal::from(r#""foo""#)),
+        jq_invalid_arg(r#"jq("[ \"foo\" ]", ".[0]", "hello")"#) => Ok(DynVal::from(r#""foo""#)),
+        jq_no_arg(r#"jq("[ \"foo\" ]", ".[0]")"#) => Ok(DynVal::from(r#""foo""#)),
     }
 }

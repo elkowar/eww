@@ -105,13 +105,15 @@ pub fn initialize_server<B: DisplayBackend>(
         }
     }
 
+    connect_monitor_added(ui_send.clone());
+
     // initialize all the handlers and tasks running asyncronously
     let tokio_handle = init_async_part(app.paths.clone(), ui_send);
 
     gtk::glib::MainContext::default().spawn_local(async move {
         // if an action was given to the daemon initially, execute it first.
         if let Some(action) = action {
-            app.handle_command(action);
+            app.handle_command(action).await;
         }
 
         loop {
@@ -120,7 +122,7 @@ pub fn initialize_server<B: DisplayBackend>(
                     app.scope_graph.borrow_mut().handle_scope_graph_event(scope_graph_evt);
                 },
                 Some(ui_event) = ui_recv.recv() => {
-                    app.handle_command(ui_event);
+                    app.handle_command(ui_event).await;
                 }
                 else => break,
             }
@@ -134,6 +136,29 @@ pub fn initialize_server<B: DisplayBackend>(
     log::info!("main application thread finished");
 
     Ok(ForkResult::Child)
+}
+
+fn connect_monitor_added(ui_send: UnboundedSender<DaemonCommand>) {
+    let display = gtk::gdk::Display::default().expect("could not get default display");
+    display.connect_monitor_added({
+        move |_display: &gtk::gdk::Display, _monitor: &gtk::gdk::Monitor| {
+            log::info!("New monitor connected, reloading configuration");
+            let _ = reload_config_and_css(&ui_send);
+        }
+    });
+}
+
+fn reload_config_and_css(ui_send: &UnboundedSender<DaemonCommand>) -> Result<()> {
+    let (daemon_resp_sender, mut daemon_resp_response) = daemon_response::create_pair();
+    ui_send.send(DaemonCommand::ReloadConfigAndCss(daemon_resp_sender))?;
+    tokio::spawn(async move {
+        match daemon_resp_response.recv().await {
+            Some(daemon_response::DaemonResponse::Success(_)) => log::info!("Reloaded config successfully"),
+            Some(daemon_response::DaemonResponse::Failure(e)) => eprintln!("{}", e),
+            None => log::error!("No response to reload configuration-reload request"),
+        }
+    });
+    Ok(())
 }
 
 fn init_async_part(paths: EwwPaths, ui_send: UnboundedSender<app::DaemonCommand>) -> tokio::runtime::Handle {
@@ -216,20 +241,12 @@ async fn run_filewatch<P: AsRef<Path>>(config_dir: P, evt_send: UnboundedSender<
                     debounce_done.store(true, Ordering::SeqCst);
                 });
 
-                let (daemon_resp_sender, mut daemon_resp_response) = daemon_response::create_pair();
                 // without this sleep, reading the config file sometimes gives an empty file.
                 // This is probably a result of editors not locking the file correctly,
                 // and eww being too fast, thus reading the file while it's empty.
                 // There should be some cleaner solution for this, but this will do for now.
                 tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-                evt_send.send(app::DaemonCommand::ReloadConfigAndCss(daemon_resp_sender))?;
-                tokio::spawn(async move {
-                    match daemon_resp_response.recv().await {
-                        Some(daemon_response::DaemonResponse::Success(_)) => log::info!("Reloaded config successfully"),
-                        Some(daemon_response::DaemonResponse::Failure(e)) => eprintln!("{}", e),
-                        None => log::error!("No response to reload configuration-reload request"),
-                    }
-                });
+                reload_config_and_css(&evt_send)?;
             }
         },
         else => break

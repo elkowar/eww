@@ -11,11 +11,14 @@ Documentation **and instructions on how to install** can be found [here](https:/
 
 Dharmx also wrote a nice, beginner friendly introductory guide for eww [here](https://dharmx.is-a.dev/eww-powermenu/).
 
-## Eww needs your opinion!
+## Check out another cool project by me
 
-I've hit a bit of a design roadblock for one of the bigger features that are in the works right now.
+<img src="https://raw.githubusercontent.com/elkowar/yolk/refs/heads/main/.github/images/yolk_logo.svg" height="100" align="right"/>
 
-**Please read through https://github.com/elkowar/eww/discussions/453 and share your thoughts, ideas and opinions!**
+I'm currently busy working [yolk](https://github.com/elkowar/yolk),
+which is a dotfile management solution that supports a unique spin on templating: *templating without template files*.
+
+To find out more, check out the [website and documentation](https://elkowar.github.io/yolk)!
 
 ## Examples
 
@@ -60,6 +63,14 @@ I've hit a bit of a design roadblock for one of the bigger features that are in 
 
 </div>
 
+* [Activate Linux by Nycta](https://github.com/Nycta-b424b3c7/eww_activate-linux)
+
+<div align="left">
+
+![Activate Linux](https://raw.githubusercontent.com/Nycta-b424b3c7/eww_activate-linux/refs/heads/master/activate-linux.png)
+
+</div>
+
 ## Contribewwting
 
 If you want to contribute anything, like adding new widgets, features, or subcommands (including sample configs), you should definitely do so.
@@ -71,3 +82,7 @@ If you want to contribute anything, like adding new widgets, features, or subcom
 3. Smash your head against the keyboard from frustration (coding is hard)
 4. Write down your changes in CHANGELOG.md
 5. Open a pull request once you're finished
+
+## Widget
+
+https://en.wikipedia.org/wiki/Wikipedia:Widget

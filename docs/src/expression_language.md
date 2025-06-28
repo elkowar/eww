@@ -24,6 +24,8 @@ Supported currently are the following features:
 - comparisons (`==`, `!=`, `>`, `<`, `<=`, `>=`)
 - boolean operations (`||`, `&&`, `!`)
 - regex match operator (`=~`)
+    - Rust regex style, left hand is regex, right hand is string
+    - ex: workspace.name =~ '^special:.+$'
 - elvis operator (`?:`)
     - if the left side is `""` or a JSON `null`, then returns the right side,
       otherwise evaluates to the left side.
@@ -39,19 +41,26 @@ Supported currently are the following features:
     - for this, the object/array value needs to refer to a variable that contains a valid json string.
 - some function calls:
     - `round(number, decimal_digits)`: Round a number to the given amount of decimals
+    - `floor(number)`: Round a number down to the nearest integer
+    - `ceil(number)`: Round a number up to the nearest integer
     - `sin(number)`, `cos(number)`, `tan(number)`, `cot(number)`: Calculate the trigonometric value of a given number in **radians**
     - `min(a, b)`, `max(a, b)`: Get the smaller or bigger number out of two given numbers
+    - `powi(num, n)`, `powf(num, n)`: Raise number `num` to power `n`. `powi` expects `n` to be of type `i32`
+    - `log(num, n)`: Calculate the base `n` logarithm of `num`. `num`, `n` and return type are `f64`
     - `degtorad(number)`: Converts a number from degrees to radians
     - `radtodeg(number)`: Converts a number from radians to degrees
     - `replace(string, regex, replacement)`: Replace matches of a given regex in a string
-	- `search(string, regex)`: Search for a given regex in a string (returns array)
-	- `matches(string, regex)`: check if a given string matches a given regex (returns bool)
-	- `captures(string, regex)`: Get the captures of a given regex in a string (returns array)
-	- `strlength(value)`: Gets the length of the string
+  - `search(string, regex)`: Search for a given regex in a string (returns array)
+  - `matches(string, regex)`: check if a given string matches a given regex (returns bool)
+  - `captures(string, regex)`: Get the captures of a given regex in a string (returns array)
+  - `strlength(value)`: Gets the length of the string
     - `substring(string, start, length)`: Return a substring of given length starting at the given index
-	- `arraylength(value)`: Gets the length of the array
-	- `objectlength(value)`: Gets the amount of entries in the object
-	- `jq(value, jq_filter_string)`: run a [jq](https://stedolan.github.io/jq/manual/) style command on a json value. (Uses [jaq](https://crates.io/crates/jaq) internally).
+  - `arraylength(value)`: Gets the length of the array
+  - `objectlength(value)`: Gets the amount of entries in the object
+  - `jq(value, jq_filter_string)`: run a [jq](https://jqlang.github.io/jq/manual/) style command on a json value. (Uses [jaq](https://crates.io/crates/jaq) internally).
+  - `jq(value, jq_filter_string, args)`: Emulate command line flags for jq, see [the docs](https://jqlang.github.io/jq/manual/#invoking-jq) on invoking jq for details. Invalid flags are silently ignored.
+    Currently supported flags:
+    - `"r"`: If the result is a string, it won't be formatted as a JSON string. The equivalent jq flag is `--raw-output`.
   - `get_env(string)`: Gets the specified enviroment variable
   - `formattime(unix_timestamp, format_str, timezone)`: Gets the time in a given format from UNIX timestamp.
      Check [chrono's documentation](https://docs.rs/chrono/latest/chrono/format/strftime/index.html) for more

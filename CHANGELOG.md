@@ -9,6 +9,8 @@ All notable changes to eww will be listed here, starting at changes since versio
   Attempting to index in an empty JSON string (`'""'`) is now an error.
 
 ### Fixes
+- Fix crash on invalid `formattime` format string (By: luca3s)
+- Fix crash on NaN or infinite graph value (By: luca3s)
 - Re-enable some scss features (By: w-lfchen)
 - Fix and refactor nix flake (By: w-lfchen)
 - Fix remove items from systray (By: vnva)
@@ -16,9 +18,16 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Fix values in the `EWW_NET` variable (By: mario-kr)
 - Fix the gtk `expander` widget (By: ovalkonia)
 - Fix wayland monitor names support (By: dragonnn)
-- Render image widget at full resolution when display scaling is enabled (By: zane-weissman)
+- Load systray items that are registered without a path (By: Kage-Yami)
+- `get_locale` now follows POSIX standard for locale selection (By: mirhahn, w-lfchen)
+- Improve multi-monitor handling under wayland (By: bkueng)
+-  Render image widget at full resolution when display scaling is enabled (By: zane-weissman)
 
 ### Features
+- Add warning and docs for incompatible `:anchor` and `:exclusive` options
+- Add `eww poll` subcommand to force-poll a variable (By: kiana-S)
+- Add OnDemand support for focusable on wayland (By: GallowsDove)
+- Add jq `raw-output` support (By: RomanHargrave)
 - Update rust toolchain to 1.81.0 (By: w-lfchen)
 - Add `:fill-svg` and `:preserve-aspect-ratio` properties to images (By: hypernova7, w-lfchen)
 - Add `:truncate` property to labels, disabled by default (except in cases where truncation would be enabled in version `0.5.0` and before) (By: Rayzeq).
@@ -29,6 +38,10 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add `transform-origin-x`/`transform-origin-y` properties to transform widget (By: mario-kr)
 - Add keyboard support for button presses (By: julianschuler)
 - Support empty string for safe access operator (By: ModProg)
+- Add `log` function calls to simplexpr (By: topongo)
+- Add `:lines` and `:wrap-mode` properties to label widget (By: vaporii)
+- Add `value-pos` to scale widget (By: ipsvn)
+- Add `floor` and `ceil` function calls to simplexpr (By: wsbankenstein)
 
 ## [0.6.0] (21.04.2024)
 

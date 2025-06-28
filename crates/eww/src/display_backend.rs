@@ -28,13 +28,13 @@ impl DisplayBackend for NoBackend {
 
 #[cfg(feature = "wayland")]
 mod platform_wayland {
+    use super::DisplayBackend;
     use crate::{widgets::window::Window, window_initiator::WindowInitiator};
     use gtk::gdk;
     use gtk::prelude::*;
-    use gtk_layer_shell::LayerShell;
+    use gtk_layer_shell::{KeyboardMode, LayerShell};
+    use yuck::config::backend_window_options::WlWindowFocusable;
     use yuck::config::{window_definition::WindowStacking, window_geometry::AnchorAlignment};
-
-    use super::DisplayBackend;
 
     pub struct WaylandBackend;
 
@@ -70,7 +70,11 @@ mod platform_wayland {
             }
 
             // Sets the keyboard interactivity
-            window.set_keyboard_interactivity(window_init.backend_options.wayland.focusable);
+            match window_init.backend_options.wayland.focusable {
+                WlWindowFocusable::None => window.set_keyboard_mode(KeyboardMode::None),
+                WlWindowFocusable::Exclusive => window.set_keyboard_mode(KeyboardMode::Exclusive),
+                WlWindowFocusable::OnDemand => window.set_keyboard_mode(KeyboardMode::OnDemand),
+            }
 
             if let Some(geometry) = window_init.geometry {
                 // Positioning surface
@@ -107,6 +111,13 @@ mod platform_wayland {
                     window.set_layer_shell_margin(gtk_layer_shell::Edge::Bottom, yoffset);
                 } else {
                     window.set_layer_shell_margin(gtk_layer_shell::Edge::Top, yoffset);
+                }
+                // https://github.com/elkowar/eww/issues/296
+                if window_init.backend_options.wayland.exclusive
+                    && geometry.anchor_point.x != AnchorAlignment::CENTER
+                    && geometry.anchor_point.y != AnchorAlignment::CENTER
+                {
+                    log::warn!("When ':exclusive true' the anchor has to include 'center', otherwise exlcusive won't work")
                 }
             }
             if window_init.backend_options.wayland.exclusive {
