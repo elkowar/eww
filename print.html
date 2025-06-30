@@ -599,6 +599,14 @@ for available time zones.</li>
 Same as other <code>formattime</code>, but does not accept timezone. Instead, it uses system's local timezone.
 Check <a href="https://docs.rs/chrono/latest/chrono/format/strftime/index.html">chrono's documentation</a> for more
 information about format string.</li>
+<li><code>formatbytes(bytes, short, format_mode)</code>: Display bytes in a human-readable format.
+Arguments:
+<ul>
+<li><code>bytes</code>: <code>i64</code> of bytes, supports negative sizes.</li>
+<li><code>short</code>: set true for a compact version (default: false)</li>
+<li><code>format_mode</code>: set to either to &quot;iec&quot; (eg. <code>1.0 GiB</code>) or &quot;si&quot; (eg. <code>1.2 GB</code>) (default: &quot;iec&quot;)</li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
