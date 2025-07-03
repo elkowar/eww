@@ -1010,7 +1010,7 @@ dependencies = [
  "sysinfo",
  "tokio",
  "tokio-util",
- "unescape",
+ "unescaper",
  "wait-timeout",
  "x11rb",
  "yuck",
@@ -3070,10 +3070,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "unescape"
-version = "0.1.0"
+name = "unescaper"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ccb97dac3243214f8d8507998906ca3e2e0b900bf9bf4870477f125b82e68f6e"
+checksum = "c878a167baa8afd137494101a688ef8c67125089ff2249284bd2b5f9bfedb815"
+dependencies = [
+ "thiserror",
+]
 
 [[package]]
 name = "unicode-ident"
