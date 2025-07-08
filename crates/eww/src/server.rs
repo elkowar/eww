@@ -24,6 +24,7 @@ pub fn initialize_server<B: DisplayBackend>(
     paths: EwwPaths,
     action: Option<DaemonCommand>,
     should_daemonize: bool,
+    should_hotreload: bool,
 ) -> Result<ForkResult> {
     let (ui_send, mut ui_recv) = tokio::sync::mpsc::unbounded_channel();
 
@@ -108,7 +109,7 @@ pub fn initialize_server<B: DisplayBackend>(
     connect_monitor_added(ui_send.clone());
 
     // initialize all the handlers and tasks running asyncronously
-    let tokio_handle = init_async_part(app.paths.clone(), ui_send);
+    let tokio_handle = init_async_part(app.paths.clone(), ui_send, should_hotreload);
 
     gtk::glib::MainContext::default().spawn_local(async move {
         // if an action was given to the daemon initially, execute it first.
@@ -161,7 +162,11 @@ fn reload_config_and_css(ui_send: &UnboundedSender<DaemonCommand>) -> Result<()>
     Ok(())
 }
 
-fn init_async_part(paths: EwwPaths, ui_send: UnboundedSender<app::DaemonCommand>) -> tokio::runtime::Handle {
+fn init_async_part(
+    paths: EwwPaths,
+    ui_send: UnboundedSender<app::DaemonCommand>,
+    should_hotreload: bool,
+) -> tokio::runtime::Handle {
     let rt = tokio::runtime::Builder::new_multi_thread()
         .thread_name("main-async-runtime")
         .enable_all()
@@ -173,10 +178,12 @@ fn init_async_part(paths: EwwPaths, ui_send: UnboundedSender<app::DaemonCommand>
         .name("outer-main-async-runtime".to_string())
         .spawn(move || {
             rt.block_on(async {
-                let filewatch_join_handle = {
+                let filewatch_join_handle = if should_hotreload {
                     let ui_send = ui_send.clone();
                     let paths = paths.clone();
                     tokio::spawn(async move { run_filewatch(paths.config_dir, ui_send).await })
+                } else {
+                    tokio::spawn(async { Ok(()) })
                 };
 
                 let ipc_server_join_handle = {

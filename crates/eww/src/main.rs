@@ -131,7 +131,7 @@ fn run<B: DisplayBackend>(opts: opts::Opt, eww_binary_name: String) -> Result<()
             if !opts.show_logs {
                 println!("Run `{} logs` to see any errors while editing your configuration.", eww_binary_name);
             }
-            let fork_result = server::initialize_server::<B>(paths.clone(), None, !opts.no_daemonize)?;
+            let fork_result = server::initialize_server::<B>(paths.clone(), None, !opts.no_daemonize, !opts.no_hot_reload)?;
             opts.no_daemonize || fork_result == ForkResult::Parent
         }
 
@@ -163,7 +163,7 @@ fn run<B: DisplayBackend>(opts: opts::Opt, eww_binary_name: String) -> Result<()
 
                     let (command, response_recv) = action.into_daemon_command();
                     // start the daemon and give it the command
-                    let fork_result = server::initialize_server::<B>(paths.clone(), Some(command), true)?;
+                    let fork_result = server::initialize_server::<B>(paths.clone(), Some(command), true, !opts.no_hot_reload)?;
                     let is_parent = fork_result == ForkResult::Parent;
                     if let (Some(recv), true) = (response_recv, is_parent) {
                         listen_for_daemon_response(recv);

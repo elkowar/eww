@@ -23,6 +23,7 @@ pub struct Opt {
     pub config_path: Option<std::path::PathBuf>,
     pub action: Action,
     pub no_daemonize: bool,
+    pub no_hot_reload: bool,
 }
 
 #[derive(Parser, Debug, Serialize, Deserialize, PartialEq)]
@@ -48,6 +49,10 @@ pub(super) struct RawOpt {
     /// Avoid daemonizing eww.
     #[arg(long = "no-daemonize", global = true)]
     no_daemonize: bool,
+
+    /// Disable hot reloading config changes
+    #[arg(long = "no-hot-reload", global = true)]
+    no_hot_reload: bool,
 
     /// Restart the daemon completely before running the command
     #[arg(long = "restart", global = true)]
@@ -225,8 +230,8 @@ impl Opt {
 
 impl From<RawOpt> for Opt {
     fn from(other: RawOpt) -> Self {
-        let RawOpt { log_debug, force_wayland, config, show_logs, no_daemonize, restart, action } = other;
-        Opt { log_debug, force_wayland, show_logs, restart, config_path: config, action, no_daemonize }
+        let RawOpt { log_debug, force_wayland, config, show_logs, no_daemonize, no_hot_reload, restart, action } = other;
+        Opt { log_debug, force_wayland, show_logs, restart, config_path: config, action, no_daemonize, no_hot_reload }
     }
 }
 
