@@ -2711,6 +2711,7 @@ dependencies = [
  "strsim",
  "strum",
  "thiserror",
+ "unescape",
 ]
 
 [[package]]
