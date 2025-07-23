@@ -36,7 +36,7 @@ Supported currently are the following features:
       not an object or an array.
       (`Number` or `String`).
 - conditionals (`condition ? 'value' : 'other value'`)
-- numbers, strings, booleans and variable references (`12`, `'hi'`, `true`, `some_variable`)
+- numbers, strings (with support to escaping), booleans and variable references (`12`, `'hi'`, `true`, `some_variable`)
 - json access (`object.field`, `array[12]`, `object["field"]`)
     - for this, the object/array value needs to refer to a variable that contains a valid json string.
 - some function calls:

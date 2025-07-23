@@ -54,6 +54,5 @@ simple-signal.workspace = true
 sysinfo = { workspace = true }
 tokio-util.workspace = true
 tokio = { workspace = true, features = ["full"] }
-unescape.workspace = true
 wait-timeout.workspace = true
 zbus = { workspace = true, default-features = false, features = ["tokio"] }

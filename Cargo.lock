@@ -1010,7 +1010,6 @@ dependencies = [
  "sysinfo",
  "tokio",
  "tokio-util",
- "unescape",
  "wait-timeout",
  "x11rb",
  "yuck",
@@ -2711,6 +2710,7 @@ dependencies = [
  "strsim",
  "strum",
  "thiserror",
+ "unescape",
 ]
 
 [[package]]
