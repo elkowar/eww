@@ -1010,7 +1010,6 @@ dependencies = [
  "sysinfo",
  "tokio",
  "tokio-util",
- "unescape",
  "wait-timeout",
  "x11rb",
  "yuck",
