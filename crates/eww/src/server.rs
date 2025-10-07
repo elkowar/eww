@@ -283,12 +283,8 @@ fn do_detach(log_file_path: impl AsRef<Path>) -> Result<ForkResult> {
         .unwrap_or_else(|_| panic!("Error opening log file ({}), for writing", log_file_path.as_ref().to_string_lossy()));
     let fd = file.as_raw_fd();
 
-    if nix::unistd::isatty(1)? {
-        nix::unistd::dup2(fd, std::io::stdout().as_raw_fd())?;
-    }
-    if nix::unistd::isatty(2)? {
-        nix::unistd::dup2(fd, std::io::stderr().as_raw_fd())?;
-    }
+    nix::unistd::dup2(fd, std::io::stdout().as_raw_fd())?;
+    nix::unistd::dup2(fd, std::io::stderr().as_raw_fd())?;
 
     Ok(ForkResult::Child)
 }
