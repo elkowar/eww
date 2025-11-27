@@ -23,6 +23,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Improve multi-monitor handling under wayland (By: bkueng)
 
 ### Features
+- Add `EWW_HOSTNAME` builtin constant (By: a-dmg)
 - Add `bargraph` widget to show a value changing over time with dots (By: a-dmg)
 - Add warning and docs for incompatible `:anchor` and `:exclusive` options
 - Add `eww poll` subcommand to force-poll a variable (By: kiana-S)
