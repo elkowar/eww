@@ -105,7 +105,8 @@ pub fn get_cpus() -> String {
                     "usage": a.cpu_usage() as i64
                 })
             }).collect::<Vec<_>>(),
-        "avg": cpus.iter().map(|a| a.cpu_usage()).avg()
+        "avg": cpus.iter().map(|a| a.cpu_usage()).avg(),
+        "freq_avg": cpus.iter().map(|a| a.frequency() as f32).avg()
     })
     .to_string()
 }
