@@ -227,7 +227,7 @@ In the example given above, the value of `foo` will start out as `"whatever"`, a
 These are particularly useful when you want to apply changes instantaneously when an operation happens if you have a script
 that can monitor some value on its own. Volume, brightness, workspaces that get added/removed at runtime,
 monitoring currently focused desktop/tag, etc. are the most common usecases of this type of variable.
-These are particularly efficient and should be preffered if possible.
+These are particularly efficient and should be preferred if possible.
 
 For example, the command `xprop -spy -root _NET_CURRENT_DESKTOP` writes the currently focused desktop whenever it changes.
 Another example usecase is monitoring the currently playing song with playerctl: `playerctl --follow metadata --format {{title}}`.
