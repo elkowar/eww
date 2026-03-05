@@ -515,6 +515,10 @@ fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
         // @prop password - if the input is obscured
         prop(password: as_bool = false) {
             gtk_widget.set_visibility(!password);
+        },
+        // @prop placeholder - placeholder text to show before typing
+        prop(placeholder: as_string) {
+            gtk_widget.set_placeholder_text(Some(&placeholder));
         }
     });
     Ok(gtk_widget)
