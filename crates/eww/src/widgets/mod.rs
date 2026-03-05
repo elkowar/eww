@@ -1,5 +1,6 @@
 use std::process::Command;
 
+pub mod bar_graph;
 pub mod build_widget;
 pub mod circular_progressbar;
 pub mod def_widget_macro;

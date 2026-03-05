@@ -18,6 +18,10 @@ impl RefreshTime {
     }
 }
 
+pub fn get_hostname() -> String {
+    System::host_name().unwrap_or_default()
+}
+
 static SYSTEM: Lazy<Mutex<System>> = Lazy::new(|| Mutex::new(System::new()));
 static DISKS: Lazy<Mutex<sysinfo::Disks>> = Lazy::new(|| Mutex::new(sysinfo::Disks::new_with_refreshed_list()));
 static COMPONENTS: Lazy<Mutex<sysinfo::Components>> = Lazy::new(|| Mutex::new(sysinfo::Components::new_with_refreshed_list()));
@@ -101,7 +105,8 @@ pub fn get_cpus() -> String {
                     "usage": a.cpu_usage() as i64
                 })
             }).collect::<Vec<_>>(),
-        "avg": cpus.iter().map(|a| a.cpu_usage()).avg()
+        "avg": cpus.iter().map(|a| a.cpu_usage()).avg(),
+        "freq_avg": cpus.iter().map(|a| a.frequency() as f32).avg()
     })
     .to_string()
 }

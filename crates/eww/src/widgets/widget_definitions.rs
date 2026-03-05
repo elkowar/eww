@@ -65,6 +65,7 @@ pub const BUILTIN_WIDGET_NAMES: &[&str] = &[
     WIDGET_NAME_TOOLTIP,
     WIDGET_NAME_CIRCULAR_PROGRESS,
     WIDGET_NAME_GRAPH,
+    WIDGET_NAME_BAR_GRAPH,
     WIDGET_NAME_TRANSFORM,
     WIDGET_NAME_SCALE,
     WIDGET_NAME_PROGRESS,
@@ -95,6 +96,7 @@ pub(super) fn widget_use_to_gtk_widget(bargs: &mut BuilderArgs) -> Result<gtk::W
         WIDGET_NAME_TOOLTIP => build_tooltip(bargs)?.upcast(),
         WIDGET_NAME_CIRCULAR_PROGRESS => build_circular_progress_bar(bargs)?.upcast(),
         WIDGET_NAME_GRAPH => build_graph(bargs)?.upcast(),
+        WIDGET_NAME_BAR_GRAPH => build_bar_graph(bargs)?.upcast(),
         WIDGET_NAME_TRANSFORM => build_transform(bargs)?.upcast(),
         WIDGET_NAME_SCALE => build_gtk_scale(bargs)?.upcast(),
         WIDGET_NAME_PROGRESS => build_gtk_progress(bargs)?.upcast(),
@@ -1286,6 +1288,49 @@ fn build_graph(bargs: &mut BuilderArgs) -> Result<super::graph::Graph> {
         prop(flip_y: as_bool) { w.set_property("flip-y", flip_y); },
         // @prop vertical - if set to true, the x and y axes will be exchanged
         prop(vertical: as_bool) { w.set_property("vertical", vertical); },
+    });
+    Ok(w)
+}
+
+const WIDGET_NAME_BAR_GRAPH: &str = "bargraph";
+/// @widget bargraph
+/// @desc A widget that displays a bar graph using dots to show how a given value changes over time
+fn build_bar_graph(bargs: &mut BuilderArgs) -> Result<super::bar_graph::BarGraph> {
+    let w = super::bar_graph::BarGraph::new();
+    def_widget!(bargs, _g, w, {
+        // @prop value - the value, between 0 - 100
+        prop(value: as_f64) {
+            if value.is_nan() || value.is_infinite() {
+                return Err(DiagError(gen_diagnostic!(
+                    format!("Bar graph's value should never be NaN or infinite")
+                )).into());
+            }
+            w.set_property("value", value);
+        },
+        // @prop radius - Graph's dot radius.
+        prop(radius: as_f64) { w.set_property("radius", radius); },
+        // @prop time-range - the range of time to show
+        prop(time_range: as_duration) { w.set_property("time-range", time_range.as_millis() as u64); },
+        // @prop min - the minimum value to show (defaults to 0 if value_max is provided)
+        // @prop max - the maximum value to show
+        prop(min: as_f64 = 0, max: as_f64 = 100) {
+            if min > max {
+                return Err(DiagError(gen_diagnostic!(
+                    format!("BarGraph's min ({min}) should never be higher than max ({max})")
+                )).into());
+            }
+            w.set_property("min", min);
+            w.set_property("max", max);
+        },
+        // @prop dynamic - whether the y range should dynamically change based on value
+        prop(dynamic: as_bool) { w.set_property("dynamic", dynamic); },
+        // @prop gradiant-style - apply a color gradiant instead of the CSS color to the graph.
+        // Values: "none" (default), "fire", "wiretap", "dracula"
+        prop(gradiant_style: as_string) { w.set_property("gradiant-style", gradiant_style); },
+        // @prop flip-x - whether the x axis should go from high to low
+        prop(flip_x: as_bool) { w.set_property("flip-x", flip_x); },
+        // @prop flip-y - whether the y axis should go from high to low
+        prop(flip_y: as_bool) { w.set_property("flip-y", flip_y); },
     });
     Ok(w)
 }
