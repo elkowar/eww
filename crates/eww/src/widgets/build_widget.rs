@@ -293,6 +293,7 @@ fn build_children_special_widget(
         // This should be a custom gtk::Bin subclass,..
         let child_container = gtk::Box::new(Orientation::Horizontal, 0);
         child_container.set_homogeneous(true);
+        child_container.show();
         gtk_container.add(&child_container);
 
         tree.register_listener(
