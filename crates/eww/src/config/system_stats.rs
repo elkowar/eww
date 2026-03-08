@@ -1,7 +1,13 @@
 use crate::util::IterAverage;
 use anyhow::{Context, Result};
 use once_cell::sync::Lazy;
-use std::{fs::read_to_string, sync::Mutex};
+
+#[cfg(target_os = "linux")]
+use std::fs::read_to_string;
+
+use crate::regex;
+
+use std::sync::Mutex;
 use sysinfo::System;
 
 struct RefreshTime(std::time::Instant);
@@ -202,7 +208,7 @@ pub fn get_battery_capacity() -> Result<String> {
     Ok(serde_json::to_string(&(Data { batteries, total_avg: (current / total) * 100_f64 })).unwrap())
 }
 
-#[cfg(any(target_os = "netbsd", target_os = "freebsd", target_os = "openbsd"))]
+#[cfg(any(target_os = "netbsd", target_os = "freebsd"))]
 pub fn get_battery_capacity() -> Result<String> {
     let batteries = String::from_utf8(
         // I have only tested `apm` on FreeBSD, but it *should* work on all of the listed targets,
@@ -243,6 +249,37 @@ pub fn get_battery_capacity() -> Result<String> {
 
     json.push_str(&format!(r#""total_avg": {}}}"#, re_total.captures(&batteries).unwrap().get(1).unwrap().as_str()));
     Ok(json)
+}
+
+#[cfg(target_os = "openbsd")]
+pub fn get_battery_capacity() -> Result<String> {
+    let batteries = String::from_utf8(
+        std::process::Command::new("apm")
+            .output()
+            .context("\nError while getting the battery values on openbsd, with `apm`: ")?
+            .stdout,
+    )?;
+
+    // `apm` output on OpenBSD should look like this:
+    // $ apm
+    // Battery state: high, 100% remaining, unknown life estimate
+    // AC adapter state: connected
+    // Performance adjustment mode: manual (2601 MHz)
+
+    // note that OpenBSD's `apm` does not provide battery information in the same format as other
+    // BSDs and thus requires a different approach.
+
+    let re = regex!(r"(?m)^Battery state: (\w+), (\d+)% remaining, .*");
+    let captures = re.captures(&batteries).context("Failed to parse battery information from `apm` output")?;
+    let status = captures.get(1).map_or("unknown", |m| m.as_str());
+    let capacity = captures.get(2).map_or("0", |m| m.as_str());
+
+    println!(r#"{{ "BAT0": {{ "status": "{}", "capacity": {} }}, "total_avg": {} }}"#, status, capacity, capacity);
+
+    Ok(format!(
+        r#"{{ "BAT0": {{ "status": "{}", "capacity": {} }}, "total_avg": {} }}"#,
+        status, capacity, capacity
+    ))
 }
 
 #[cfg(not(target_os = "macos"))]
