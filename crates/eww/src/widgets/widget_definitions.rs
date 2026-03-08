@@ -817,6 +817,22 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
         glib::Propagation::Proceed
     });
 
+    gtk_widget.connect_focus_in_event(|gtk_widget, evt| {
+        // method not found in &EventFocus
+        if evt.is_focus_in() {
+            gtk_widget.set_state_flags(gtk::StateFlags::FOCUSED, true);
+        }
+        glib::Propagation::Proceed
+    });
+
+    gtk_widget.connect_focus_out_event(|gtk_widget, evt| {
+        // method not found in &EventFocus
+        if evt.is_focus_out() {
+            gtk_widget.unset_state_flags(gtk::StateFlags::FOCUSED);
+        }
+        glib::Propagation::Proceed
+    });
+
     // Support :active selector
     gtk_widget.connect_button_press_event(|gtk_widget, _| {
         gtk_widget.set_state_flags(gtk::StateFlags::ACTIVE, false);
@@ -860,6 +876,30 @@ fn build_gtk_event_box(bargs: &mut BuilderArgs) -> Result<gtk::EventBox> {
             connect_signal_handler!(gtk_widget, gtk_widget.connect_leave_notify_event(move |_, evt| {
                 if evt.detail() != NotifyType::Inferior {
                     run_command(timeout, &onhoverlost, &[evt.position().0, evt.position().1]);
+                }
+                glib::Propagation::Proceed
+            }));
+        },
+        // @prop timeout - timeout of the command. Default: "200ms"
+        // @prop onfocus - event to execute when the keyboard focus enters the widget
+        prop(timeout: as_duration = Duration::from_millis(200), onfocus: as_string) {
+            gtk_widget.add_events(gdk::EventMask::FOCUS_CHANGE_MASK);
+            connect_signal_handler!(gtk_widget, gtk_widget.connect_focus_in_event(move |_, evt| {
+        // method not found in &EventFocus
+                if evt.is_focus_in() {
+                    run_command(timeout, &onfocus, &[evt.position().0, evt.position().1]);
+                }
+                glib::Propagation::Proceed
+            }));
+        },
+        // @prop timeout - timeout of the command. Default: "200ms"
+        // @prop onfocuslost - event to execute when the widget loses focus
+        prop(timeout: as_duration = Duration::from_millis(200), onfocuslost: as_string) {
+            gtk_widget.add_events(gdk::EventMask::FOCUS_CHANGE_MASK);
+            connect_signal_handler!(gtk_widget, gtk_widget.connect_focus_out_event(move |_, evt| {
+        // method not found in &EventFocus
+                if evt.is_focus_out() {
+                    run_command(timeout, &onfocuslost, &[evt.position().0, evt.position().1]);
                 }
                 glib::Propagation::Proceed
             }));
