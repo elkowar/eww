@@ -119,20 +119,20 @@ fn run<B: DisplayBackend>(opts: opts::Opt, eww_binary_name: String) -> Result<()
             false
         }
 
-        // make sure that there isn't already a Eww daemon running.
-        opts::Action::Daemon if check_server_running(paths.get_ipc_socket_file()) => {
-            eprintln!("Eww server already running.");
-            true
-        }
         opts::Action::Daemon => {
-            log::info!("Initializing Eww server. ({})", paths.get_ipc_socket_file().display());
-            let _ = std::fs::remove_file(paths.get_ipc_socket_file());
+            if let Some(lock_file) = server::try_lock_file(&paths)? {
+                log::info!("Initializing Eww server. ({})", paths.get_ipc_socket_file().display());
+                let _ = std::fs::remove_file(paths.get_ipc_socket_file());
 
-            if !opts.show_logs {
-                println!("Run `{} logs` to see any errors while editing your configuration.", eww_binary_name);
+                if !opts.show_logs {
+                    println!("Run `{} logs` to see any errors while editing your configuration.", eww_binary_name);
+                }
+                let fork_result = server::initialize_server::<B>(paths.clone(), None, !opts.no_daemonize, lock_file)?;
+                opts.no_daemonize || fork_result == ForkResult::Parent
+            } else {
+                eprintln!("Eww server already running.");
+                true
             }
-            let fork_result = server::initialize_server::<B>(paths.clone(), None, !opts.no_daemonize)?;
-            opts.no_daemonize || fork_result == ForkResult::Parent
         }
 
         opts::Action::WithServer(ActionWithServer::KillServer) => {
@@ -144,33 +144,32 @@ fn run<B: DisplayBackend>(opts: opts::Opt, eww_binary_name: String) -> Result<()
 
         // a running daemon is necessary for this command
         opts::Action::WithServer(action) => {
-            // attempt to just send the command to a running daemon
-            match handle_server_command(&paths, &action, 5) {
-                Ok(Some(response)) => {
-                    handle_daemon_response(response);
-                    true
+            // try to start the daemon if if isn't already running and the action is allowed to do so
+            if let (true, Some(lock_file)) = (action.can_start_daemon() && !opts.no_daemonize, server::try_lock_file(&paths)?) {
+                log::info!("Initializing eww server. ({})", paths.get_ipc_socket_file().display());
+                let _ = std::fs::remove_file(paths.get_ipc_socket_file());
+                if !opts.show_logs {
+                    println!("Run `{} logs` to see any errors while editing your configuration.", eww_binary_name);
                 }
-                Ok(None) => true,
 
-                Err(err) if action.can_start_daemon() && !opts.no_daemonize => {
-                    // connecting to the daemon failed. Thus, start the daemon here!
-                    log::warn!("Failed to connect to daemon: {}", err);
-                    log::info!("Initializing eww server. ({})", paths.get_ipc_socket_file().display());
-                    let _ = std::fs::remove_file(paths.get_ipc_socket_file());
-                    if !opts.show_logs {
-                        println!("Run `{} logs` to see any errors while editing your configuration.", eww_binary_name);
-                    }
-
-                    let (command, response_recv) = action.into_daemon_command();
-                    // start the daemon and give it the command
-                    let fork_result = server::initialize_server::<B>(paths.clone(), Some(command), true)?;
-                    let is_parent = fork_result == ForkResult::Parent;
-                    if let (Some(recv), true) = (response_recv, is_parent) {
-                        listen_for_daemon_response(recv);
-                    }
-                    is_parent
+                let (command, response_recv) = action.into_daemon_command();
+                // start the daemon and give it the command
+                let fork_result = server::initialize_server::<B>(paths.clone(), Some(command), true, lock_file)?;
+                let is_parent = fork_result == ForkResult::Parent;
+                if let (Some(recv), true) = (response_recv, is_parent) {
+                    listen_for_daemon_response(recv);
                 }
-                Err(err) => Err(err)?,
+                is_parent
+            } else {
+                // otherwise just send the command over IPC
+                match handle_server_command(&paths, &action, 5) {
+                    Ok(Some(response)) => {
+                        handle_daemon_response(response);
+                        true
+                    }
+                    Ok(None) => true,
+                    Err(err) => Err(err)?,
+                }
             }
         }
     };
@@ -222,12 +221,4 @@ fn attempt_connect(socket_path: impl AsRef<Path>, attempts: usize) -> Option<net
         std::thread::sleep(Duration::from_millis(200));
     }
     None
-}
-
-/// Check if a eww server is currently running by trying to send a ping message to it.
-fn check_server_running(socket_path: impl AsRef<Path>) -> bool {
-    let response = net::UnixStream::connect(socket_path)
-        .ok()
-        .and_then(|mut stream| client::do_server_call(&mut stream, &opts::ActionWithServer::Ping).ok());
-    response.is_some()
 }
