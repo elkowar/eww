@@ -169,15 +169,24 @@ impl DynVal {
     }
 
     pub fn as_f64(&self) -> Result<f64> {
-        self.0.parse().map_err(|e| ConversionError::new(self.clone(), "f64", e))
+        self.0
+            .parse()
+            .or_else(|_| self.as_bool().map(|b| if b { 1.0 } else { 0.0 }))
+            .map_err(|e| ConversionError::new(self.clone(), "f64", e))
     }
 
     pub fn as_i32(&self) -> Result<i32> {
-        self.0.parse().map_err(|e| ConversionError::new(self.clone(), "i32", e))
+        self.0
+            .parse()
+            .or_else(|_| self.as_bool().map(|b| if b { 1 } else { 0 }))
+            .map_err(|e| ConversionError::new(self.clone(), "i32", e))
     }
 
     pub fn as_i64(&self) -> Result<i64> {
-        self.0.parse().map_err(|e| ConversionError::new(self.clone(), "i64", e))
+        self.0
+            .parse()
+            .or_else(|_| self.as_bool().map(|b| if b { 1 } else { 0 }))
+            .map_err(|e| ConversionError::new(self.clone(), "i64", e))
     }
 
     pub fn as_bool(&self) -> Result<bool> {
