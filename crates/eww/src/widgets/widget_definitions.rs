@@ -537,15 +537,28 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
             // @prop onrightclick - command to run when the button is rightclicked
             onrightclick: as_string = ""
         ) {
-            // animate button upon right-/middleclick (if gtk theme supports it)
-            // since we do this, we can't use `connect_clicked` as that would always run `onclick` as well
+            // Set :active CSS state on press for visual feedback, but do NOT call
+            // emit_activate() — that triggers GTK's internal pointer grab, which is
+            // never released if the onclick command spawns a window that steals
+            // Wayland focus before the button_release_event arrives. This causes
+            // the bar to get "stuck": hover stops working and only the grabbed
+            // button receives events. See: https://github.com/elkowar/eww/issues/1008
+            //                              https://github.com/elkowar/eww/issues/1022
             connect_signal_handler!(gtk_widget, gtk_widget.connect_button_press_event(move |button, _| {
-                button.emit_activate();
+                button.set_state_flags(gtk::StateFlags::ACTIVE, false);
+                glib::Propagation::Proceed
+            }));
+            // Safety net: if the pointer grab is broken (e.g. another window steals
+            // focus), GTK sends grab_broken_event. Clear the :active state so the
+            // button doesn't stay visually stuck.
+            connect_signal_handler!(gtk_widget, gtk_widget.connect_grab_broken_event(move |button, _| {
+                button.unset_state_flags(gtk::StateFlags::ACTIVE);
                 glib::Propagation::Proceed
             }));
             let onclick_ = onclick.clone();
-            // mouse click events
-            connect_signal_handler!(gtk_widget, gtk_widget.connect_button_release_event(move |_, evt| {
+            // mouse click events — also clears :active state
+            connect_signal_handler!(gtk_widget, gtk_widget.connect_button_release_event(move |button, evt| {
+                button.unset_state_flags(gtk::StateFlags::ACTIVE);
                 match evt.button() {
                     1 => run_command(timeout, &onclick, &[] as &[&str]),
                     2 => run_command(timeout, &onmiddleclick, &[] as &[&str]),
