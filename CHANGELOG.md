@@ -7,6 +7,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 ### BREAKING CHANGES
 - [#1176](https://github.com/elkowar/eww/pull/1176) changed safe access (`?.`) behavior:
   Attempting to index in an empty JSON string (`'""'`) is now an error.
+- `:exclusive` window parameter is now an enum (`none`, `exclusive` or `ignore`) instead of a boolean
 
 ### Fixes
 - Fix crash on invalid `formattime` format string (By: luca3s)
