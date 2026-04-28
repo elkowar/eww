@@ -23,6 +23,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Improve multi-monitor handling under wayland (By: bkueng)
 
 ### Features
+- Add `exclusive`, `ignore` and `none` to window `:exclusive` argument.
 - Add warning and docs for incompatible `:anchor` and `:exclusive` options
 - Add `eww poll` subcommand to force-poll a variable (By: kiana-S)
 - Add OnDemand support for focusable on wayland (By: GallowsDove)
