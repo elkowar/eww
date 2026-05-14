@@ -33,6 +33,7 @@ mod platform_wayland {
     use gtk::gdk;
     use gtk::prelude::*;
     use gtk_layer_shell::{KeyboardMode, LayerShell};
+    use gtk::cairo::Region;
     use yuck::config::backend_window_options::WlWindowFocusable;
     use yuck::config::{window_definition::WindowStacking, window_geometry::AnchorAlignment};
 
@@ -122,6 +123,11 @@ mod platform_wayland {
             }
             if window_init.backend_options.wayland.exclusive {
                 window.auto_exclusive_zone_enable();
+            }
+            if window_init.backend_options.wayland.passthrough {
+                window.connect_map(|win| {
+                    if let Some(g) = win.window() { g.input_shape_combine_region(&Region::create(), 0, 0); }
+                });
             }
             Some(window)
         }
