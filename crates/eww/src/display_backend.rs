@@ -124,10 +124,16 @@ mod platform_wayland {
             if window_init.backend_options.wayland.exclusive {
                 window.auto_exclusive_zone_enable();
             }
-            if window_init.backend_options.wayland.passthrough {
-                window.connect_map(|win| {
-                    if let Some(g) = win.window() { g.input_shape_combine_region(&Region::create(), 0, 0); }
-                });
+
+            let opts = &window_init.backend_options.wayland;
+            if opts.passthrough {
+                if opts.focusable == WlWindowFocusable::None {
+                    window.connect_map(|win| {
+                        if let Some(g) = win.window() { g.input_shape_combine_region(&Region::create(), 0, 0); }
+                    });
+                } else {
+                    log::warn!("Property ':passthrough true' only work with ':focusable \"none\"'")
+                }
             }
             Some(window)
         }
