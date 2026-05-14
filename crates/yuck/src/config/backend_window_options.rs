@@ -56,6 +56,7 @@ impl BackendWindowOptionsDef {
         };
         let wayland = WlBackendWindowOptionsDef {
             exclusive: attrs.ast_optional("exclusive")?,
+            passthrough: attrs.ast_optional("passthrough")?,
             focusable,
             namespace: attrs.ast_optional("namespace")?,
         };
@@ -112,6 +113,7 @@ impl X11BackendWindowOptionsDef {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct WlBackendWindowOptions {
     pub exclusive: bool,
+    pub passthrough: bool,
     pub focusable: WlWindowFocusable,
     pub namespace: Option<String>,
 }
@@ -120,6 +122,7 @@ pub struct WlBackendWindowOptions {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct WlBackendWindowOptionsDef {
     pub exclusive: Option<SimplExpr>,
+    pub passthrough: Option<SimplExpr>,
     pub focusable: Option<SimplExpr>,
     pub namespace: Option<SimplExpr>,
 }
@@ -128,6 +131,7 @@ impl WlBackendWindowOptionsDef {
     fn eval(&self, local_variables: &HashMap<VarName, DynVal>) -> Result<WlBackendWindowOptions, Error> {
         Ok(WlBackendWindowOptions {
             exclusive: eval_opt_expr_as_bool(&self.exclusive, false, local_variables)?,
+            passthrough: eval_opt_expr_as_bool(&self.passthrough, false, local_variables)?,
             focusable: match &self.focusable {
                 Some(expr) => WlWindowFocusable::from_dynval(&expr.eval(local_variables)?)?,
                 None => WlWindowFocusable::default(),

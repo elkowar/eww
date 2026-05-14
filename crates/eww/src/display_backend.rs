@@ -30,6 +30,7 @@ impl DisplayBackend for NoBackend {
 mod platform_wayland {
     use super::DisplayBackend;
     use crate::{widgets::window::Window, window_initiator::WindowInitiator};
+    use gtk::cairo::Region;
     use gtk::gdk;
     use gtk::prelude::*;
     use gtk_layer_shell::{KeyboardMode, LayerShell};
@@ -122,6 +123,19 @@ mod platform_wayland {
             }
             if window_init.backend_options.wayland.exclusive {
                 window.auto_exclusive_zone_enable();
+            }
+
+            let opts = &window_init.backend_options.wayland;
+            if opts.passthrough {
+                if opts.focusable == WlWindowFocusable::None {
+                    window.connect_map(|win| {
+                        if let Some(g) = win.window() {
+                            g.input_shape_combine_region(&Region::create(), 0, 0);
+                        }
+                    });
+                } else {
+                    log::warn!("Property ':passthrough true' only work with ':focusable \"none\"'")
+                }
             }
             Some(window)
         }
