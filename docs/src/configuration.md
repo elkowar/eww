@@ -91,6 +91,7 @@ Depending on if you are using X11 or Wayland, some additional properties exist:
 |  `stacking` | Where the window should appear in the stack. Possible values: `fg`, `bg`, `overlay`, `bottom`.                                                                         |
 | `exclusive` | Whether the compositor should reserve space for the window automatically. Either `true` or `false`. If `true` `:anchor` has to include `center`.                       |
 | `focusable` | Whether the window should be able to be focused. This is necessary for any widgets that use the keyboard to work. Possible values: `none`, `exclusive` and `ondemand`. |
+| `passthrough` | Only work with property `:focusable "none"`. Allow mouse to passthrough the window. |
 | `namespace` | Set the wayland layersurface namespace eww uses. Accepts a `string` value.                                                                                             |
 
 
