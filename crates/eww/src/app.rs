@@ -473,6 +473,32 @@ impl<B: DisplayBackend> App<B> {
                 }
             }
 
+            if initiator.unfocus_close {
+                eww_window.gtk_window.connect_focus_out_event({
+                    let app_evt_sender = self.app_evt_send.clone();
+                    let instance_id = instance_id.to_string();
+                    move |_, _| {
+                        // we don't care about the actual error response from the daemon as this is mostly just a fallback.
+                        // Generally, this should get disconnected before the gtk window gets destroyed.
+                        // This callback is triggered in 2 cases:
+                        // - When the monitor of this window gets disconnected
+                        // - When the window is closed manually.
+                        // We don't distinguish here and assume the window should be reopened once a monitor
+                        // becomes available again
+                        let (response_sender, _) = daemon_response::create_pair();
+                        let command = DaemonCommand::CloseWindows {
+                            windows: vec![instance_id.clone()],
+                            auto_reopen: false,
+                            sender: response_sender,
+                        };
+                        if let Err(err) = app_evt_sender.send(command) {
+                            log::error!("Error sending close window command to daemon after gtk window destroy event: {}", err);
+                        }
+                        gtk::glib::Propagation::Proceed
+                    }
+                });
+            }
+
             eww_window.destroy_event_handler_id = Some(eww_window.gtk_window.connect_destroy({
                 let app_evt_sender = self.app_evt_send.clone();
                 let instance_id = instance_id.to_string();
