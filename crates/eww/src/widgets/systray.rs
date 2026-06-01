@@ -10,7 +10,7 @@ use std::{cell::RefCell, future::Future, rc::Rc};
 
 // DBus state shared between systray instances, to avoid creating too many connections etc.
 struct DBusSession {
-    snw: notifier_host::proxy::StatusNotifierWatcherProxy<'static>,
+    con: zbus::Connection,
 }
 
 async fn dbus_session() -> zbus::Result<&'static DBusSession> {
@@ -22,9 +22,7 @@ async fn dbus_session() -> zbus::Result<&'static DBusSession> {
             let con = zbus::Connection::session().await?;
             notifier_host::Watcher::new().attach_to(&con).await?;
 
-            let (_, snw) = notifier_host::register_as_host(&con).await?;
-
-            Ok(DBusSession { snw })
+            Ok(DBusSession { con })
         })
         .await
 }
@@ -83,7 +81,7 @@ pub fn spawn_systray(container: &gtk::Box, props: &Props) {
         };
 
         systray.container.show();
-        let e = notifier_host::run_host(&mut systray, &s.snw).await;
+        let e = notifier_host::run_host_forever(&mut systray, &s.con).await;
         log::error!("notifier host error: {}", e);
     });
 
@@ -112,6 +110,12 @@ impl notifier_host::Host for Tray {
             self.items.remove(id);
         } else {
             log::warn!("Tried to remove nonexistent item {:?} from systray", id);
+        }
+    }
+
+    fn clear(&mut self) {
+        for (_, item) in self.items.drain() {
+            self.container.remove(&item.widget);
         }
     }
 }

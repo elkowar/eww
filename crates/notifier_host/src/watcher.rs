@@ -9,12 +9,11 @@ use zbus::{dbus_interface, export::ordered_stream::OrderedStreamExt, Interface};
 /// [`org.kde.StatusNotifierWatcher`]: https://freedesktop.org/wiki/Specifications/StatusNotifierItem/StatusNotifierWatcher/
 #[derive(Debug, Default)]
 pub struct Watcher {
-    tasks: tokio::task::JoinSet<()>,
-
     // Intentionally using std::sync::Mutex instead of tokio's async mutex, since we don't need to
     // hold the mutex across an await.
     //
     // See <https://docs.rs/tokio/latest/tokio/sync/struct.Mutex.html#which-kind-of-mutex-should-you-use>
+    tasks: std::sync::Arc<std::sync::Mutex<tokio::task::JoinSet<()>>>,
     hosts: std::sync::Arc<std::sync::Mutex<std::collections::HashSet<String>>>,
     items: std::sync::Arc<std::sync::Mutex<std::collections::HashSet<String>>>,
 }
@@ -58,7 +57,7 @@ impl Watcher {
         }
         Watcher::status_notifier_host_registered(&ctxt).await?;
 
-        self.tasks.spawn({
+        self.tasks.lock().unwrap().spawn({
             let hosts = self.hosts.clone();
             let ctxt = ctxt.to_owned();
             let con = con.to_owned();
@@ -131,7 +130,7 @@ impl Watcher {
         self.registered_status_notifier_items_changed(&ctxt).await?;
         Watcher::status_notifier_item_registered(&ctxt, item.as_ref()).await?;
 
-        self.tasks.spawn({
+        self.tasks.lock().unwrap().spawn({
             let items = self.items.clone();
             let ctxt = ctxt.to_owned();
             let con = con.to_owned();
@@ -189,7 +188,17 @@ impl Watcher {
     }
 
     /// Attach and run the Watcher (in the background) on a connection.
+    ///
+    /// If another process already owns the `org.kde.StatusNotifierWatcher` well-known name, a
+    /// background task is spawned that monitors `NameOwnerChanged` and claims the name as soon
+    /// as the current owner departs. This avoids the silent state-desync that would otherwise
+    /// occur if eww queued for the name and later became primary owner while its host-side
+    /// registrations were still bound to the original owner.
     pub async fn attach_to(self, con: &zbus::Connection) -> zbus::Result<()> {
+        // Clone before moving `self` into the object server so we can still spawn the claim task
+        // onto the Watcher's JoinSet if needed.
+        let tasks = self.tasks.clone();
+
         if !con.object_server().at(names::WATCHER_OBJECT, self).await? {
             return Err(zbus::Error::Failure(format!(
                 "Object already exists at {} on this connection -- is StatusNotifierWatcher already running?",
@@ -197,11 +206,28 @@ impl Watcher {
             )));
         }
 
-        // not AllowReplacement, not ReplaceExisting, not DoNotQueue
-        let flags: [zbus::fdo::RequestNameFlags; 0] = [];
+        // zbus 3.x maps a `RequestNameReply::Exists` response to `Err(NameTaken)`, so both arms
+        // mean "another process owns the name."
+        let flags = [zbus::fdo::RequestNameFlags::DoNotQueue];
         match con.request_name_with_flags(names::WATCHER_BUS, flags.into_iter().collect()).await {
-            Ok(zbus::fdo::RequestNameReply::PrimaryOwner) => Ok(()),
-            Ok(_) | Err(zbus::Error::NameTaken) => Ok(()), // defer to existing
+            Ok(zbus::fdo::RequestNameReply::PrimaryOwner) | Ok(zbus::fdo::RequestNameReply::AlreadyOwner) => Ok(()),
+            Err(zbus::Error::NameTaken) => {
+                log::info!(
+                    "{} is already owned by another process; will claim it when the current owner departs",
+                    names::WATCHER_BUS
+                );
+                let con = con.clone();
+                // Self-terminates once the name is acquired. Lives on the Watcher's JoinSet so
+                // it's aborted alongside the other background tasks when the Watcher is dropped.
+                tasks.lock().unwrap().spawn(async move {
+                    if let Err(e) = claim_watcher_name_when_free(&con).await {
+                        log::error!("failed to claim {}: {}", names::WATCHER_BUS, e);
+                    }
+                });
+
+                Ok(())
+            }
+            Ok(reply) => unreachable!("unexpected RequestName reply with DoNotQueue: {:?}", reply),
             Err(e) => Err(e),
         }
     }
@@ -274,6 +300,39 @@ async fn parse_service<'a>(
                     Err(e)
                 }
             }
+        }
+    }
+}
+
+/// Wait until the current owner of `org.kde.StatusNotifierWatcher` departs, then claim the name.
+///
+/// Loops to handle the case where a third party claims the name between when the previous owner
+/// departed and when we issued our own `RequestName`.
+async fn claim_watcher_name_when_free(con: &zbus::Connection) -> zbus::Result<()> {
+    let dbus = zbus::fdo::DBusProxy::new(con).await?;
+    let watcher_bus =
+        zbus::names::BusName::try_from(names::WATCHER_BUS).expect("WATCHER_BUS is a valid well-known name");
+    let mut owner_changes = dbus.receive_name_owner_changed_with_args(&[(0, &watcher_bus)]).await?;
+
+    loop {
+        let flags = [zbus::fdo::RequestNameFlags::DoNotQueue];
+        match con.request_name_with_flags(names::WATCHER_BUS, flags.into_iter().collect()).await {
+            Ok(zbus::fdo::RequestNameReply::PrimaryOwner) | Ok(zbus::fdo::RequestNameReply::AlreadyOwner) => {
+                log::info!("acquired {} after previous owner departed", names::WATCHER_BUS);
+
+                return Ok(());
+            }
+            Err(zbus::Error::NameTaken) => {
+                // Someone else still owns it; wait for the next departure and retry.
+                while let Some(sig) = owner_changes.next().await {
+                    let args = sig.args()?;
+                    if args.new_owner().is_none() {
+                        break;
+                    }
+                }
+            }
+            Ok(reply) => unreachable!("unexpected RequestName reply with DoNotQueue: {:?}", reply),
+            Err(e) => return Err(e),
         }
     }
 }
