@@ -61,7 +61,7 @@ Supported currently are the following features:
   - `jq(value, jq_filter_string, args)`: Emulate command line flags for jq, see [the docs](https://jqlang.github.io/jq/manual/#invoking-jq) on invoking jq for details. Invalid flags are silently ignored.
     Currently supported flags:
     - `"r"`: If the result is a string, it won't be formatted as a JSON string. The equivalent jq flag is `--raw-output`.
-  - `get_env(string)`: Gets the specified enviroment variable
+  - `get_env(string)`: Gets the specified environment variable
   - `formattime(unix_timestamp, format_str, timezone)`: Gets the time in a given format from UNIX timestamp.
      Check [chrono's documentation](https://docs.rs/chrono/latest/chrono/format/strftime/index.html) for more
      information about format string and [chrono-tz's documentation](https://docs.rs/chrono-tz/latest/chrono_tz/enum.Tz.html)
