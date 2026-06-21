@@ -702,7 +702,7 @@ fn get_monitor_plug_name(display: &gdk::Display, monitor_num: i32) -> Option<&st
     }
 }
 
-/// Returns the [Monitor][gdk::Monitor] structure corresponding to the identifer.
+/// Returns the [Monitor][gdk::Monitor] structure corresponding to the identifier.
 /// Outside of x11, only [MonitorIdentifier::Numeric] is supported
 pub fn get_monitor_from_display(display: &gdk::Display, identifier: &MonitorIdentifier) -> Option<gdk::Monitor> {
     match identifier {

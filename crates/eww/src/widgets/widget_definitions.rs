@@ -300,7 +300,7 @@ fn build_gtk_combo_box_text(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText
             }
         },
         // @prop timeout - timeout of the command: Default: "200ms"
-        // @prop onchange - runs the code when a item was selected, replacing {} with the item as a string
+        // @prop onchange - runs the code when an item was selected, replacing {} with the item as a string
         prop(timeout: as_duration = Duration::from_millis(200), onchange: as_string) {
             connect_signal_handler!(gtk_widget, gtk_widget.connect_changed(move |gtk_widget| {
                 run_command(timeout, &onchange, &[gtk_widget.active_text().unwrap_or_else(|| "".into())]);
@@ -423,7 +423,7 @@ const WIDGET_NAME_COLOR_CHOOSER: &str = "color-chooser";
 fn build_gtk_color_chooser(bargs: &mut BuilderArgs) -> Result<gtk::ColorChooserWidget> {
     let gtk_widget = gtk::ColorChooserWidget::new();
     def_widget!(bargs, _g, gtk_widget, {
-        // @prop use-alpha - bool to wether or not use alpha
+        // @prop use-alpha - bool to whether or not use alpha
         prop(use_alpha: as_bool) {gtk_widget.set_use_alpha(use_alpha);},
 
         // @prop onchange - runs the code when the color was selected
@@ -731,7 +731,7 @@ fn build_tooltip(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
 
 const WIDGET_NAME_CENTERBOX: &str = "centerbox";
 /// @widget centerbox
-/// @desc a box that must contain exactly three children, which will be layed out at the start, center and end of the container.
+/// @desc a box that must contain exactly three children, which will be laid out at the start, center and end of the container.
 fn build_center_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
     let gtk_widget = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     def_widget!(bargs, _g, gtk_widget, {

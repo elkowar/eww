@@ -10,7 +10,7 @@ pub enum Error {
     NumParseFailed(String),
     #[error("Invalid unit \"{0}\", must be either % or px")]
     InvalidUnit(String),
-    #[error("Invalid format. Coordinates must be formated like 200x100")]
+    #[error("Invalid format. Coordinates must be formatted like 200x100")]
     MalformedCoords,
 }
 
