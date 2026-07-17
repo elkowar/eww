@@ -221,7 +221,7 @@ You can also call `eww poll` to poll the variable outside of its usual interval
 ```
 
 Listening variables might be the most confusing of the bunch.
-A listening variable runs a script once, and reads its output continously.
+A listening variable runs a script once, and reads its output continuously.
 Whenever the script outputs a new line, the value will be updated to that new line.
 In the example given above, the value of `foo` will start out as `"whatever"`, and will change whenever a new line is appended to `/tmp/some_file`.
 

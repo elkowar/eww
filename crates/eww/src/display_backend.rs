@@ -117,7 +117,7 @@ mod platform_wayland {
                     && geometry.anchor_point.x != AnchorAlignment::CENTER
                     && geometry.anchor_point.y != AnchorAlignment::CENTER
                 {
-                    log::warn!("When ':exclusive true' the anchor has to include 'center', otherwise exlcusive won't work")
+                    log::warn!("When ':exclusive true' the anchor has to include 'center', otherwise exclusive won't work")
                 }
             }
             if window_init.backend_options.wayland.exclusive {

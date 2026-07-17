@@ -15,7 +15,7 @@ Thus, to get a feel for yuck, read through the [example configuration](./example
 
 
 Additionally, a couple smaller things have been changed.
-The fields and structure of the `defwindow` block as been adjusted to better reflect
+The fields and structure of the `defwindow` block have been adjusted to better reflect
 the options provided by the displayserver that is being used.
 The major changes are:
 - The `screen` field is now called `monitor`
