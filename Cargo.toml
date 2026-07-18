@@ -65,3 +65,9 @@ zbus = { version = "3.15.2", default-features = false, features = ["tokio"] }
 
 [profile.dev]
 split-debuginfo = "unpacked"
+
+[profile.release]
+opt-level = "z"
+lto = "fat"
+strip = "symbols"
+codegen-units = 1
