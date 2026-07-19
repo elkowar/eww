@@ -111,7 +111,7 @@ impl X11BackendWindowOptionsDef {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct WlBackendWindowOptions {
-    pub exclusive: bool,
+    pub exclusive: WlWindowExclusive,
     pub focusable: WlWindowFocusable,
     pub namespace: Option<String>,
 }
@@ -127,7 +127,10 @@ pub struct WlBackendWindowOptionsDef {
 impl WlBackendWindowOptionsDef {
     fn eval(&self, local_variables: &HashMap<VarName, DynVal>) -> Result<WlBackendWindowOptions, Error> {
         Ok(WlBackendWindowOptions {
-            exclusive: eval_opt_expr_as_bool(&self.exclusive, false, local_variables)?,
+            exclusive: match &self.exclusive {
+                Some(expr) => WlWindowExclusive::from_dynval(&expr.eval(local_variables)?)?,
+                None => WlWindowExclusive::default(),
+            },
             focusable: match &self.focusable {
                 Some(expr) => WlWindowFocusable::from_dynval(&expr.eval(local_variables)?)?,
                 None => WlWindowFocusable::default(),
@@ -169,6 +172,25 @@ impl FromStr for WlWindowFocusable {
             // legacy support
             "true" => Self::Exclusive,
             "false" => Self::None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, smart_default::SmartDefault, serde::Serialize)]
+pub enum WlWindowExclusive {
+    #[default]
+    None,
+    Exclusive,
+    IgnoreOthers,
+}
+impl FromStr for WlWindowExclusive {
+    type Err = EnumParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        enum_parse! { "exclusive", s,
+            "none" => Self::None,
+            "exclusive" => Self::Exclusive,
+            "ignore" => Self::IgnoreOthers
         }
     }
 }

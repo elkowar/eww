@@ -33,6 +33,7 @@ mod platform_wayland {
     use gtk::gdk;
     use gtk::prelude::*;
     use gtk_layer_shell::{KeyboardMode, LayerShell};
+    use yuck::config::backend_window_options::WlWindowExclusive;
     use yuck::config::backend_window_options::WlWindowFocusable;
     use yuck::config::{window_definition::WindowStacking, window_geometry::AnchorAlignment};
 
@@ -113,15 +114,19 @@ mod platform_wayland {
                     window.set_layer_shell_margin(gtk_layer_shell::Edge::Top, yoffset);
                 }
                 // https://github.com/elkowar/eww/issues/296
-                if window_init.backend_options.wayland.exclusive
+                if matches!(window_init.backend_options.wayland.exclusive, WlWindowExclusive::Exclusive)
                     && geometry.anchor_point.x != AnchorAlignment::CENTER
                     && geometry.anchor_point.y != AnchorAlignment::CENTER
                 {
-                    log::warn!("When ':exclusive true' the anchor has to include 'center', otherwise exlcusive won't work")
+                    log::warn!(
+                        "When ':exclusive \"exclusive\"' the anchor has to include 'center', otherwise exlcusive won't work"
+                    )
                 }
             }
-            if window_init.backend_options.wayland.exclusive {
-                window.auto_exclusive_zone_enable();
+            match window_init.backend_options.wayland.exclusive {
+                WlWindowExclusive::None => (),
+                WlWindowExclusive::Exclusive => window.auto_exclusive_zone_enable(),
+                WlWindowExclusive::IgnoreOthers => window.set_exclusive_zone(-1),
             }
             Some(window)
         }
