@@ -71,15 +71,19 @@ impl WindowArguments {
 
         for attr in &window_def.expected_args {
             let name = VarName::from(attr.name.clone());
-            if !local_variables.contains_key(&name) && !attr.optional {
-                bail!("Error, missing argument '{}' when creating window with id '{}'", attr.name, self.instance_id);
+            if !local_variables.contains_key(&name) {
+                if attr.optional {
+                    local_variables.insert(name, DynVal::from_string(String::new()));
+                } else {
+                    bail!("Error, missing argument '{}' when creating window with id '{}'", attr.name, self.instance_id);
+                }
             }
         }
-
-        if local_variables.len() != window_def.expected_args.len() {
-            let unexpected_vars: Vec<_> = local_variables.keys().filter(|&n| !expected_args.contains(&n.0)).cloned().collect();
+        
+        let unexpected_vars = local_variables.keys().filter(|&n| !expected_args.contains(&n.0)).map(|n| format!("`{n}`")).collect::<Vec<_>>(); 
+        if !unexpected_vars.is_empty() {
             bail!(
-                "variables {} unexpectedly defined when creating window with id '{}'",
+                "variables {} unexpectedly defined when creating window with id `{}`",
                 unexpected_vars.join(", "),
                 self.instance_id,
             );
