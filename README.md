@@ -71,6 +71,14 @@ To find out more, check out the [website and documentation](https://elkowar.gith
 
 </div>
 
+* [Setup by a-dmg](https://github.com/a-dmg/eww-config)
+
+<div align="left">
+
+![btop like widget](https://github.com/a-dmg/eww-config/blob/master/preview/widget.png)
+
+</div>
+
 ## Contribewwting
 
 If you want to contribute anything, like adding new widgets, features, or subcommands (including sample configs), you should definitely do so.

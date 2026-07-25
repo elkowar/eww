@@ -95,4 +95,8 @@ define_magic_constants! { eww_paths,
     "EWW_EXECUTABLE" => DynVal::from_string(
         std::env::current_exe().map(|x| x.to_string_lossy().into_owned()).unwrap_or_else(|_| "eww".to_string()),
     ),
+    // @desc EWW_HOSTNAME - Hostname
+    "EWW_HOSTNAME" => DynVal::from_string(
+        get_hostname()
+    ),
 }
