@@ -12,6 +12,7 @@ pub struct EwwPaths {
     pub log_file: PathBuf,
     pub log_dir: PathBuf,
     pub ipc_socket_file: PathBuf,
+    pub lock_file: PathBuf,
     pub config_dir: PathBuf,
 }
 
@@ -39,6 +40,8 @@ impl EwwPaths {
             .unwrap_or_else(|_| std::path::PathBuf::from("/tmp"))
             .join(format!("eww-server_{}", daemon_id));
 
+        let lock_file = std::path::PathBuf::from(format!("{}.lock", ipc_socket_file.display()));
+
         // 100 as the limit isn't quite 108 everywhere (i.e 104 on BSD or mac)
         if format!("{}", ipc_socket_file.display()).len() > 100 {
             log::warn!("The IPC socket file's absolute path exceeds 100 bytes, the socket may fail to create.");
@@ -54,7 +57,7 @@ impl EwwPaths {
             std::fs::create_dir_all(&log_dir)?;
         }
 
-        Ok(EwwPaths { config_dir, log_file: log_dir.join(format!("eww_{}.log", daemon_id)), log_dir, ipc_socket_file })
+        Ok(EwwPaths { config_dir, log_file: log_dir.join(format!("eww_{}.log", daemon_id)), log_dir, ipc_socket_file, lock_file })
     }
 
     pub fn default() -> Result<Self> {
@@ -76,6 +79,10 @@ impl EwwPaths {
 
     pub fn get_ipc_socket_file(&self) -> &Path {
         self.ipc_socket_file.as_path()
+    }
+
+    pub fn get_lock_file(&self) -> &Path {
+        self.lock_file.as_path()
     }
 
     pub fn get_config_dir(&self) -> &Path {

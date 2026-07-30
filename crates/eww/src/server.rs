@@ -11,6 +11,7 @@ use anyhow::{Context, Result};
 use std::{
     cell::RefCell,
     collections::{HashMap, HashSet},
+    fs::File,
     io::Write,
     marker::PhantomData,
     os::unix::io::AsRawFd,
@@ -20,10 +21,30 @@ use std::{
 };
 use tokio::sync::mpsc::*;
 
+/// The lockfile that is held for as long as `initialize_server` is running.
+pub struct LockFile(#[allow(unused)] File);
+
+/// Try creating and locking the lock file. This will then be passed into `initialize_server`.
+/// This function returns Ok(None) if the file is already locked by another process.
+pub fn try_lock_file(paths: &EwwPaths) -> Result<Option<LockFile>> {
+    let path = paths.get_lock_file();
+    let lock_file = File::create(path).with_context(|| format!("Failed to create lock file {}", path.display()))?;
+    match lock_file.try_lock() {
+        Ok(()) => Ok(Some(LockFile(lock_file))),
+        // already locked
+        Err(std::fs::TryLockError::WouldBlock) => Ok(None),
+        Err(std::fs::TryLockError::Error(e)) => {
+            Err(e).with_context(|| format!("Failed to get lock on file {}", path.display()))?
+        }
+    }
+}
+
 pub fn initialize_server<B: DisplayBackend>(
     paths: EwwPaths,
     action: Option<DaemonCommand>,
     should_daemonize: bool,
+    // only needs to be kept in scope
+    _lock_file: LockFile,
 ) -> Result<ForkResult> {
     let (ui_send, mut ui_recv) = tokio::sync::mpsc::unbounded_channel();
 
