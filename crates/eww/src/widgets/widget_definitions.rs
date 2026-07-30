@@ -588,6 +588,30 @@ const WIDGET_NAME_IMAGE: &str = "image";
 fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
     let gtk_widget = gtk::Image::new();
     def_widget!(bargs, _g, gtk_widget, {
+
+        // @prop base64 - Base64 encoded image data
+        // @prop image-width - width of the image
+        // @prop image-height - height of the image
+        // @prop preserve-aspect-ratio - whether to keep the aspect ratio when resizing an image
+        prop(base64: as_string, image_width: as_i32 = -1, image_height: as_i32 = -1, preserve_aspect_ratio: as_bool = true) {
+            if base64.is_empty() {
+                gtk_widget.clear();
+            } else {
+                let decoded_bytes = gtk::glib::base64_decode(&base64);
+                let stream = gtk::gio::MemoryInputStream::from_bytes(&gtk::glib::Bytes::from(&decoded_bytes));
+
+                let pixbuf = gtk::gdk_pixbuf::Pixbuf::from_stream_at_scale(
+                    &stream,
+                    image_width,
+                    image_height,
+                    preserve_aspect_ratio,
+                    None::<&gtk::gio::Cancellable>
+                ).context("Failed to parse image from base64 string")?;
+
+                stream.close(None::<&gtk::gio::Cancellable>)?;
+                gtk_widget.set_from_pixbuf(Some(&pixbuf));
+            }
+        },
         // @prop path - path to the image file
         // @prop image-width - width of the image
         // @prop image-height - height of the image
