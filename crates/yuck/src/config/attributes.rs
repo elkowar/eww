@@ -63,8 +63,8 @@ impl Attributes {
     }
 
     pub fn ast_optional<T: FromAst>(&mut self, key: &str) -> Result<Option<T>, DiagError> {
-        match self.attrs.remove(&AttrName(key.to_string())) {
-            Some(AttrEntry { value, .. }) => T::from_ast(value).map(Some),
+        match self.attrs.get(&AttrName(key.to_string())) {
+            Some(entry) => T::from_ast(entry.value.clone()).map(Some),
             None => Ok(None),
         }
     }
