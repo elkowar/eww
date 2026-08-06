@@ -280,7 +280,8 @@ impl ScopeGraph {
         self.call_listeners_in_scope(scope_index, updated_var)?;
 
         // Now find subscopes that reference this variable
-        let affected_subscopes = self.graph.subscopes_referencing(scope_index, updated_var);
+        let mut affected_subscopes = self.graph.subscopes_referencing(scope_index, updated_var);
+        affected_subscopes.sort_by_key(|index| usize::MAX - index.0);
         for affected_subscope in affected_subscopes {
             self.notify_value_changed(affected_subscope, updated_var)?;
         }
