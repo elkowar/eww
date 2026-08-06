@@ -17,7 +17,7 @@ use itertools::Itertools;
 use once_cell::sync::Lazy;
 
 use std::{
-    cell::RefCell,
+    cell::{Cell, RefCell},
     cmp::Ordering,
     collections::{HashMap, HashSet},
     rc::Rc,
@@ -150,15 +150,22 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
     let css_provider = gtk::CssProvider::new();
     let css_provider2 = css_provider.clone();
 
+    // the first-map handler reads this cell so `visible` updates before the first map aren't lost
+    // (a closed revealer's children map long after build)
+    let latest_visible = Rc::new(Cell::new(true));
     let visible_result: Result<_> = (|| {
         let visible_expr = bargs.widget_use.attrs.attrs.get("visible").map(|x| x.value.as_simplexpr()).transpose()?;
         if let Some(visible_expr) = visible_expr {
             let visible = bargs.scope_graph.evaluate_simplexpr_in_scope(bargs.calling_scope, &visible_expr)?.as_bool()?;
-            connect_first_map(gtk_widget, move |w| {
-                if visible {
-                    w.show();
-                } else {
-                    w.hide();
+            latest_visible.set(visible);
+            connect_first_map(gtk_widget, {
+                let latest_visible = latest_visible.clone();
+                move |w| {
+                    if latest_visible.get() {
+                        w.show();
+                    } else {
+                        w.hide();
+                    }
                 }
             });
         }
@@ -207,6 +214,7 @@ pub(super) fn resolve_widget_attrs(bargs: &mut BuilderArgs, gtk_widget: &gtk::Wi
         },
         // @prop visible - visibility of the widget
         prop(visible: as_bool = true) {
+            latest_visible.set(visible);
             if visible { gtk_widget.show(); } else { gtk_widget.hide(); }
         },
         // @prop style - inline scss style applied to the widget

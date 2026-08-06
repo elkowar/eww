@@ -9,6 +9,7 @@ All notable changes to eww will be listed here, starting at changes since versio
   Attempting to index in an empty JSON string (`'""'`) is now an error.
 
 ### Fixes
+- Fix `:visible` updates being lost for widgets that have not yet been mapped, e.g. inside a closed revealer (By: 61021)
 - Fix crash on invalid `formattime` format string (By: luca3s)
 - Fix crash on NaN or infinite graph value (By: luca3s)
 - Re-enable some scss features (By: w-lfchen)
