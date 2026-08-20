@@ -1,0 +1,103 @@
+(defwindow weather
+  :monitor 0
+  :geometry (geometry :x "2%" :y "6%" :width 430 :height 550 :anchor "top right")
+  :windowtype "notification"
+  :stacking "overlay"
+  :focusable false
+  :decorations false
+  :wm-ignore true
+  :reserve (struts :distance "0" :enabled false)
+  (weather-widget))
+
+(defpoll weather_data :interval "1800s"
+  :initial "{\"temp\":\"--\",\"condition\":\"Loading...\",\"city\":\"...\"}"
+  `./scripts/weather.sh`)
+
+(defwidget weather-widget []
+  (box :class "weather-container"
+       :orientation "v"
+       :space-evenly false
+
+       ;; Header
+       (box :class "weather-header"
+            :orientation "v"
+            :space-evenly false
+
+            ;; Actions row (top-right)
+            (box :class "weather-actions"
+                 :orientation "h"
+                 :space-evenly false
+                 :halign "end"
+                 (button :onclick "eww update weather_data=\"$(./scripts/weather.sh --force)\""
+                          (label :text "↻" :class "act-icon"))
+                 (button :onclick "eww close weather"
+                         (label :text "✕" :class "act-icon")))
+
+            ;; Location (centered)
+            (box :class "weather-location"
+                 :orientation "v"
+                 (box :orientation "h" :space-evenly false :halign "center"
+                      (label :text "⊡" :class "loc-icon")
+                      (label :text "${weather_data.city}" :class "loc-text"))
+                 (label :text "${weather_data.condition} · ${weather_data.temp}°C" :class "header-sub" :halign "center")))
+
+       ;; Current weather
+       (box :class "weather-current"
+            :orientation "v"
+            :space-evenly false
+            (box :class "weather-icon-wrap" :halign "center"
+                 (image :path "${weather_data.icon}" :image-width 72 :image-height 72))
+            (label :text "${weather_data.temp}°C" :class "weather-temp" :halign "center")
+            (box :class "hi-lo-row" :orientation "h" :space-evenly false :halign "center"
+                 (label :text "H:${weather_data.today_max}° L:${weather_data.today_min}°" :class "hi-lo-text")
+                 (label :text "Feels ${weather_data.feels}°" :class "feels-text")))
+
+       ;; Details row
+       (box :class "weather-details"
+            :orientation "h"
+            :spacing 10
+            :space-evenly true
+            (box :class "detail-item" :orientation "v"
+                 (label :text "≡" :class "detail-icon")
+                 (label :text "${weather_data.humidity}%" :class "detail-value")
+                 (label :text "Humidity" :class "detail-label"))
+            (box :class "detail-item" :orientation "v"
+                 (label :text "→" :class "detail-icon")
+                 (label :text "${weather_data.wind}km/h" :class "detail-value")
+                 (label :text "Wind" :class "detail-label"))
+            (box :class "detail-item" :orientation "v"
+                 (label :text "⊙" :class "detail-icon")
+                 (label :text "${weather_data.uv}" :class "detail-value")
+                 (label :text "UV" :class "detail-label"))
+            (box :class "detail-item" :orientation "v"
+                 (label :text "☁" :class "detail-icon")
+                 (label :text "${weather_data.cloud}%" :class "detail-value")
+                 (label :text "Cloud" :class "detail-label")))
+
+       ;; Forecast
+       (box :class "weather-forecast"
+            :orientation "h"
+            :spacing 12
+            :space-evenly true
+            (box :class "forecast-day" :orientation "v"
+                 (image :path "${weather_data.fc0_icon}" :image-width 32 :image-height 32)
+                 (label :text "${weather_data.fc0_day}" :class "fc-label")
+                 (label :text "${weather_data.fc0_temp}°" :class "fc-temp")
+                 (label :text "${weather_data.fc0_min}°" :class "fc-min"))
+            (box :class "forecast-day" :orientation "v"
+                 (image :path "${weather_data.fc1_icon}" :image-width 32 :image-height 32)
+                 (label :text "${weather_data.fc1_day}" :class "fc-label")
+                 (label :text "${weather_data.fc1_temp}°" :class "fc-temp")
+                 (label :text "${weather_data.fc1_min}°" :class "fc-min"))
+            (box :class "forecast-day" :orientation "v"
+                 (image :path "${weather_data.fc2_icon}" :image-width 32 :image-height 32)
+                 (label :text "${weather_data.fc2_day}" :class "fc-label")
+                 (label :text "${weather_data.fc2_temp}°" :class "fc-temp")
+                 (label :text "${weather_data.fc2_min}°" :class "fc-min")))
+
+       ;; Updated + glass shine
+       (box :class "footer-row"
+            :orientation "h"
+            :space-evenly false
+             (label :text "Updated ${weather_data.updated_time}" :class "updated-text" :halign "center" :hexpand true)
+             (box :class "glass-shine"))))

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <defs>
+    <linearGradient id="r-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4A7A9E"/>
+      <stop offset="100%" stop-color="#1A5A7E"/>
+    </linearGradient>
+    <linearGradient id="r-gloss" x1="0%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.20)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </linearGradient>
+    <linearGradient id="rain" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#3AB0B4"/>
+      <stop offset="100%" stop-color="#1299CA"/>
+    </linearGradient>
+    <filter id="r-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="1.5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <path d="M6 28 Q6 23 11 21 Q15 17 21 19 Q25 15 30 17 Q34 13 39 17 Q43 17 43 23 Q43 27 39 28 L6 28Z" fill="url(#r-grad)" filter="url(#r-glow)"/>
+  <ellipse cx="16" cy="24" rx="10" ry="3" fill="url(#r-gloss)"/>
+  <g stroke="url(#rain)" stroke-width="1.5" stroke-linecap="round" opacity="0.6">
+    <line x1="12" y1="32" x2="10" y2="38"/>
+    <line x1="20" y1="32" x2="18" y2="39"/>
+    <line x1="28" y1="32" x2="26" y2="38"/>
+    <line x1="36" y1="32" x2="34" y2="39"/>
+  </g>
+</svg>
