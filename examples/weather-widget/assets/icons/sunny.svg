@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <defs>
+    <linearGradient id="s-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3AB0B4"/>
+      <stop offset="100%" stop-color="#1299CA"/>
+    </linearGradient>
+    <linearGradient id="s-gloss" x1="0%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.35)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </linearGradient>
+    <filter id="s-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="2" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <g stroke="url(#s-grad)" stroke-width="1.8" stroke-linecap="round" opacity="0.5">
+    <line x1="24" y1="7" x2="24" y2="4"/>
+    <line x1="24" y1="41" x2="24" y2="44"/>
+    <line x1="7" y1="24" x2="4" y2="24"/>
+    <line x1="41" y1="24" x2="44" y2="24"/>
+    <line x1="12.5" y1="12.5" x2="10" y2="10"/>
+    <line x1="35.5" y1="12.5" x2="38" y2="10"/>
+    <line x1="12.5" y1="35.5" x2="10" y2="38"/>
+    <line x1="35.5" y1="35.5" x2="38" y2="38"/>
+  </g>
+  <circle cx="24" cy="24" r="10" fill="url(#s-grad)" filter="url(#s-glow)"/>
+  <ellipse cx="21" cy="20" rx="6" ry="4" fill="url(#s-gloss)"/>
+</svg>

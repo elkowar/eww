@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <defs>
+    <linearGradient id="c-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3AB0B4"/>
+      <stop offset="100%" stop-color="#1A7A9E"/>
+    </linearGradient>
+    <linearGradient id="c-gloss" x1="0%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.25)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </linearGradient>
+    <filter id="c-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="1.5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <path d="M8 33 Q8 28 13 26 Q17 22 22 24 Q26 20 31 22 Q35 18 39 22 Q43 22 43 28 Q43 32 39 33 L8 33Z" fill="url(#c-grad)" filter="url(#c-glow)"/>
+  <ellipse cx="18" cy="28" rx="12" ry="3.5" fill="url(#c-gloss)"/>
+  <path d="M12 37 Q12 32 17 30 Q21 26 27 28 Q31 24 36 26 Q40 26 40 32 Q40 36 36 37 L12 37Z" fill="url(#c-grad)" opacity="0.5"/>
+</svg>

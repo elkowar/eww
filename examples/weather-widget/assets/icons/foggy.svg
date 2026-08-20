@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <defs>
+    <linearGradient id="f-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3AB0B4"/>
+      <stop offset="100%" stop-color="#1A7A9E"/>
+    </linearGradient>
+    <linearGradient id="f-gloss" x1="0%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.20)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </linearGradient>
+    <filter id="f-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="1.5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <path d="M6 22 Q6 18 12 18 Q16 14 22 18 Q26 14 32 18 Q36 14 42 18 Q46 18 46 22 Q46 26 42 26 L6 26Z" fill="url(#f-grad)" filter="url(#f-glow)" opacity="0.5"/>
+  <ellipse cx="20" cy="22" rx="14" ry="3" fill="url(#f-gloss)"/>
+  <path d="M6 30 Q6 26 12 26 Q16 22 22 26 Q26 22 32 26 Q36 22 42 26 Q46 26 46 30 Q46 34 42 34 L6 34Z" fill="url(#f-grad)" filter="url(#f-glow)" opacity="0.5"/>
+  <ellipse cx="22" cy="30" rx="14" ry="3" fill="url(#f-gloss)"/>
+</svg>

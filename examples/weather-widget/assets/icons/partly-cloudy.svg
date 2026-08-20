@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <defs>
+    <linearGradient id="pc-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3AB0B4"/>
+      <stop offset="100%" stop-color="#1299CA"/>
+    </linearGradient>
+    <linearGradient id="pc-gloss" x1="0%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.30)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </linearGradient>
+    <filter id="pc-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="1.5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <circle cx="18" cy="18" r="7" fill="url(#pc-grad)" filter="url(#pc-glow)"/>
+  <ellipse cx="16" cy="15" rx="3" ry="2" fill="url(#pc-gloss)"/>
+  <path d="M14 31 Q14 26 19 26 Q22 22 27 24 Q31 20 36 23 Q40 23 40 28 Q40 32 36 33 L14 33Z" fill="url(#pc-grad)" filter="url(#pc-glow)"/>
+  <ellipse cx="22" cy="27" rx="10" ry="3.5" fill="url(#pc-gloss)"/>
+</svg>
