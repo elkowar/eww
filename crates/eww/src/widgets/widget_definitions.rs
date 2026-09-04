@@ -312,7 +312,7 @@ fn build_gtk_combo_box_text(bargs: &mut BuilderArgs) -> Result<gtk::ComboBoxText
 
 const WIDGET_NAME_EXPANDER: &str = "expander";
 /// @widget expander
-/// @desc A widget that can expand and collapse, showing/hiding it's children. Should contain
+/// @desc A widget that can expand and collapse, showing/hiding its children. Should contain
 /// exactly one child.
 fn build_gtk_expander(bargs: &mut BuilderArgs) -> Result<gtk::Expander> {
     let gtk_widget = gtk::Expander::new(None);
@@ -522,7 +522,7 @@ fn build_gtk_input(bargs: &mut BuilderArgs) -> Result<gtk::Entry> {
 
 const WIDGET_NAME_BUTTON: &str = "button";
 /// @widget button
-/// @desc A button containing any widget as it's child. Events are triggered on release.
+/// @desc A button containing any widget as its child. Events are triggered on release.
 fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
     let gtk_widget = gtk::Button::new();
 
