@@ -39,6 +39,7 @@ pub struct WindowDefinition {
     pub monitor: Option<SimplExpr>,
     pub widget: WidgetUse,
     pub resizable: Option<SimplExpr>,
+    pub unfocus_close: Option<SimplExpr>,
     pub backend_options: BackendWindowOptionsDef,
 }
 
@@ -72,6 +73,13 @@ impl WindowDefinition {
             None => Ok(WindowStacking::Foreground),
         }
     }
+
+    pub fn eval_close_on_focus_lost(&self, local_variables: &HashMap<VarName, DynVal>) -> Result<bool, EvalError> {
+        Ok(match &self.unfocus_close {
+            Some(expr) => expr.eval(local_variables)?.as_bool()?,
+            None => false,
+        })
+    }
 }
 
 impl FromAstElementContent for WindowDefinition {
@@ -86,10 +94,22 @@ impl FromAstElementContent for WindowDefinition {
         let resizable = attrs.ast_optional("resizable")?;
         let stacking = attrs.ast_optional("stacking")?;
         let geometry = attrs.ast_optional("geometry")?;
+        let unfocus_close = attrs.ast_optional("unfocus-close")?;
         let backend_options = BackendWindowOptionsDef::from_attrs(&mut attrs)?;
         let widget = iter.expect_any().map_err(DiagError::from).and_then(WidgetUse::from_ast)?;
         iter.expect_done()?;
-        Ok(Self { name, expected_args, args_span, monitor, resizable, widget, stacking, geometry, backend_options })
+        Ok(Self {
+            name,
+            expected_args,
+            args_span,
+            monitor,
+            resizable,
+            widget,
+            stacking,
+            geometry,
+            unfocus_close,
+            backend_options,
+        })
     }
 }
 

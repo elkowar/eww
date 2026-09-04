@@ -15,7 +15,7 @@ Dharmx also wrote a nice, beginner friendly introductory guide for eww [here](ht
 
 <img src="https://raw.githubusercontent.com/elkowar/yolk/refs/heads/main/.github/images/yolk_logo.svg" height="100" align="right"/>
 
-I'm currently busy working [yolk](https://github.com/elkowar/yolk),
+I'm currently busy working [yolk](https://elkowar.github.io/yolk),
 which is a dotfile management solution that supports a unique spin on templating: *templating without template files*.
 
 To find out more, check out the [website and documentation](https://elkowar.github.io/yolk)!
