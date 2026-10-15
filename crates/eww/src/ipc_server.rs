@@ -6,6 +6,9 @@ use tokio::{
     sync::mpsc::*,
 };
 
+/// How long the daemon waits for the app to answer a command before closing the connection without a response.
+pub const RESPONSE_TIMEOUT: Duration = Duration::from_secs(1);
+
 pub async fn run_server<P: AsRef<std::path::Path>>(evt_send: UnboundedSender<app::DaemonCommand>, socket_path: P) -> Result<()> {
     let socket_path = socket_path.as_ref();
     let listener = { tokio::net::UnixListener::bind(socket_path)? };
@@ -39,7 +42,7 @@ async fn handle_connection(mut stream: tokio::net::UnixStream, evt_send: Unbound
 
     if let Some(mut response_recv) = maybe_response_recv {
         log::debug!("Waiting for response for IPC client");
-        if let Ok(Some(response)) = tokio::time::timeout(Duration::from_millis(100), response_recv.recv()).await {
+        if let Ok(Some(response)) = tokio::time::timeout(RESPONSE_TIMEOUT, response_recv.recv()).await {
             let response = bincode::serialize(&response)?;
             let result = &stream_write.write_all(&response).await;
             crate::print_result_err!("sending text response to ipc client", &result);

@@ -2,6 +2,7 @@ use std::process::Stdio;
 
 use crate::{
     daemon_response::DaemonResponse,
+    ipc_server,
     opts::{self, ActionClientOnly},
     paths::EwwPaths,
 };
@@ -9,6 +10,7 @@ use anyhow::{Context, Result};
 use std::{
     io::{Read, Write},
     os::unix::net::UnixStream,
+    time::Duration,
 };
 
 pub fn handle_client_only_action(paths: &EwwPaths, action: ActionClientOnly) -> Result<()> {
@@ -36,8 +38,15 @@ pub fn do_server_call(stream: &mut UnixStream, action: &opts::ActionWithServer) 
 
     stream.write_all(&message_bytes).context("Failed to write command to IPC stream")?;
 
+    // A ping is answered by the IPC server itself. Other commands wait for the app, so outlast the daemon's timeout and let it
+    // close the connection, instead of failing here and making `eww open` start a second daemon.
+    let read_timeout = match action {
+        opts::ActionWithServer::Ping => Duration::from_millis(100),
+        _ => ipc_server::RESPONSE_TIMEOUT * 2,
+    };
+
     let mut buf = Vec::new();
-    stream.set_read_timeout(Some(std::time::Duration::from_millis(100))).context("Failed to set read timeout")?;
+    stream.set_read_timeout(Some(read_timeout)).context("Failed to set read timeout")?;
     stream.read_to_end(&mut buf).context("Error reading response from server")?;
 
     Ok(if buf.is_empty() {

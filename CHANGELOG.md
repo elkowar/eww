@@ -11,6 +11,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 ### Fixes
 - Fix crash on invalid `formattime` format string (By: luca3s)
 - Fix crash on NaN or infinite graph value (By: luca3s)
+- Fix `eww open` starting a second daemon when a window takes more than 100ms to open (By: 61021)
 - Re-enable some scss features (By: w-lfchen)
 - Fix and refactor nix flake (By: w-lfchen)
 - Fix remove items from systray (By: vnva)
