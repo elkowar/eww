@@ -577,13 +577,24 @@ impl<B: DisplayBackend> App<B> {
 
         let open_window_ids: Vec<String> =
             self.open_windows.keys().cloned().chain(self.failed_windows.iter().cloned()).dedup().collect();
+        // Reopen every window even if some fail (e.g. its monitor is gone): the scope graph was just
+        // cleared, so a window skipped here would stay on screen bound to a deleted scope, frozen.
+        // A window that fails stays in failed_windows and is retried on the next monitor change.
+        let mut first_err = None;
         for instance_id in &open_window_ids {
-            let window_arguments = self.instance_id_to_args.get(instance_id).with_context(|| {
-                format!("Cannot reopen window, initial parameters were not saved correctly for {instance_id}")
-            })?;
-            self.open_window(&window_arguments.clone())?;
+            let result = match self.instance_id_to_args.get(instance_id).cloned() {
+                Some(window_arguments) => self.open_window(&window_arguments),
+                None => Err(anyhow!("Cannot reopen window, initial parameters were not saved correctly for {instance_id}")),
+            };
+            if let Err(err) = result {
+                if first_err.is_none() {
+                    first_err = Some(err);
+                } else {
+                    error_handling_ctx::print_error(err);
+                }
+            }
         }
-        Ok(())
+        first_err.map_or(Ok(()), Err)
     }
 
     /// Load a given CSS string into the gtk css provider, returning a nicely formatted [`DiagError`] when GTK errors out

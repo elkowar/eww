@@ -21,6 +21,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Load systray items that are registered without a path (By: Kage-Yami)
 - `get_locale` now follows POSIX standard for locale selection (By: mirhahn, w-lfchen)
 - Improve multi-monitor handling under wayland (By: bkueng)
+- Fix windows freezing after a reload in which another window failed to reopen, e.g. because its monitor was disconnected (By: 1A1zBTC)
 
 ### Features
 - Add warning and docs for incompatible `:anchor` and `:exclusive` options
