@@ -282,6 +282,11 @@ impl ScopeGraph {
         // Now find subscopes that reference this variable
         let affected_subscopes = self.graph.subscopes_referencing(scope_index, updated_var);
         for affected_subscope in affected_subscopes {
+            // A listener notified earlier in this loop (e.g. a `for` loop) may have removed this scope.
+            // Notifying it would fail and abort the notification of the remaining subscopes.
+            if self.graph.scope_at(affected_subscope).is_none() {
+                continue;
+            }
             self.notify_value_changed(affected_subscope, updated_var)?;
         }
         Ok(())
@@ -725,5 +730,51 @@ mod test {
             hashset!["the_var".into()],
             "Wrong variables assumed to be used by widget"
         );
+    }
+
+    /// A listener can remove other scopes that reference the same variable, as a `for` loop does with the
+    /// scopes of its old children. Those scopes must be skipped, not abort the notification.
+    #[test]
+    fn test_notify_skips_scopes_removed_by_listener() {
+        let globals = hashmap! { "the_var".into() => "old".into() };
+        let (send, _recv) = tokio::sync::mpsc::unbounded_channel();
+        let mut scope_graph = ScopeGraph::from_global_vars(globals, send);
+        let root = scope_graph.root_index;
+        let is_update = |values: &HashMap<VarName, DynVal>| values.get(&VarName::from("the_var")) == Some(&"new".into());
+
+        // Whichever of the two is notified first removes the other before its turn, in any visiting order.
+        let first = scope_graph.register_new_scope("first".to_string(), Some(root), root, hashmap! {}).unwrap();
+        let second = scope_graph.register_new_scope("second".to_string(), Some(root), root, hashmap! {}).unwrap();
+        for (scope, other) in [(first, second), (second, first)] {
+            let listener = Listener {
+                needed_variables: vec!["the_var".into()],
+                f: Box::new(move |graph, values| {
+                    if is_update(&values) {
+                        graph.remove_scope(other);
+                    }
+                    Ok(())
+                }),
+            };
+            scope_graph.register_listener(scope, listener).unwrap();
+        }
+
+        let counter = scope_graph.register_new_scope("counter".to_string(), Some(root), root, hashmap! {}).unwrap();
+        let notified = Rc::new(std::cell::Cell::new(0));
+        let listener = Listener {
+            needed_variables: vec!["the_var".into()],
+            f: Box::new({
+                let notified = notified.clone();
+                move |_, values| {
+                    if is_update(&values) {
+                        notified.set(notified.get() + 1);
+                    }
+                    Ok(())
+                }
+            }),
+        };
+        scope_graph.register_listener(counter, listener).unwrap();
+
+        scope_graph.update_global_value(&"the_var".into(), "new".into()).unwrap();
+        assert_eq!(notified.get(), 1);
     }
 }
