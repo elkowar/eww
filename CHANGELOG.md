@@ -43,6 +43,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add `floor` and `ceil` function calls to simplexpr (By: wsbankenstein)
 - Add `formatbytes` function calls to simplexpr (By: topongo)
 - Add `unfocus-close` property in defwindow (By: liegle)
+- Add `scroll-amount` property to `scale` (By: Vghxv)
 
 ## [0.6.0] (21.04.2024)
 
