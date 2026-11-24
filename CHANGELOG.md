@@ -44,6 +44,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add `floor` and `ceil` function calls to simplexpr (By: wsbankenstein)
 - Add `formatbytes` function calls to simplexpr (By: topongo)
 - Add `unfocus-close` property in defwindow (By: liegle)
+- Keep the widgets of unchanged `for` loop elements instead of rebuilding every element (By: UtsavBalar1231)
 
 ## [0.6.0] (21.04.2024)
 
