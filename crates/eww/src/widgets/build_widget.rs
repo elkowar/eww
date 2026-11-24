@@ -9,7 +9,11 @@ use gtk::{
 use itertools::Itertools;
 use maplit::hashmap;
 use simplexpr::{dynval::DynVal, SimplExpr};
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{
+    cell::RefCell,
+    collections::{HashMap, VecDeque},
+    rc::Rc,
+};
 use yuck::{
     config::{
         attributes::AttrEntry,
@@ -232,48 +236,135 @@ fn build_loop_special_widget(
                 let elements_expr_span = widget_use.elements_expr_span;
                 let element_name = widget_use.element_name.clone();
                 let body: WidgetUse = widget_use.body.as_ref().clone();
-                let created_children = Rc::new(RefCell::new(Vec::<gtk::Widget>::new()));
-                let created_child_scopes = Rc::new(RefCell::new(Vec::<ScopeIndex>::new()));
+                let state = RefCell::new(LoopState::default());
                 let gtk_container = gtk_container.clone();
                 move |tree, values| {
-                    let elements_value = elements_expr
-                        .eval(&values)?
-                        .as_json_value()?
-                        .as_array()
-                        .context("Not an array value")?
-                        .iter()
-                        .map(DynVal::from)
-                        .collect_vec();
-                    let mut created_children = created_children.borrow_mut();
-                    for old_child in created_children.drain(..) {
-                        gtk_container.remove(&old_child);
-                    }
-                    let mut created_child_scopes = created_child_scopes.borrow_mut();
-                    for child_scope in created_child_scopes.drain(..) {
-                        tree.remove_scope(child_scope);
-                    }
-
-                    for element in elements_value {
-                        let scope = tree.register_new_scope(
-                            format!("for {} = {}", element_name.0, element),
-                            Some(calling_scope),
-                            calling_scope,
-                            hashmap! {
-                                element_name.clone().into() => SimplExpr::Literal(DynVal(element.0, elements_expr_span))
-                            },
-                        )?;
-                        created_child_scopes.push(scope);
-                        let new_child_widget =
-                            build_gtk_widget(tree, widget_defs.clone(), scope, body.clone(), custom_widget_invocation.clone())?;
-                        gtk_container.add(&new_child_widget);
-                        created_children.push(new_child_widget);
-                    }
-
-                    Ok(())
+                    let elements_value = elements_expr.eval(&values)?;
+                    let mut state = state.borrow_mut();
+                    let LoopState { rendered_elements, children } = &mut *state;
+                    let result = if rendered_elements.as_ref() == Some(&elements_value.0) {
+                        Ok(())
+                    } else {
+                        *rendered_elements = None;
+                        let elements = elements_value
+                            .as_json_value()?
+                            .as_array()
+                            .context("Not an array value")?
+                            .iter()
+                            .map(DynVal::from)
+                            .collect_vec();
+                        let build_child = |tree: &mut ScopeGraph, element: &DynVal| {
+                            let scope = tree.register_new_scope(
+                                format!("for {} = {}", element_name.0, element),
+                                Some(calling_scope),
+                                calling_scope,
+                                hashmap! {
+                                    element_name.clone().into() => SimplExpr::Literal(DynVal(element.0.clone(), elements_expr_span))
+                                },
+                            )?;
+                            match build_gtk_widget(tree, widget_defs.clone(), scope, body.clone(), custom_widget_invocation.clone()) {
+                                Ok(widget) => Ok((widget, scope)),
+                                Err(err) => {
+                                    tree.remove_scope(scope);
+                                    Err(err)
+                                }
+                            }
+                        };
+                        let result = update_loop_children(tree, children, elements, &gtk_container, build_child);
+                        if result.is_ok() {
+                            *rendered_elements = Some(elements_value.0);
+                        }
+                        result
+                    };
+                    move_loop_children_to_end(&gtk_container, children);
+                    result
                 }
             }),
         },
     )
+}
+
+#[derive(Default)]
+struct LoopState {
+    /// The elements value the children were built from, unless building one of them failed.
+    rendered_elements: Option<String>,
+    /// In element order.
+    children: Vec<LoopChild>,
+}
+
+struct LoopChild {
+    /// The element's exact text: `DynVal` equality treats "1" and "1.0" as equal, but a child built for one shows it.
+    element: String,
+    widget: gtk::Widget,
+    scope: ScopeIndex,
+}
+
+/// Update a `for` loop's `children` to `elements`. Each element keeps the child of an equal old element if there is one,
+/// and gets a new child from `build_child` otherwise; old children left over are removed. After a child fails to build,
+/// the remaining elements only keep their old children.
+fn update_loop_children(
+    tree: &mut ScopeGraph,
+    children: &mut Vec<LoopChild>,
+    elements: Vec<DynVal>,
+    gtk_container: &gtk::Container,
+    mut build_child: impl FnMut(&mut ScopeGraph, &DynVal) -> Result<(gtk::Widget, ScopeIndex)>,
+) -> Result<()> {
+    let old_children = std::mem::take(children).into_iter().map(|child| (child.element, (child.widget, child.scope))).collect();
+    let (kept, unused) = match_by_key(old_children, elements.iter().map(|element| element.0.as_str()));
+    // Before adding new children, so that a container that holds a single child has room for the new one.
+    for (widget, scope) in unused {
+        gtk_container.remove(&widget);
+        tree.remove_scope(scope);
+    }
+
+    let mut result = Ok(());
+    for (element, kept) in elements.into_iter().zip(kept) {
+        let (widget, scope) = match kept {
+            Some(kept) => kept,
+            None if result.is_ok() => match build_child(tree, &element) {
+                Ok((widget, scope)) => {
+                    gtk_container.add(&widget);
+                    (widget, scope)
+                }
+                Err(err) => {
+                    result = Err(err);
+                    continue;
+                }
+            },
+            None => continue,
+        };
+        children.push(LoopChild { element: element.0, widget, scope });
+    }
+    result
+}
+
+/// Pair each of `new_keys` with an unused item of `old` that has the same key, taking equal keys' items in order.
+/// Returns the item for each new key and the items left over.
+fn match_by_key<'a, T>(old: Vec<(String, T)>, new_keys: impl IntoIterator<Item = &'a str>) -> (Vec<Option<T>>, Vec<T>) {
+    let mut by_key: HashMap<String, VecDeque<T>> = HashMap::new();
+    for (key, item) in old {
+        by_key.entry(key).or_default().push_back(item);
+    }
+    let matched = new_keys.into_iter().map(|key| by_key.get_mut(key).and_then(VecDeque::pop_front)).collect();
+    (matched, by_key.into_values().flatten().collect())
+}
+
+/// Put the loop's children last in their container, in element order, which is where rebuilding them used to put them.
+/// Only a `gtk::Box` can hold more than one of them; reordering its children keeps their focus and state.
+fn move_loop_children_to_end(container: &gtk::Container, children: &[LoopChild]) {
+    let Some(gtk_box) = container.dynamic_cast_ref::<gtk::Box>() else {
+        return;
+    };
+    let current = gtk_box.children();
+    let tail = &current[current.len().saturating_sub(children.len())..];
+    if tail.len() == children.len() && tail.iter().zip(children).all(|(widget, child)| *widget == child.widget) {
+        return;
+    }
+    for child in children {
+        gtk_box.reorder_child(&child.widget, -1);
+    }
+    // Without this, moved children sometimes kept a pixel-wide stale edge of their text until the next redraw.
+    gtk_box.queue_draw();
 }
 
 /// Handle an invocation of the special `children` [`WidgetUse`].
@@ -363,5 +454,18 @@ fn validate_container_children_count(container: &gtk::Container, widget_use: &Ba
         }))
     } else {
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_match_by_key() {
+        let old = vec![("a", 1), ("b", 2), ("a", 3), ("c", 4)].into_iter().map(|(key, item)| (key.to_string(), item)).collect();
+        let (matched, unused) = match_by_key(old, ["b", "a", "x", "a", "a"]);
+        assert_eq!(matched, vec![Some(2), Some(1), None, Some(3), None]);
+        assert_eq!(unused, vec![4]);
     }
 }

@@ -21,6 +21,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Load systray items that are registered without a path (By: Kage-Yami)
 - `get_locale` now follows POSIX standard for locale selection (By: mirhahn, w-lfchen)
 - Improve multi-monitor handling under wayland (By: bkueng)
+- Fix "Scope not in graph" errors that left widgets stale when a `for` loop changed (By: UtsavBalar1231)
 
 ### Features
 - Add warning and docs for incompatible `:anchor` and `:exclusive` options
@@ -43,6 +44,7 @@ All notable changes to eww will be listed here, starting at changes since versio
 - Add `floor` and `ceil` function calls to simplexpr (By: wsbankenstein)
 - Add `formatbytes` function calls to simplexpr (By: topongo)
 - Add `unfocus-close` property in defwindow (By: liegle)
+- Keep the widgets of unchanged `for` loop elements instead of rebuilding every element (By: UtsavBalar1231)
 
 ## [0.6.0] (21.04.2024)
 
