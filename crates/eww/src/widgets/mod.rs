@@ -4,6 +4,7 @@ pub mod build_widget;
 pub mod circular_progressbar;
 pub mod def_widget_macro;
 pub mod graph;
+mod pixbuf_cache;
 mod systray;
 pub mod transform;
 pub mod widget_definitions;

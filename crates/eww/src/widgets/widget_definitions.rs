@@ -618,7 +618,7 @@ fn build_gtk_image(bargs: &mut BuilderArgs) -> Result<gtk::Image> {
                     pixbuf = gtk::gdk_pixbuf::Pixbuf::from_stream_at_scale(&stream, image_width, image_height, preserve_aspect_ratio, None::<&gtk::gio::Cancellable>)?;
                     stream.close(None::<&gtk::gio::Cancellable>)?;
                 } else {
-                    pixbuf = gtk::gdk_pixbuf::Pixbuf::from_file_at_scale(std::path::PathBuf::from(path), image_width, image_height, preserve_aspect_ratio)?;
+                    pixbuf = super::pixbuf_cache::load_at_scale(&path, image_width, image_height, preserve_aspect_ratio)?;
                 }
                 gtk_widget.set_from_pixbuf(Some(&pixbuf));
             }
