@@ -463,8 +463,19 @@ fn build_gtk_scale(bargs: &mut BuilderArgs) -> Result<gtk::Scale> {
         prop(value_pos: as_string) { gtk_widget.set_value_pos(parse_position_type(&value_pos)?) },
 
         // @prop round-digits - Sets the number of decimals to round the value to when it changes
-        prop(round_digits: as_i32 = 0) { gtk_widget.set_round_digits(round_digits) }
+        prop(round_digits: as_i32 = 0) { gtk_widget.set_round_digits(round_digits) },
 
+        // @prop scroll-amount - how much one scroll notch changes the value. Scrolling up or right increases it, regardless of `flipped`. If unset, GTK's default scrolling is used.
+        prop(scroll_amount: as_f64) {
+            let pending = std::cell::Cell::new(0.0);
+            connect_signal_handler!(gtk_widget, gtk_widget.connect_scroll_event(move |w, evt| {
+                let total = pending.get() + evt.delta().0 - evt.delta().1;
+                let notch = if total.abs() < 1.0 { 0.0 } else { total.signum() };
+                pending.set(if notch == 0.0 { total } else { 0.0 });
+                w.set_value(w.value() + notch * scroll_amount);
+                glib::Propagation::Stop
+            }));
+        }
     });
     Ok(gtk_widget)
 }
